@@ -4,11 +4,14 @@ import { createApp, h } from 'vue';
 import '../css/app.css';
 import { initializeTheme } from './composables/useAppearance';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
-import Layout from './layouts/Layout.vue'
-import AOS from 'aos'
-import 'aos/dist/aos.css'
+import Layout from './layouts/Layout.vue';
+import AuthLayout from './layouts/AuthLayout.vue';
+import AOS from 'aos';
+import 'aos/dist/aos.css';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+const guestPages = ['LandingPage'];
+const noLayoutPages = ['Auth/Register'];
 
 createInertiaApp({
     title: (title) => `RFID - Attendance Monitoring, Borrowing, and Inventory`,
@@ -21,20 +24,26 @@ createInertiaApp({
         // Set default layout for all pages
         page.then((module) => {
             if (module.default.layout === undefined) {
-                module.default.layout = Layout;
+                if (noLayoutPages.includes(name)) {
+                    module.default.layout = null;
+                } else if (guestPages.includes(name)) {
+                    module.default.layout = Layout;
+                } else {
+                    module.default.layout = AuthLayout;
+                }
             }
         });
-                
-                return page;
+
+        return page;
     },
     setup({ el, App, props, plugin }) {
         createApp({ render: () => h(App, props) })
             .use(plugin)
             .use(ZiggyVue)
-            .component("Head", Head)
-            .component("Link", Link)
+            .component('Head', Head)
+            .component('Link', Link)
             .mount(el);
-        AOS.init()
+        AOS.init();
     },
     progress: {
         color: '#4B5563',

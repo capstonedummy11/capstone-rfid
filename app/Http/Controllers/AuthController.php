@@ -25,9 +25,6 @@ class AuthController
         Auth::login($user);
 
         //Redirect
-        return response()->json([
-            'message' => 'Registered successfully',
-            'user' => $user,
-        ]);
+        return redirect()->route('register')->with('success', 'Registered successfully!');
     }
 }
