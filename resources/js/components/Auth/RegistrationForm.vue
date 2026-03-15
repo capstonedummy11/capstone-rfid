@@ -2,6 +2,7 @@
 import { useForm } from '@inertiajs/vue3';
 import RegistrationInput from './RegistrationInput.vue';
 import PasswordField from './PasswordField.vue';
+import { onMounted } from 'vue';
 
 const form = useForm({
     name: null,
@@ -17,6 +18,15 @@ const submit = () => {
         onSuccess: () => form.reset(),
     });
 };
+
+onMounted(() => {
+    if (page.props.flash.success) {
+        showSuccess.value = true;
+        setTimeout(() => {
+            showSuccess.value = false;
+        }, 3000); // 3 seconds
+    }
+});
 </script>
 
 <template>
@@ -29,6 +39,12 @@ const submit = () => {
             </header>
 
             <div class="text-[#101828]">
+                <span
+                    class="my-5 rounded-md bg-green-500 p-5 text-center"
+                    v-if="showSuccess"
+                >
+                    {{ $page.props.flash.success }}
+                </span>
                 <form @submit.prevent="submit">
                     <RegistrationInput
                         label="Name"
