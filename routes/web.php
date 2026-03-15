@@ -18,9 +18,10 @@ Route::prefix('admin')
     ->middleware(['auth'])
     ->name('admin.')
     ->group(function () {
-        Route::inertia('/dashboard', 'Auth/Admin/Dashboard')->name('dashboard');
-        Route::inertia('/instructors-management', 'InstructorsManagement')->name('instructorsManagement');
+        Route::inertia('/dashboard', 'Auth/Admin/Dashboard', ['title' => 'Dashboard'])->name('dashboard');
+        //Route::inertia('/instructors-management', 'InstructorsManagement', ['title' => 'Instructor Management'])->name('instructorsManagement');
         Route::inertia('/students-management', 'StudentsManagement')->name('studentsManagement');
+        Route::inertia('/laboratories', 'Auth/Admin/Laboratories', ['title' => 'Laboratories'])->name('laboratories');
     });
 
 

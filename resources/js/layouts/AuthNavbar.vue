@@ -23,10 +23,12 @@ const links = [
     {
         icon: Graduation,
         text: 'School Year',
+        //route: route('admin.instructorsManagement'),
     },
     {
         icon: Laboratory,
         text: 'Laboratories',
+        route: route('admin.laboratories'),
     },
     {
         icon: Schedule,
@@ -69,7 +71,7 @@ const links = [
 
 <template>
     <nav
-        class="flex w-[250px] flex-col justify-between bg-white drop-shadow-xl"
+        class="flex w-[250px] flex-col justify-between bg-white text-default drop-shadow-xl"
     >
         <div class="flex flex-col">
             <header class="p-4 text-nav-header">
