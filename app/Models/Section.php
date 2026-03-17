@@ -9,8 +9,7 @@ class Section extends Model
 {
     use HasFactory;
 
-    protected $table = 'sections';
-    protected $primaryKey = 'section_id';
+    protected $table = 'section';
 
     protected $fillable = [
         'section_id',

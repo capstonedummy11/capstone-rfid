@@ -23,8 +23,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'role',
-        'rfid_tag',
+        'role'
     ];
 
     /**
