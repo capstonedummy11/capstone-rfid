@@ -10,7 +10,7 @@ class BorrowingItem extends Model
 
   protected $fillable = [
     'borrowing_id',
-    'device_id',
+    'item_id',
     'quantity',
     'status',
   ];
@@ -20,8 +20,13 @@ class BorrowingItem extends Model
     return $this->belongsTo(Borrowing::class, 'borrowing_id', 'borrowing_id');
   }
 
+  public function item()
+  {
+    return $this->belongsTo(Device::class, 'item_id', 'item_id');
+  }
+
   public function device()
   {
-    return $this->belongsTo(Device::class, 'device_id', 'device_id');
+    return $this->item();
   }
 }

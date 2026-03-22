@@ -138,10 +138,10 @@ class BorrowSeeder extends Seeder
 
     // Devices (exact constants from BORROW_ITEMS_EXAMPLE in Borrow.vue)
     $monitor = Device::updateOrCreate(
-      ['device_code' => 'DEV-00421'],
+      ['item_code' => 'DEV-00421'],
       [
-        'device_name' => 'Samsung Monitor 24 Inch IPS',
-        'device_type' => 'Monitor',
+        'item_name' => 'Samsung Monitor 24 Inch IPS',
+        'item_type' => 'Monitor',
         'barcode' => '971844908878',
         'brand' => 'Samsung',
         'model' => '24" IPS',
@@ -150,10 +150,10 @@ class BorrowSeeder extends Seeder
     );
 
     $keyboard = Device::updateOrCreate(
-      ['device_code' => 'DEV-00981'],
+      ['item_code' => 'DEV-00981'],
       [
-        'device_name' => 'Logitech Wireless Keyboard',
-        'device_type' => 'Keyboard',
+        'item_name' => 'Logitech Wireless Keyboard',
+        'item_type' => 'Keyboard',
         'barcode' => '5591590719996302436',
         'brand' => 'Logitech',
         'model' => 'MK270',
@@ -162,10 +162,10 @@ class BorrowSeeder extends Seeder
     );
 
     $mouse = Device::updateOrCreate(
-      ['device_code' => 'DEV-00271'],
+      ['item_code' => 'DEV-00271'],
       [
-        'device_name' => 'A4Tech Optical Mouse',
-        'device_type' => 'Mouse',
+        'item_name' => 'A4Tech Optical Mouse',
+        'item_type' => 'Mouse',
         'barcode' => '352479230923229',
         'brand' => 'A4Tech',
         'model' => 'OP-620D',
@@ -185,14 +185,14 @@ class BorrowSeeder extends Seeder
 
     BorrowingItem::create([
       'borrowing_id' => $borrowing->borrowing_id,
-      'device_id' => $monitor->device_id,
+      'item_id' => $monitor->item_id,
       'quantity' => 1,
       'status' => 'borrowed',
     ]);
 
     BorrowingItem::create([
       'borrowing_id' => $borrowing->borrowing_id,
-      'device_id' => $keyboard->device_id,
+      'item_id' => $keyboard->item_id,
       'quantity' => 1,
       'status' => 'borrowed',
     ]);
@@ -212,7 +212,7 @@ class BorrowSeeder extends Seeder
 
     BorrowingItem::create([
       'borrowing_id' => $borrowing2->borrowing_id,
-      'device_id' => $mouse->device_id,
+      'item_id' => $mouse->item_id,
       'quantity' => 1,
       'status' => 'returned',
     ]);

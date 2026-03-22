@@ -7,11 +7,11 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
   public function up(): void
   {
-    Schema::create('inventory', function (Blueprint $table) {
-      $table->id('device_id');
-      $table->string('device_name');
-      $table->string('device_code')->unique();
-      $table->string('device_type');
+    Schema::create('items', function (Blueprint $table) {
+      $table->id('item_id');
+      $table->string('item_name');
+      $table->string('item_code')->unique();
+      $table->string('item_type');
       $table->string('barcode')->unique();
       $table->string('brand')->nullable();
       $table->string('model')->nullable();
@@ -29,6 +29,6 @@ return new class extends Migration {
 
   public function down(): void
   {
-    Schema::dropIfExists('inventory');
+    Schema::dropIfExists('items');
   }
 };

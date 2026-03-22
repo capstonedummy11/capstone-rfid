@@ -534,7 +534,7 @@ const showUserInfo = (rfid) => {
         <!-- RIGHT: Items + Barcode -->
         <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:10px;">
 
-        <!-- Device Info -->
+        <!-- Item Info -->
         <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:12px 16px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
             <div style="font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#94a3b8;">Items to Borrow (${borrowItems.length})</div>
@@ -830,7 +830,7 @@ onUnmounted(() => {
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');
 
-/* ── Popup 1: ID card + device ── */
+/* ── Popup 1: ID card + item ── */
 .swal-id-popup {
   border-radius: 20px !important;
   padding: 20px !important;

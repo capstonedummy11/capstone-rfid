@@ -12,8 +12,8 @@ return new class extends Migration {
       $table->foreignId('borrowing_id')
         ->constrained('borrowings', 'borrowing_id')
         ->cascadeOnDelete();
-      $table->foreignId('device_id')
-        ->constrained('inventory', 'device_id')
+      $table->foreignId('item_id')
+        ->constrained('items', 'item_id')
         ->restrictOnDelete();
       $table->unsignedInteger('quantity')->default(1);
       $table->enum('status', [

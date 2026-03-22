@@ -6,13 +6,13 @@ use Illuminate\Database\Eloquent\Model;
 
 class Device extends Model
 {
-  protected $table = 'inventory';
-  protected $primaryKey = 'device_id';
+  protected $table = 'items';
+  protected $primaryKey = 'item_id';
 
   protected $fillable = [
-    'device_name',
-    'device_code',
-    'device_type',
+    'item_name',
+    'item_code',
+    'item_type',
     'barcode',
     'brand',
     'model',
@@ -22,6 +22,6 @@ class Device extends Model
 
   public function borrowingItems()
   {
-    return $this->hasMany(BorrowingItem::class, 'device_id', 'device_id');
+    return $this->hasMany(BorrowingItem::class, 'item_id', 'item_id');
   }
 }

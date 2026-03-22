@@ -40,7 +40,7 @@ class BorrowController
   {
     $statusMap = $this->statusMap();
 
-    $query = Borrowing::with(['student', 'instructor', 'items.device'])
+    $query = Borrowing::with(['student', 'instructor', 'items.item'])
       ->when($filters['search'] !== '', function ($query) use ($filters) {
         $term = $filters['search'];
         $query->where(function ($subQuery) use ($term) {
@@ -58,10 +58,10 @@ class BorrowController
                 ->orWhere('email', 'like', "%{$term}%")
                 ->orWhere('rfid_tag', 'like', "%{$term}%");
             })
-            ->orWhereHas('items.device', function ($deviceQuery) use ($term) {
-              $deviceQuery
-                ->where('device_name', 'like', "%{$term}%")
-                ->orWhere('device_code', 'like', "%{$term}%")
+            ->orWhereHas('items.item', function ($itemQuery) use ($term) {
+              $itemQuery
+                ->where('item_name', 'like', "%{$term}%")
+                ->orWhere('item_code', 'like', "%{$term}%")
                 ->orWhere('barcode', 'like', "%{$term}%");
             });
         });
@@ -84,7 +84,7 @@ class BorrowController
           : ('INS-' . ($borrowing->instructor->user_id ?? 'N/A'));
 
         $itemNames = $borrowing->items
-          ->map(fn($item) => $item->device->device_name ?? null)
+          ->map(fn($item) => $item->item->item_name ?? null)
           ->filter()
           ->values();
 
@@ -173,14 +173,14 @@ class BorrowController
   {
     return Device::query()
       ->whereNotNull('barcode')
-      ->select(['device_name', 'device_code', 'device_type', 'barcode'])
-      ->orderBy('device_code')
+      ->select(['item_name', 'item_code', 'item_type', 'barcode'])
+      ->orderBy('item_code')
       ->get()
       ->map(function ($device) {
         return [
-          'name' => $device->device_name,
-          'id' => $device->device_code,
-          'type' => $device->device_type,
+          'name' => $device->item_name,
+          'id' => $device->item_code,
+          'type' => $device->item_type,
           'barcode' => (string) $device->barcode,
         ];
       })
@@ -191,7 +191,7 @@ class BorrowController
   {
     $map = [];
 
-    $borrowings = Borrowing::with(['student', 'instructor', 'items.device'])
+    $borrowings = Borrowing::with(['student', 'instructor', 'items.item'])
       ->whereIn('status', ['active', 'overdue'])
       ->get();
 
@@ -214,16 +214,16 @@ class BorrowController
       }
 
       foreach ($borrowing->items as $item) {
-        $device = $item->device;
-        if (!$device || empty($device->barcode)) {
+        $borrowedItem = $item->item;
+        if (!$borrowedItem || empty($borrowedItem->barcode)) {
           continue;
         }
 
         $map[$rfidKey][] = [
-          'name' => $device->device_name,
-          'id' => $device->device_code,
-          'type' => $device->device_type,
-          'barcode' => (string) $device->barcode,
+          'name' => $borrowedItem->item_name,
+          'id' => $borrowedItem->item_code,
+          'type' => $borrowedItem->item_type,
+          'barcode' => (string) $borrowedItem->barcode,
         ];
       }
     }
