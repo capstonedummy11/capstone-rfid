@@ -3,7 +3,7 @@
         <div
             class="absolute inset-0 flex h-full w-full items-center justify-center"
         >
-            <form class="m-10 w-full">
+            <form class="m-10 w-full" @submit.prevent="submit">
                 <div class="m-5">
                     <header class="py-5">
                         <h1
@@ -18,6 +18,7 @@
                             <input
                                 type="email"
                                 name="email"
+                                v-model="form.email"
                                 class="h-[50px] w-full rounded-[10px] border-2 p-2"
                             />
                         </div>
@@ -27,6 +28,7 @@
                                 <input
                                     :type="showPassword ? 'text' : 'password'"
                                     name="password"
+                                    v-model="form.password"
                                     class="h-[50px] w-full rounded-[10px] border-2 p-2 pr-10"
                                 />
                                 <button
@@ -46,8 +48,8 @@
                         </div>
 
                         <div class="space-y-5">
-                            <LoginButton text="Login" />
-                            <LoginButton text="Login as Admin" />
+                            <LoginButton :disabled="form.processing" text="Login" />
+                            <LoginButton :disabled="form.processing" text="Login as Admin" />
                         </div>
                     </div>
                 </div>
@@ -57,8 +59,20 @@
 </template>
 <script setup>
 import { ref } from 'vue';
+import { useForm } from '@inertiajs/vue3';
 import EyeOn from '../Icon/EyeOn.vue';
 import EyeOff from '../Icon/EyeOff.vue';
 import LoginButton from '../Buttons/LoginButton.vue';
+
 const showPassword = ref(false);
+
+const form = useForm({
+    email: '',
+    password: '',
+    remember: false,
+});
+
+const submit = () => {
+    form.post('/login');
+};
 </script>

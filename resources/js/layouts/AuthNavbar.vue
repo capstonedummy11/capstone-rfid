@@ -1,4 +1,5 @@
 <script setup>
+import { Link } from '@inertiajs/vue3';
 import Navlinks from '@/components/Auth/Navlinks.vue';
 import ActivityLogs from '@/components/Icon/ActivityLogs.vue';
 import Attendance from '@/components/Icon/Attendance.vue';
@@ -49,6 +50,7 @@ const links = [
     {
         icon: Borrowing,
         text: 'Borrowing',
+        route: route('admin.borrow'),
     },
     {
         icon: Reports,
@@ -118,7 +120,13 @@ const links = [
         </div>
 
         <!-- Logout Button -->
-        <Link class="auth-nav-link group border-t-2">
+        <Link
+            :href="route('logout')"
+            method="post"
+            as="button"
+            type="button"
+            class="auth-nav-link group w-full border-t-2 text-left"
+        >
             <LogoutIcon class="text-[#A3AED0] group-hover:text-brand" />
             <h1>Logout</h1>
         </Link>

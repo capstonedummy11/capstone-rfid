@@ -1,19 +1,23 @@
 <template>
-    <div
+    <button
         v-if="text == 'Login'"
+        type="submit"
+        :disabled="disabled"
         class="h-[50px] w-full cursor-pointer rounded-[10px] bg-brand text-center leading-[50px] text-white"
     >
-        <Link> {{ text }} </Link>
-    </div>
+        {{ text }}
+    </button>
 
-    <div
+    <button
         v-else
+        type="submit"
+        :disabled="disabled"
         class="h-[50px] w-full cursor-pointer rounded-[10px] bg-brand text-center leading-[50px] text-white"
     >
-        <Link class="flex items-center justify-center gap-2">
+        <span class="flex items-center justify-center gap-2">
             <UserRound class="shrink-0" /> {{ text }}
-        </Link>
-    </div>
+        </span>
+    </button>
 </template>
 <script setup>
 import UserRound from '../Icon/UserRound.vue';
@@ -22,6 +26,10 @@ const props = defineProps({
     text: {
         type: String,
         requied: true,
+    },
+    disabled: {
+        type: Boolean,
+        default: false,
     },
 });
 </script>

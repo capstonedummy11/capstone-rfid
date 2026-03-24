@@ -4,6 +4,7 @@ defineOptions({
 });
 
 import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { Link } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
 
 const props = defineProps({
