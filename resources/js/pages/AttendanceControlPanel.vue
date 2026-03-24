@@ -11,12 +11,22 @@ const props = defineProps({
     type: Array,
     default: () => ['Computer Lab 1', 'Computer Lab 2', 'RFID Laboratory', 'Network Lab'],
   },
+  studentToastSeconds: {
+    type: Number,
+    default: 15,
+  },
+  studentInfoVisibleSeconds: {
+    type: Number,
+    default: 10,
+  },
 });
 
 // --- Panel gate / access control ---
 const panelUnlocked = ref(false);
 const selectedRoom = ref('');
-const gateStep = ref('room'); // 'room' | 'pin'
+const gateStep = ref('pin'); // 'pin' | 'room'
+const pinVerified = ref(false);
+const attendeesDrawerOpen = ref(false);
 const pinValue = ref('');
 const pinError = ref('');
 const pinLoading = ref(false);
@@ -135,11 +145,11 @@ let tapHeadlineTimer = null;
 const SCAN_TIMEOUT = 300;
 const AUTO_FINALIZE_DELAY = 120;
 const SCAN_TERMINATORS = new Set(['Enter', 'NumpadEnter', 'Tab']);
-const studentToastSeconds = Number(import.meta.env.VITE_STUDENT_TOAST_SECONDS ?? 15);
+const studentToastSeconds = Number(props.studentToastSeconds ?? 15);
 const STUDENT_TOAST_MS = Number.isFinite(studentToastSeconds) && studentToastSeconds > 0
   ? studentToastSeconds * 1000
   : 15000;
-const studentInfoVisibleSeconds = Number(import.meta.env.VITE_STUDENT_INFO_VISIBLE_SECONDS ?? 10);
+const studentInfoVisibleSeconds = Number(props.studentInfoVisibleSeconds ?? 10);
 const STUDENT_INFO_VISIBLE_MS = Number.isFinite(studentInfoVisibleSeconds) && studentInfoVisibleSeconds > 0
   ? studentInfoVisibleSeconds * 1000
   : 10000;
@@ -266,6 +276,9 @@ const showToast = (icon, title) => {
     position: 'top-end',
     icon,
     title,
+    customClass: {
+      popup: 'hover-fade-toast',
+    },
     showConfirmButton: false,
     timer: 1800,
     timerProgressBar: true,
@@ -277,6 +290,9 @@ const showStudentToast = (student, message, icon = 'success') => {
     toast: true,
     position: 'top-end',
     icon,
+    customClass: {
+      popup: 'hover-fade-toast',
+    },
     html: `
       <div style="display:flex; align-items:center; gap:10px; font-family:'DM Sans',sans-serif;">
         <img
@@ -410,8 +426,8 @@ const showInstructorOptions = async () => {
   }
 };
 
-const unlockPanel = async () => {
-  if (!selectedRoom.value || !pinValue.value) return;
+const verifyPin = async () => {
+  if (!pinValue.value) return;
   pinError.value = '';
   pinLoading.value = true;
   try {
@@ -429,30 +445,42 @@ const unlockPanel = async () => {
       body: JSON.stringify({ pin: pinValue.value }),
     });
     if (response.ok) {
-      localStorage.setItem('panelAuth', JSON.stringify({
-        unlocked: true,
-        room: selectedRoom.value,
-        timestamp: Date.now(),
-      }));
-      panelUnlocked.value = true;
+      pinVerified.value = true;
+      gateStep.value = 'room';
     } else {
       const data = await response.json().catch(() => ({}));
       pinError.value = data.message ?? 'Incorrect PIN. Please try again.';
       pinValue.value = '';
+      pinVerified.value = false;
     }
   } catch {
     pinError.value = 'Connection error. Please retry.';
+    pinVerified.value = false;
   } finally {
     pinLoading.value = false;
   }
 };
 
+const unlockPanel = () => {
+  if (!selectedRoom.value || !pinVerified.value) return;
+
+  localStorage.setItem('panelAuth', JSON.stringify({
+    unlocked: true,
+    room: selectedRoom.value,
+    timestamp: Date.now(),
+  }));
+  panelUnlocked.value = true;
+};
+
 const logoutPanel = () => {
   panelUnlocked.value = false;
+  attendeesDrawerOpen.value = false;
   selectedRoom.value = '';
-  gateStep.value = 'room';
+  gateStep.value = 'pin';
+  pinVerified.value = false;
   pinValue.value = '';
   pinError.value = '';
+  roomSearch.value = '';
   sessionActive.value = false;
   currentMode.value = 'idle';
   activeProfessor.value = null;
@@ -646,13 +674,55 @@ onUnmounted(() => {
 
       <!-- Card -->
       <div class="rounded-[28px] bg-white p-10 shadow-xl ring-1 ring-slate-200/70">
-        <!-- Step 1: Room Selection -->
-        <div v-if="gateStep === 'room'">
+        <!-- Step 1: PIN Entry -->
+        <div v-if="gateStep === 'pin'">
           <div class="text-[10px] font-bold uppercase tracking-[0.28em] text-slate-400">Step 1 of 2</div>
+          <h2 class="mt-3 text-2xl font-extrabold text-slate-900">Enter Access PIN</h2>
+          <p class="mt-2 text-base text-slate-500">Verify administrator access before selecting a room.</p>
+          <div class="mt-5">
+            <input
+              v-model="pinValue"
+              type="password"
+              inputmode="numeric"
+              maxlength="8"
+              placeholder="● ● ● ●"
+              autocomplete="one-time-code"
+              class="w-full rounded-2xl border-2 border-slate-200 bg-slate-50 px-4 py-3.5 text-center text-xl font-bold tracking-[0.5em] text-slate-900 placeholder:tracking-normal placeholder:text-slate-300 outline-none transition focus:border-[#123456] focus:bg-white focus:ring-2 focus:ring-[#123456]/10"
+              :class="pinError ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : ''"
+              @keydown.enter="verifyPin"
+            />
+            <p v-if="pinError" class="mt-2 text-center text-xs font-semibold text-red-500">{{ pinError }}</p>
+          </div>
+          <button
+            type="button"
+            class="mt-5 w-full rounded-2xl bg-[#123456] py-4 text-base font-bold text-white shadow-sm transition hover:bg-[#0e2840] disabled:cursor-not-allowed disabled:opacity-40"
+            :disabled="!pinValue || pinLoading"
+            @click="verifyPin"
+          >
+            <span v-if="pinLoading">Verifying...</span>
+            <span v-else>Continue to Room Selection →</span>
+          </button>
+          <Link
+            :href="route('landingPage')"
+            class="mt-3 block w-full rounded-2xl border border-slate-200 bg-white py-3 text-center text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+          >
+            Exit
+          </Link>
+        </div>
+
+        <!-- Step 2: Room Selection -->
+        <div v-else>
+          <button
+            type="button"
+            class="text-xs font-semibold text-slate-400 transition hover:text-slate-700"
+            @click="gateStep = 'pin'; pinValue = ''; pinError = ''; pinVerified = false"
+          >
+            ← Change PIN
+          </button>
+          <div class="mt-4 text-[10px] font-bold uppercase tracking-[0.28em] text-slate-400">Step 2 of 2</div>
           <h2 class="mt-3 text-2xl font-extrabold text-slate-900">Select a Room</h2>
           <p class="mt-2 text-base text-slate-500">Which room is this panel assigned to?</p>
-          
-          <!-- Search input -->
+
           <div class="mt-5">
             <input
               v-model="roomSearch"
@@ -661,8 +731,7 @@ onUnmounted(() => {
               class="w-full rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-3 text-base outline-none transition focus:border-[#123456] focus:bg-white focus:ring-2 focus:ring-[#123456]/10"
             />
           </div>
-          
-          <!-- Scrollable room grid -->
+
           <div class="mt-4 max-h-96 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50/30 p-4">
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <button
@@ -683,57 +752,14 @@ onUnmounted(() => {
               No rooms found
             </div>
           </div>
-          
+
           <button
             type="button"
             class="mt-5 w-full rounded-2xl bg-[#123456] py-4 text-base font-bold text-white shadow-sm transition hover:bg-[#0e2840] disabled:cursor-not-allowed disabled:opacity-40"
-            :disabled="!selectedRoom"
-            @click="gateStep = 'pin'"
-          >
-            Continue →
-          </button>
-        </div>
-
-        <!-- Step 2: PIN Entry -->
-        <div v-else>
-          <button
-            type="button"
-            class="text-xs font-semibold text-slate-400 transition hover:text-slate-700"
-            @click="gateStep = 'room'; pinValue = ''; pinError = ''; roomSearch = ''"
-          >
-            ← Change Room
-          </button>
-          <div class="mt-4 inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-1.5">
-            <svg class="h-3.5 w-3.5 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/>
-              <path stroke-linecap="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0z"/>
-            </svg>
-            <span class="text-xs font-bold text-slate-700">{{ selectedRoom }}</span>
-          </div>
-          <h2 class="mt-4 text-xl font-extrabold text-slate-900">Enter Access PIN</h2>
-          <p class="mt-1 text-sm text-slate-500">Enter the administrator PIN to unlock this panel.</p>
-          <div class="mt-5">
-            <input
-              v-model="pinValue"
-              type="password"
-              inputmode="numeric"
-              maxlength="8"
-              placeholder="● ● ● ●"
-              autocomplete="one-time-code"
-              class="w-full rounded-2xl border-2 border-slate-200 bg-slate-50 px-4 py-3.5 text-center text-xl font-bold tracking-[0.5em] text-slate-900 placeholder:tracking-normal placeholder:text-slate-300 outline-none transition focus:border-[#123456] focus:bg-white focus:ring-2 focus:ring-[#123456]/10"
-              :class="pinError ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : ''"
-              @keydown.enter="unlockPanel"
-            />
-            <p v-if="pinError" class="mt-2 text-center text-xs font-semibold text-red-500">{{ pinError }}</p>
-          </div>
-          <button
-            type="button"
-            class="mt-4 w-full rounded-2xl bg-[#123456] py-3.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#0e2840] disabled:cursor-not-allowed disabled:opacity-50"
-            :disabled="!pinValue || pinLoading"
+            :disabled="!selectedRoom || !pinVerified"
             @click="unlockPanel"
           >
-            <span v-if="pinLoading">Verifying…</span>
-            <span v-else>Unlock Panel</span>
+            Unlock Panel
           </button>
         </div>
       </div>
@@ -775,6 +801,19 @@ onUnmounted(() => {
               <div class="text-[9px] font-bold uppercase tracking-[0.22em] text-white/55">Time</div>
               <div class="text-xs font-semibold">{{ currentTime }}</div>
             </div>
+            <button
+              type="button"
+              class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+              title="Show students who attended"
+              @click="attendeesDrawerOpen = true"
+            >
+              <svg class="h-4 w-4 text-[#123456]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16 19a4 4 0 0 0-8 0"></path>
+                <circle cx="12" cy="9" r="3.2"></circle>
+                <path stroke-linecap="round" stroke-linejoin="round" d="M7 19H4.5A1.5 1.5 0 0 1 3 17.5v-11A1.5 1.5 0 0 1 4.5 5h15A1.5 1.5 0 0 1 21 6.5v11a1.5 1.5 0 0 1-1.5 1.5H17"></path>
+              </svg>
+              <span>Attendees ({{ attendanceCount }})</span>
+            </button>
             <button
               type="button"
               class="rounded-xl bg-red-50 border border-red-200 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100"
@@ -906,6 +945,89 @@ onUnmounted(() => {
       <span>{{ scanPulse ? 'Scanned!' : !isListening ? 'Scanner Paused' : sessionActive ? modeLabel : 'RFID Listening' }}</span>
       <span v-if="isListening && !scanPulse" class="absolute top-2 right-2 h-2 w-2 animate-ping rounded-full bg-emerald-500"></span>
     </button>
+
+    <div
+      v-if="attendeesDrawerOpen"
+      class="fixed inset-0 z-50"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Attendees list"
+    >
+      <button
+        type="button"
+        class="absolute inset-0 bg-slate-900/35"
+        aria-label="Close attendees drawer"
+        @click="attendeesDrawerOpen = false"
+      ></button>
+
+      <aside class="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl ring-1 ring-slate-200">
+        <div class="flex h-full flex-col">
+          <div class="border-b border-slate-200 px-5 py-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#123456] text-white shadow-sm">
+                  <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16 19a4 4 0 0 0-8 0"></path>
+                    <circle cx="12" cy="9" r="3.2"></circle>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 19H4.5A1.5 1.5 0 0 1 3 17.5v-11A1.5 1.5 0 0 1 4.5 5h15A1.5 1.5 0 0 1 21 6.5v11a1.5 1.5 0 0 1-1.5 1.5H17"></path>
+                  </svg>
+                </div>
+                <div>
+                <div class="text-[10px] font-bold uppercase tracking-[0.24em] text-slate-400">Attendance Drawer</div>
+                <h3 class="mt-1 text-xl font-extrabold text-slate-900">Students Attended</h3>
+                </div>
+              </div>
+              <button
+                type="button"
+                class="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                @click="attendeesDrawerOpen = false"
+              >
+                Close
+              </button>
+            </div>
+            <div class="mt-3 inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700">
+              <span>Total:</span>
+              <span class="font-bold">{{ attendanceCount }}</span>
+            </div>
+          </div>
+
+          <div class="flex-1 overflow-y-auto px-4 py-4">
+            <div v-if="attendanceRecords.length === 0" class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
+              <div class="mb-2 flex justify-center">
+                <div class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-slate-500">
+                  <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16 19a4 4 0 0 0-8 0"></path>
+                    <circle cx="12" cy="9" r="3.2"></circle>
+                  </svg>
+                </div>
+              </div>
+              <div class="text-sm font-semibold text-slate-600">No attendance yet</div>
+              <div class="mt-1 text-xs text-slate-500">Students will appear here after their RFID tap is recorded.</div>
+            </div>
+
+            <ul v-else class="space-y-3">
+              <li
+                v-for="record in attendanceRecords"
+                :key="record.id"
+                class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"
+              >
+                <div class="flex items-center justify-between gap-3">
+                  <div>
+                    <div class="text-sm font-bold text-slate-900">{{ record.name }}</div>
+                    <div class="mt-0.5 text-xs text-slate-500">{{ record.course }} • {{ record.section }}</div>
+                  </div>
+                  <div class="rounded-lg bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">{{ record.status }}</div>
+                </div>
+                <div class="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+                  <span>RFID: {{ record.rfid }}</span>
+                  <span>{{ record.time }}</span>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </aside>
+    </div>
   </div>
 </template>
 
@@ -924,5 +1046,13 @@ onUnmounted(() => {
   font-family: 'DM Sans', sans-serif !important;
   font-weight: 700 !important;
   padding: 10px 24px !important;
+}
+
+.swal2-toast.hover-fade-toast {
+  transition: opacity 180ms ease;
+}
+
+.swal2-toast.hover-fade-toast:hover {
+  opacity: 0;
 }
 </style>

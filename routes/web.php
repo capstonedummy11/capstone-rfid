@@ -9,10 +9,12 @@ Route::inertia('/', 'LandingPage')->name('landingPage');
 Route::inertia('/about', 'About')->name('about');
 Route::inertia('/attendance-control-panel', 'AttendanceControlPanel', [
   'rooms' => ['Computer Lab 1', 'Computer Lab 2', 'RFID Laboratory', 'Network Lab'],
+  'studentToastSeconds' => config('panel.student_toast_seconds', 15),
+  'studentInfoVisibleSeconds' => config('panel.student_info_visible_seconds', 10),
 ])->name('attendanceControlPanel');
 
 Route::post('/panel-verify', function (\Illuminate\Http\Request $request) {
-  $pin = (string) env('PANEL_PIN', '1234');
+  $pin = (string) config('panel.pin', '1234');
   if ((string) $request->input('pin', '') === $pin) {
     return response()->json(['success' => true]);
   }
