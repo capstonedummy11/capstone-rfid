@@ -7,9 +7,10 @@ This guide is for a brand-new machine. Follow the steps in order.
 1. Install XAMPP (includes PHP and MySQL): [Go to XAMPP installation](#step-1-install-xampp)
 2. Install Node.js and npm: [Go to Node.js installation](#step-2-install-nodejs-and-npm)
 3. Install Composer: [Go to Composer installation](#step-3-install-composer)
-4. Get the project code and dependencies: [Go to project setup](#step-4-project-setup)
-5. Configure environment and database: [Go to environment setup](#step-5-environment-and-database)
-6. Run the app (backend + frontend): [Go to run commands](#step-6-run-the-system)
+4. Copy the repository to your own device: [Go to repository copy step](#step-4-copy-the-repository-to-your-device)
+5. Install project dependencies: [Go to project setup](#step-5-project-setup)
+6. Configure environment and database: [Go to environment setup](#step-6-environment-and-database)
+7. Run the app (backend + frontend): [Go to run commands](#step-7-run-the-system)
 
 ## What You Will Run Daily
 
@@ -56,7 +57,28 @@ npm -v
 composer -V
 ```
 
-## Step 4: Project Setup
+## Step 4: Copy the Repository to Your Device
+
+You can copy the project in two ways.
+
+### Option A: Clone with Git (recommended)
+
+1. Open terminal where you want to save the project.
+2. Run:
+
+```bash
+git clone https://github.com/capstonedummy11/capstone-rfid.git
+cd capstone-rfid
+```
+
+### Option B: Download ZIP (no Git needed)
+
+1. Open the repository in browser.
+2. Click **Code** -> **Download ZIP**.
+3. Extract the ZIP to your preferred folder.
+4. Open terminal inside the extracted project folder.
+
+## Step 5: Project Setup
 
 1. Open terminal in project root.
 2. Install PHP dependencies:
@@ -71,7 +93,7 @@ composer install
 npm install
 ```
 
-## Step 5: Environment and Database
+## Step 6: Environment and Database
 
 1. Create your environment file:
 
@@ -103,7 +125,7 @@ DB_PASSWORD=
 php artisan migrate --seed
 ```
 
-## Step 6: Run the System
+## Step 7: Run the System
 
 Run both commands in separate terminals:
 
@@ -118,7 +140,7 @@ npm run dev
 Open:
 - App: `http://127.0.0.1:8000`
 
-## Step 7: Default Troubleshooting
+## Step 8: Default Troubleshooting
 
 ### Problem: `php` command not found
 
