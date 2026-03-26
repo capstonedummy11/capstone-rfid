@@ -18,6 +18,11 @@
                         class="m-5"
                     />
                     <NavButton
+                        :href="route('attendanceControlPanel')"
+                        :label="'Attendance Panel'"
+                        class="m-5"
+                    />
+                    <NavButton
                         :label="'Login'"
                         :is-blue="true"
                         class="m-5"
@@ -42,6 +47,12 @@
                 <NavButton
                     href="#about_us"
                     :label="'About Us'"
+                    class="m-5"
+                    @click="isMenuOpen = false"
+                />
+                <NavButton
+                    :href="route('attendanceControlPanel')"
+                    :label="'Attendance Panel'"
                     class="m-5"
                     @click="isMenuOpen = false"
                 />

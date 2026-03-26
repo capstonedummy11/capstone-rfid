@@ -11,6 +11,9 @@
     .text-secondary {
         color: '#0084C7';
     }
+    .auth-nav-link {
+        @apply flex items-center gap-5 p-4 hover:bg-black/20 hover:text-brand;
+    }
 }
 
 @font-face {
@@ -19,7 +22,9 @@
 }
 
 @theme inline {
+    --color-nav-header: #a8abbc;
     --color-brand: #0084c7;
+    --color-default: #252c58;
     --color-custom-gray: #868686;
     --font-raleway: 'Raleway', sans-serif;
     --font-sans:
