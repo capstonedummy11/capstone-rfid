@@ -27,18 +27,21 @@ const links = [
         text: 'School Year',
         //route: route('admin.instructorsManagement'),
     },
+
+
     {
-        icon: Laboratory,
-        text: 'Laboratories',
-        route: route('admin.laboratories'),
+        icon: Graduation,
+        text: 'Courses',
+        route: route('admin.courses.index'),
     },
     {
-        icon: Schedule,
-        text: 'Schedule',
+        icon: Section,
+        text: 'Sections',
+        route: route('admin.sections.index'),
     },
     {
         icon: Instructor,
-        text: 'Instructor',
+        text: 'Instructors',
         route: route('admin.instructors.index'),
     },
     {
@@ -47,12 +50,22 @@ const links = [
         route: route('admin.students.index'),
     },
     {
-        icon: Section,
-        text: 'Section',
+        icon: Laboratory,
+        text: 'Laboratories',
+        route: route('admin.laboratories'),
+    },
+    {
+        icon: RFID,
+        text: 'RFID',
+        route: route('admin.rfid'),
     },
     {
         icon: Attendance,
         text: 'Attendance',
+    },
+    {
+        icon: Schedule,
+        text: 'Schedules',
     },
     {
         icon: Borrowing,
@@ -71,11 +84,7 @@ const links = [
         icon: Trash,
         text: 'Trash',
     },
-    {
-        icon: RFID,
-        text: 'RFID Management',
-        route: route('admin.rfid'),
-    },
+
 ];
 </script>
 
@@ -85,12 +94,12 @@ const links = [
     >
         <div class="flex flex-col">
             <header class="p-4 text-nav-header">
-                <h1 class="text-[18px]">Dashboard</h1>
+                <h1 class="text-[18px]">Admin</h1>
             </header>
 
             <div class="mb-5">
                 <Navlinks
-                    v-for="(item, index) in links.slice(0, 4)"
+                    v-for="(item, index) in links.slice(0, 1)"
                     :key="index"
                     :icon="item.icon"
                     :text="item.text"
@@ -104,7 +113,7 @@ const links = [
 
             <div>
                 <Navlinks
-                    v-for="(item, index) in links.slice(4, 8)"
+                    v-for="(item, index) in links.slice(1, 7)"
                     :key="index"
                     :icon="item.icon"
                     :text="item.text"
@@ -118,7 +127,7 @@ const links = [
 
             <div>
                 <Navlinks
-                    v-for="(item, index) in links.slice(8)"
+                    v-for="(item, index) in links.slice(7)"
                     :key="index"
                     :icon="item.icon"
                     :text="item.text"

@@ -5,6 +5,9 @@ use App\Http\Controllers\BorrowController;
 use App\Http\Controllers\RfidController;
 use App\Http\Controllers\StudentsController;
 use App\Http\Controllers\InstructorsController;
+use App\Http\Controllers\SectionController;
+use App\Http\Controllers\CourseController;
+use App\Http\Controllers\LaboratoryController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -51,7 +54,10 @@ Route::prefix('admin')
   ->name('admin.')
   ->group(function () {
     Route::inertia('/dashboard', 'Auth/Admin/Dashboard', ['title' => 'Dashboard'])->name('dashboard');
-    Route::inertia('/laboratories', 'Auth/Admin/Laboratories', ['title' => 'Laboratories'])->name('laboratories');
+    Route::get('/laboratories', [LaboratoryController::class, 'indexAdmin'])->name('laboratories');
+    Route::post('/laboratories', [LaboratoryController::class, 'store'])->name('laboratories.store');
+    Route::put('/laboratories/{id}', [LaboratoryController::class, 'update'])->name('laboratories.update');
+    Route::delete('/laboratories/{id}', [LaboratoryController::class, 'destroy'])->name('laboratories.destroy');
     Route::get('/borrow', [BorrowController::class, 'index'])->name('borrow');
     Route::get('/rfid', [RfidController::class, 'index'])->name('rfid');
     Route::put('/rfid/{type}/{id}', [RfidController::class, 'update'])->name('rfid.update');
@@ -60,6 +66,14 @@ Route::prefix('admin')
     Route::post('/students', [StudentsController::class, 'store'])->name('students.store');
     Route::put('/students/{id}', [StudentsController::class, 'update'])->name('students.update');
     Route::delete('/students/{id}', [StudentsController::class, 'destroy'])->name('students.destroy');
+    Route::get('/sections', [SectionController::class, 'indexAdmin'])->name('sections.index');
+    Route::post('/sections', [SectionController::class, 'store'])->name('sections.store');
+    Route::put('/sections/{id}', [SectionController::class, 'update'])->name('sections.update');
+    Route::delete('/sections/{id}', [SectionController::class, 'destroy'])->name('sections.destroy');
+    Route::get('/courses', [CourseController::class, 'indexAdmin'])->name('courses.index');
+    Route::post('/courses', [CourseController::class, 'store'])->name('courses.store');
+    Route::put('/courses/{id}', [CourseController::class, 'update'])->name('courses.update');
+    Route::delete('/courses/{id}', [CourseController::class, 'destroy'])->name('courses.destroy');
     Route::get('/instructors', [InstructorsController::class, 'indexAdmin'])->name('instructors.index');
     Route::post('/instructors', [InstructorsController::class, 'store'])->name('instructors.store');
     Route::put('/instructors/{id}', [InstructorsController::class, 'update'])->name('instructors.update');
