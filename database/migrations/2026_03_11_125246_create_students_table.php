@@ -25,7 +25,7 @@ return new class extends Migration
             $table->integer('year_level');
             $table->string('semester');                 
             $table->string('school_year');              
-            $table->string('rfid_tag')->unique();      
+            $table->string('rfid_tag')->nullable()->unique();      
             $table->enum('status', ['active', 'inactive', 'graduated', 'dropped'])->default('active');
             $table->timestamps();
         });

@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BorrowController;
 use App\Http\Controllers\RfidController;
+use App\Http\Controllers\StudentsController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -49,13 +50,15 @@ Route::prefix('admin')
   ->name('admin.')
   ->group(function () {
     Route::inertia('/dashboard', 'Auth/Admin/Dashboard', ['title' => 'Dashboard'])->name('dashboard');
-    Route::inertia('/students-management', 'StudentsManagement')->name('studentsManagement');
-    //Route::inertia('/instructors-management', 'InstructorsManagement', ['title' => 'Instructor Management'])->name('instructorsManagement');
     Route::inertia('/laboratories', 'Auth/Admin/Laboratories', ['title' => 'Laboratories'])->name('laboratories');
     Route::get('/borrow', [BorrowController::class, 'index'])->name('borrow');
     Route::get('/rfid', [RfidController::class, 'index'])->name('rfid');
     Route::put('/rfid/{type}/{id}', [RfidController::class, 'update'])->name('rfid.update');
     Route::delete('/rfid/{type}/{id}', [RfidController::class, 'destroy'])->name('rfid.destroy');
+    Route::get('/students', [StudentsController::class, 'indexAdmin'])->name('students.index');
+    Route::post('/students', [StudentsController::class, 'store'])->name('students.store');
+    Route::put('/students/{id}', [StudentsController::class, 'update'])->name('students.update');
+    Route::delete('/students/{id}', [StudentsController::class, 'destroy'])->name('students.destroy');
   });
 
 
