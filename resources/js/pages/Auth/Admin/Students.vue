@@ -9,7 +9,6 @@
             <p class="text-sm text-slate-500">View, manage, and organize student records and information.</p>
           </div>
           <div class="flex items-center gap-2">
-            <button @click="resetFilters" class="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Reset</button>
             <button @click="openAddModal" class="rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700">Add Student</button>
           </div>
         </div>
@@ -56,6 +55,9 @@
               <option value="graduated">Graduated</option>
             </select>
           </div>
+        </div>
+        <div class="mt-4 flex justify-end">
+          <button @click="resetFilters" class="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Reset Filters</button>
         </div>
       </section>
 
@@ -386,7 +388,7 @@ const resetFilters = () => {
   selectedCourse.value = '';
   selectedYear.value = '';
   selectedStatus.value = '';
-  onFilterChange();
+  window.location.href = window.location.pathname;
 };
 
 const openAddModal = () => {

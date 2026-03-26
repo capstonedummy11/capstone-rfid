@@ -9,7 +9,6 @@
             <p class="text-sm text-slate-500">View, manage, and organize course records and information.</p>
           </div>
           <div class="flex items-center gap-2">
-            <button @click="resetFilters" class="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Reset</button>
             <button @click="openAddModal" class="rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700">Add Course</button>
           </div>
         </div>
@@ -35,6 +34,9 @@
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
             </select>
+          </div>
+          <div class="flex items-end">
+            <button @click="resetFilters" class="w-full rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Reset Filters</button>
           </div>
         </div>
       </section>
@@ -218,7 +220,7 @@ const onFilterChange = () => {
 const resetFilters = () => {
   search.value = '';
   selectedStatus.value = '';
-  onFilterChange();
+  window.location.href = window.location.pathname;
 };
 
 const openAddModal = () => {
