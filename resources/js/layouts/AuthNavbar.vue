@@ -14,6 +14,7 @@ import RFID from '@/components/Icon/RFID.vue';
 import Schedule from '@/components/Icon/Schedule.vue';
 import Section from '@/components/Icon/Section.vue';
 import Trash from '@/components/Icon/Trash.vue';
+import Inventory from '@/components/Icon/Inventory.vue';
 
 const links = [
     {
@@ -51,6 +52,11 @@ const links = [
         icon: Borrowing,
         text: 'Borrowing',
         route: route('admin.borrow'),
+    },
+    {
+        icon: Inventory,
+        text: 'Inventory',
+        route: route('admin.inventory'),
     },
     {
         icon: Reports,
@@ -96,7 +102,7 @@ const links = [
 
             <div>
                 <Navlinks
-                    v-for="(item, index) in links.slice(4, 8)"
+                    v-for="(item, index) in links.slice(4, 9)"
                     :key="index"
                     :icon="item.icon"
                     :text="item.text"
@@ -110,7 +116,7 @@ const links = [
 
             <div>
                 <Navlinks
-                    v-for="(item, index) in links.slice(8)"
+                    v-for="(item, index) in links.slice(9)"
                     :key="index"
                     :icon="item.icon"
                     :text="item.text"

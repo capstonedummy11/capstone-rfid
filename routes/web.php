@@ -55,7 +55,8 @@ Route::prefix('admin')
     Route::inertia('/students-management', 'StudentsManagement')->name('studentsManagement');
     //Route::inertia('/instructors-management', 'InstructorsManagement', ['title' => 'Instructor Management'])->name('instructorsManagement');
     Route::inertia('/laboratories', 'Auth/Admin/Laboratories', ['title' => 'Laboratories'])->name('laboratories');
-    Route::get('/borrow', [BorrowController::class, 'index'])->name('borrow');
+    Route::get('/borrow', [BorrowController::class, 'index'], ['title' => 'Borrowing'])->name('borrow');
+    Route::inertia('/inventory', 'Auth/Admin/Inventory', ['title' => 'Inventory'])->name('inventory');
   });
 
 
