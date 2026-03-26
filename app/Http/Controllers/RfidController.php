@@ -93,9 +93,40 @@ class RfidController
             })
             ->values();
 
+        $unassignedStudents = Students::query()
+            ->whereNull('rfid_tag')
+            ->orWhere('rfid_tag', '')
+            ->select(['student_id as id', 'student_number as owner_id', 'first_name', 'middle_name', 'last_name'])
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'ownerId' => $item->owner_id,
+                    'name' => trim(($item->first_name ?? '') . ' ' . ($item->middle_name ?? '') . ' ' . ($item->last_name ?? '')),
+                    'type' => 'student',
+                ];
+            });
+
+        $unassignedInstructors = User::query()
+            ->where('role', 'instructor')
+            ->where(function ($q) {
+                $q->whereNull('rfid_tag')->orWhere('rfid_tag', '');
+            })
+            ->select(['user_id as id', 'name'])
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'ownerId' => 'INS-' . $item->id,
+                    'name' => $item->name ?? 'Unknown Instructor',
+                    'type' => 'instructor',
+                ];
+            });
+
         return Inertia::render('Rfid', [
             'rfidRows' => $rows,
             'filters' => $filters,
+            'unassignedOwners' => $unassignedStudents->concat($unassignedInstructors)->values(),
         ]);
     }
 

@@ -9,6 +9,7 @@
           </div>
           <div class="flex items-center gap-2">
             <button @click="resetFilters" class="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Reset</button>
+            <button @click="openRegisterModal" class="rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700">Register RFID</button>
           </div>
         </div>
       </section>
@@ -59,7 +60,7 @@
                 <td class="border border-gray-300 px-4 py-3">{{ row.course }} / {{ row.section }}</td>
                 <td class="border border-gray-300 px-4 py-3">
                   <div class="flex items-center gap-2">
-                    <button @click="openEditModal(row)" class="rounded-md bg-indigo-600 px-3 py-1 text-sm text-white hover:bg-indigo-700">Edit</button>
+                    <button @click="openEditModal(row)" class="rounded-md bg-indigo-600 px-3 py-1 text-sm text-white hover:bg-indigo-700">{{ row.rfid ? 'Edit' : 'Assign' }}</button>
                     <button @click="clearRfid(row)" class="rounded-md bg-rose-500 px-3 py-1 text-sm text-white hover:bg-rose-600" :disabled="!row.rfid">Clear</button>
                   </div>
                 </td>
@@ -88,6 +89,38 @@
           </form>
         </div>
       </div>
+
+      <div v-if="showRegisterModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div class="w-full max-w-md rounded-lg bg-white p-6">
+          <h2 class="text-xl font-semibold mb-4">Register RFID Tag</h2>
+          <form @submit.prevent="submitNewRfid" class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Search owner</label>
+              <input
+                type="text"
+                v-model="ownerSearch"
+                placeholder="Search by name, ID"
+                class="w-full rounded-md border border-slate-300 px-3 py-2 mb-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+              <label class="block text-sm font-medium text-slate-700 mb-1">Owner</label>
+              <select v-model="registerForm.ownerKey" class="w-full rounded-md border border-slate-300 px-3 py-2" size="6">
+                <option value="">Select owner</option>
+                <option v-for="owner in filteredOwners" :key="`${owner.type}-${owner.id}`" :value="`${owner.type}|${owner.id}`">
+                  {{ owner.type === 'student' ? 'Student' : 'Instructor' }} - {{ owner.name }} ({{ owner.ownerId }})
+                </option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">RFID Tag</label>
+              <input v-model="registerForm.rfid_tag" type="text" placeholder="Enter RFID value" class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+              <button type="button" @click="closeRegisterModal" class="rounded-md border border-slate-300 px-4 py-2 text-sm">Cancel</button>
+              <button type="submit" class="rounded-md bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-700" :disabled="registerForm.processing">Register</button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -108,25 +141,38 @@ interface RfidRow {
   type: 'student' | 'instructor';
 }
 
+interface UnassignedOwner {
+  id: string | number;
+  ownerId: string;
+  name: string;
+  type: 'student' | 'instructor';
+}
+
 declare function route(name: string, params?: Record<string, unknown>): string;
 
 const props = defineProps({
   rfidRows: {
-    type: Array,
+    type: Array as () => RfidRow[],
     default: () => [],
   },
   filters: {
     type: Object,
     default: () => ({ search: '', type: 'all' }),
   },
+  unassignedOwners: {
+    type: Array as () => UnassignedOwner[],
+    default: () => [],
+  },
 });
 
 const search = ref(props.filters.search ?? '');
 const selectedType = ref(props.filters.type ?? 'all');
 const showModal = ref(false);
+const showRegisterModal = ref(false);
 const selectedRow = ref<RfidRow | null>(null);
 
 const form = useForm({ rfid_tag: '' });
+const registerForm = useForm({ ownerKey: '', rfid_tag: '' });
 const clearForm = useForm({});
 
 const filteredRows = computed<RfidRow[]>(() => {
@@ -151,6 +197,34 @@ const onFilterChange = () => {
   window.history.replaceState({}, '', `${window.location.pathname}?search=${encodeURIComponent(query.search)}&type=${encodeURIComponent(query.type)}`);
 };
 
+const ownerSearch = ref('');
+
+const availableOwners = computed<UnassignedOwner[]>(() => {
+  const unassigned = (props.unassignedOwners as UnassignedOwner[]) || [];
+  if (unassigned.length > 0) {
+    return unassigned;
+  }
+
+  // if no explicit unassigned owners are returned, fall back to all rows as owner candidates
+  return (props.rfidRows as RfidRow[]).map((row) => ({
+    id: row.id,
+    ownerId: row.ownerId,
+    name: row.name,
+    type: row.type,
+  }));
+});
+
+const filteredOwners = computed<UnassignedOwner[]>(() => {
+  const query = ownerSearch.value.trim().toLowerCase();
+  if (!query) return availableOwners.value;
+
+  return availableOwners.value.filter((owner) =>
+    owner.name.toLowerCase().includes(query)
+    || owner.ownerId.toString().toLowerCase().includes(query)
+    || owner.type.toLowerCase().includes(query)
+  );
+});
+
 const resetFilters = () => {
   search.value = '';
   selectedType.value = 'all';
@@ -168,6 +242,37 @@ const closeModal = () => {
   showModal.value = false;
   selectedRow.value = null;
   form.reset();
+};
+
+const openRegisterModal = () => {
+  registerForm.reset();
+  showRegisterModal.value = true;
+};
+
+const closeRegisterModal = () => {
+  showRegisterModal.value = false;
+  registerForm.reset();
+};
+
+const submitNewRfid = () => {
+  if (!registerForm.ownerKey || !registerForm.rfid_tag) {
+    alert('Please select an owner and provide RFID tag.');
+    return;
+  }
+
+  const [ownerType, ownerId] = (registerForm.ownerKey as string).split('|');
+  if (!ownerType || !ownerId) {
+    alert('Invalid owner selection.');
+    return;
+  }
+
+  registerForm.put(route('admin.rfid.update', { type: ownerType, id: ownerId }), {
+    preserveState: true,
+    onSuccess: () => {
+      closeRegisterModal();
+      window.location.reload();
+    },
+  });
 };
 
 const submitRfid = () => {
