@@ -39,6 +39,15 @@ class BorrowSeeder extends Seeder
       ]
     );
 
+    $bsis = Course::updateOrCreate(
+      ['course_code' => 'BSIS'],
+      [
+        'course_name' => 'Bachelor of Science in Information Systems',
+        'department' => 'College of Computing',
+        'status' => 'active',
+      ]
+    );
+
     // Sections (from Borrow.vue registeredStudents)
     $section3A = Section::updateOrCreate(
       ['course_id' => $bsit->course_id, 'section_name' => '3A'],

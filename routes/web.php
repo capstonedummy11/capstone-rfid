@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BorrowController;
 use App\Http\Controllers\RfidController;
 use App\Http\Controllers\StudentsController;
+use App\Http\Controllers\InstructorsController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -59,6 +60,10 @@ Route::prefix('admin')
     Route::post('/students', [StudentsController::class, 'store'])->name('students.store');
     Route::put('/students/{id}', [StudentsController::class, 'update'])->name('students.update');
     Route::delete('/students/{id}', [StudentsController::class, 'destroy'])->name('students.destroy');
+    Route::get('/instructors', [InstructorsController::class, 'indexAdmin'])->name('instructors.index');
+    Route::post('/instructors', [InstructorsController::class, 'store'])->name('instructors.store');
+    Route::put('/instructors/{id}', [InstructorsController::class, 'update'])->name('instructors.update');
+    Route::delete('/instructors/{id}', [InstructorsController::class, 'destroy'])->name('instructors.destroy');
   });
 
 

@@ -14,7 +14,7 @@ import RFID from '@/components/Icon/RFID.vue';
 import Schedule from '@/components/Icon/Schedule.vue';
 import Section from '@/components/Icon/Section.vue';
 import Trash from '@/components/Icon/Trash.vue';
-import TwoPerson from '@/components/Icon/TwoPerson.vue';
+// import TwoPerson from '@/components/Icon/TwoPerson.vue';
 
 const links = [
     {
@@ -39,6 +39,7 @@ const links = [
     {
         icon: Instructor,
         text: 'Instructor',
+        route: route('admin.instructors.index'),
     },
     {
         icon: Instructor,
