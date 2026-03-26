@@ -2,10 +2,10 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BorrowController;
+use App\Http\Controllers\RfidController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use Laravel\Fortify\Features;
 
 Route::get('/', function (Request $request) {
   $role = strtolower(trim((string) $request->user()?->role));
@@ -30,10 +30,7 @@ Route::post('/panel-verify', function (\Illuminate\Http\Request $request) {
   }
   return response()->json(['success' => false, 'message' => 'Incorrect PIN. Please try again.'], 401);
 })->name('panelVerify');
-Route::inertia('/attendance-scanner', 'AttendanceScanner')->name('attendanceScanner');
-Route::inertia('/rfid-registration', 'RFIDRegistration')->name('rfidRegistration');
-Route::inertia('/classes', 'Classes')->name('classes');
-Route::inertia('/attendance-logs', 'AttendanceLogs')->name('attendanceLogs');
+
 Route::inertia('/register', 'Auth/Register')->name('register_page');
 
 Route::get('/dashboard', function () {
@@ -56,6 +53,9 @@ Route::prefix('admin')
     //Route::inertia('/instructors-management', 'InstructorsManagement', ['title' => 'Instructor Management'])->name('instructorsManagement');
     Route::inertia('/laboratories', 'Auth/Admin/Laboratories', ['title' => 'Laboratories'])->name('laboratories');
     Route::get('/borrow', [BorrowController::class, 'index'])->name('borrow');
+    Route::get('/rfid', [RfidController::class, 'index'])->name('rfid');
+    Route::put('/rfid/{type}/{id}', [RfidController::class, 'update'])->name('rfid.update');
+    Route::delete('/rfid/{type}/{id}', [RfidController::class, 'destroy'])->name('rfid.destroy');
   });
 
 

@@ -66,7 +66,8 @@ const links = [
     },
     {
         icon: RFID,
-        text: 'RFID Remarks',
+        text: 'RFID Management',
+        route: route('admin.rfid'),
     },
 ];
 </script>
