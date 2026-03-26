@@ -4,7 +4,7 @@
       <section class="bg-white shadow-lg rounded-lg p-6 mb-6">
         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 class="text-3xl font-bold">RFID Management</h1>
+            <h1 class="text-3xl font-bold">RFID System</h1>
             <p class="text-sm text-slate-500">Assign, clear and audit RFID tags for students and instructors.</p>
           </div>
           <div class="flex items-center gap-2">
