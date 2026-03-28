@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Borrowing;
 use App\Models\BorrowingItem;
-use App\Models\Device;
+use App\Models\Item;
 use App\Models\Students;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -410,22 +410,20 @@ class BorrowController
 
   private function buildBorrowItemsCatalog()
   {
-    return Device::query()
+    return Item::query()
       ->where(function ($query) {
-        $query->whereNotNull('barcode')->orWhereNotNull('item_barcode');
+        $query->whereNotNull('barcode')->orWhereNotNull('barcode');
       })
-      ->select(['item_name', 'item_code', 'item_type', 'barcode', 'item_barcode', 'item_sku'])
-      ->orderBy('item_code')
+      ->select(['name', 'sku', 'barcode', 'description'])
+      ->orderBy('name')
       ->get()
       ->map(function ($device) {
-        $barcode = $device->item_barcode ?: $device->barcode;
-
-        return [
-          'name' => $device->item_name,
-          'id' => $device->item_sku ?: $device->item_code,
-          'type' => $device->item_type,
-          'barcode' => (string) $barcode,
-        ];
+          return [
+              'name' => $device->name,
+              'id' => $device->sku,
+              'type' => $device->description,
+              'barcode' => (string) $device->barcode,
+          ];
       })
       ->values();
   }
