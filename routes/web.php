@@ -104,7 +104,7 @@ Route::prefix('admin')
     Route::inertia('/students-management', 'StudentsManagement')->name('studentsManagement');
     //Route::inertia('/instructors-management', 'InstructorsManagement', ['title' => 'Instructor Management'])->name('instructorsManagement');
     Route::post('/borrow/return-items', [BorrowController::class, 'returnItems'])->name('borrow.returnItems');
-    Route::inertia('/inventory', 'Auth/Admin/Inventory', ['title' => 'Inventory', 'items' => \App\Models\Item::all(),])->name('inventory');
+    Route::inertia('/inventory', 'Auth/Admin/Inventory', ['title' => 'Inventory', 'items' => fn () => \App\Models\Item::all(),])->name('inventory');
     Route::post('/items', [ItemController::class, 'store'])->name('items.store');
   });
 
