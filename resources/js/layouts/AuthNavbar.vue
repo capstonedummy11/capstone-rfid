@@ -31,8 +31,13 @@ const links = [
 
     {
         icon: Graduation,
-        text: 'Courses',
-        route: route('admin.courses.index'),
+        text: 'Strands',
+        route: route('admin.strands.index'),
+    },
+    {
+        icon: Graduation,
+        text: 'Subjects',
+        route: route('admin.subjects.index'),
     },
     {
         icon: Section,
@@ -62,10 +67,17 @@ const links = [
     {
         icon: Attendance,
         text: 'Attendance',
+        route: route('admin.attendance.scanner'),
     },
     {
         icon: Schedule,
         text: 'Schedules',
+        route: route('admin.schedules.index'),
+    },
+    {
+        icon: Borrowing,
+        text: 'Inventory',
+        route: route('admin.inventory.index'),
     },
     {
         icon: Borrowing,
@@ -79,6 +91,7 @@ const links = [
     {
         icon: ActivityLogs,
         text: 'Activity Logs',
+        route: route('admin.activity-logs.index'),
     },
     {
         icon: Trash,
@@ -113,7 +126,7 @@ const links = [
 
             <div>
                 <Navlinks
-                    v-for="(item, index) in links.slice(1, 7)"
+                    v-for="(item, index) in links.slice(1, 8)"
                     :key="index"
                     :icon="item.icon"
                     :text="item.text"

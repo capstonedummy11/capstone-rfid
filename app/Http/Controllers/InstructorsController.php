@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Instructor;
+use App\Models\Strand;
 use App\Models\User;
-use App\Models\Course;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -24,10 +24,10 @@ class InstructorsController
     public function indexAdmin(Request $request)
     {
         $search = $request->input('search', '');
-        $course = $request->input('course', '');
+        $strand = $request->input('strand', '');
         $status = $request->input('status', '');
 
-        $query = Instructor::with('user', 'course');
+        $query = Instructor::with('user', 'strand');
 
         // Apply search filter
         if ($search) {
@@ -37,11 +37,11 @@ class InstructorsController
             })->orWhereRaw('LOWER(instructor_number) LIKE ?', ['%' . strtolower($search) . '%']);
         }
 
-        // Apply course filter
-        if ($course) {
-            $courseRecord = Course::where('course_code', $course)->first();
-            if ($courseRecord) {
-                $query->where('course_id', $courseRecord->course_id);
+        // Apply strand filter
+        if ($strand) {
+            $strandRecord = Strand::where('strand_code', $strand)->first();
+            if ($strandRecord) {
+                $query->where('strand_id', $strandRecord->strand_id);
             }
         }
 
@@ -62,28 +62,28 @@ class InstructorsController
                 'email' => $user->email,
                 'phone' => $user->phone ?? '',
                 'gender' => $user->gender ?? '',
-                'course_id' => $instructor->course_id,
-                'course_code' => $instructor->course?->course_code ?? '',
+                'strand_id' => $instructor->strand_id,
+                'strand_code' => $instructor->strand?->strand_code ?? '',
                 'rfid_tag' => $user->rfid_tag ?? '',
                 'status' => $instructor->status ?? 'active',
             ];
         });
 
-        // Get available courses for the form
-        $courses = Course::where('status', 'active')->get()->map(function ($course) {
+        // Get available strands for the form
+        $strands = Strand::where('status', 'active')->get()->map(function ($strand) {
             return [
-                'course_id' => $course->course_id,
-                'course_code' => $course->course_code,
-                'course_name' => $course->course_name,
+                'strand_id' => $strand->strand_id,
+                'strand_code' => $strand->strand_code,
+                'strand_name' => $strand->strand_name,
             ];
         });
 
         return Inertia::render('Auth/Admin/Instructors', [
             'instructors' => $instructors,
-            'courses' => $courses,
+            'strands' => $strands,
             'filters' => [
                 'search' => $search,
-                'course' => $course,
+                'strand' => $strand,
                 'status' => $status,
             ],
         ]);
@@ -110,7 +110,7 @@ class InstructorsController
             'email' => 'required|email|unique:users',
             'phone' => 'nullable|string|max:20',
             'gender' => 'nullable|in:male,female',
-            'course_id' => 'required|exists:courses,course_id',
+            'strand_id' => 'required|exists:strands,strand_id',
             'rfid_tag' => 'nullable|string|unique:users,rfid_tag',
             'status' => 'required|in:active,inactive,on_leave',
         ]);
@@ -131,7 +131,7 @@ class InstructorsController
         // Create instructor record
         Instructor::create([
             'user_id' => $user->user_id,
-            'course_id' => $validated['course_id'],
+            'strand_id' => $validated['strand_id'],
             'instructor_number' => $validated['instructor_number'],
             'status' => $validated['status'],
         ]);
@@ -170,7 +170,7 @@ class InstructorsController
             'email' => 'required|email|unique:users,email,' . $instructor->user_id . ',user_id',
             'phone' => 'nullable|string|max:20',
             'gender' => 'nullable|in:male,female',
-            'course_id' => 'required|exists:courses,course_id',
+            'strand_id' => 'required|exists:strands,strand_id',
             'rfid_tag' => 'nullable|string|unique:users,rfid_tag,' . $instructor->user_id . ',user_id',
             'status' => 'required|in:active,inactive,on_leave',
         ]);
@@ -188,7 +188,7 @@ class InstructorsController
 
         // Update instructor record
         $instructor->update([
-            'course_id' => $validated['course_id'],
+            'strand_id' => $validated['strand_id'],
             'instructor_number' => $validated['instructor_number'],
             'status' => $validated['status'],
         ]);

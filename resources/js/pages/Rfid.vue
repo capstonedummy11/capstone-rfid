@@ -44,7 +44,7 @@
                 <th class="border border-gray-300 px-4 py-3 text-left">Role</th>
                 <th class="border border-gray-300 px-4 py-3 text-left">Owner ID</th>
                 <th class="border border-gray-300 px-4 py-3 text-left">RFID Tag</th>
-                <th class="border border-gray-300 px-4 py-3 text-left">Course / Section</th>
+                <th class="border border-gray-300 px-4 py-3 text-left">Strand / Section</th>
                 <th class="border border-gray-300 px-4 py-3 text-left">Actions</th>
               </tr>
             </thead>
@@ -57,7 +57,7 @@
                   <span v-if="row.rfid" class="text-green-600">{{ row.rfid }}</span>
                   <span v-else class="text-red-600">Not assigned</span>
                 </td>
-                <td class="border border-gray-300 px-4 py-3">{{ row.course }} / {{ row.section }}</td>
+                <td class="border border-gray-300 px-4 py-3">{{ row.strand }} / {{ row.section }}</td>
                 <td class="border border-gray-300 px-4 py-3">
                   <div class="flex items-center gap-2">
                     <button @click="openEditModal(row)" class="rounded-md bg-indigo-600 px-3 py-1 text-sm text-white hover:bg-indigo-700">{{ row.rfid ? 'Edit' : 'Assign' }}</button>
@@ -134,7 +134,7 @@ interface RfidRow {
   ownerId: string;
   name: string;
   role: string;
-  course: string;
+  strand: string;
   section: string;
   year: string;
   rfid: string;

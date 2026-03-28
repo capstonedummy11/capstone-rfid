@@ -23,6 +23,7 @@ return new class extends Migration
             $table->string('role');
             $table->string('rfid_tag')->nullable()->unique();
             $table->rememberToken();
+            $table->softDeletes();
             $table->timestamps();
         });
 

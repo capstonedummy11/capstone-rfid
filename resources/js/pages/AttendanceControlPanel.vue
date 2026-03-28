@@ -47,7 +47,7 @@ const instructorProfiles = [
     role: 'instructor',
     subject: 'Systems Analysis and Design',
     section: 'BSIT 3A',
-    course: 'Bachelor of Science in Information Technology',
+    strand: 'Bachelor of Science in Information Technology',
     schedule: 'Mon 8:00 AM - 10:00 AM',
     room: 'RFID Laboratory',
   },
@@ -58,7 +58,7 @@ const instructorProfiles = [
     role: 'instructor',
     subject: 'Database Management Systems',
     section: 'BSCS 2B',
-    course: 'Bachelor of Science in Computer Science',
+    strand: 'Bachelor of Science in Computer Science',
     schedule: 'Tue 1:00 PM - 3:00 PM',
     room: 'Computer Lab 2',
   },
@@ -71,7 +71,7 @@ const studentProfiles = [
     name: 'Maria Santos',
     rfid: 'STU-2001',
     year: '3rd Year',
-    course: 'BSIT',
+    strand: 'BSIT',
     section: '3A',
     avatarSeed: 'Maria Santos',
   },
@@ -81,7 +81,7 @@ const studentProfiles = [
     name: 'Juan Dela Cruz',
     rfid: 'STU-2002',
     year: '3rd Year',
-    course: 'BSIT',
+    strand: 'BSIT',
     section: '3A',
     avatarSeed: 'Juan Dela Cruz',
   },
@@ -91,7 +91,7 @@ const studentProfiles = [
     name: 'Angela Reyes',
     rfid: 'STU-2003',
     year: '2nd Year',
-    course: 'BSCS',
+    strand: 'BSCS',
     section: '2B',
     avatarSeed: 'Angela Reyes',
   },
@@ -101,7 +101,7 @@ const studentProfiles = [
     name: 'Carlo Mendoza',
     rfid: 'STU-2004',
     year: '2nd Year',
-    course: 'BSCS',
+    strand: 'BSCS',
     section: '2B',
     avatarSeed: 'Carlo Mendoza',
   },
@@ -368,7 +368,7 @@ const recordAttendance = (student) => {
     rfid: student.rfid,
     name: student.name,
     year: student.year,
-    course: student.course,
+    strand: student.strand,
     section: student.section,
     time: timestamp,
     status: 'Present',
@@ -905,8 +905,8 @@ onUnmounted(() => {
             <span class="text-sm font-bold text-slate-800">{{ activeStudent ? activeStudent.year : 'Waiting...' }}</span>
           </div>
           <div class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 ring-1 ring-slate-200">
-            <span class="text-sm font-semibold text-slate-500">Course</span>
-            <span class="text-sm font-bold text-slate-800">{{ activeStudent ? activeStudent.course : 'Waiting...' }}</span>
+            <span class="text-sm font-semibold text-slate-500">Strand</span>
+            <span class="text-sm font-bold text-slate-800">{{ activeStudent ? activeStudent.strand : 'Waiting...' }}</span>
           </div>
           <div class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 ring-1 ring-slate-200">
             <span class="text-sm font-semibold text-slate-500">Section</span>
@@ -1015,7 +1015,7 @@ onUnmounted(() => {
                 <div class="flex items-center justify-between gap-3">
                   <div>
                     <div class="text-sm font-bold text-slate-900">{{ record.name }}</div>
-                    <div class="mt-0.5 text-xs text-slate-500">{{ record.course }} • {{ record.section }}</div>
+                    <div class="mt-0.5 text-xs text-slate-500">{{ record.strand }} • {{ record.section }}</div>
                   </div>
                   <div class="rounded-lg bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">{{ record.status }}</div>
                 </div>

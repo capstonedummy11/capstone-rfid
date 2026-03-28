@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Course;
+use App\Models\Strand;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
-class CourseController
+class StrandController
 {
     /**
      * Display a listing of the resource.
@@ -24,13 +24,13 @@ class CourseController
         $search = $request->input('search', '');
         $status = $request->input('status', '');
 
-        $query = Course::query();
+        $query = Strand::query();
 
         // Apply search filter
         if ($search) {
             $query->where(function ($q) use ($search) {
-                $q->whereRaw('LOWER(course_code) LIKE ?', ['%' . strtolower($search) . '%'])
-                    ->orWhereRaw('LOWER(course_name) LIKE ?', ['%' . strtolower($search) . '%'])
+                $q->whereRaw('LOWER(strand_code) LIKE ?', ['%' . strtolower($search) . '%'])
+                    ->orWhereRaw('LOWER(strand_name) LIKE ?', ['%' . strtolower($search) . '%'])
                     ->orWhereRaw('LOWER(department) LIKE ?', ['%' . strtolower($search) . '%']);
             });
         }
@@ -40,18 +40,18 @@ class CourseController
             $query->where('status', $status);
         }
 
-        $courses = $query->get()->map(function ($course) {
+        $strands = $query->get()->map(function ($strand) {
             return [
-                'course_id' => $course->course_id,
-                'course_code' => $course->course_code,
-                'course_name' => $course->course_name,
-                'department' => $course->department,
-                'status' => $course->status ?? 'active',
+                'strand_id' => $strand->strand_id,
+                'strand_code' => $strand->strand_code,
+                'strand_name' => $strand->strand_name,
+                'department' => $strand->department,
+                'status' => $strand->status ?? 'active',
             ];
         });
 
-        return Inertia::render('Auth/Admin/Courses', [
-            'courses' => $courses,
+        return Inertia::render('Auth/Admin/Strands', [
+            'strands' => $strands,
             'filters' => [
                 'search' => $search,
                 'status' => $status,
@@ -73,21 +73,21 @@ class CourseController
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'course_code' => 'required|unique:courses',
-            'course_name' => 'required|string|max:255',
+            'strand_code' => 'required|unique:strands,strand_code',
+            'strand_name' => 'required|string|max:255',
             'department' => 'required|string|max:255',
             'status' => 'required|in:active,inactive',
         ]);
 
-        Course::create($validated);
+        Strand::create($validated);
 
-        return back()->with('success', 'Course added successfully.');
+        return back()->with('success', 'Strand added successfully.');
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(Course $course)
+    public function show(Strand $strand)
     {
         //
     }
@@ -95,7 +95,7 @@ class CourseController
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Course $course)
+    public function edit(Strand $strand)
     {
         //
     }
@@ -105,18 +105,18 @@ class CourseController
      */
     public function update(Request $request, $id)
     {
-        $course = Course::findOrFail($id);
+        $strand = Strand::findOrFail($id);
 
         $validated = $request->validate([
-            'course_code' => 'required|unique:courses,course_code,' . $id . ',course_id',
-            'course_name' => 'required|string|max:255',
+            'strand_code' => 'required|unique:strands,strand_code,' . $id . ',strand_id',
+            'strand_name' => 'required|string|max:255',
             'department' => 'required|string|max:255',
             'status' => 'required|in:active,inactive',
         ]);
 
-        $course->update($validated);
+        $strand->update($validated);
 
-        return back()->with('success', 'Course updated successfully.');
+        return back()->with('success', 'Strand updated successfully.');
     }
 
     /**
@@ -124,9 +124,9 @@ class CourseController
      */
     public function destroy($id)
     {
-        $course = Course::findOrFail($id);
-        $course->delete();
+        $strand = Strand::findOrFail($id);
+        $strand->delete();
 
-        return back()->with('success', 'Course deleted successfully.');
+        return back()->with('success', 'Strand deleted successfully.');
     }
 }

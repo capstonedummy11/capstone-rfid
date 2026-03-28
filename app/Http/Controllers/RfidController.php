@@ -18,7 +18,7 @@ class RfidController
         ];
 
         $studentQuery = Students::query()
-            ->leftJoin('courses', 'students.course_id', '=', 'courses.course_id')
+            ->leftJoin('strands', 'students.strand_id', '=', 'strands.strand_id')
             ->leftJoin('sections', 'students.section_id', '=', 'sections.section_id');
 
         $userQuery = User::query();
@@ -53,7 +53,7 @@ class RfidController
             'students.last_name',
             'students.rfid_tag',
             'students.year_level',
-            'courses.course_code as course',
+            'strands.strand_code as strand',
             'sections.section_name as section',
         ])->get()->map(function ($item) {
             return [
@@ -61,7 +61,7 @@ class RfidController
                 'ownerId' => $item->owner_id,
                 'name' => trim(($item->first_name ?? '') . ' ' . ($item->middle_name ?? '') . ' ' . ($item->last_name ?? '')),
                 'role' => 'Student',
-                'course' => $item->course ?? 'N/A',
+                'strand' => $item->strand ?? 'N/A',
                 'section' => $item->section ?? 'N/A',
                 'year' => $item->year_level ?? 'N/A',
                 'rfid' => $item->rfid_tag ?? '',
@@ -79,7 +79,7 @@ class RfidController
                     'ownerId' => 'INS-' . $item->id,
                     'name' => $item->name ?? 'Unknown Instructor',
                     'role' => ucfirst($item->role ?? 'Instructor'),
-                    'course' => 'Faculty',
+                    'strand' => 'Faculty',
                     'section' => 'N/A',
                     'year' => 'N/A',
                     'rfid' => $item->rfid_tag ?? '',

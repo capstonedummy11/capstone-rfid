@@ -62,7 +62,11 @@ class BorrowController
               $itemQuery
                 ->where('item_name', 'like', "%{$term}%")
                 ->orWhere('item_code', 'like', "%{$term}%")
-                ->orWhere('barcode', 'like', "%{$term}%");
+                ->orWhere('item_sku', 'like', "%{$term}%")
+                ->orWhere('barcode', 'like', "%{$term}%")
+                ->orWhere('item_barcode', 'like', "%{$term}%")
+                ->orWhere('description', 'like', "%{$term}%")
+                ->orWhere('item_description', 'like', "%{$term}%");
             });
         });
       })
@@ -122,7 +126,7 @@ class BorrowController
   private function buildBorrowerProfiles()
   {
     $studentBorrowers = Students::query()
-      ->leftJoin('courses', 'students.course_id', '=', 'courses.course_id')
+      ->leftJoin('strands', 'students.strand_id', '=', 'strands.strand_id')
       ->leftJoin('sections', 'students.section_id', '=', 'sections.section_id')
       ->whereNotNull('students.rfid_tag')
       ->select([
@@ -131,7 +135,7 @@ class BorrowController
         'students.first_name',
         'students.last_name',
         'students.year_level',
-        'courses.course_code as course',
+        'strands.strand_code as strand',
         'sections.section_name as section',
       ])
       ->get()
@@ -140,23 +144,13 @@ class BorrowController
           'rfid' => (string) $student->rfid,
           'name' => trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? '')),
           'studentId' => $student->studentId ?? 'N/A',
-          'course' => $student->course ?? 'N/A',
-          'year' => $this->formatYearLabel((int) ($student->year_level ?? 0)),
-          'section' => $student->section ?? 'N/A',
-          'role' => 'Student',
-        ];
-      });
-
-    $userBorrowers = User::query()
-      ->whereNotNull('rfid_tag')
-      ->select(['user_id', 'name', 'role', 'rfid_tag'])
-      ->get()
+          'strand' => $student->strand ?? 'N/A',
       ->map(function ($user) {
         return [
           'rfid' => (string) $user->rfid_tag,
           'name' => $user->name ?? 'Unknown User',
           'studentId' => 'INS-' . ($user->user_id ?? 'N/A'),
-          'course' => 'Faculty',
+          'strand' => 'Faculty',
           'year' => 'N/A',
           'section' => 'N/A',
           'role' => ucfirst((string) ($user->role ?? 'Instructor')),
@@ -172,16 +166,20 @@ class BorrowController
   private function buildBorrowItemsCatalog()
   {
     return Device::query()
-      ->whereNotNull('barcode')
-      ->select(['item_name', 'item_code', 'item_type', 'barcode'])
+      ->where(function ($query) {
+        $query->whereNotNull('barcode')->orWhereNotNull('item_barcode');
+      })
+      ->select(['item_name', 'item_code', 'item_type', 'barcode', 'item_barcode', 'item_sku'])
       ->orderBy('item_code')
       ->get()
       ->map(function ($device) {
+        $barcode = $device->item_barcode ?: $device->barcode;
+
         return [
           'name' => $device->item_name,
-          'id' => $device->item_code,
+          'id' => $device->item_sku ?: $device->item_code,
           'type' => $device->item_type,
-          'barcode' => (string) $device->barcode,
+          'barcode' => (string) $barcode,
         ];
       })
       ->values();
@@ -215,15 +213,17 @@ class BorrowController
 
       foreach ($borrowing->items as $item) {
         $borrowedItem = $item->item;
-        if (!$borrowedItem || empty($borrowedItem->barcode)) {
+        $barcode = $borrowedItem?->item_barcode ?: $borrowedItem?->barcode;
+
+        if (!$borrowedItem || empty($barcode)) {
           continue;
         }
 
         $map[$rfidKey][] = [
           'name' => $borrowedItem->item_name,
-          'id' => $borrowedItem->item_code,
+          'id' => $borrowedItem->item_sku ?: $borrowedItem->item_code,
           'type' => $borrowedItem->item_type,
-          'barcode' => (string) $borrowedItem->barcode,
+          'barcode' => (string) $barcode,
         ];
       }
     }

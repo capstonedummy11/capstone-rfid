@@ -2,164 +2,149 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\Section;
-use App\Models\Course;
+use App\Models\Strand;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class SectionController
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index()
     {
         //
     }
 
-    /**
-     * Display admin listing of the resource.
-     */
     public function indexAdmin(Request $request)
     {
-        $search = $request->input('search', '');
-        $course = $request->input('course', '');
-        $year = $request->input('year', '');
-        $status = $request->input('status', '');
+        $filters = [
+            'search' => trim((string) $request->input('search', '')),
+            'strand' => trim((string) $request->input('strand', '')),
+            'year' => trim((string) $request->input('year', '')),
+            'status' => trim((string) $request->input('status', '')),
+        ];
 
-        $query = Section::query();
+        $query = Section::query()->with(['strand']);
 
-        // Apply search filter
-        if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->whereRaw('LOWER(section_name) LIKE ?', ['%' . strtolower($search) . '%']);
-            });
+        if ($filters['search'] !== '') {
+            $term = strtolower($filters['search']);
+            $query->whereRaw('LOWER(section_name) LIKE ?', ["%{$term}%"]);
         }
 
-        // Apply course filter
-        if ($course) {
-            $courseRecord = Course::where('course_code', $course)->first();
-            if ($courseRecord) {
-                $query->where('course_id', $courseRecord->course_id);
-            }
+        if ($filters['strand'] !== '') {
+            $query->where('strand_id', $filters['strand']);
         }
 
-        // Apply year filter
-        if ($year) {
-            $query->where('year_level', $year);
+        if ($filters['year'] !== '') {
+            $query->where('year_level', $filters['year']);
         }
 
-        // Apply status filter
-        if ($status) {
-            $query->where('status', $status);
+        if ($filters['status'] !== '') {
+            $query->where('status', $filters['status']);
         }
 
-        $sections = $query->get()->map(function ($section) {
-            return [
-                'section_id' => $section->section_id,
-                'section_name' => $section->section_name,
-                'course_id' => $section->course_id,
-                'course_code' => $this->getCourseCode($section->course_id),
-                'year_level' => $section->year_level,
-                'semester' => $section->semester,
-                'school_year' => $section->school_year,
-                'status' => $section->status ?? 'active',
-            ];
-        });
+        $sections = $query
+            ->orderBy('section_name')
+            ->get()
+            ->map(function (Section $section) {
+                return [
+                    'section_id' => $section->section_id,
+                    'section_name' => $section->section_name,
+                    'strand_id' => $section->strand_id,
+                    'strand_code' => $section->strand?->strand_code,
+                    'year_level' => $section->year_level,
+                    'semester' => $section->semester,
+                    'school_year' => $section->school_year,
+                    'status' => $section->status ?? 'active',
+                ];
+            })
+            ->values();
 
         return Inertia::render('Auth/Admin/Sections', [
             'sections' => $sections,
-            'filters' => [
-                'search' => $search,
-                'course' => $course,
-                'year' => $year,
-                'status' => $status,
-            ],
+            'filters' => $filters,
+            'strandOptions' => Strand::query()
+                ->orderBy('strand_code')
+                ->get(['strand_id', 'strand_code', 'strand_name'])
+                ->map(fn (Strand $strand) => [
+                    'strand_id' => $strand->strand_id,
+                    'strand_code' => $strand->strand_code,
+                    'strand_name' => $strand->strand_name,
+                ])
+                ->values(),
         ]);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
     public function create()
     {
         //
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'section_name' => 'required|unique:sections',
-            'course_id' => 'required|exists:courses,course_id',
+            'section_name' => 'required|string|max:255|unique:sections,section_name',
+            'strand_id' => 'required|exists:strands,strand_id',
             'year_level' => 'required|integer|between:1,4',
-            'semester' => 'required|integer|between:1,2',
-            'school_year' => 'required|string|max:9',
+            'semester' => 'required|string|max:50',
+            'school_year' => 'required|string|max:20',
             'status' => 'required|in:active,inactive',
         ]);
 
-        Section::create($validated);
+        $section = Section::create($validated);
+        $this->logActivity('create', 'sections', 'Created section ' . $section->section_name);
 
         return back()->with('success', 'Section added successfully.');
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show(Section $section)
     {
         //
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
     public function edit(Section $section)
     {
         //
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, $id)
     {
         $section = Section::findOrFail($id);
 
         $validated = $request->validate([
-            'section_name' => 'required|unique:sections,section_name,' . $id . ',section_id',
-            'course_id' => 'required|exists:courses,course_id',
+            'section_name' => 'required|string|max:255|unique:sections,section_name,' . $id . ',section_id',
+            'strand_id' => 'required|exists:strands,strand_id',
             'year_level' => 'required|integer|between:1,4',
-            'semester' => 'required|integer|between:1,2',
-            'school_year' => 'required|string|max:9',
+            'semester' => 'required|string|max:50',
+            'school_year' => 'required|string|max:20',
             'status' => 'required|in:active,inactive',
         ]);
 
         $section->update($validated);
+        $this->logActivity('update', 'sections', 'Updated section ' . $section->section_name);
 
         return back()->with('success', 'Section updated successfully.');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy($id)
     {
         $section = Section::findOrFail($id);
+        $sectionName = $section->section_name;
         $section->delete();
+
+        $this->logActivity('delete', 'sections', 'Deleted section ' . $sectionName);
 
         return back()->with('success', 'Section deleted successfully.');
     }
 
-    /**
-     * Get course code from course_id
-     */
-    private function getCourseCode($courseId)
+    private function logActivity(string $action, string $tableName, string $description): void
     {
-        if (!$courseId) return '';
-        $course = Course::find($courseId);
-        return $course ? ($course->course_code ?? '') : '';
+        ActivityLog::create([
+            'user_id' => Auth::id(),
+            'action' => $action,
+            'table_name' => $tableName,
+            'description' => $description,
+        ]);
     }
 }

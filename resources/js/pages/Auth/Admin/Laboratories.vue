@@ -106,7 +106,7 @@
               <label class="block text-sm font-medium text-slate-700 mb-1">Description</label>
               <textarea
                 v-model="form.description"
-                placeholder="e.g., Main laboratory for general IT courses"
+                placeholder="e.g., Main laboratory for general IT strands"
                 class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 rows="3"
               ></textarea>

@@ -68,11 +68,11 @@
             </div>
 
             <div>
-              <label for="course" class="block text-sm font-medium text-gray-700 mb-1">Course</label>
+              <label for="strand" class="block text-sm font-medium text-gray-700 mb-1">Strand</label>
               <input
-                v-model="form.course"
+                v-model="form.strand"
                 type="text"
-                id="course"
+                id="strand"
                 required
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="e.g., BSIT, BSCS"
@@ -190,7 +190,7 @@ const form = ref({
   name: '',
   role: '',
   studentId: '',
-  course: '',
+  strand: '',
   yearLevel: '',
   section: '',
   department: '',
@@ -234,7 +234,7 @@ const resetForm = () => {
     name: '',
     role: '',
     studentId: '',
-    course: '',
+    strand: '',
     yearLevel: '',
     section: '',
     department: '',

@@ -28,11 +28,11 @@
             />
           </div>
           <div>
-            <label class="block text-xs font-medium text-slate-600 mb-1">Course</label>
-            <select v-model="selectedCourse" @change="onFilterChange" class="w-full rounded-md border border-slate-300 px-3 py-2">
-              <option value="">All Courses</option>
-              <option v-for="course in props.courses" :key="course.course_id" :value="course.course_code">
-                {{ course.course_code }}
+            <label class="block text-xs font-medium text-slate-600 mb-1">Strand</label>
+            <select v-model="selectedStrand" @change="onFilterChange" class="w-full rounded-md border border-slate-300 px-3 py-2">
+              <option value="">All Strands</option>
+              <option v-for="strand in props.strands" :key="strand.strand_id" :value="strand.strand_code">
+                {{ strand.strand_code }}
               </option>
             </select>
           </div>
@@ -61,7 +61,7 @@
                 <th class="border border-gray-300 px-4 py-3 text-left">Name</th>
                 <th class="border border-gray-300 px-4 py-3 text-left">Email</th>
                 <th class="border border-gray-300 px-4 py-3 text-left">Phone</th>
-                <th class="border border-gray-300 px-4 py-3 text-left">Course</th>
+                <th class="border border-gray-300 px-4 py-3 text-left">Strand</th>
                 <th class="border border-gray-300 px-4 py-3 text-left">Status</th>
                 <th class="border border-gray-300 px-4 py-3 text-left">RFID Tag</th>
                 <th class="border border-gray-300 px-4 py-3 text-left">Actions</th>
@@ -73,7 +73,7 @@
                 <td class="border border-gray-300 px-4 py-3">{{ instructor.first_name }} {{ instructor.last_name }}</td>
                 <td class="border border-gray-300 px-4 py-3">{{ instructor.email }}</td>
                 <td class="border border-gray-300 px-4 py-3">{{ instructor.phone || '-' }}</td>
-                <td class="border border-gray-300 px-4 py-3">{{ instructor.course_code }}</td>
+                <td class="border border-gray-300 px-4 py-3">{{ instructor.strand_code }}</td>
                 <td class="border border-gray-300 px-4 py-3">
                   <span
                     :class="[
@@ -185,11 +185,11 @@
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1">Course *</label>
-                <select v-model="form.course_id" class="w-full rounded-md border border-slate-300 px-3 py-2" required>
-                  <option value="">Select Course</option>
-                  <option v-for="course in props.courses" :key="course.course_id" :value="String(course.course_id)">
-                    {{ course.course_code }} - {{ course.course_name }}
+                <label class="block text-sm font-medium text-slate-700 mb-1">Strand *</label>
+                <select v-model="form.strand_id" class="w-full rounded-md border border-slate-300 px-3 py-2" required>
+                  <option value="">Select Strand</option>
+                  <option v-for="strand in props.strands" :key="strand.strand_id" :value="String(strand.strand_id)">
+                    {{ strand.strand_code }} - {{ strand.strand_name }}
                   </option>
                 </select>
               </div>
@@ -247,8 +247,8 @@ interface Instructor {
   email: string;
   phone: string;
   gender: string;
-  course_id: string | number;
-  course_code: string;
+  strand_id: string | number;
+  strand_code: string;
   rfid_tag: string;
   status: 'active' | 'inactive' | 'on_leave';
 }
@@ -260,18 +260,18 @@ const props = defineProps({
     type: Array as () => Instructor[],
     default: () => [],
   },
-  courses: {
-    type: Array as () => Array<{ course_id: number; course_code: string; course_name: string }>,
+  strands: {
+    type: Array as () => Array<{ strand_id: number; strand_code: string; strand_name: string }>,
     default: () => [],
   },
   filters: {
     type: Object,
-    default: () => ({ search: '', course: '', status: '' }),
+    default: () => ({ search: '', strand: '', status: '' }),
   },
 });
 
 const search = ref(props.filters.search ?? '');
-const selectedCourse = ref(props.filters.course ?? '');
+const selectedStrand = ref(props.filters.strand ?? '');
 const selectedStatus = ref(props.filters.status ?? '');
 const showModal = ref(false);
 const isEditing = ref(false);
@@ -286,7 +286,7 @@ const form = useForm({
   email: '',
   phone: '',
   gender: '',
-  course_id: '',
+  strand_id: '',
   rfid_tag: '',
   status: 'active',
 });
@@ -298,33 +298,33 @@ const filteredInstructors = computed<Instructor[]>(() => {
         (v) => String(v ?? '').toLowerCase().includes(search.value.toLowerCase())
       );
 
-    const matchesCourse = selectedCourse.value === '' ||
-      (instructor.course_code ?? '').toLowerCase() === selectedCourse.value.toLowerCase();
+    const matchesStrand = selectedStrand.value === '' ||
+      (instructor.strand_code ?? '').toLowerCase() === selectedStrand.value.toLowerCase();
 
     const matchesStatus = selectedStatus.value === '' ||
       instructor.status === selectedStatus.value;
 
-    return matchesSearch && matchesCourse && matchesStatus;
+    return matchesSearch && matchesStrand && matchesStatus;
   });
 });
 
 const onFilterChange = () => {
   const query = {
     search: search.value,
-    course: selectedCourse.value,
+    strand: selectedStrand.value,
     status: selectedStatus.value,
   };
   // Sync with backend route state for reload
   window.history.replaceState(
     {},
     '',
-    `${window.location.pathname}?search=${encodeURIComponent(query.search)}&course=${encodeURIComponent(query.course)}&status=${encodeURIComponent(query.status)}`
+    `${window.location.pathname}?search=${encodeURIComponent(query.search)}&strand=${encodeURIComponent(query.strand)}&status=${encodeURIComponent(query.status)}`
   );
 };
 
 const resetFilters = () => {
   search.value = '';
-  selectedCourse.value = '';
+  selectedStrand.value = '';
   selectedStatus.value = '';
   window.location.href = window.location.pathname;
 };
@@ -349,7 +349,7 @@ const openEditModal = (instructor: Instructor) => {
   form.email = instructor.email;
   form.phone = instructor.phone;
   form.gender = instructor.gender;
-  form.course_id = String(instructor.course_id);
+  form.strand_id = String(instructor.strand_id);
   form.rfid_tag = instructor.rfid_tag;
   form.status = instructor.status;
   showModal.value = true;
@@ -363,7 +363,7 @@ const closeModal = () => {
 };
 
 const submitForm = () => {
-  if (!form.first_name || !form.last_name || !form.email || !form.course_id || !form.instructor_number) {
+  if (!form.first_name || !form.last_name || !form.email || !form.strand_id || !form.instructor_number) {
     alert('Please fill in all required fields.');
     return;
   }
