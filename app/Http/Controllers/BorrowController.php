@@ -27,6 +27,7 @@ class BorrowController
     }
 
     return Inertia::render('Borrow', [
+      'title' => 'Borrowing',
       'borrowRows' => $this->buildBorrowRows($filters),
       'borrowerProfiles' => $this->buildBorrowerProfiles(),
       'borrowItemsCatalog' => $this->buildBorrowItemsCatalog(),

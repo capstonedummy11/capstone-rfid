@@ -14,7 +14,7 @@ import RFID from '@/components/Icon/RFID.vue';
 import Schedule from '@/components/Icon/Schedule.vue';
 import Section from '@/components/Icon/Section.vue';
 import Trash from '@/components/Icon/Trash.vue';
-// import TwoPerson from '@/components/Icon/TwoPerson.vue';
+import Inventory from '@/components/Icon/Inventory.vue';
 
 const links = [
     {
@@ -83,6 +83,11 @@ const links = [
         icon: Borrowing,
         text: 'Borrowing',
         route: route('admin.borrow'),
+    },
+    {
+        icon: Inventory,
+        text: 'Inventory',
+        route: route('admin.inventory'),
     },
     {
         icon: Reports,
