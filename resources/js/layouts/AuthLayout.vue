@@ -10,7 +10,7 @@ import AuthNavbar from './AuthNavbar.vue';
             <header
                 class="flex h-[100px] items-center bg-white p-4 drop-shadow-sm"
             >
-                <h1 class="text-[20px] font-bold">RFID Capstone</h1>
+                <h1 class="text-[20px] font-bold">{{ $page.props.title }}</h1>
             </header>
             <!-- Page Content -->
             <main class="flex-1 bg-gray-100">
