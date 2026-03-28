@@ -489,7 +489,7 @@ const showResultPopup = (confirmed, student, borrowItems) => {
                 </div>
                 <div style="flex:1; display:flex; flex-direction:column; gap:4px;">
                   <div style="color:white; font-weight:700; font-size:13px; line-height:1.2;">${escapeHtml(student.name)}</div>
-                  <div style="color:rgba(255,255,255,0.7); font-size:10px;">${escapeHtml(student.course)} &bull; ${escapeHtml(student.section)}</div>
+                  <div style="color:rgba(255,255,255,0.7); font-size:10px;">${escapeHtml(student.strand)} &bull; ${escapeHtml(student.section)}</div>
                   <div style="color:rgba(255,255,255,0.7); font-size:10px;">${escapeHtml(student.year)} &bull; ${escapeHtml(student.role)}</div>
                   <div style="color:#93c5fd; font-size:9px; font-family:monospace; letter-spacing:1px;">${escapeHtml(student.studentId)}</div>
                 </div>
@@ -556,7 +556,7 @@ const showResultPopup = (confirmed, student, borrowItems) => {
                 </div>
                 <div style="flex:1; display:flex; flex-direction:column; gap:4px;">
                   <div style="color:white; font-weight:700; font-size:13px; line-height:1.2;">${escapeHtml(student.name)}</div>
-                  <div style="color:rgba(255,255,255,0.65); font-size:10px;">${escapeHtml(student.course)} &bull; ${escapeHtml(student.section)}</div>
+                  <div style="color:rgba(255,255,255,0.65); font-size:10px;">${escapeHtml(student.strand)} &bull; ${escapeHtml(student.section)}</div>
                   <div style="color:rgba(255,255,255,0.65); font-size:10px;">${escapeHtml(student.year)} &bull; ${escapeHtml(student.role)}</div>
                   <div style="color:#fca5a5; font-size:9px; font-family:monospace; letter-spacing:1px;">${escapeHtml(student.studentId)}</div>
                 </div>
@@ -613,7 +613,7 @@ const showUserInfo = (rfid) => {
     return;
   }
 
-  const studentCourseSection = `${student.course} ${student.section}`;
+  const studentStrandSection = `${student.strand} ${student.section}`;
   const borrowItems = getBorrowItems(student);
   if (borrowItems.length === 0) {
     Swal.fire({
@@ -889,8 +889,8 @@ const showUserInfo = (rfid) => {
                 <div style="color:white; font-weight:700; font-size:14px;">${escapeHtml(student.name)}</div>
               </div>
               <div>
-                <div style="color:rgba(255,255,255,0.5); font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:1px;">Course & Section</div>
-                <div style="color:white; font-weight:600; font-size:12px;">${escapeHtml(studentCourseSection)}</div>
+                <div style="color:rgba(255,255,255,0.5); font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:1px;">Strand & Section</div>
+                <div style="color:white; font-weight:600; font-size:12px;">${escapeHtml(studentStrandSection)}</div>
               </div>
               <div style="display:flex; gap:16px;">
                 <div>

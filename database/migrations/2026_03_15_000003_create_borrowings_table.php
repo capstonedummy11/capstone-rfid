@@ -22,6 +22,13 @@ return new class extends Migration {
         ->constrained('users', 'user_id')
         ->nullOnDelete();
 
+      $table->foreignId('item_id')
+        ->nullable()
+        ->constrained('items', 'item_id')
+        ->nullOnDelete();
+
+      $table->unsignedInteger('quantity')->default(1);
+
       // Which role is borrowing — used for display in the table (Student / Instructor)
       $table->enum('borrower_type', ['student', 'instructor']);
 
@@ -36,6 +43,7 @@ return new class extends Migration {
         'lost',
       ])->default('active');
 
+      $table->date('due_date')->nullable();
       $table->text('remarks')->nullable();
       $table->timestamps();
     });

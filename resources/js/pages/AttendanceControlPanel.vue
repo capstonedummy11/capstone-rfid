@@ -20,6 +20,10 @@ const props = defineProps({
     type: Object,
     default: () => ({}),
   },
+  demoInstructorRfids: {
+    type: Array,
+    default: () => [],
+  },
   demoStudentRfids: {
     type: Array,
     default: () => [],
@@ -64,76 +68,6 @@ const filteredRooms = computed(() => {
   if (!roomSearch.value) return roomOptions.value;
   const query = roomSearch.value.toLowerCase();
   return roomOptions.value.filter((room) => room.name.toLowerCase().includes(query));
-});
-
-const instructorProfiles = [
-  {
-    id: 1,
-    name: 'Prof. Andrea Cruz',
-    rfid: 'INS-1001',
-    role: 'instructor',
-    subject: 'Systems Analysis and Design',
-    section: 'BSIT 3A',
-    course: 'Bachelor of Science in Information Technology',
-    schedule: 'Mon 8:00 AM - 10:00 AM',
-    room: 'RFID Laboratory',
-  },
-  {
-    id: 2,
-    name: 'Prof. Miguel Santos',
-    rfid: 'INS-1002',
-    role: 'instructor',
-    subject: 'Database Management Systems',
-    section: 'BSCS 2B',
-    course: 'Bachelor of Science in Computer Science',
-    schedule: 'Tue 1:00 PM - 3:00 PM',
-    room: 'Computer Lab 2',
-  },
-];
-
-const demoStudentRfids = computed(() => (Array.isArray(props.demoStudentRfids) ? props.demoStudentRfids : [])
-  .map((rfid) => String(rfid ?? '').trim())
-  .filter((rfid) => rfid.length > 0));
-
-const borrowCatalogMap = computed(() => {
-  const map = new Map();
-  const items = Array.isArray(props.borrowItemsCatalog) ? props.borrowItemsCatalog : [];
-
-  items.forEach((item) => {
-    const barcode = String(item?.barcode ?? '').trim();
-    if (!barcode) return;
-
-    map.set(barcode, {
-      barcode,
-      id: item?.id ?? 'N/A',
-      name: item?.name ?? 'Unknown item',
-      type: item?.type ?? 'Unknown type',
-    });
-  });
-
-  return map;
-});
-
-// Maps every currently-borrowed barcode → the rfid key of the borrower.
-const borrowedBarcodeMap = computed(() => {
-  const map = new Map();
-  const byRfid = props.borrowItemsByRfid ?? {};
-  for (const [rfidKey, items] of Object.entries(byRfid)) {
-    if (!Array.isArray(items)) continue;
-    for (const item of items) {
-      const barcode = String(item?.barcode ?? '').trim();
-      if (barcode) map.set(barcode, rfidKey);
-    }
-  }
-  return map;
-});
-
-const demoBorrowerRfids = computed(() => {
-  const fromActiveBorrowings = Object.keys(props.borrowItemsByRfid ?? {})
-    .map((rfid) => String(rfid ?? '').trim())
-    .filter((rfid) => rfid.length > 0);
-
-  return [...new Set([...fromActiveBorrowings, ...demoStudentRfids.value])];
 });
 
 const systemModeStyles = {
@@ -241,6 +175,40 @@ const actionButtonLabel = computed(() => {
   return 'Demo Student Tap';
 });
 
+const demoBorrowerRfids = computed(() => Object.keys(props.borrowItemsByRfid ?? {}));
+
+const borrowCatalogMap = computed(() => {
+  const map = new Map();
+  (props.borrowItemsCatalog ?? []).forEach((item) => {
+    const barcode = String(item?.barcode ?? '').trim();
+    if (!barcode) return;
+
+    map.set(barcode, {
+      name: item?.name ?? 'Unknown Item',
+      id: item?.id ?? barcode,
+      type: item?.type ?? 'Device',
+      barcode,
+    });
+  });
+  return map;
+});
+
+const borrowedBarcodeMap = computed(() => {
+  const map = new Map();
+
+  Object.entries(props.borrowItemsByRfid ?? {}).forEach(([rfid, items]) => {
+    if (!Array.isArray(items)) return;
+
+    items.forEach((item) => {
+      const barcode = String(item?.barcode ?? '').trim();
+      if (!barcode) return;
+      map.set(barcode, normalizeRfid(rfid));
+    });
+  });
+
+  return map;
+});
+
 const recentAttendance = computed(() => [...attendanceRecords.value].slice(0, 6));
 const attendeesSlideVisible = computed(() => panelUnlocked.value && currentMode.value === 'attendance');
 
@@ -313,9 +281,6 @@ const showStudentTemporarily = (student) => {
     activeStudentTimer = null;
   }, STUDENT_INFO_VISIBLE_MS);
 };
-
-const findInstructor = (rfid) => instructorProfiles.find((profile) => normalizeRfid(profile.rfid) === normalizeRfid(rfid)) || null;
-const findStudent = () => null;
 
 const lookupRfidFromServer = async (rfid) => {
   try {
@@ -558,35 +523,21 @@ const recordAttendance = async (student) => {
     rfid: savedRecord.rfid ?? student.rfid,
     name: savedRecord.name ?? student.name,
     year: student.year,
-    course: savedRecord.course ?? student.course,
-    section: savedRecord.section ?? student.section,
-    time_in: savedRecord.time_in ?? timestamp,
-    time_out: savedRecord.time_out ?? null,
+    course: student.course,
+    section: student.section,
+    time: savedRecord.time ?? timestamp,
     status: savedStatus,
   };
 
-  const existingIndex = attendanceRecords.value.findIndex((entry) => entry.id === mappedRecord.id);
-  if (existingIndex >= 0) {
-    attendanceRecords.value.splice(existingIndex, 1, {
-      ...attendanceRecords.value[existingIndex],
-      ...mappedRecord,
-    });
-  } else {
-    attendanceRecords.value.unshift(mappedRecord);
-  }
+  attendanceRecords.value = [
+    mappedRecord,
+    ...attendanceRecords.value.filter((record) => record.id !== mappedRecord.id),
+  ];
 
-  if (action === 'time_out') {
-    lastAction.value = `${student.name} tapped out at ${mappedRecord.time_out ?? timestamp}.`;
-    pushHistory('Attendance updated', `${student.name} time-out was recorded at ${mappedRecord.time_out ?? timestamp}.`, 'warning');
-    setTapHeadline('Time Out Recorded', STUDENT_TOAST_MS);
-    showStudentToast(student, 'Time out recorded.', 'success');
-    return;
-  }
-
-  lastAction.value = `${student.name} was recorded time-in at ${mappedRecord.time_in ?? timestamp}.`;
-  pushHistory('Attendance recorded', `${student.name} tapped in at ${mappedRecord.time_in ?? timestamp}.`, 'success');
-  setTapHeadline('Time In Recorded', STUDENT_TOAST_MS);
-  showStudentToast(student, 'Time in recorded.', 'success');
+  lastAction.value = `${student.name} was recorded ${savedStatus.toLowerCase()} at ${timestamp}.`;
+  pushHistory('Attendance recorded', `${student.name} tapped in at ${timestamp}.`, 'success');
+  setTapHeadline('Attendance successfully recorded', STUDENT_TOAST_MS);
+  showStudentToast(student, 'Attendance successfully recorded.', 'success');
 };
 
 const processBorrowerMode = (student) => {
@@ -932,8 +883,8 @@ const handleRfidScan = async (rfid) => {
 
   triggerPulse(rfid);
   const lookup = await lookupRfidFromServer(rfid);
-  const professor = lookup?.type === 'instructor' ? lookup.profile : findInstructor(rfid);
-  const student = lookup?.type === 'student' ? lookup.profile : findStudent(rfid);
+  const professor = lookup?.type === 'instructor' ? lookup.profile : null;
+  const student = lookup?.type === 'student' ? lookup.profile : null;
   const user = lookup?.type === 'user' ? lookup.profile : null;
 
   if (professor) {
@@ -1007,7 +958,7 @@ const handleRfidScan = async (rfid) => {
     return;
   }
 
-  lastAction.value = `RFID ${rfid} is not registered in the panel sample data.`;
+  lastAction.value = `RFID ${rfid} is not registered in the current system records.`;
   pushHistory('Unknown RFID', `No instructor or student record matched RFID ${rfid}.`, 'warning');
   Swal.fire({
     icon: 'warning',
@@ -1079,8 +1030,13 @@ const toggleListening = () => {
 
 const runDemoTap = () => {
   if (!sessionActive.value) {
-    // Use seeded instructor RFID that has a valid Friday 20:30-23:00 schedule.
-    handleRfidScan('INS-1003');
+    const demoInstructorRfid = props.demoInstructorRfids?.[0];
+    if (!demoInstructorRfid) {
+      showToast('warning', 'No seeded instructor RFID found');
+      return;
+    }
+
+    handleRfidScan(demoInstructorRfid);
     return;
   }
 
@@ -1105,8 +1061,14 @@ const runDemoTap = () => {
 };
 
 const demoProfessorRetap = () => {
-  // Re-tap active professor to open session controls; fallback to Sarah if no active session.
-  handleRfidScan(activeProfessor.value?.rfid ?? 'INS-1004');
+  // Re-tap active professor to open session controls.
+  const currentInstructorRfid = activeProfessor.value?.rfid ?? props.demoInstructorRfids?.[0];
+  if (!currentInstructorRfid) {
+    showToast('warning', 'No seeded instructor RFID found');
+    return;
+  }
+
+  handleRfidScan(currentInstructorRfid);
 };
 
 const runDemoStudentTap = () => {
@@ -1474,8 +1436,8 @@ watch([
             <span class="text-sm font-bold text-slate-800">{{ activeStudent ? activeStudent.year : 'Waiting...' }}</span>
           </div>
           <div class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 ring-1 ring-slate-200">
-            <span class="text-sm font-semibold text-slate-500">Course</span>
-            <span class="text-sm font-bold text-slate-800">{{ activeStudent ? activeStudent.course : 'Waiting...' }}</span>
+            <span class="text-sm font-semibold text-slate-500">Strand</span>
+            <span class="text-sm font-bold text-slate-800">{{ activeStudent ? activeStudent.strand : 'Waiting...' }}</span>
           </div>
           <div class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 ring-1 ring-slate-200">
             <span class="text-sm font-semibold text-slate-500">Section</span>
@@ -1531,56 +1493,28 @@ watch([
             <div class="mt-1 text-xs text-slate-500">Students will appear here after their RFID tap is recorded.</div>
           </div>
 
-          <transition-group v-else name="attendee-drop" tag="ul" class="space-y-3">
-            <li
-              v-for="record in attendanceRecords"
-              :key="record.id"
-              class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"
-            >
-              <div class="flex items-center justify-between gap-3">
-                <div>
-                  <div class="text-sm font-bold text-slate-900">{{ record.name }}</div>
-                  <div class="mt-0.5 text-xs text-slate-500">{{ record.course }} • {{ record.section }}</div>
+            <ul v-else class="space-y-3">
+              <li
+                v-for="record in attendanceRecords"
+                :key="record.id"
+                class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"
+              >
+                <div class="flex items-center justify-between gap-3">
+                  <div>
+                    <div class="text-sm font-bold text-slate-900">{{ record.name }}</div>
+                    <div class="mt-0.5 text-xs text-slate-500">{{ record.course }} • {{ record.section }}</div>
+                  </div>
+                  <div class="rounded-lg bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">{{ record.status }}</div>
                 </div>
-                <div class="rounded-lg bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">{{ record.status }}</div>
-              </div>
-              <div class="mt-2 flex items-center justify-between text-[11px] text-slate-500">
-                <span>RFID: {{ record.rfid }}</span>
-                <span>In: {{ record.time_in || '---' }} | Out: {{ record.time_out || '---' }}</span>
-              </div>
-            </li>
-          </transition-group>
-        </div>
+                <div class="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+                  <span>RFID: {{ record.rfid }}</span>
+                  <span>{{ record.time }}</span>
+                </div>
+              </li>
+            </ul>
+          </div>
       </section>
-
     </div>
-
-    <!-- Floating RFID Toggle (from Borrow.vue) -->
-    <button
-      type="button"
-      class="fixed bottom-6 right-6 flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold shadow-lg transition-all duration-300 z-50 select-none cursor-pointer"
-      :class="scanPulse
-        ? 'bg-emerald-500 text-white scale-110'
-        : !isListening
-          ? 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
-          : currentMode === 'borrowing'
-            ? 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
-            : currentMode === 'attendance'
-              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
-              : 'bg-white text-gray-700 border border-gray-200 hover:bg-emerald-50 hover:border-emerald-300'"
-      :title="isListening ? 'Click to pause RFID scanner' : 'Click to resume RFID scanner'"
-      @click="!scanPulse && toggleListening()"
-    >
-      <svg class="h-5 w-5" :class="currentMode === 'borrowing' ? 'text-amber-500' : isListening ? 'text-emerald-500' : 'text-amber-400'" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-        <rect x="2" y="5" width="20" height="14" rx="2" stroke-width="1.8"/>
-        <rect x="5" y="9" width="5" height="4" rx="1" stroke-width="1.5"/>
-        <path stroke-linecap="round" stroke-width="1.5" d="M15 10.5a1.5 1.5 0 0 1 0 3"/>
-        <path stroke-linecap="round" stroke-width="1.5" d="M17.5 8.5a4 4 0 0 1 0 7"/>
-      </svg>
-      <span>{{ scanPulse ? 'Scanned!' : !isListening ? 'Scanner Paused' : sessionActive ? modeLabel : 'RFID Listening' }}</span>
-      <span v-if="isListening && !scanPulse" class="absolute top-2 right-2 h-2 w-2 animate-ping rounded-full bg-emerald-500"></span>
-    </button>
-
   </div>
 </template>
 

@@ -11,14 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('sections', function (Blueprint $table) {
-            $table->id('section_id');
+        Schema::create('instructors', function (Blueprint $table) {
+            $table->id('instructor_id');
+            $table->foreignId('user_id')->constrained('users', 'user_id')->onDelete('cascade');
             $table->foreignId('strand_id')->constrained('strands', 'strand_id');
-            $table->string('section_name');
-            $table->integer('year_level');
-            $table->string('semester');  
-            $table->string('school_year');
-            $table->enum('status', ['active', 'inactive'])->default('active');
+            $table->string('instructor_number')->unique();
+            $table->enum('status', ['active', 'inactive', 'on_leave'])->default('active');
             $table->timestamps();
         });
     }
@@ -28,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('sections');
+        Schema::dropIfExists('instructors');
     }
 };

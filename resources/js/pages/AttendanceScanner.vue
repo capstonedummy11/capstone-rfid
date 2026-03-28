@@ -1,79 +1,87 @@
 <template>
   <div class="w-full">
-    <div class="max-w-[1400px] mx-auto px-4">
-      <!-- Header -->
-      <div class="bg-white shadow-lg rounded-lg p-6 mb-6">
-        <h1 class="text-3xl font-bold mb-2">RFID Attendance Scanner</h1>
-        <div class="flex justify-between items-center text-gray-600">
+    <div class="mx-auto max-w-screen-2xl px-4 py-6">
+      <div class="mb-6 rounded-lg bg-white p-6 shadow-lg">
+        <h1 class="mb-2 text-3xl font-bold">RFID Attendance Scanner</h1>
+        <div class="flex flex-wrap items-center justify-between gap-3 text-gray-600">
           <div>{{ currentDate }}</div>
           <div>{{ currentTime }}</div>
-          <div>System Status: Online</div>
+          <div>{{ session ? 'Schedule loaded' : 'No active schedule' }}</div>
         </div>
       </div>
 
-      <!-- Attendance Session Status -->
-      <div class="bg-white shadow-lg rounded-lg p-6 mb-6">
-        <h2 class="text-xl font-semibold mb-4">Attendance Session Status</h2>
-        <div v-if="!sessionActive" class="text-center">
-          <p class="text-gray-600 text-lg">Waiting for Instructor RFID...</p>
-          <p class="text-sm">Tap Instructor Card to Start Class</p>
-        </div>
-        <div v-else class="space-y-2">
-          <p><strong>Instructor:</strong> {{ instructor.name }}</p>
-          <p><strong>Subject:</strong> {{ instructor.subject }}</p>
-          <p><strong>Section:</strong> {{ instructor.section }}</p>
-          <p><strong>Time:</strong> {{ instructor.time }}</p>
-        </div>
+      <div class="mb-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+        <section class="rounded-lg bg-white p-6 shadow-lg">
+          <h2 class="mb-4 text-xl font-semibold">Attendance Session Status</h2>
+          <div v-if="!session" class="space-y-2 text-center text-gray-600">
+            <p class="text-lg">No schedule is available yet.</p>
+            <p class="text-sm">Create a subject and schedule to populate this scanner view.</p>
+          </div>
+          <div v-else class="grid gap-3 md:grid-cols-2">
+            <p><strong>Instructor:</strong> {{ session.instructor }}</p>
+            <p><strong>Subject:</strong> {{ session.subject }}</p>
+            <p><strong>Subject Code:</strong> {{ session.subjectCode ?? 'N/A' }}</p>
+            <p><strong>Section:</strong> {{ session.section }}</p>
+            <p><strong>Track:</strong> {{ session.strand ?? 'N/A' }}</p>
+            <p><strong>Program:</strong> {{ session.strand ?? 'N/A' }}</p>
+            <p><strong>Schedule:</strong> {{ session.weekdays }}</p>
+            <p><strong>Time:</strong> {{ session.time }}</p>
+            <p class="md:col-span-2"><strong>Room:</strong> {{ session.room }}</p>
+          </div>
+        </section>
+
+        <section class="rounded-lg bg-white p-6 shadow-lg">
+          <h2 class="mb-4 text-xl font-semibold">Scanner Input</h2>
+          <p class="mb-4 text-sm text-gray-600">This page now reads real students and recent logs from the database. The button below still performs a local demo tap so you can test the UI without a hardware listener.</p>
+          <div class="flex flex-col items-center gap-4 text-center">
+            <button @click="simulateScan" class="rounded-lg bg-blue-600 px-6 py-3 text-lg font-medium text-white transition-colors hover:bg-blue-700">Simulate RFID Tap</button>
+            <p class="text-sm text-gray-500">Registered RFID students: {{ registeredStudents.length }}</p>
+          </div>
+        </section>
       </div>
 
-      <!-- RFID Scanner Input -->
-      <div class="bg-white shadow-lg rounded-lg p-6 mb-6">
-        <h2 class="text-xl font-semibold mb-4">RFID Scanner Input</h2>
-        <div class="text-center">
-          <button @click="simulateScan" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg text-lg font-medium transition-colors">
-            Tap RFID Card
-          </button>
-        </div>
-      </div>
-
-      <!-- Scan Result Display -->
-      <div class="bg-white shadow-lg rounded-lg p-6 mb-6">
-        <h2 class="text-xl font-semibold mb-4">Scan Result Display</h2>
+      <div class="mb-6 rounded-lg bg-white p-6 shadow-lg">
+        <h2 class="mb-4 text-xl font-semibold">Scan Result Display</h2>
         <div v-if="lastScan" class="text-center">
-          <p :class="lastScan.success ? 'text-green-600 text-xl font-medium' : 'text-red-600 text-xl font-medium'">
-            {{ lastScan.message }}
-          </p>
-          <p v-if="lastScan.time" class="text-gray-600 mt-2">Time: {{ lastScan.time }}</p>
+          <p :class="lastScan.success ? 'text-xl font-medium text-green-600' : 'text-xl font-medium text-red-600'">{{ lastScan.message }}</p>
+          <p v-if="lastScan.time" class="mt-2 text-gray-600">Time: {{ lastScan.time }}</p>
         </div>
         <div v-else class="text-center text-gray-500">
-          <p>No recent scans</p>
+          <p>No recent local scans</p>
         </div>
       </div>
 
-      <!-- Live Attendance List -->
-      <div class="bg-white shadow-lg rounded-lg p-6">
-        <h2 class="text-xl font-semibold mb-4">Live Attendance List</h2>
+      <div class="rounded-lg bg-white p-6 shadow-lg">
+        <h2 class="mb-4 text-xl font-semibold">Recent Attendance</h2>
         <div class="overflow-x-auto">
           <table class="w-full table-auto border-collapse">
             <thead>
               <tr class="bg-gray-50">
                 <th class="border border-gray-300 px-4 py-3 text-left font-medium">Student Name</th>
+                <th class="border border-gray-300 px-4 py-3 text-left font-medium">Student No.</th>
+                <th class="border border-gray-300 px-4 py-3 text-left font-medium">Subject</th>
+                <th class="border border-gray-300 px-4 py-3 text-left font-medium">Section</th>
                 <th class="border border-gray-300 px-4 py-3 text-left font-medium">Time</th>
                 <th class="border border-gray-300 px-4 py-3 text-left font-medium">Status</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="student in attendanceList" :key="student.name" class="hover:bg-gray-50">
-                <td class="border border-gray-300 px-4 py-3">{{ student.name }}</td>
-                <td class="border border-gray-300 px-4 py-3">{{ student.time }}</td>
+              <tr v-for="student in attendanceList" :key="student.id" class="hover:bg-gray-50">
+                <td class="border border-gray-300 px-4 py-3">{{ student.student }}</td>
+                <td class="border border-gray-300 px-4 py-3">{{ student.studentNumber ?? 'N/A' }}</td>
+                <td class="border border-gray-300 px-4 py-3">{{ student.subject ?? 'N/A' }}</td>
+                <td class="border border-gray-300 px-4 py-3">{{ student.section ?? 'N/A' }}</td>
+                <td class="border border-gray-300 px-4 py-3">{{ student.time ?? 'N/A' }}</td>
                 <td class="border border-gray-300 px-4 py-3">
-                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    {{ student.status }}
-                  </span>
+                  <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">{{ student.status }}</span>
                 </td>
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <div v-if="attendanceList.length === 0" class="py-8 text-center text-gray-500">
+          <p>No attendance logs found.</p>
         </div>
       </div>
     </div>
@@ -81,22 +89,27 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
+
+const props = defineProps({
+  session: {
+    type: Object,
+    default: null,
+  },
+  recentScans: {
+    type: Array,
+    default: () => [],
+  },
+  registeredStudents: {
+    type: Array,
+    default: () => [],
+  },
+})
 
 const currentDate = ref('')
 const currentTime = ref('')
-const sessionActive = ref(false)
-const instructor = ref({
-  name: 'Mr. Santos',
-  subject: 'Database Systems',
-  section: 'BSIT 3A',
-  time: '8:00 - 10:00'
-})
 const lastScan = ref(null)
-const attendanceList = ref([
-  { name: 'Juan Cruz', time: '8:01', status: 'Present' },
-  { name: 'Maria Santos', time: '8:03', status: 'Present' }
-])
+const attendanceList = ref([...props.recentScans])
 
 let timer
 
@@ -111,25 +124,45 @@ onUnmounted(() => {
 
 const updateDateTime = () => {
   const now = new Date()
-  currentDate.value = now.toLocaleDateString('en-US', { weekday: 'long' })
+  currentDate.value = now.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  })
   currentTime.value = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
 }
 
 const simulateScan = () => {
-  const success = Math.random() > 0.5
   const now = new Date()
   const time = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
 
-  if (success) {
-    const name = 'Student ' + Math.floor(Math.random() * 100)
-    lastScan.value = { success: true, message: `✔ ${name} Attendance Recorded`, time }
-    attendanceList.value.push({ name, time, status: 'Present' })
-  } else {
-    lastScan.value = { success: false, message: 'RFID Not Registered Please register card', time }
+  if (props.registeredStudents.length === 0) {
+    lastScan.value = {
+      success: false,
+      message: 'No registered RFID students found in the database.',
+      time,
+    }
+    return
   }
+
+  const nextStudent = props.registeredStudents[Math.floor(Math.random() * props.registeredStudents.length)]
+  const nextLog = {
+    id: `demo-${Date.now()}`,
+    student: nextStudent.name,
+    studentNumber: nextStudent.studentId,
+    subject: props.session?.subject ?? 'Unassigned Subject',
+    section: nextStudent.section ?? props.session?.section ?? 'N/A',
+    time,
+    status: 'Present',
+  }
+
+  lastScan.value = {
+    success: true,
+    message: `Attendance recorded for ${nextStudent.name}`,
+    time,
+  }
+
+  attendanceList.value = [nextLog, ...attendanceList.value].slice(0, 20)
 }
 </script>
-
-<style scoped>
-/* Add any custom styles if needed */
-</style>
