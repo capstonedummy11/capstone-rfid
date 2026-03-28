@@ -48,8 +48,11 @@
                         </div>
 
                         <div class="space-y-5">
-                            <LoginButton :disabled="form.processing" text="Login" />
-                            <LoginButton :disabled="form.processing" text="Login as Admin" />
+                            <LoginButton
+                                :disabled="form.processing"
+                                text="Login"
+                            />
+                            <!-- <LoginButton :disabled="form.processing" text="Login as Admin" /> -->
                         </div>
                     </div>
                 </div>

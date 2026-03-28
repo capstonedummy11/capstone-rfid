@@ -1,20 +1,70 @@
 <script setup>
+import { ref } from 'vue';
+import { useForm } from '@inertiajs/vue3';
 import Barcode from '@/components/Icon/Barcode.vue';
+import BarcodeScanner from './BarcodeScanner.vue';
 import SearchBar from './SearchBar.vue';
 import Search from '@/components/Icon/Search.vue';
 import Item from '@/components/Icon/Item.vue';
 import AddButton from '@/components/Buttons/AddButton.vue';
+import skuIcon from '@/components/Icon/sku.vue';
+import Description from '@/components/Icon/Description.vue';
+import Swal from 'sweetalert2';
 
 defineProps({
-    table_header: {
-        type: String,
-        required: true,
-    },
-    rows: {
-        type: Array,
-        default: () => [],
-    },
+    table_header: { type: String, required: true },
+    rows: { type: Array, default: () => [] },
 });
+
+const form = useForm({
+    barcode: '',
+    name: '',
+    sku: '',
+    description: '',
+});
+
+const onAddItem = () => {
+    if (!form.barcode || !form.name) {
+        Swal.fire({
+            title: 'Missing required fields',
+            text: !form.barcode
+                ? 'Barcode is required.'
+                : 'Item name is required.',
+            icon: 'warning',
+        });
+        return;
+    }
+
+    const itemName = form.name;
+
+    form.post(route('admin.items.store'), {
+        preserveScroll: true,
+        onSuccess: () => {
+            Swal.fire({
+                title: 'Item added',
+                text: `${itemName} is added`,
+                icon: 'success',
+            });
+            form.reset();
+        },
+        onError: () => {
+            Swal.fire({
+                title: 'Failed to add item',
+                text: Object.values(form.errors)[0],
+                icon: 'error',
+            });
+        },
+    });
+};
+
+const formatDate = (date) => {
+    if (!date) return '—';
+    return new Intl.DateTimeFormat('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+    }).format(new Date(date));
+};
 </script>
 
 <template>
@@ -28,19 +78,27 @@ defineProps({
             </div>
             <div class="mb-5 h-10 w-px self-center bg-gray-300"></div>
             <div class="flex w-full items-center space-x-5">
-                <SearchBar
+                <BarcodeScanner
+                    v-model="form.barcode"
                     :icon="Barcode"
                     placeholder="Scan or Type the barcode"
                 />
-                <SearchBar :icon="Item" placeholder="Type the item name" />
-                <div class="relative mb-5 w-[300px]">
-                    <input
-                        type="number"
-                        class="h-[40px] w-full border-2 pl-2"
-                        placeholder="Quantity"
-                    />
-                </div>
-                <AddButton />
+                <SearchBar
+                    v-model="form.name"
+                    :icon="Item"
+                    placeholder="Type the item name"
+                />
+                <SearchBar
+                    v-model="form.sku"
+                    :icon="skuIcon"
+                    placeholder="SKU"
+                />
+                <SearchBar
+                    v-model="form.description"
+                    :icon="Description"
+                    placeholder="Description"
+                />
+                <AddButton @click="onAddItem" />
             </div>
         </header>
 
@@ -50,7 +108,7 @@ defineProps({
             <span class="min-w-0 flex-1">ID</span>
             <span class="min-w-0 flex-1">Barcode</span>
             <span class="min-w-0 flex-1">Description</span>
-            <span class="min-w-0 flex-1">Quantity</span>
+            <span class="min-w-0 flex-1">SKU</span>
             <span class="min-w-0 flex-1">Date</span>
             <span class="min-w-0 flex-1">Status</span>
         </div>
@@ -63,10 +121,10 @@ defineProps({
                 class="flex items-center px-4 py-3"
             >
                 <span class="min-w-0 flex-1 pr-2 text-center font-medium">{{
-                    row.item
+                    row.name
                 }}</span>
                 <span class="min-w-0 flex-1 pr-2 text-center">{{
-                    row.id
+                    row.item_id
                 }}</span>
                 <span class="min-w-0 flex-1 pr-2 text-center text-blue-500">{{
                     row.barcode
@@ -76,10 +134,10 @@ defineProps({
                     >{{ row.description }}</span
                 >
                 <span class="min-w-0 flex-1 pr-2 text-center">{{
-                    row.quantity
+                    row.sku
                 }}</span>
                 <span class="min-w-0 flex-1 pr-2 text-center text-gray-500">{{
-                    row.date
+                    formatDate(row.created_at)
                 }}</span>
                 <span class="min-w-0 flex-1 pr-2">
                     <div class="flex items-center justify-center">

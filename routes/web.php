@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BorrowController;
+use App\Http\Controllers\ItemController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -56,7 +57,8 @@ Route::prefix('admin')
     //Route::inertia('/instructors-management', 'InstructorsManagement', ['title' => 'Instructor Management'])->name('instructorsManagement');
     Route::inertia('/laboratories', 'Auth/Admin/Laboratories', ['title' => 'Laboratories'])->name('laboratories');
     Route::get('/borrow', [BorrowController::class, 'index'], ['title' => 'Borrowing'])->name('borrow');
-    Route::inertia('/inventory', 'Auth/Admin/Inventory', ['title' => 'Inventory'])->name('inventory');
+    Route::inertia('/inventory', 'Auth/Admin/Inventory', ['title' => 'Inventory', 'items' => \App\Models\Item::all(),])->name('inventory');
+    Route::post('/items', [ItemController::class, 'store'])->name('items.store');
   });
 
 

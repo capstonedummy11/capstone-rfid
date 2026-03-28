@@ -1,17 +1,11 @@
 <script setup>
 defineProps({
-    icon: {
-        type: Object,
-        default: null,
-    },
-    placeholder: {
-        type: String,
-        required: true,
-    },
+    icon: { type: Object, default: null },
+    placeholder: { type: String, required: true },
     modelValue: { type: String, default: '' },
 });
 
-defineEmits(['update:modelValue']);
+defineEmits(['update:modelValue', 'enter']);
 </script>
 
 <template>
@@ -20,6 +14,8 @@ defineEmits(['update:modelValue']);
             type="text"
             class="h-[40px] w-full border-2 pl-9"
             :placeholder="placeholder"
+            :value="modelValue"
+            autofocus
             @input="$emit('update:modelValue', $event.target.value)"
         />
         <component
