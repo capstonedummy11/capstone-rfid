@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('students', function (Blueprint $table) {
             $table->id('student_id');
             $table->foreignId('section_id')->constrained('sections', 'section_id');
-            $table->foreignId('course_id')->constrained('courses', 'course_id');
+            $table->foreignId('strand_id')->constrained('strands', 'strand_id');
             $table->string('student_number')->unique();
             $table->string('first_name');
             $table->string('last_name');
@@ -25,7 +25,7 @@ return new class extends Migration
             $table->integer('year_level');
             $table->string('semester');                 
             $table->string('school_year');              
-            $table->string('rfid_tag')->unique();      
+            $table->string('rfid_tag')->nullable()->unique();      
             $table->enum('status', ['active', 'inactive', 'graduated', 'dropped'])->default('active');
             $table->timestamps();
         });
