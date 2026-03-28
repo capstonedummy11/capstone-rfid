@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 class Item extends Model
 {
     protected $table = 'inventory_items';
+    protected $primaryKey = 'item_id';
+
     protected $fillable = [
         'item_id',
         'barcode',

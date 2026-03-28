@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use App\Models\Attendance;
 use App\Models\Borrowing;
-use App\Models\Device;
+use App\Models\Item;
 use App\Models\Instructor;
 use App\Models\RfidPanelSession;
 use App\Models\Schedule;
@@ -449,7 +449,7 @@ class AttendanceController
                     $matchingByRoomDay = Schedule::query()
                         ->whereRaw('LOWER(TRIM(room)) = ?', [$normalizedRoom])
                         ->get(['weekdays'])
-                        ->filter(fn ($s) => $this->matchesWeekday((string) ($s->weekdays ?? ''), $weekday, $weekdayFull))
+                        ->filter(fn($s) => $this->matchesWeekday((string) ($s->weekdays ?? ''), $weekday, $weekdayFull))
                         ->count();
 
                     $matchingByInstructorDayTime = Schedule::query()
@@ -460,7 +460,7 @@ class AttendanceController
                         })
                         ->whereRaw('TIME(?) >= schedules.time_start AND TIME(?) < schedules.time_end', [$currentTime, $currentTime])
                         ->get(['schedules.weekdays'])
-                        ->filter(fn ($s) => $this->matchesWeekday((string) ($s->weekdays ?? ''), $weekday, $weekdayFull))
+                        ->filter(fn($s) => $this->matchesWeekday((string) ($s->weekdays ?? ''), $weekday, $weekdayFull))
                         ->count();
 
                     Log::warning('RFID schedule validation failed', [
@@ -596,8 +596,8 @@ class AttendanceController
                     ->whereNotNull('name')
                     ->pluck('name')
             )
-            ->map(fn ($room) => trim((string) $room))
-            ->filter(fn (string $room) => $room !== '')
+            ->map(fn($room) => trim((string) $room))
+            ->filter(fn(string $room) => $room !== '')
             ->unique()
             ->sort()
             ->values()
@@ -632,17 +632,18 @@ class AttendanceController
                 ->pluck('rfid_tag')
                 ->values()
                 ->all(),
-            'borrowItemsCatalog' => Device::query()
-                ->whereNotNull('item_barcode')
-                ->select(['item_id', 'item_name', 'item_sku', 'item_description', 'item_barcode'])
-                ->orderBy('item_sku')
+            'borrowItemsCatalog' => Item::query()
+                ->whereNotNull('barcode')
+                ->select(['item_id', 'name', 'sku', 'description', 'barcode', 'status'])
+                ->orderBy('name')
                 ->get()
                 ->map(function ($device) {
                     return [
-                        'name' => $device->item_name,
-                        'id' => $device->item_sku ?? ('ITEM-' . $device->item_id),
-                        'type' => $device->item_description ?? 'Device',
-                        'barcode' => (string) $device->item_barcode,
+                        'name' => $device->name,
+                        'id' => $device->sku ?? ('ITEM-' . $device->item_id),
+                        'type' => $device->description ?? 'Device',
+                        'barcode' => (string) $device->barcode,
+                        'status' => $device->status,
                     ];
                 })
                 ->values()
@@ -672,29 +673,36 @@ class AttendanceController
             }
 
             if (!isset($map[$rfidKey])) {
-                $map[$rfidKey] = [];
+                $map[$rfidKey] = [
+                    'hasActiveBorrowing' => false,
+                    'items' => [],
+                ];
+            }
+
+            $borrowingStatus = strtolower((string) ($borrowing->status ?? 'active'));
+            if (in_array($borrowingStatus, ['active', 'overdue'], true)) {
+                $map[$rfidKey]['hasActiveBorrowing'] = true;
             }
 
             foreach ($borrowing->items as $item) {
                 $borrowedItem = $item->item;
-                if (!$borrowedItem || empty($borrowedItem->item_barcode)) {
+                if (!$borrowedItem || empty($borrowedItem->barcode)) {
                     continue;
                 }
 
-                $map[$rfidKey][] = [
-                    'name' => $borrowedItem->item_name,
-                    'id' => $borrowedItem->item_sku ?? ('ITEM-' . $borrowedItem->item_id),
-                    'type' => $borrowedItem->item_description ?? 'Device',
-                    'barcode' => (string) $borrowedItem->item_barcode,
+                $barcode = (string) $borrowedItem->barcode;
+                $map[$rfidKey]['items'][$barcode] = [
+                    'name' => $borrowedItem->name,
+                    'id' => $borrowedItem->sku ?? ('ITEM-' . $borrowedItem->item_id),
+                    'type' => $borrowedItem->description ?? 'Device',
+                    'barcode' => $barcode,
+                    'status' => (strtolower((string) ($item->status ?? 'borrowed')) === 'borrowed') ? 'Borrowed' : ucfirst((string) $item->status),
                 ];
             }
         }
 
-        foreach ($map as $key => $items) {
-            $map[$key] = collect($items)
-                ->unique('barcode')
-                ->values()
-                ->all();
+        foreach ($map as $key => $entry) {
+            $map[$key]['items'] = array_values($entry['items']);
         }
 
         return $map;
@@ -837,7 +845,7 @@ class AttendanceController
             'subjectOptions' => Subject::query()
                 ->orderBy('subject_name')
                 ->get(['subject_id', 'subject_name'])
-                ->map(fn (Subject $subject) => [
+                ->map(fn(Subject $subject) => [
                     'value' => $subject->subject_id,
                     'label' => $subject->subject_name,
                 ])
@@ -845,7 +853,7 @@ class AttendanceController
             'sectionOptions' => Section::query()
                 ->orderBy('section_name')
                 ->get(['section_id', 'section_name'])
-                ->map(fn (Section $section) => [
+                ->map(fn(Section $section) => [
                     'value' => $section->section_id,
                     'label' => $section->section_name,
                 ])
@@ -854,7 +862,7 @@ class AttendanceController
                 ->whereIn('user_id', Subject::query()->whereNotNull('user_id')->pluck('user_id')->unique())
                 ->orderBy('name')
                 ->get(['user_id', 'name'])
-                ->map(fn (User $user) => [
+                ->map(fn(User $user) => [
                     'value' => $user->user_id,
                     'label' => $user->name,
                 ])
@@ -873,7 +881,7 @@ class AttendanceController
             ->orderByDesc('scheduled_id')
             ->first();
 
-        if (! $schedule || ! $schedule->subject) {
+        if (!$schedule || !$schedule->subject) {
             return response()->json([
                 'success' => false,
                 'message' => 'No active subject schedule is available.',
@@ -885,7 +893,7 @@ class AttendanceController
             ->where('rfid_tag', $validated['rfid_tag'])
             ->first();
 
-        if (! $student) {
+        if (!$student) {
             return response()->json([
                 'success' => false,
                 'message' => 'RFID tag is not assigned to any student.',
@@ -905,7 +913,7 @@ class AttendanceController
         $action = 'time_in';
         $message = 'Attendance recorded for ' . trim($student->first_name . ' ' . $student->last_name) . '.';
 
-        if (! $attendance->exists) {
+        if (!$attendance->exists) {
             $attendance->fill([
                 'time_start' => $schedule->time_start,
                 'time_end' => $schedule->time_end,
@@ -922,7 +930,7 @@ class AttendanceController
                 'time_in' => $now->format('H:i:s'),
                 'status' => $status,
             ]);
-        } elseif (! $attendance->time_out) {
+        } elseif (!$attendance->time_out) {
             $attendance->update([
                 'time_out' => $now->format('H:i:s'),
             ]);
@@ -933,7 +941,7 @@ class AttendanceController
                 ->latest('id')
                 ->first();
 
-            if ($latestLog && ! $latestLog->time_out) {
+            if ($latestLog && !$latestLog->time_out) {
                 $latestLog->update([
                     'time_out' => $now->format('H:i:s'),
                 ]);
@@ -977,7 +985,7 @@ class AttendanceController
 
     private function formatTime(?string $value): ?string
     {
-        if (! $value) {
+        if (!$value) {
             return null;
         }
 

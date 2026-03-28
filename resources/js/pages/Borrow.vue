@@ -45,7 +45,6 @@ let lastKeyTime = 0;
 let scanFinalizeTimer = null;
 const SCAN_TIMEOUT = 300;
 const AUTO_FINALIZE_DELAY = 120;
-const BORROW_ITEMS_EXAMPLE = computed(() => props.borrowItemsCatalog);
 
 const isScanning = ref(true);
 const lastScanned = ref('');
@@ -53,6 +52,11 @@ const scanPulse = ref(false);
 const SCAN_TERMINATORS = new Set(['Enter', 'NumpadEnter', 'Tab']);
 
 const registeredStudents = computed(() => props.borrowerProfiles);
+const borrowCatalogByBarcode = computed(() => new Map(
+  props.borrowItemsCatalog
+    .map((item) => [String(item?.barcode ?? '').trim(), item])
+    .filter(([barcode]) => barcode !== ''),
+));
 
 const rows = computed(() => {
   if (Array.isArray(props.borrowRows?.data)) return props.borrowRows.data;
@@ -87,7 +91,7 @@ const statusFilter = ref(props.filters?.status ?? '');
 const perPageFilter = ref(Number(props.filters?.perPage ?? 10));
 
 const submitFilters = (page = 1) => {
-  router.get('/borrow', {
+  router.get('/admin/borrow', {
     search: searchFilter.value,
     status: statusFilter.value,
     perPage: perPageFilter.value,
@@ -233,17 +237,7 @@ const getBorrowItems = (borrower) => {
   return [];
 };
 
-const hasBorrowerActiveBorrowing = (borrower) => {
-  const rfidKey = String(borrower?.rfid ?? '').trim().toLowerCase();
-  if (!rfidKey) return false;
-
-  const data = props.borrowItemsByRfid?.[rfidKey];
-  if (!data) return false;
-  if (Array.isArray(data)) return true; // backward-compat
-  return data.hasActiveBorrowing === true;
-};
-
-const markItemsReturned = async (student, items) => {
+const submitBorrowingUpdate = async (student, items) => {
   const barcodes = (Array.isArray(items) ? items : [])
     .map((item) => String(item?.barcode ?? '').trim())
     .filter((barcode) => barcode !== '');
@@ -332,6 +326,7 @@ const showRowPopup = (row) => {
               <span style="color:#0f172a; font-size:12px; font-weight:700;">${escapeHtml(item.name)}</span>
               <span style="color:#64748b; font-size:10px;">${escapeHtml(item.type)} &bull; <span style="font-family:monospace;">${escapeHtml(item.barcode)}</span></span>
             </div>
+            
             <span style="${badgeStyle(item.status)} font-size:10px; font-weight:600; padding:2px 8px; border-radius:99px; white-space:nowrap; flex-shrink:0;">${escapeHtml(item.status)}</span>
           </div>
           <div style="display:flex; flex-wrap:wrap; gap:12px; font-size:10px; color:#64748b;">
@@ -615,160 +610,8 @@ const showUserInfo = (rfid) => {
 
   const studentStrandSection = `${student.strand} ${student.section}`;
   const borrowItems = getBorrowItems(student);
-  if (borrowItems.length === 0) {
-    Swal.fire({
-      icon: 'info',
-      title: 'No borrowing history',
-      text: `${student.name} has no borrow/return history yet.`,
-      confirmButtonColor: '#2563eb',
-    }).then(() => startScanner());
-    return;
-  }
 
-  // --- Read-only history view for returned/closed borrowings ---
-  if (!hasBorrowerActiveBorrowing(student)) {
-    const formatDT = (dateStr) => {
-      if (!dateStr) return '—';
-      try {
-        const d = new Date(String(dateStr).replace(' ', 'T'));
-        return d.toLocaleString('en-US', {
-          month: 'short', day: 'numeric', year: 'numeric',
-          hour: '2-digit', minute: '2-digit',
-        });
-      } catch {
-        return String(dateStr);
-      }
-    };
-
-    const historyItemsHtml = borrowItems.map((item) => {
-      const itemStatus = String(item.status ?? 'Returned').trim().toLowerCase();
-      const statusBadgeStyle = itemStatus === 'returned'
-        ? 'background:#e0f2fe; color:#0369a1;'
-        : itemStatus === 'borrowed'
-          ? 'background:#dcfce7; color:#15803d;'
-          : 'background:#fef3c7; color:#92400e;';
-      const statusText = item.status ?? 'Returned';
-      return `
-        <div style="display:flex; flex-direction:column; gap:4px; padding:8px 0;">
-          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
-            <div style="display:flex; flex-direction:column; gap:1px; min-width:0;">
-              <span style="color:#0f172a; font-size:12px; font-weight:700;">${escapeHtml(item.name)}</span>
-              <span style="color:#64748b; font-size:10px; font-family:monospace;">${escapeHtml(item.barcode)}</span>
-            </div>
-            <span style="${statusBadgeStyle} font-size:10px; font-weight:600; padding:2px 8px; border-radius:99px; white-space:nowrap; flex-shrink:0;">${escapeHtml(statusText)}</span>
-          </div>
-          <div style="display:flex; flex-wrap:wrap; gap:12px; font-size:10px; color:#64748b;">
-            <span>📅 Borrowed: <span style="color:#0f172a; font-weight:600;">${formatDT(item.borrowedAt)}</span></span>
-            <span>↩️ Returned: <span style="color:#0f172a; font-weight:600;">${formatDT(item.returnedAt)}</span></span>
-          </div>
-        </div>
-      `;
-    }).join('<div style="height:1px; background:#e2e8f0;"></div>');
-
-    Swal.fire({
-      html: `
-        <div style="font-family:'DM Sans',sans-serif; padding:0; display:flex; gap:16px; align-items:flex-start;">
-          <div style="flex:0 0 220px; min-width:0;">
-            <div style="background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%); border-radius:16px; overflow:hidden; box-shadow:0 8px 32px rgba(37,99,235,0.25);">
-              <div style="padding:14px 18px 10px; display:flex; justify-content:space-between; align-items:center;">
-                <div style="display:flex; align-items:center; gap:8px;">
-                  <div style="width:26px; height:26px; background:rgba(255,255,255,0.2); border-radius:6px; display:flex; align-items:center; justify-content:center;">
-                    <svg width="14" height="14" fill="none" stroke="white" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h8m-8 6h16"/>
-                    </svg>
-                  </div>
-                  <span style="color:white; font-weight:700; font-size:12px; letter-spacing:0.5px;">STUDENT ID</span>
-                </div>
-                <span style="background:rgba(255,255,255,0.15); color:#bfdbfe; font-size:9px; font-weight:700; padding:3px 10px; border-radius:99px; letter-spacing:1px; border:1px solid rgba(191,219,254,0.4);">● HISTORY</span>
-              </div>
-              <div style="padding:8px 18px 14px; display:flex; gap:14px; align-items:flex-start;">
-                <div style="flex-shrink:0;">
-                  <div style="width:78px; height:92px; border-radius:10px; overflow:hidden; border:3px solid rgba(255,255,255,0.3); box-shadow:0 4px 12px rgba(0,0,0,0.3);">
-                    <img src="https://api.dicebear.com/7.x/personas/svg?seed=${encodeURIComponent(student.name)}&backgroundColor=b6e3f4"
-                      style="width:100%; height:100%; object-fit:cover; background:#dbeafe;" />
-                  </div>
-                  <div style="text-align:center; margin-top:5px;">
-                    <span style="background:rgba(255,255,255,0.15); color:rgba(255,255,255,0.8); font-size:8px; font-weight:600; padding:2px 7px; border-radius:4px; letter-spacing:0.5px;">PHOTO</span>
-                  </div>
-                </div>
-                <div style="flex:1; display:flex; flex-direction:column; gap:6px;">
-                  <div>
-                    <div style="color:rgba(255,255,255,0.5); font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:1px;">Full Name</div>
-                    <div style="color:white; font-weight:700; font-size:14px;">${escapeHtml(student.name)}</div>
-                  </div>
-                  <div>
-                    <div style="color:rgba(255,255,255,0.5); font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:1px;">Course & Section</div>
-                    <div style="color:white; font-weight:600; font-size:12px;">${escapeHtml(studentCourseSection)}</div>
-                  </div>
-                  <div style="display:flex; gap:16px;">
-                    <div>
-                      <div style="color:rgba(255,255,255,0.5); font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:1px;">Role</div>
-                      <div style="color:white; font-weight:600; font-size:12px;">${escapeHtml(student.role)}</div>
-                    </div>
-                    <div>
-                      <div style="color:rgba(255,255,255,0.5); font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:1px;">Year</div>
-                      <div style="color:white; font-weight:600; font-size:12px;">${escapeHtml(student.year)}</div>
-                    </div>
-                  </div>
-                  <div>
-                    <div style="color:rgba(255,255,255,0.5); font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:1px;">Student ID</div>
-                    <div style="color:#bfdbfe; font-weight:600; font-size:11px; font-family:monospace; letter-spacing:1px;">${escapeHtml(student.studentId)}</div>
-                  </div>
-                  <div>
-                    <div style="color:rgba(255,255,255,0.5); font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:1px;">RFID</div>
-                    <div style="color:#bfdbfe; font-weight:600; font-size:11px; font-family:monospace; letter-spacing:1px;">${escapeHtml(student.rfid)}</div>
-                  </div>
-                </div>
-              </div>
-              <div style="background:rgba(0,0,0,0.2); padding:7px 18px; display:flex; justify-content:space-between; align-items:center;">
-                <span style="color:rgba(255,255,255,0.45); font-size:8px; letter-spacing:1px; text-transform:uppercase;">Academic Year 2025–2026</span>
-                <div style="display:flex; gap:3px;">
-                  <div style="width:18px; height:3px; background:rgba(255,255,255,0.6); border-radius:2px;"></div>
-                  <div style="width:8px;  height:3px; background:rgba(255,255,255,0.3); border-radius:2px;"></div>
-                  <div style="width:13px; height:3px; background:rgba(255,255,255,0.4); border-radius:2px;"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- RIGHT: History Items -->
-          <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:10px;">
-            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:12px 16px;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                <div style="font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#94a3b8;">Borrow History (${borrowItems.length} item${borrowItems.length !== 1 ? 's' : ''})</div>
-                <span style="background:#e0f2fe; color:#0369a1; font-size:9px; font-weight:700; padding:2px 8px; border-radius:99px;">Completed</span>
-              </div>
-              <div style="display:flex; flex-direction:column; gap:0;">
-                ${historyItemsHtml}
-              </div>
-            </div>
-            <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; padding:10px 14px; display:flex; align-items:center; gap:8px;">
-              <svg width="16" height="16" fill="none" stroke="#2563eb" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-              <span style="font-size:11px; color:#1d4ed8; font-weight:600;">This borrow session has been completed. Read-only history view — no barcode scanning required.</span>
-            </div>
-          </div>
-        </div>`,
-      showConfirmButton: true,
-      showCancelButton: false,
-      showCloseButton: true,
-      confirmButtonText: 'Close',
-      confirmButtonColor: '#2563eb',
-      allowOutsideClick: false,
-      allowEscapeKey: false,
-      customClass: {
-        popup:         'swal-id-popup',
-        confirmButton: 'swal-confirm-btn',
-        closeButton:   'swal-close-btn',
-        actions:       'swal-actions',
-      },
-    }).then(() => startScanner());
-    return;
-  }
-  // --- End read-only history view ---
-
-  const confirmedBarcodes = new Set();
+  const selectedItems = new Map();
 
   let barcodeBuffer = '';
   let barcodeLastKeyTime = 0;
@@ -784,34 +627,85 @@ const showUserInfo = (rfid) => {
 
     const matchedItem = borrowItems.find((item) => item.barcode === scannedCode);
     if (matchedItem) {
-      confirmedBarcodes.add(matchedItem.barcode);
+      const itemStatus = String(matchedItem.status ?? 'Borrowed').trim().toLowerCase();
+      selectedItems.set(matchedItem.barcode, {
+        ...matchedItem,
+requestedAction: itemStatus === 'borrow'    ? 'borrowed'
+               : itemStatus === 'borrowed'  ? 'returned'
+               : 'borrow',      });
       renderBorrowItemsStatus();
 
-      const itemStatus = String(matchedItem.status ?? 'Borrowed').trim().toLowerCase();
       if (itemStatus === 'returned') {
-        updateScanFeedback(`Already returned: ${matchedItem.name}. Confirm to borrow again.`, '#1d4ed8');
+        updateScanFeedback(`Queued to borrow: ${matchedItem.name}. Confirm to change status back to borrowed.`, '#1d4ed8');
       } else {
-        updateScanFeedback(`Currently borrowed: ${matchedItem.name}. Confirm to return.`, '#065f46');
+        updateScanFeedback(`Queued to return: ${matchedItem.name}. Confirm to mark it returned.`, '#065f46');
       }
 
       barcodeInput.value = '';
     } else {
-      updateScanFeedback(`Barcode ${scannedCode} is not in this borrow list.`, '#b91c1c');
+      const catalogItem = borrowCatalogByBarcode.value.get(scannedCode);
+      if (!catalogItem) {
+        updateScanFeedback(`Barcode ${scannedCode} is not registered in inventory items.`, '#b91c1c');
+        barcodeBuffer = '';
+        return;
+      }
+
+      const catalogStatus = String(catalogItem.status ?? 'Available').trim().toLowerCase();
+      if (catalogStatus !== 'available') {
+        updateScanFeedback(`Item ${catalogItem.name} is currently ${catalogItem.status ?? 'Unavailable'} and cannot be borrowed right now.`, '#b91c1c');
+        barcodeBuffer = '';
+        return;
+      }
+
+      selectedItems.set(scannedCode, {
+        name: catalogItem.name,
+        id: catalogItem.id,
+        type: catalogItem.type,
+        barcode: scannedCode,
+        status: 'Asking To Borrow',
+        requestedAction: 'borrow',
+      });
+      renderBorrowItemsStatus();
+      updateScanFeedback(`Queued to borrow: ${catalogItem.name}. Confirm to change status to borrowed.`, '#1d4ed8');
+
+      barcodeInput.value = '';
     }
 
     barcodeBuffer = '';
   };
 
-  const getBorrowItemsHtml = () => borrowItems
+  const getDisplayItems = () => {
+    const displayItems = [...borrowItems];
+
+    selectedItems.forEach((selectedItem, barcode) => {
+      if (!displayItems.some((item) => item.barcode === barcode)) {
+        displayItems.push(selectedItem);
+      }
+    });
+
+    return displayItems;
+  };
+
+  const getBorrowItemsHtml = () => getDisplayItems()
     .map((item) => {
-      const isConfirmedItem = confirmedBarcodes.has(item.barcode);
+      const selectedItem = selectedItems.get(item.barcode);
+      const isConfirmedItem = Boolean(selectedItem);
       const itemStatus = String(item.status ?? 'Borrowed').trim().toLowerCase();
-      const statusText = itemStatus === 'returned' ? 'Returned' : 'Borrowed';
-      const statusStyle = itemStatus === 'returned'
-        ? 'background:#e0f2fe; color:#0369a1;'
-        : 'background:#dcfce7; color:#15803d;';
-      const actionText = itemStatus === 'returned' ? 'Borrow Again' : 'Return Item';
-      const actionStyle = itemStatus === 'returned'
+const statusText =
+  itemStatus === 'returned' ? 'Returned'
+  : itemStatus === 'borrowed' ? 'Borrowed'
+  : 'Borrow';
+       const statusStyle =
+  itemStatus === 'returned'
+    ? 'background:#e0f2fe; color:#0369a1;'   // blue  – returned
+    : itemStatus === 'borrowed'
+    ? 'background:#fef9c3; color:#a16207;'   // yellow – already borrowed
+    : 'background:#dcfce7; color:#15803d;';  // green  – available to borrow
+const actionText =
+  selectedItem?.requestedAction === 'borrow'    ? 'Asking To Borrow'
+  : selectedItem?.requestedAction === 'borrowed' ? 'Permit Borrow'
+  : 'Return Item';      
+  const actionStyle = selectedItem?.requestedAction === 'borrow'
         ? 'background:#dbeafe; color:#1d4ed8;'
         : 'background:#dcfce7; color:#166534;';
 
@@ -840,7 +734,7 @@ const showUserInfo = (rfid) => {
     }
 
     if (counter) {
-      counter.textContent = `${confirmedBarcodes.size}/${borrowItems.length} selected`;
+      counter.textContent = `${selectedItems.size} selected`;
     }
   };
 
@@ -929,11 +823,11 @@ const showUserInfo = (rfid) => {
         <!-- Item Info -->
         <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:12px 16px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-            <div style="font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#94a3b8;">Borrowed / Returned Items (${borrowItems.length})</div>
-            <div id="confirmed-items-counter" style="font-size:10px; color:#64748b; font-weight:700;">0/${borrowItems.length} selected</div>
+            <div style="font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#94a3b8;">Borrowed / Returned Items (${getDisplayItems().length})</div>
+            <div id="confirmed-items-counter" style="font-size:10px; color:#64748b; font-weight:700;">0 selected</div>
           </div>
           <div id="borrow-items-list" style="display:flex; flex-direction:column; gap:8px;">
-            ${getBorrowItemsHtml()}
+            ${getDisplayItems().length > 0 ? getBorrowItemsHtml() : '<div style="font-size:12px; color:#94a3b8; text-align:center; padding:12px 0;">No current borrow history. Scan an inventory item barcode to ask for borrowing.</div>'}
           </div>
         </div>
 
@@ -941,7 +835,7 @@ const showUserInfo = (rfid) => {
         <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:12px; padding:12px 16px; text-align:left;">
           <div style="font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#9a3412; margin-bottom:8px;">Barcode Verification Required</div>
           <div style="font-size:12px; color:#7c2d12; margin-bottom:8px;">
-            Scan item barcode: borrowed items will be returned, returned items can be borrowed again.
+            Scan item barcode: available items will be queued as asking to borrow, and borrowed items will be queued to return.
           </div>
           <input
             id="barcode-confirm-input"
@@ -1000,12 +894,12 @@ const showUserInfo = (rfid) => {
         document.addEventListener('keydown', barcodeKeydownHandler, true);
       },
       preConfirm: () => {
-        if (confirmedBarcodes.size === 0) {
+        if (selectedItems.size === 0) {
           Swal.showValidationMessage('Scan at least one item barcode before confirming the update.');
           return false;
         }
 
-        return borrowItems.filter((item) => confirmedBarcodes.has(item.barcode));
+        return Array.from(selectedItems.values());
       },
       willClose: () => {
         if (barcodeFinalizeTimer) clearTimeout(barcodeFinalizeTimer);
@@ -1013,17 +907,17 @@ const showUserInfo = (rfid) => {
           document.removeEventListener('keydown', barcodeKeydownHandler, true);
         }
       },
-    customClass: {
-      popup:         'swal-id-popup',
-      confirmButton: 'swal-confirm-btn',
-      closeButton:   'swal-close-btn',
-      actions:       'swal-actions',
-    },
+      customClass: {
+        popup:         'swal-id-popup',
+        confirmButton: 'swal-confirm-btn',
+        closeButton:   'swal-close-btn',
+        actions:       'swal-actions',
+      },
   }).then(async (result) => {
     const confirmedItems = result.isConfirmed && Array.isArray(result.value) ? result.value : [];
 
     if (result.isConfirmed) {
-      const returnResult = await markItemsReturned(student, confirmedItems);
+      const returnResult = await submitBorrowingUpdate(student, confirmedItems);
       if (!returnResult.ok) {
         Swal.fire({
           icon: 'warning',

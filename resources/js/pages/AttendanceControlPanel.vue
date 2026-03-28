@@ -188,16 +188,23 @@ const borrowCatalogMap = computed(() => {
       id: item?.id ?? barcode,
       type: item?.type ?? 'Device',
       barcode,
+      status: item?.status ?? 'Available',
     });
   });
   return map;
 });
 
+const resolveBorrowItemsPayload = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (payload && typeof payload === 'object' && Array.isArray(payload.items)) return payload.items;
+  return [];
+};
+
 const borrowedBarcodeMap = computed(() => {
   const map = new Map();
 
-  Object.entries(props.borrowItemsByRfid ?? {}).forEach(([rfid, items]) => {
-    if (!Array.isArray(items)) return;
+  Object.entries(props.borrowItemsByRfid ?? {}).forEach(([rfid, payload]) => {
+    const items = resolveBorrowItemsPayload(payload);
 
     items.forEach((item) => {
       const barcode = String(item?.barcode ?? '').trim();
@@ -540,14 +547,67 @@ const recordAttendance = async (student) => {
   showStudentToast(student, 'Attendance successfully recorded.', 'success');
 };
 
+const submitBorrowingUpdate = async (borrower, selectedItems) => {
+  const barcodes = selectedItems
+    .map((item) => String(item?.barcode ?? '').trim())
+    .filter((barcode) => barcode !== '');
+
+  if (!borrower?.rfid || barcodes.length === 0) {
+    return { ok: false, message: 'No borrower RFID or item barcode provided.' };
+  }
+
+  try {
+    const xsrfRaw = document.cookie
+      .split('; ')
+      .find((row) => row.startsWith('XSRF-TOKEN='))
+      ?.split('=')[1];
+
+    const response = await fetch('/attendance-control-panel/borrow-items-only', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        'X-XSRF-TOKEN': xsrfRaw ? decodeURIComponent(xsrfRaw) : '',
+      },
+      body: JSON.stringify({
+        rfid: borrower.rfid,
+        barcodes,
+        room: selectedRoom.value,
+        subject_code: activeProfessor.value?.subject_code ?? null,
+        schedule_id: activeProfessor.value?.schedule_id ?? null,
+      }),
+    });
+
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.ok) {
+      return {
+        ok: false,
+        message: payload?.message ?? 'Unable to update borrow items right now.',
+      };
+    }
+
+    return {
+      ok: true,
+      message: payload?.message ?? 'Borrow items updated.',
+      borrowed: Array.isArray(payload?.borrowed_barcodes) ? payload.borrowed_barcodes : [],
+    };
+    
+  } catch {
+    return {
+      ok: false,
+      message: 'Connection error while updating borrow items.',
+    };
+  }
+};
+
 const processBorrowerMode = (student) => {
   const borrower = student;
   showStudentTemporarily(borrower);
 
   const getActiveBorrowedItems = () => {
     const rfidKey = normalizeRfid(borrower?.rfid);
-    const items = props.borrowItemsByRfid?.[rfidKey];
-    return Array.isArray(items) ? items : [];
+    const payload = props.borrowItemsByRfid?.[rfidKey];
+    return resolveBorrowItemsPayload(payload);
   };
 
   const renderBorrowList = (items) => {
@@ -558,8 +618,9 @@ const processBorrowerMode = (student) => {
     return items
       .map((item) => {
         return `<div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-          <div class="text-xs font-bold text-slate-800">${escapeHtml(item.name)}${item.qty > 1 ? ` x${item.qty}` : ''}</div>
+          <div class="text-xs font-bold text-slate-800">${escapeHtml(item.name)}</div>
           <div class="text-[11px] text-slate-500">${escapeHtml(item.id)} | ${escapeHtml(item.type)} | ${escapeHtml(item.barcode)}</div>
+          <div class="mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${item.requestedAction === 'borrow' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}">${item.requestedAction === 'borrow' ? 'BORROW' : 'RETURN'}</div>
         </div>`;
       })
       .join('');
@@ -568,11 +629,14 @@ const processBorrowerMode = (student) => {
   const activeBorrowedItems = getActiveBorrowedItems();
   const borrowedItemsHtml = activeBorrowedItems.length
     ? activeBorrowedItems
-      .map((item) => `<div class="text-xs text-slate-700">- ${escapeHtml(item.name)} (${escapeHtml(item.id)})</div>`)
+      .map((item) => `<div class="flex items-center justify-between text-xs text-slate-700">
+          <span>- ${escapeHtml(item.name)} (${escapeHtml(item.id)})</span>
+          <span class="font-bold text-[10px] uppercase ${item.status === 'Borrow' ? 'text-blue-600' : 'text-emerald-600'}">${escapeHtml(item.status ?? 'Borrow')}</span>
+        </div>`)
       .join('')
     : '<div class="text-xs text-slate-500">No active borrowed items.</div>';
 
-  const selectedItems = [];
+  const selectedItems = new Map();
   let barcodeBuffer = '';
   let barcodeLastKeyTime = 0;
   let barcodeFinalizeTimer = null;
@@ -582,7 +646,7 @@ const processBorrowerMode = (student) => {
   const updateSelectedListUi = () => {
     const container = document.getElementById('borrow-scan-items');
     if (!container) return;
-    container.innerHTML = renderBorrowList(selectedItems);
+    container.innerHTML = renderBorrowList(Array.from(selectedItems.values()));
   };
 
   const finalizeBarcode = () => {
@@ -592,38 +656,51 @@ const processBorrowerMode = (student) => {
 
     const hint = document.getElementById('borrow-scan-hint');
 
+    const currentBorrowerRfid = normalizeRfid(borrower?.rfid);
+    const activeBorrowedItem = activeBorrowedItems.find((item) => String(item?.barcode ?? '').trim() === scanned);
+    if (activeBorrowedItem) {
+      if (hint) {
+        hint.textContent = `${activeBorrowedItem.name} is already borrowed by this user.`;
+        hint.style.color = '#b91c1c';
+      }
+      return;
+    }
+
     const found = borrowCatalogMap.value.get(scanned);
     if (!found) {
       if (hint) {
-        hint.textContent = `Barcode ${scanned} not found in items table.`;
+        hint.textContent = `Barcode ${scanned} not found in inventory items.`;
         hint.style.color = '#b91c1c';
       }
       return;
     }
 
-    // Block if item is currently borrowed by someone; returned items are freely available.
-    const currentBorrowerRfid = normalizeRfid(borrower?.rfid);
     const ownerRfid = borrowedBarcodeMap.value.get(scanned);
-    if (ownerRfid) {
+    if (ownerRfid && ownerRfid !== currentBorrowerRfid) {
       if (hint) {
-        hint.textContent = ownerRfid === currentBorrowerRfid
-          ? `${found.name} is already borrowed by you.`
-          : 'Item already borrowed.';
+        hint.textContent = `${found.name} is currently borrowed by another user.`;
         hint.style.color = '#b91c1c';
       }
       return;
     }
 
-    const existing = selectedItems.find((item) => item.barcode === found.barcode);
-    if (existing) {
-      existing.qty += 1;
-    } else {
-      selectedItems.push({ ...found, qty: 1 });
+    const inventoryStatus = String(found.status ?? 'Available').trim().toLowerCase();
+    if (inventoryStatus !== 'available') {
+      if (hint) {
+        hint.textContent = `${found.name} is currently ${found.status ?? 'Unavailable'}.`;
+        hint.style.color = '#b91c1c';
+      }
+      return;
     }
+
+    selectedItems.set(scanned, {
+      ...found,
+      requestedAction: 'borrow',
+    });
 
     if (hint) {
-      hint.textContent = `Scanned: ${found.name} (${found.id})`;
-      hint.style.color = '#065f46';
+      hint.textContent = `Queued to borrow: ${found.name} (${found.id})`;
+      hint.style.color = '#1d4ed8';
     }
 
     updateSelectedListUi();
@@ -675,7 +752,7 @@ const processBorrowerMode = (student) => {
         </div>
 
         <div style="padding:10px; border-radius:12px; background:#fff7ed; border:1px solid #fed7aa;">
-          <div style="font-size:11px; font-weight:800; color:#9a3412;">Scan barcode to borrow (multiple allowed)</div>
+          <div style="font-size:11px; font-weight:800; color:#9a3412;">Scan barcode to borrow only</div>
           <div id="borrow-scan-hint" style="margin-top:4px; font-size:11px; color:#7c2d12;">Waiting for barcode scan...</div>
         </div>
 
@@ -687,30 +764,44 @@ const processBorrowerMode = (student) => {
     `,
     showCancelButton: true,
     showDenyButton: true,
-    confirmButtonText: 'Confirm Borrow',
-    denyButtonText: 'Cancel Borrow',
+    confirmButtonText: 'Confirm Update',
+    denyButtonText: 'Cancel Update',
     cancelButtonText: 'Close',
     confirmButtonColor: '#16a34a',
     denyButtonColor: '#dc2626',
     cancelButtonColor: '#64748b',
     didOpen: () => {
-      window.addEventListener('keydown', barcodeKeydownHandler);
+      window.addEventListener('keydown', barcodeKeydownHandler, true);
     },
     willClose: () => {
-      window.removeEventListener('keydown', barcodeKeydownHandler);
+      window.removeEventListener('keydown', barcodeKeydownHandler, true);
       if (barcodeFinalizeTimer) {
         clearTimeout(barcodeFinalizeTimer);
         barcodeFinalizeTimer = null;
       }
       isListening.value = wasListening;
     },
-  }).then((result) => {
+  }).then(async (result) => {
     if (result.isConfirmed) {
-      const totalQty = selectedItems.reduce((sum, item) => sum + item.qty, 0);
-      lastAction.value = `${borrower?.name ?? 'Borrower'} confirmed ${totalQty} item${totalQty === 1 ? '' : 's'} for borrowing.`;
-      pushHistory('Borrow request prepared', `${borrower?.name ?? 'Borrower'} scanned ${totalQty} item${totalQty === 1 ? '' : 's'} in borrow mode.`, 'success');
-      setTapHeadline('Borrow Ready');
-      showStudentToast(borrower, totalQty > 0 ? `${totalQty} item(s) queued for borrow.` : 'No item scanned yet.', totalQty > 0 ? 'success' : 'info');
+      const payloadItems = Array.from(selectedItems.values());
+      if (payloadItems.length === 0) {
+        showStudentToast(borrower, 'No item scanned yet.', 'info');
+        return;
+      }
+
+      const submitResult = await submitBorrowingUpdate(borrower, payloadItems);
+      if (!submitResult.ok) {
+        lastAction.value = `${borrower?.name ?? 'Borrower'} update failed: ${submitResult.message}`;
+        pushHistory('Borrow update failed', `${borrower?.name ?? 'Borrower'} could not update borrow/return items.`, 'warning');
+        showStudentToast(borrower, submitResult.message, 'warning');
+        return;
+      }
+
+      const borrowedCount = submitResult.borrowed.length;
+      lastAction.value = `${borrower?.name ?? 'Borrower'} borrowed ${borrowedCount} item${borrowedCount === 1 ? '' : 's'}.`;
+      pushHistory('Borrow update saved', `${borrower?.name ?? 'Borrower'} borrowed ${borrowedCount} item${borrowedCount === 1 ? '' : 's'}.`, 'success');
+      setTapHeadline('Borrow Updated');
+      showStudentToast(borrower, submitResult.message, 'success');
       return;
     }
 
@@ -722,8 +813,6 @@ const processBorrowerMode = (student) => {
 
   lastAction.value = `${borrower.name} is ready for borrower processing.`;
   return swalPromise;
-  pushHistory('Borrower verified', `${borrower.name} was recognized for borrower mode.`, 'success');
-  setTapHeadline('Borrower Verified');
 };
 
 const showInstructorOptions = async () => {
@@ -978,6 +1067,7 @@ const finalizeScan = () => {
 
 // RFID tag reading happens here: keyboard/scanner input is buffered and finalized into one tag value.
 const handleKeydown = (event) => {
+  
   if (!isListening.value) return;
   if (!panelUnlocked.value) return;
 
@@ -1141,12 +1231,12 @@ onMounted(() => {
 
   updateClock();
   timeTicker = window.setInterval(updateClock, 1000);
-  window.addEventListener('keydown', handleKeydown);
+  window.addEventListener('keydown', handleKeydown, true);
 });
 
 onUnmounted(() => {
   if (timeTicker) clearInterval(timeTicker);
-  window.removeEventListener('keydown', handleKeydown);
+  window.removeEventListener('keydown', handleKeydown, true);
   if (scanFinalizeTimer) clearTimeout(scanFinalizeTimer);
   if (activeStudentTimer) clearTimeout(activeStudentTimer);
   if (tapHeadlineTimer) clearTimeout(tapHeadlineTimer);
@@ -1515,6 +1605,31 @@ watch([
           </div>
       </section>
     </div>
+     <!-- Floating RFID Toggle (from Borrow.vue) -->
+    <button
+      type="button"
+      class="fixed bottom-6 right-6 flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold shadow-lg transition-all duration-300 z-50 select-none cursor-pointer"
+      :class="scanPulse
+        ? 'bg-emerald-500 text-white scale-110'
+        : !isListening
+          ? 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
+          : currentMode === 'borrowing'
+            ? 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
+            : currentMode === 'attendance'
+              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
+              : 'bg-white text-gray-700 border border-gray-200 hover:bg-emerald-50 hover:border-emerald-300'"
+      :title="isListening ? 'Click to pause RFID scanner' : 'Click to resume RFID scanner'"
+      @click="!scanPulse && toggleListening()"
+    >
+      <svg class="h-5 w-5" :class="currentMode === 'borrowing' ? 'text-amber-500' : isListening ? 'text-emerald-500' : 'text-amber-400'" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+        <rect x="2" y="5" width="20" height="14" rx="2" stroke-width="1.8"/>
+        <rect x="5" y="9" width="5" height="4" rx="1" stroke-width="1.5"/>
+        <path stroke-linecap="round" stroke-width="1.5" d="M15 10.5a1.5 1.5 0 0 1 0 3"/>
+        <path stroke-linecap="round" stroke-width="1.5" d="M17.5 8.5a4 4 0 0 1 0 7"/>
+      </svg>
+      <span>{{ scanPulse ? 'Scanned!' : !isListening ? 'Scanner Paused' : sessionActive ? modeLabel : 'RFID Listening' }}</span>
+      <span v-if="isListening && !scanPulse" class="absolute top-2 right-2 h-2 w-2 animate-ping rounded-full bg-emerald-500"></span>
+    </button>
   </div>
 </template>
 

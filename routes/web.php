@@ -33,6 +33,7 @@ Route::post('/attendance-control-panel/rfid-lookup', [AttendanceController::clas
 Route::post('/attendance-control-panel/session-state', [AttendanceController::class, 'updatePanelSessionState'])->name('attendanceControlPanel.sessionState');
 Route::post('/attendance-control-panel/student-tap', [AttendanceController::class, 'recordStudentTap'])->name('attendanceControlPanel.studentTap');
 Route::post('/attendance-control-panel/attendance-logs', [AttendanceController::class, 'attendanceLogSnapshot'])->name('attendanceControlPanel.attendanceLogs');
+Route::post('/attendance-control-panel/borrow-items-only', [BorrowController::class, 'borrowItemsOnly'])->name('attendanceControlPanel.borrowItemsOnly');
 
 Route::post('/panel-verify', function (\Illuminate\Http\Request $request) {
   $pin = (string) config('panel.pin', '1234');
@@ -87,7 +88,7 @@ Route::prefix('admin')
     Route::post('/schedules', [ScheduleController::class, 'store'])->name('schedules.store');
     Route::put('/schedules/{id}', [ScheduleController::class, 'update'])->name('schedules.update');
     Route::delete('/schedules/{id}', [ScheduleController::class, 'destroy'])->name('schedules.destroy');
-    Route::get('/inventory', [InventoryController::class, 'indexAdmin'])->name('inventory.index');
+    Route::get('/inventory', [InventoryController::class, 'indexAdmin'])->name('inventory');
     Route::post('/inventory', [InventoryController::class, 'store'])->name('inventory.store');
     Route::put('/inventory/{id}', [InventoryController::class, 'update'])->name('inventory.update');
     Route::delete('/inventory/{id}', [InventoryController::class, 'destroy'])->name('inventory.destroy');
@@ -104,7 +105,6 @@ Route::prefix('admin')
     Route::inertia('/students-management', 'StudentsManagement')->name('studentsManagement');
     //Route::inertia('/instructors-management', 'InstructorsManagement', ['title' => 'Instructor Management'])->name('instructorsManagement');
     Route::post('/borrow/return-items', [BorrowController::class, 'returnItems'])->name('borrow.returnItems');
-    Route::inertia('/inventory', 'Auth/Admin/Inventory', ['title' => 'Inventory', 'items' => fn () => \App\Models\Item::all(),])->name('inventory');
     Route::post('/items', [ItemController::class, 'store'])->name('items.store');
   });
 

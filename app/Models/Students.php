@@ -42,6 +42,7 @@ class Students extends Model
         return $this->belongsTo(Section::class, 'section_id', 'section_id');
     }
 
+
     public function strand(): BelongsTo
     {
         return $this->belongsTo(Strand::class, 'strand_id', 'strand_id');

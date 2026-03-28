@@ -25,14 +25,13 @@ class InventoryController
             $query->whereHas('item', function ($itemQuery) use ($term) {
                 $itemQuery
                     ->where('item_name', 'like', "%{$term}%")
-                    ->orWhere('item_code', 'like', "%{$term}%")
                     ->orWhere('item_sku', 'like', "%{$term}%")
                     ->orWhere('item_barcode', 'like', "%{$term}%");
             });
         }
 
         return Inertia::render('Auth/Admin/Inventory', [
-            'inventories' => $query->orderByDesc('updated_at')->get()->map(fn (Inventory $inventory) => [
+            'inventories' => $query->orderByDesc('updated_at')->get()->map(fn(Inventory $inventory) => [
                 'inventory_id' => $inventory->inventory_id,
                 'item_id' => $inventory->item_id,
                 'item_name' => $inventory->item?->item_name,
@@ -43,9 +42,9 @@ class InventoryController
                 'updated_at' => $inventory->updated_at?->format('Y-m-d H:i:s'),
             ])->values(),
             'filters' => $filters,
-            'itemOptions' => Device::query()->orderBy('item_name')->get(['item_id', 'item_name', 'item_code', 'item_sku'])->map(fn (Device $item) => [
+            'itemOptions' => Device::query()->orderBy('item_name')->get(['item_id', 'item_name', 'item_sku'])->map(fn(Device $item) => [
                 'item_id' => $item->item_id,
-                'label' => trim(($item->item_name ?? 'Item') . ' - ' . ($item->item_sku ?: $item->item_code)),
+                'label' => trim(($item->item_name ?? 'Item') . ' - ' . ($item->item_sku ?? 'N/A')),
             ])->values(),
         ]);
     }
@@ -125,4 +124,3 @@ class InventoryController
         ]);
     }
 }
-
