@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\BorrowController;
 use App\Http\Controllers\RfidController;
@@ -12,6 +11,7 @@ use App\Http\Controllers\InstructorsController;
 use App\Http\Controllers\SectionController;
 use App\Http\Controllers\StrandController;
 use App\Http\Controllers\LaboratoryController;
+use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\SubjectController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -27,11 +27,11 @@ Route::get('/', function (Request $request) {
   return Inertia::render('LandingPage');
 })->name('landingPage');
 Route::inertia('/about', 'About')->name('about');
-Route::inertia('/attendance-control-panel', 'AttendanceControlPanel', [
-  'rooms' => ['Computer Lab 1', 'Computer Lab 2', 'RFID Laboratory', 'Network Lab'],
-  'studentToastSeconds' => config('panel.student_toast_seconds', 15),
-  'studentInfoVisibleSeconds' => config('panel.student_info_visible_seconds', 10),
-])->name('attendanceControlPanel');
+Route::get('/attendance-control-panel', [AttendanceController::class, 'controlPanel'])->name('attendanceControlPanel');
+Route::post('/attendance-control-panel/rfid-lookup', [AttendanceController::class, 'lookupRfid'])->name('attendanceControlPanel.lookupRfid');
+Route::post('/attendance-control-panel/session-state', [AttendanceController::class, 'updatePanelSessionState'])->name('attendanceControlPanel.sessionState');
+Route::post('/attendance-control-panel/student-tap', [AttendanceController::class, 'recordStudentTap'])->name('attendanceControlPanel.studentTap');
+Route::post('/attendance-control-panel/attendance-logs', [AttendanceController::class, 'attendanceLogSnapshot'])->name('attendanceControlPanel.attendanceLogs');
 
 Route::post('/panel-verify', function (\Illuminate\Http\Request $request) {
   $pin = (string) config('panel.pin', '1234');
@@ -100,6 +100,10 @@ Route::prefix('admin')
     Route::post('/instructors', [InstructorsController::class, 'store'])->name('instructors.store');
     Route::put('/instructors/{id}', [InstructorsController::class, 'update'])->name('instructors.update');
     Route::delete('/instructors/{id}', [InstructorsController::class, 'destroy'])->name('instructors.destroy');
+    Route::inertia('/students-management', 'StudentsManagement')->name('studentsManagement');
+    //Route::inertia('/instructors-management', 'InstructorsManagement', ['title' => 'Instructor Management'])->name('instructorsManagement');
+    Route::post('/borrow/return-items', [BorrowController::class, 'returnItems'])->name('borrow.returnItems');
+    Route::inertia('/inventory', 'Auth/Admin/Inventory', ['title' => 'Inventory'])->name('inventory');
   });
 
 

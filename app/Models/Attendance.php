@@ -21,7 +21,6 @@ class Attendance extends Model
     protected $fillable = [
         'attendance_id',
         'student_id',
-        'subject_id',
         'schedule_id',
         'date',
         'time_start',
@@ -29,7 +28,7 @@ class Attendance extends Model
         'time_in',
         'time_out',
         'status',
-        'subject',
+        'subject_code',
         'room'
     ];
 

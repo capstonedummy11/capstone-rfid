@@ -29,11 +29,6 @@ class Schedule extends Model
         'time_start',
         'time_end',
         'room',
-        'timestamp',
-    ];
-
-    protected $casts = [
-        'timestamp' => 'datetime',
     ];
 
     public function laboratory(): BelongsTo
