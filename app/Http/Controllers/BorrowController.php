@@ -145,6 +145,15 @@ class BorrowController
           'name' => trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? '')),
           'studentId' => $student->studentId ?? 'N/A',
           'strand' => $student->strand ?? 'N/A',
+          'section' => $student->section ?? 'N/A',
+          'year' => $student->year_level ?? 'N/A',
+          'role' => 'Student',
+        ];
+      });
+
+    $userBorrowers = User::query()
+      ->whereNotNull('rfid_tag')
+      ->get()
       ->map(function ($user) {
         return [
           'rfid' => (string) $user->rfid_tag,
