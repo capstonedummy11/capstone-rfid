@@ -6,15 +6,20 @@ use App\Models\ActivityLog;
 use App\Models\Attendance;
 use App\Models\Borrowing;
 use App\Models\Device;
+use App\Models\Instructor;
 use App\Models\RfidPanelSession;
 use App\Models\Schedule;
+use App\Models\Section;
 use App\Models\Students;
 use App\Models\Subject;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Models\AttendanceLog;
 use Inertia\Inertia;
 
 class AttendanceController
@@ -135,7 +140,7 @@ class AttendanceController
 
         $rfid = strtolower(trim($validated['rfid']));
         $student = Students::query()
-            ->with(['course', 'section'])
+            ->with(['strand', 'section'])
             ->whereRaw('LOWER(rfid_tag) = ?', [$rfid])
             ->first();
 
@@ -179,17 +184,26 @@ class AttendanceController
                 ->first();
         }
 
-        if (!$currentSubject) {
+        if (!$currentSchedule) {
             return response()->json([
                 'ok' => false,
-                'message' => 'Current subject session could not be resolved.',
+                'message' => 'Current class schedule could not be resolved.',
             ], 422);
         }
 
-        if ((int) $student->section_id !== (int) $currentSubject->section_id || (int) $student->year_level !== (int) $currentSubject->year_level) {
+        // Main guard: a student must belong to the active schedule section.
+        if ((int) $student->section_id !== (int) $currentSchedule->section_id) {
             return response()->json([
                 'ok' => false,
-                'message' => 'Student are not in class.',
+                'message' => 'Student is not in this class section.',
+            ], 422);
+        }
+
+        // Optional guard: if subject year level is set, ensure it aligns too.
+        if ($currentSubject && !is_null($currentSubject->year_level) && (int) $student->year_level !== (int) $currentSubject->year_level) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Student year level does not match this class.',
             ], 422);
         }
 
@@ -230,7 +244,7 @@ class AttendanceController
                     'id' => $latestLog->id,
                     'rfid' => $student->rfid_tag,
                     'name' => trim($student->first_name . ' ' . $student->last_name),
-                    'course' => $student->course?->course_code,
+                    'course' => $student->strand?->strand_code,
                     'section' => $student->year_level . ' - ' . ($student->section?->section_name ?? ''),
                     'time_in' => $latestLog->time_in ? date('g:i A', strtotime((string) $latestLog->time_in)) : null,
                     'time_out' => date('g:i A', strtotime($nowTime)),
@@ -266,7 +280,7 @@ class AttendanceController
                 'id' => $attendanceLogId,
                 'rfid' => $student->rfid_tag,
                 'name' => trim($student->first_name . ' ' . $student->last_name),
-                'course' => $student->course?->course_code,
+                'course' => $student->strand?->strand_code,
                 'section' => $student->year_level . ' - ' . ($student->section?->section_name ?? ''),
                 'time_in' => date('g:i A', strtotime((string) $attendance->time_in)),
                 'time_out' => null,
@@ -306,7 +320,7 @@ class AttendanceController
 
         $records = DB::table('attendance_logs')
             ->join('students', 'students.student_id', '=', 'attendance_logs.student_id')
-            ->leftJoin('courses', 'courses.course_id', '=', 'students.course_id')
+            ->leftJoin('strands', 'strands.strand_id', '=', 'students.strand_id')
             ->leftJoin('sections', 'sections.section_id', '=', 'students.section_id')
             ->where('attendance_logs.attendance_id', $attendanceSession->attendance_id)
             ->orderByDesc('attendance_logs.time_in')
@@ -319,7 +333,7 @@ class AttendanceController
                 'students.first_name',
                 'students.last_name',
                 'students.year_level',
-                'courses.course_code',
+                'strands.strand_code',
                 'sections.section_name',
             ])
             ->get()
@@ -328,7 +342,7 @@ class AttendanceController
                     'id' => $record->id,
                     'rfid' => $record->rfid_tag,
                     'name' => trim(($record->first_name ?? '') . ' ' . ($record->last_name ?? '')),
-                    'course' => $record->course_code,
+                    'course' => $record->strand_code,
                     'section' => trim(($record->year_level ? $record->year_level . ' - ' : '') . ($record->section_name ?? '')),
                     'time_in' => $record->time_in ? date('g:i A', strtotime((string) $record->time_in)) : null,
                     'time_out' => $record->time_out ? date('g:i A', strtotime((string) $record->time_out)) : null,
@@ -362,10 +376,15 @@ class AttendanceController
             ->first();
 
         if ($instructor) {
+            $instructorProfileId = Instructor::query()
+                ->where('user_id', $instructor->user_id)
+                ->value('instructor_id');
+
             // Validate schedule by room/time/day and instructor ownership in one query.
             $now = now();
             $currentTime = $now->format('H:i:s');
             $weekday = $now->format('D');
+            $weekdayFull = $now->format('l');
             $normalizedRoom = strtolower(trim($room));
 
             $schedule = null;
@@ -376,17 +395,23 @@ class AttendanceController
             $scheduleWeekdays = null;
 
             if ($room) {
-                $schedule = Schedule::query()
-                    ->join('subjects', function ($join) use ($instructor) {
+                $matchingSchedules = Schedule::query()
+                    ->leftJoin('subjects', function ($join) {
                         $join->on('subjects.subject_code', '=', 'schedules.subject_code')
-                            ->on('subjects.section_id', '=', 'schedules.section_id')
-                            ->where('subjects.user_id', '=', $instructor->user_id);
+                            ->on('subjects.section_id', '=', 'schedules.section_id');
                     })
                     ->leftJoin('sections', 'sections.section_id', '=', 'schedules.section_id')
-                    ->leftJoin('courses', 'courses.course_id', '=', 'sections.course_id')
+                    ->leftJoin('strands', 'strands.strand_id', '=', 'sections.strand_id')
                     ->whereRaw('LOWER(TRIM(schedules.room)) = ?', [$normalizedRoom])
                     ->whereRaw('TIME(?) >= schedules.time_start AND TIME(?) < schedules.time_end', [$currentTime, $currentTime])
-                    ->whereRaw('FIND_IN_SET(?, REPLACE(schedules.weekdays, " ", "")) > 0', [$weekday])
+                    ->where(function ($query) use ($instructorProfileId, $instructor) {
+                        if ($instructorProfileId) {
+                            $query->where('schedules.instructor_id', '=', $instructorProfileId);
+                        }
+
+                        // Backward compatibility for legacy rows that don't have instructor_id.
+                        $query->orWhere('subjects.user_id', '=', $instructor->user_id);
+                    })
                     ->select([
                         'schedules.*',
                         'subjects.subject_name as matched_subject_name',
@@ -395,10 +420,14 @@ class AttendanceController
                         'subjects.year_level as matched_subject_year_level',
                         'sections.section_name as matched_section_name',
                         'sections.year_level as matched_year_level',
-                        'courses.course_code as matched_course_code',
-                        'courses.course_name as matched_course_name',
+                        'strands.strand_code as matched_strand_code',
+                        'strands.strand_name as matched_strand_name',
                     ])
-                    ->first();
+                    ->get();
+
+                $schedule = $matchingSchedules->first(function ($candidate) use ($weekday, $weekdayFull) {
+                    return $this->matchesWeekday((string) ($candidate->weekdays ?? ''), $weekday, $weekdayFull);
+                });
 
                 if ($schedule) {
                     $hasValidSchedule = true;
@@ -419,7 +448,8 @@ class AttendanceController
                 } else {
                     $matchingByRoomDay = Schedule::query()
                         ->whereRaw('LOWER(TRIM(room)) = ?', [$normalizedRoom])
-                        ->whereRaw('FIND_IN_SET(?, REPLACE(weekdays, " ", "")) > 0', [$weekday])
+                        ->get(['weekdays'])
+                        ->filter(fn ($s) => $this->matchesWeekday((string) ($s->weekdays ?? ''), $weekday, $weekdayFull))
                         ->count();
 
                     $matchingByInstructorDayTime = Schedule::query()
@@ -428,8 +458,9 @@ class AttendanceController
                                 ->on('subjects.section_id', '=', 'schedules.section_id')
                                 ->where('subjects.user_id', '=', $instructor->user_id);
                         })
-                        ->whereRaw('FIND_IN_SET(?, REPLACE(schedules.weekdays, " ", "")) > 0', [$weekday])
                         ->whereRaw('TIME(?) >= schedules.time_start AND TIME(?) < schedules.time_end', [$currentTime, $currentTime])
+                        ->get(['schedules.weekdays'])
+                        ->filter(fn ($s) => $this->matchesWeekday((string) ($s->weekdays ?? ''), $weekday, $weekdayFull))
                         ->count();
 
                     Log::warning('RFID schedule validation failed', [
@@ -458,7 +489,7 @@ class AttendanceController
                     'section' => $schedule?->matched_section_name
                         ? trim(($schedule->matched_year_level ? $schedule->matched_year_level . ' - ' : '') . $schedule->matched_section_name)
                         : 'Unassigned Section',
-                    'course' => $schedule?->matched_course_code ?? $schedule?->matched_course_name ?? 'Unassigned Course',
+                    'course' => $schedule?->matched_strand_code ?? $schedule?->matched_strand_name ?? 'Unassigned Strand',
                     'name' => $instructor->name,
                     'rfid' => $instructor->rfid_tag,
                     'role' => 'instructor',
@@ -481,7 +512,7 @@ class AttendanceController
             ->first();
 
         if ($student) {
-            $student->loadMissing(['course', 'section']);
+            $student->loadMissing(['strand', 'section']);
 
             $nameParts = [
                 (string) $student->first_name,
@@ -501,7 +532,8 @@ class AttendanceController
                     'name' => $fullName,
                     'rfid' => $student->rfid_tag,
                     'year' => $student->year_level . ' Year',
-                    'course' => $student->course?->course_code,
+                    'course' => $student->strand?->strand_code ?? $student->section?->strand?->strand_code,
+                    'strand' => $student->strand?->strand_code ?? $student->section?->strand?->strand_code,
                     'section' => $student->section?->section_name,
                     'avatarSeed' => $fullName,
                 ],
@@ -558,6 +590,14 @@ class AttendanceController
                     ->distinct()
                     ->pluck('room')
             )
+            ->merge(
+                DB::table('laboratories')
+                    ->select('name')
+                    ->whereNotNull('name')
+                    ->pluck('name')
+            )
+            ->map(fn ($room) => trim((string) $room))
+            ->filter(fn (string $room) => $room !== '')
             ->unique()
             ->sort()
             ->values()
@@ -571,12 +611,19 @@ class AttendanceController
                     'label' => $status === 'offline' ? 'Not in use' : str_replace('_', ' ', $status),
                 ];
             })
-            ->filter(fn(array $room) => $room['status'] === 'offline')
             ->values()
             ->all();
 
         return Inertia::render('AttendanceControlPanel', [
             'rooms' => $rooms,
+            'demoInstructorRfids' => User::query()
+                ->whereRaw('LOWER(role) = ?', ['instructor'])
+                ->whereNotNull('rfid_tag')
+                ->where('rfid_tag', '!=', '')
+                ->orderBy('name')
+                ->pluck('rfid_tag')
+                ->values()
+                ->all(),
             'demoStudentRfids' => Students::query()
                 ->whereNotNull('rfid_tag')
                 ->where('rfid_tag', '!=', '')
@@ -586,16 +633,16 @@ class AttendanceController
                 ->values()
                 ->all(),
             'borrowItemsCatalog' => Device::query()
-                ->whereNotNull('barcode')
-                ->select(['item_name', 'item_code', 'item_type', 'barcode'])
-                ->orderBy('item_code')
+                ->whereNotNull('item_barcode')
+                ->select(['item_id', 'item_name', 'item_sku', 'item_description', 'item_barcode'])
+                ->orderBy('item_sku')
                 ->get()
                 ->map(function ($device) {
                     return [
                         'name' => $device->item_name,
-                        'id' => $device->item_code,
-                        'type' => $device->item_type,
-                        'barcode' => (string) $device->barcode,
+                        'id' => $device->item_sku ?? ('ITEM-' . $device->item_id),
+                        'type' => $device->item_description ?? 'Device',
+                        'barcode' => (string) $device->item_barcode,
                     ];
                 })
                 ->values()
@@ -630,15 +677,15 @@ class AttendanceController
 
             foreach ($borrowing->items as $item) {
                 $borrowedItem = $item->item;
-                if (!$borrowedItem || empty($borrowedItem->barcode)) {
+                if (!$borrowedItem || empty($borrowedItem->item_barcode)) {
                     continue;
                 }
 
                 $map[$rfidKey][] = [
                     'name' => $borrowedItem->item_name,
-                    'id' => $borrowedItem->item_code,
-                    'type' => $borrowedItem->item_type,
-                    'barcode' => (string) $borrowedItem->barcode,
+                    'id' => $borrowedItem->item_sku ?? ('ITEM-' . $borrowedItem->item_id),
+                    'type' => $borrowedItem->item_description ?? 'Device',
+                    'barcode' => (string) $borrowedItem->item_barcode,
                 ];
             }
         }
@@ -660,7 +707,7 @@ class AttendanceController
     {
         $currentSchedule = Schedule::query()
             ->with(['subject.user', 'section.strand'])
-            ->orderByDesc('timestamp')
+            ->orderByDesc('scheduled_id')
             ->first();
 
         $recentScans = AttendanceLog::query()
@@ -679,7 +726,7 @@ class AttendanceController
                     'studentNumber' => $student?->student_number,
                     'subject' => $subject?->subject_name ?? $attendance?->subject,
                     'section' => $student?->section?->section_name,
-                    'strand' => $student?->strand?->strand_code,
+                    'strand' => $student->strand?->strand_code ?? $student->section?->strand?->strand_code,
                     'time' => $this->formatTime($log->time_in) ?? $this->formatTime($attendance?->time_in),
                     'status' => ucfirst((string) ($log->status ?? $attendance?->status ?? 'pending')),
                 ];
@@ -717,6 +764,11 @@ class AttendanceController
             'recentScans' => $recentScans,
             'registeredStudents' => $registeredStudents,
         ]);
+    }
+
+    public function scanner()
+    {
+        return $this->index();
     }
 
     public function logs(Request $request)
@@ -818,7 +870,7 @@ class AttendanceController
 
         $schedule = Schedule::query()
             ->with(['subject.user', 'section.strand'])
-            ->orderByDesc('timestamp')
+            ->orderByDesc('scheduled_id')
             ->first();
 
         if (! $schedule || ! $schedule->subject) {
@@ -932,5 +984,24 @@ class AttendanceController
         $timestamp = strtotime($value);
 
         return $timestamp === false ? $value : date('g:i A', $timestamp);
+    }
+
+    private function matchesWeekday(string $weekdays, string $weekdayAbbr, string $weekdayFull): bool
+    {
+        $tokens = preg_split('/[,\-\/\s]+/', strtolower(trim($weekdays))) ?: [];
+        $normalizedTokens = array_values(array_filter(array_map(function (string $token) {
+            $token = strtolower(trim($token));
+            if ($token === '') {
+                return null;
+            }
+
+            return substr($token, 0, 3);
+        }, $tokens)));
+
+        $targetShort = strtolower(substr($weekdayAbbr, 0, 3));
+        $targetFullShort = strtolower(substr($weekdayFull, 0, 3));
+
+        return in_array($targetShort, $normalizedTokens, true)
+            || in_array($targetFullShort, $normalizedTokens, true);
     }
 }

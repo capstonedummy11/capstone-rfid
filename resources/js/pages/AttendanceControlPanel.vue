@@ -20,6 +20,10 @@ const props = defineProps({
     type: Object,
     default: () => ({}),
   },
+  demoInstructorRfids: {
+    type: Array,
+    default: () => [],
+  },
   demoStudentRfids: {
     type: Array,
     default: () => [],
@@ -65,74 +69,6 @@ const filteredRooms = computed(() => {
   const query = roomSearch.value.toLowerCase();
   return roomOptions.value.filter((room) => room.name.toLowerCase().includes(query));
 });
-
-const instructorProfiles = [
-  {
-    id: 1,
-    name: 'Prof. Andrea Cruz',
-    rfid: 'INS-1001',
-    role: 'instructor',
-    subject: 'Systems Analysis and Design',
-    section: 'BSIT 3A',
-    strand: 'Bachelor of Science in Information Technology',
-    schedule: 'Mon 8:00 AM - 10:00 AM',
-    room: 'RFID Laboratory',
-  },
-  {
-    id: 2,
-    name: 'Prof. Miguel Santos',
-    rfid: 'INS-1002',
-    role: 'instructor',
-    subject: 'Database Management Systems',
-    section: 'BSCS 2B',
-    strand: 'Bachelor of Science in Computer Science',
-    schedule: 'Tue 1:00 PM - 3:00 PM',
-    room: 'Computer Lab 2',
-  },
-];
-
-const studentProfiles = [
-  {
-    id: 1,
-    studentId: '2023-0001',
-    name: 'Maria Santos',
-    rfid: 'STU-2001',
-    year: '3rd Year',
-    course: 'BSIT',
-    section: '3A',
-    avatarSeed: 'Maria Santos',
-  },
-  {
-    id: 2,
-    studentId: '2023-0002',
-    name: 'Juan Dela Cruz',
-    rfid: 'STU-2002',
-    year: '3rd Year',
-    course: 'BSIT',
-    section: '3A',
-    avatarSeed: 'Juan Dela Cruz',
-  },
-  {
-    id: 3,
-    studentId: '2024-0108',
-    name: 'Angela Reyes',
-    rfid: 'STU-2003',
-    year: '2nd Year',
-    course: 'BSCS',
-    section: '2B',
-    avatarSeed: 'Angela Reyes',
-  },
-  {
-    id: 4,
-    studentId: '2024-0112',
-    name: 'Carlo Mendoza',
-    rfid: 'STU-2004',
-    year: '2nd Year',
-    course: 'BSCS',
-    section: '2B',
-    avatarSeed: 'Carlo Mendoza',
-  },
-];
 
 const systemModeStyles = {
   attendance: 'border-emerald-200 bg-emerald-50 text-emerald-700',
@@ -239,6 +175,40 @@ const actionButtonLabel = computed(() => {
   return 'Demo Student Tap';
 });
 
+const demoBorrowerRfids = computed(() => Object.keys(props.borrowItemsByRfid ?? {}));
+
+const borrowCatalogMap = computed(() => {
+  const map = new Map();
+  (props.borrowItemsCatalog ?? []).forEach((item) => {
+    const barcode = String(item?.barcode ?? '').trim();
+    if (!barcode) return;
+
+    map.set(barcode, {
+      name: item?.name ?? 'Unknown Item',
+      id: item?.id ?? barcode,
+      type: item?.type ?? 'Device',
+      barcode,
+    });
+  });
+  return map;
+});
+
+const borrowedBarcodeMap = computed(() => {
+  const map = new Map();
+
+  Object.entries(props.borrowItemsByRfid ?? {}).forEach(([rfid, items]) => {
+    if (!Array.isArray(items)) return;
+
+    items.forEach((item) => {
+      const barcode = String(item?.barcode ?? '').trim();
+      if (!barcode) return;
+      map.set(barcode, normalizeRfid(rfid));
+    });
+  });
+
+  return map;
+});
+
 const recentAttendance = computed(() => [...attendanceRecords.value].slice(0, 6));
 const attendeesSlideVisible = computed(() => panelUnlocked.value && currentMode.value === 'attendance');
 
@@ -311,9 +281,6 @@ const showStudentTemporarily = (student) => {
     activeStudentTimer = null;
   }, STUDENT_INFO_VISIBLE_MS);
 };
-
-const findInstructor = (rfid) => instructorProfiles.find((profile) => normalizeRfid(profile.rfid) === normalizeRfid(rfid)) || null;
-const findStudent = () => null;
 
 const lookupRfidFromServer = async (rfid) => {
   try {
@@ -558,11 +525,16 @@ const recordAttendance = async (student) => {
     year: student.year,
     course: student.course,
     section: student.section,
-    time: timestamp,
-    status: 'Present',
-  });
+    time: savedRecord.time ?? timestamp,
+    status: savedStatus,
+  };
 
-  lastAction.value = `${student.name} was recorded present at ${timestamp}.`;
+  attendanceRecords.value = [
+    mappedRecord,
+    ...attendanceRecords.value.filter((record) => record.id !== mappedRecord.id),
+  ];
+
+  lastAction.value = `${student.name} was recorded ${savedStatus.toLowerCase()} at ${timestamp}.`;
   pushHistory('Attendance recorded', `${student.name} tapped in at ${timestamp}.`, 'success');
   setTapHeadline('Attendance successfully recorded', STUDENT_TOAST_MS);
   showStudentToast(student, 'Attendance successfully recorded.', 'success');
@@ -911,8 +883,8 @@ const handleRfidScan = async (rfid) => {
 
   triggerPulse(rfid);
   const lookup = await lookupRfidFromServer(rfid);
-  const professor = lookup?.type === 'instructor' ? lookup.profile : findInstructor(rfid);
-  const student = lookup?.type === 'student' ? lookup.profile : findStudent(rfid);
+  const professor = lookup?.type === 'instructor' ? lookup.profile : null;
+  const student = lookup?.type === 'student' ? lookup.profile : null;
   const user = lookup?.type === 'user' ? lookup.profile : null;
 
   if (professor) {
@@ -986,7 +958,7 @@ const handleRfidScan = async (rfid) => {
     return;
   }
 
-  lastAction.value = `RFID ${rfid} is not registered in the panel sample data.`;
+  lastAction.value = `RFID ${rfid} is not registered in the current system records.`;
   pushHistory('Unknown RFID', `No instructor or student record matched RFID ${rfid}.`, 'warning');
   Swal.fire({
     icon: 'warning',
@@ -1058,8 +1030,13 @@ const toggleListening = () => {
 
 const runDemoTap = () => {
   if (!sessionActive.value) {
-    // Use seeded instructor RFID that has a valid Friday 20:30-23:00 schedule.
-    handleRfidScan('INS-1003');
+    const demoInstructorRfid = props.demoInstructorRfids?.[0];
+    if (!demoInstructorRfid) {
+      showToast('warning', 'No seeded instructor RFID found');
+      return;
+    }
+
+    handleRfidScan(demoInstructorRfid);
     return;
   }
 
@@ -1084,8 +1061,14 @@ const runDemoTap = () => {
 };
 
 const demoProfessorRetap = () => {
-  // Re-tap active professor to open session controls; fallback to Sarah if no active session.
-  handleRfidScan(activeProfessor.value?.rfid ?? 'INS-1004');
+  // Re-tap active professor to open session controls.
+  const currentInstructorRfid = activeProfessor.value?.rfid ?? props.demoInstructorRfids?.[0];
+  if (!currentInstructorRfid) {
+    showToast('warning', 'No seeded instructor RFID found');
+    return;
+  }
+
+  handleRfidScan(currentInstructorRfid);
 };
 
 const runDemoStudentTap = () => {
@@ -1530,8 +1513,7 @@ watch([
               </li>
             </ul>
           </div>
-        </div>
-      </aside>
+      </section>
     </div>
   </div>
 </template>

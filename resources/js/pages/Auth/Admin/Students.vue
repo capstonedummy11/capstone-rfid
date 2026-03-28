@@ -27,13 +27,11 @@
             </select>
           </div>
           <div>
-            <label class="mb-1 block text-xs font-medium text-slate-600">Year Level</label>
+            <label class="mb-1 block text-xs font-medium text-slate-600">Grade</label>
             <select v-model="selectedYear" @change="onFilterChange" class="w-full rounded-md border border-slate-300 px-3 py-2">
-              <option value="">All Years</option>
-              <option value="1">1st Year</option>
-              <option value="2">2nd Year</option>
-              <option value="3">3rd Year</option>
-              <option value="4">4th Year</option>
+              <option value="">All Grades</option>
+              <option value="11">Grade 11</option>
+              <option value="12">Grade 12</option>
             </select>
           </div>
           <div>
@@ -62,7 +60,7 @@
                 <th class="border border-gray-300 px-4 py-3 text-left">Email</th>
                 <th class="border border-gray-300 px-4 py-3 text-left">Strand</th>
                 <th class="border border-gray-300 px-4 py-3 text-left">Section</th>
-                <th class="border border-gray-300 px-4 py-3 text-left">Year</th>
+                <th class="border border-gray-300 px-4 py-3 text-left">Grade</th>
                 <th class="border border-gray-300 px-4 py-3 text-left">School Year</th>
                 <th class="border border-gray-300 px-4 py-3 text-left">Status</th>
                 <th class="border border-gray-300 px-4 py-3 text-left">RFID Tag</th>
@@ -109,7 +107,7 @@
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <label class="mb-1 block text-sm font-medium text-slate-700">Student Number</label>
-                <input v-model="form.student_number" type="text" placeholder="e.g., 2024-001" class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+                <input v-model="form.student_number" type="text" placeholder="e.g., 2025-001" class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
               </div>
               <div>
                 <label class="mb-1 block text-sm font-medium text-slate-700">Student ID</label>
@@ -159,13 +157,11 @@
                 </select>
               </div>
               <div>
-                <label class="mb-1 block text-sm font-medium text-slate-700">Year Level *</label>
+                <label class="mb-1 block text-sm font-medium text-slate-700">Grade *</label>
                 <select v-model="form.year_level" class="w-full rounded-md border border-slate-300 px-3 py-2" required>
-                  <option value="">Select Year</option>
-                  <option value="1">1st Year</option>
-                  <option value="2">2nd Year</option>
-                  <option value="3">3rd Year</option>
-                  <option value="4">4th Year</option>
+                  <option value="">Select Grade</option>
+                  <option value="11">Grade 11</option>
+                  <option value="12">Grade 12</option>
                 </select>
               </div>
               <div>
@@ -180,7 +176,7 @@
             <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
               <div>
                 <label class="mb-1 block text-sm font-medium text-slate-700">School Year *</label>
-                <input v-model="form.school_year" type="text" placeholder="e.g., 2024-2025" class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100" required />
+                <input v-model="form.school_year" type="text" placeholder="e.g., 2025-2026" class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100" required />
               </div>
               <div>
                 <label class="mb-1 block text-sm font-medium text-slate-700">Status *</label>

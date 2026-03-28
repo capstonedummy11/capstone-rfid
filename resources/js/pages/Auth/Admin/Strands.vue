@@ -101,7 +101,7 @@
                 <input
                   v-model="form.strand_code"
                   type="text"
-                  placeholder="e.g., BSIT"
+                  placeholder="e.g., ICT"
                   class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                   required
                 />
@@ -113,7 +113,7 @@
               <input
                 v-model="form.strand_name"
                 type="text"
-                placeholder="e.g., Bachelor of Science in Information Technology"
+                placeholder="e.g., Information and Communications Technology"
                 class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 required
               />
@@ -124,7 +124,7 @@
               <input
                 v-model="form.department"
                 type="text"
-                placeholder="e.g., College of Information Technology"
+                placeholder="e.g., TVL - ICT Department"
                 class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 required
               />

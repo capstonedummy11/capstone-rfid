@@ -27,13 +27,11 @@
             </select>
           </div>
           <div>
-            <label class="mb-1 block text-xs font-medium text-slate-600">Year Level</label>
+            <label class="mb-1 block text-xs font-medium text-slate-600">Grade</label>
             <select v-model="selectedYear" @change="onFilterChange" class="w-full rounded-md border border-slate-300 px-3 py-2">
-              <option value="">All Years</option>
-              <option value="1">1st Year</option>
-              <option value="2">2nd Year</option>
-              <option value="3">3rd Year</option>
-              <option value="4">4th Year</option>
+              <option value="">All Grades</option>
+              <option value="11">Grade 11</option>
+              <option value="12">Grade 12</option>
             </select>
           </div>
           <div>
@@ -57,7 +55,7 @@
               <tr class="bg-gray-50">
                 <th class="border border-gray-300 px-4 py-3 text-left">Section Name</th>
                 <th class="border border-gray-300 px-4 py-3 text-left">Strand</th>
-                <th class="border border-gray-300 px-4 py-3 text-left">Year Level</th>
+                <th class="border border-gray-300 px-4 py-3 text-left">Grade</th>
                 <th class="border border-gray-300 px-4 py-3 text-left">Semester</th>
                 <th class="border border-gray-300 px-4 py-3 text-left">School Year</th>
                 <th class="border border-gray-300 px-4 py-3 text-left">Status</th>
@@ -113,13 +111,11 @@
                 </select>
               </div>
               <div>
-                <label class="mb-1 block text-sm font-medium text-slate-700">Year Level *</label>
+                <label class="mb-1 block text-sm font-medium text-slate-700">Grade *</label>
                 <select v-model="form.year_level" class="w-full rounded-md border border-slate-300 px-3 py-2" required>
-                  <option value="">Select Year</option>
-                  <option value="1">1st Year</option>
-                  <option value="2">2nd Year</option>
-                  <option value="3">3rd Year</option>
-                  <option value="4">4th Year</option>
+                  <option value="">Select Grade</option>
+                  <option value="11">Grade 11</option>
+                  <option value="12">Grade 12</option>
                 </select>
               </div>
               <div>
@@ -134,7 +130,7 @@
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <label class="mb-1 block text-sm font-medium text-slate-700">School Year *</label>
-                <input v-model="form.school_year" type="text" placeholder="e.g., 2024-2025" class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100" required />
+                <input v-model="form.school_year" type="text" placeholder="e.g., 2025-2026" class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100" required />
               </div>
               <div>
                 <label class="mb-1 block text-sm font-medium text-slate-700">Status *</label>
@@ -321,10 +317,8 @@ const capitalizeFirst = (str: string) => str ? str.charAt(0).toUpperCase() + str
 
 const getYearLabel = (year: string | number) => {
   const yearMap: Record<string | number, string> = {
-    '1': '1st Year',
-    '2': '2nd Year',
-    '3': '3rd Year',
-    '4': '4th Year',
+    '11': 'Grade 11',
+    '12': 'Grade 12',
   };
   return yearMap[year] || String(year);
 };

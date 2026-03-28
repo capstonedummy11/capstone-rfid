@@ -9,7 +9,6 @@ use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\Subject;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
@@ -40,7 +39,6 @@ class ScheduleController
                 'time_start'     => $schedule->time_start,
                 'time_end'       => $schedule->time_end,
                 'room'           => $schedule->room,
-                'timestamp'      => $schedule->timestamp?->format('Y-m-d H:i:s'),
             ])->values(),
             'filters' => ['laboratory_id' => $laboratoryId],
             'laboratories' => Laboratory::query()->orderBy('name')->get(['laboratory_id', 'name', 'status'])->values(),
@@ -67,7 +65,6 @@ class ScheduleController
         ]);
 
         $schedule = Schedule::create(array_merge($validated, [
-            'timestamp'  => Carbon::now(),
             'time_start' => $validated['time_start'] . ':00',
             'time_end'   => $validated['time_end'] . ':00',
         ]));
@@ -93,7 +90,6 @@ class ScheduleController
         ]);
 
         $schedule->update(array_merge($validated, [
-            'timestamp'  => Carbon::now(),
             'time_start' => $validated['time_start'] . ':00',
             'time_end'   => $validated['time_end'] . ':00',
         ]));

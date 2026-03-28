@@ -86,7 +86,7 @@ class SectionController
         $validated = $request->validate([
             'section_name' => 'required|string|max:255|unique:sections,section_name',
             'strand_id' => 'required|exists:strands,strand_id',
-            'year_level' => 'required|integer|between:1,4',
+            'year_level' => 'required|integer|in:11,12',
             'semester' => 'required|string|max:50',
             'school_year' => 'required|string|max:20',
             'status' => 'required|in:active,inactive',
@@ -115,7 +115,7 @@ class SectionController
         $validated = $request->validate([
             'section_name' => 'required|string|max:255|unique:sections,section_name,' . $id . ',section_id',
             'strand_id' => 'required|exists:strands,strand_id',
-            'year_level' => 'required|integer|between:1,4',
+            'year_level' => 'required|integer|in:11,12',
             'semester' => 'required|string|max:50',
             'school_year' => 'required|string|max:20',
             'status' => 'required|in:active,inactive',

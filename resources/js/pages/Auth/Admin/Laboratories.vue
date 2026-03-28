@@ -91,6 +91,10 @@
           <h2 class="text-xl font-semibold mb-4">{{ isEditing ? 'Edit Laboratory' : 'Add New Laboratory' }}</h2>
 
           <form @submit.prevent="submitForm" class="space-y-4">
+            <div v-if="Object.keys(form.errors).length > 0" class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              Please review the form fields below.
+            </div>
+
             <div>
               <label class="block text-sm font-medium text-slate-700 mb-1">Laboratory Name *</label>
               <input
@@ -100,6 +104,7 @@
                 class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 required
               />
+              <p v-if="form.errors.name" class="mt-1 text-xs text-red-600">{{ form.errors.name }}</p>
             </div>
 
             <div>
@@ -110,6 +115,7 @@
                 class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 rows="3"
               ></textarea>
+              <p v-if="form.errors.description" class="mt-1 text-xs text-red-600">{{ form.errors.description }}</p>
             </div>
 
             <div>
@@ -121,6 +127,7 @@
                 class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 required
               />
+              <p v-if="form.errors.location" class="mt-1 text-xs text-red-600">{{ form.errors.location }}</p>
             </div>
 
             <div>
@@ -129,6 +136,7 @@
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
               </select>
+              <p v-if="form.errors.status" class="mt-1 text-xs text-red-600">{{ form.errors.status }}</p>
             </div>
 
             <div class="flex justify-end gap-2 pt-4 border-t">
@@ -145,7 +153,7 @@
 </template>
 
 <script setup lang="ts">
-import { useForm } from '@inertiajs/vue3';
+import { router, useForm } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 
 interface Laboratory {
@@ -250,17 +258,19 @@ const submitForm = () => {
   if (isEditing.value) {
     form.put(route('admin.laboratories.update', { id: selectedLaboratory.value?.laboratory_id }), {
       preserveState: true,
+      preserveScroll: true,
       onSuccess: () => {
         closeModal();
-        window.location.reload();
+        router.reload({ only: ['laboratories'] });
       },
     });
   } else {
     form.post(route('admin.laboratories.store'), {
       preserveState: true,
+      preserveScroll: true,
       onSuccess: () => {
         closeModal();
-        window.location.reload();
+        router.reload({ only: ['laboratories'] });
       },
     });
   }
@@ -274,7 +284,8 @@ const deleteLaboratory = (laboratory: Laboratory) => {
   const deleteForm = useForm({});
   deleteForm.delete(route('admin.laboratories.destroy', { id: laboratory.laboratory_id }), {
     preserveState: true,
-    onSuccess: () => window.location.reload(),
+    preserveScroll: true,
+    onSuccess: () => router.reload({ only: ['laboratories'] }),
   });
 };
 

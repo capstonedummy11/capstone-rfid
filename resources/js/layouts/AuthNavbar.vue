@@ -77,7 +77,7 @@ const links = [
     {
         icon: Borrowing,
         text: 'Inventory',
-        route: route('admin.inventory.index'),
+        route: route('admin.inventory'),
     },
     {
         icon: Borrowing,

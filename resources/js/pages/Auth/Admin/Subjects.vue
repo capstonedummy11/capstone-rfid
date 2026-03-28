@@ -85,27 +85,27 @@
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <label class="mb-1 block text-sm font-medium text-slate-700">Subject Code *</label>
-                <input v-model="form.subject_code" type="text" class="w-full rounded-md border border-slate-300 px-3 py-2" required />
+                <input v-model="form.subject_code" type="text" placeholder="e.g., CP1" class="w-full rounded-md border border-slate-300 px-3 py-2" required />
               </div>
               <div>
                 <label class="mb-1 block text-sm font-medium text-slate-700">Subject Name *</label>
-                <input v-model="form.subject_name" type="text" class="w-full rounded-md border border-slate-300 px-3 py-2" required />
+                <input v-model="form.subject_name" type="text" placeholder="e.g., Computer Programming 1" class="w-full rounded-md border border-slate-300 px-3 py-2" required />
               </div>
             </div>
 
             <div>
               <label class="mb-1 block text-sm font-medium text-slate-700">Description</label>
-              <textarea v-model="form.subject_description" rows="3" class="w-full rounded-md border border-slate-300 px-3 py-2" />
+              <textarea v-model="form.subject_description" rows="3" placeholder="e.g., Introduction to programming concepts using variables, conditions, loops, and functions." class="w-full rounded-md border border-slate-300 px-3 py-2" />
             </div>
 
             <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
               <div>
                 <label class="mb-1 block text-sm font-medium text-slate-700">Department</label>
-                <input v-model="form.department" type="text" class="w-full rounded-md border border-slate-300 px-3 py-2" />
+                <input v-model="form.department" type="text" placeholder="e.g., ICT" class="w-full rounded-md border border-slate-300 px-3 py-2" />
               </div>
               <div>
                 <label class="mb-1 block text-sm font-medium text-slate-700">Unit *</label>
-                <input v-model.number="form.unit" type="number" min="0" class="w-full rounded-md border border-slate-300 px-3 py-2" required />
+                <input v-model.number="form.unit" type="number" min="0" placeholder="e.g., 3" class="w-full rounded-md border border-slate-300 px-3 py-2" required />
               </div>
               <div>
                 <label class="mb-1 block text-sm font-medium text-slate-700">Semester</label>

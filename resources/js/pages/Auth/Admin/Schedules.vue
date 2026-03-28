@@ -308,6 +308,7 @@ type Cell =
 const grid = computed(() => {
   return timeSlots.map((slot) => {
     const slotMins = parseMinutes(slot);
+    const slotEndMins = slotMins + 60;
     const cells: Cell[] = days.map((day) => {
       const schedule = filteredSchedules.value.find((s) => {
         const wDays = s.weekdays.split(/[,\-\/\s]+/).map((d) => d.trim()).filter(Boolean);
@@ -315,15 +316,19 @@ const grid = computed(() => {
         const endMins = parseMinutes(normalizeTime(s.time_end));
         return (
           wDays.some((d) => d.toLowerCase() === day.key.toLowerCase()) &&
-          startMins <= slotMins &&
+          startMins < slotEndMins &&
           endMins > slotMins
         );
       });
       if (!schedule) return { type: 'empty' as const };
       const startMins = parseMinutes(normalizeTime(schedule.time_start));
-      if (startMins === slotMins) {
+      const isStartSlot =
+        (startMins >= slotMins && startMins < slotEndMins) ||
+        (slotMins === parseMinutes(timeSlots[0] ?? '00:00') && startMins < slotMins);
+
+      if (isStartSlot) {
         const endMins = parseMinutes(normalizeTime(schedule.time_end));
-        const rowspan = Math.max(1, Math.ceil((endMins - startMins) / 60));
+        const rowspan = Math.max(1, Math.ceil((endMins - slotMins) / 60));
         return { type: 'start' as const, schedule, rowspan };
       }
       return { type: 'occupied' as const };
