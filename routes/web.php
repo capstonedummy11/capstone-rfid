@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\BorrowController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -17,11 +18,11 @@ Route::get('/', function (Request $request) {
   return Inertia::render('LandingPage');
 })->name('landingPage');
 Route::inertia('/about', 'About')->name('about');
-Route::inertia('/attendance-control-panel', 'AttendanceControlPanel', [
-  'rooms' => ['Computer Lab 1', 'Computer Lab 2', 'RFID Laboratory', 'Network Lab'],
-  'studentToastSeconds' => config('panel.student_toast_seconds', 15),
-  'studentInfoVisibleSeconds' => config('panel.student_info_visible_seconds', 10),
-])->name('attendanceControlPanel');
+Route::get('/attendance-control-panel', [AttendanceController::class, 'controlPanel'])->name('attendanceControlPanel');
+Route::post('/attendance-control-panel/rfid-lookup', [AttendanceController::class, 'lookupRfid'])->name('attendanceControlPanel.lookupRfid');
+Route::post('/attendance-control-panel/session-state', [AttendanceController::class, 'updatePanelSessionState'])->name('attendanceControlPanel.sessionState');
+Route::post('/attendance-control-panel/student-tap', [AttendanceController::class, 'recordStudentTap'])->name('attendanceControlPanel.studentTap');
+Route::post('/attendance-control-panel/attendance-logs', [AttendanceController::class, 'attendanceLogSnapshot'])->name('attendanceControlPanel.attendanceLogs');
 
 Route::post('/panel-verify', function (\Illuminate\Http\Request $request) {
   $pin = (string) config('panel.pin', '1234');
@@ -55,7 +56,8 @@ Route::prefix('admin')
     Route::inertia('/students-management', 'StudentsManagement')->name('studentsManagement');
     //Route::inertia('/instructors-management', 'InstructorsManagement', ['title' => 'Instructor Management'])->name('instructorsManagement');
     Route::inertia('/laboratories', 'Auth/Admin/Laboratories', ['title' => 'Laboratories'])->name('laboratories');
-    Route::get('/borrow', [BorrowController::class, 'index'], ['title' => 'Borrowing'])->name('borrow');
+    Route::get('/borrow', [BorrowController::class, 'index'])->name('borrow');
+    Route::post('/borrow/return-items', [BorrowController::class, 'returnItems'])->name('borrow.returnItems');
     Route::inertia('/inventory', 'Auth/Admin/Inventory', ['title' => 'Inventory'])->name('inventory');
   });
 

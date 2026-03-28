@@ -89,17 +89,17 @@ class BorrowSeeder extends Seeder
       ]
     );
 
-    Students::updateOrCreate(
+    $maria = Students::updateOrCreate(
       ['student_number' => '2023002'],
       [
         'section_id' => $section2B->section_id,
         'course_id' => $bscs->course_id,
         'rfid_tag' => '000679A641',
         'first_name' => 'Maria',
-        'last_name' => 'Santos',
+        'last_name' => 'Revera',
         'middle_name' => null,
         'gender' => 'female',
-        'email' => 'maria.santos@school.edu',
+        'email' => 'maria.revera@school.edu',
         'year_level' => 2,
         'semester' => '2nd',
         'school_year' => '2025-2026',
@@ -192,6 +192,30 @@ class BorrowSeeder extends Seeder
 
     BorrowingItem::create([
       'borrowing_id' => $borrowing->borrowing_id,
+      'item_id' => $keyboard->item_id,
+      'quantity' => 1,
+      'status' => 'borrowed',
+    ]);
+
+    // Sample borrowing: Maria Revera has an active request similar to Juan Cruz
+    $borrowingMaria = Borrowing::create([
+      'student_id' => $maria->student_id,
+      'user_id' => null,
+      'borrower_type' => 'student',
+      'borrowed_at' => now()->subHours(2),
+      'returned_at' => null,
+      'status' => 'active',
+    ]);
+
+    BorrowingItem::create([
+      'borrowing_id' => $borrowingMaria->borrowing_id,
+      'item_id' => $monitor->item_id,
+      'quantity' => 1,
+      'status' => 'borrowed',
+    ]);
+
+    BorrowingItem::create([
+      'borrowing_id' => $borrowingMaria->borrowing_id,
       'item_id' => $keyboard->item_id,
       'quantity' => 1,
       'status' => 'borrowed',
