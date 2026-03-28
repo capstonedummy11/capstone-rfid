@@ -3,10 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Borrowing;
+use App\Models\BorrowingItem;
 use App\Models\Device;
 use App\Models\Students;
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class BorrowController
@@ -27,7 +30,6 @@ class BorrowController
     }
 
     return Inertia::render('Borrow', [
-      'title' => 'Borrowing',
       'borrowRows' => $this->buildBorrowRows($filters),
       'borrowerProfiles' => $this->buildBorrowerProfiles(),
       'borrowItemsCatalog' => $this->buildBorrowItemsCatalog(),
@@ -37,11 +39,223 @@ class BorrowController
     ]);
   }
 
+  public function returnItems(Request $request): JsonResponse
+  {
+    $validated = $request->validate([
+      'rfid' => ['required', 'string', 'max:255'],
+      'barcodes' => ['required', 'array', 'min:1'],
+      'barcodes.*' => ['required', 'string', 'max:255'],
+    ]);
+
+    $rfid = strtolower(trim((string) $validated['rfid']));
+    $requestedBarcodes = collect($validated['barcodes'])
+      ->map(fn($barcode) => trim((string) $barcode))
+      ->filter(fn($barcode) => $barcode !== '')
+      ->unique()
+      ->values();
+
+    if ($requestedBarcodes->isEmpty()) {
+      return response()->json([
+        'ok' => false,
+        'message' => 'No valid barcodes were provided.',
+      ], 422);
+    }
+
+    $student = Students::query()
+      ->whereRaw('LOWER(rfid_tag) = ?', [$rfid])
+      ->first();
+
+    $instructor = null;
+    if (!$student) {
+      $instructor = User::query()
+        ->whereRaw('LOWER(rfid_tag) = ?', [$rfid])
+        ->first();
+    }
+
+    if (!$student && !$instructor) {
+      return response()->json([
+        'ok' => false,
+        'message' => 'No borrower profile was found for this RFID.',
+      ], 404);
+    }
+
+    $borrowerType = $student ? 'student' : 'instructor';
+    $borrowerStudentId = $student?->student_id;
+    $borrowerUserId = $instructor?->user_id;
+
+    $borrowings = Borrowing::query()
+      ->with(['items.item'])
+      ->whereIn('status', ['active', 'overdue'])
+      ->where('borrower_type', $borrowerType)
+      ->when($borrowerType === 'student', function ($query) use ($borrowerStudentId) {
+        $query->where('student_id', $borrowerStudentId);
+      })
+      ->when($borrowerType === 'instructor', function ($query) use ($borrowerUserId) {
+        $query->where('user_id', $borrowerUserId);
+      })
+      ->get();
+
+    $activeBorrowedByBarcode = [];
+    foreach ($borrowings as $borrowing) {
+      foreach ($borrowing->items as $borrowItem) {
+        $barcode = trim((string) ($borrowItem->item?->barcode ?? ''));
+        if ($barcode === '') {
+          continue;
+        }
+
+        if ((string) $borrowItem->status === 'borrowed') {
+          $activeBorrowedByBarcode[$barcode] = [
+            'borrowing_id' => $borrowing->borrowing_id,
+            'borrowing_item_id' => $borrowItem->id,
+            'item_id' => $borrowItem->item_id,
+          ];
+        }
+      }
+    }
+
+    $returnedBarcodes = [];
+    $borrowedBarcodes = [];
+    $missingBarcodes = [];
+    $unavailableBarcodes = [];
+    $touchedBorrowingIds = [];
+
+    DB::transaction(function () use ($requestedBarcodes, $activeBorrowedByBarcode, $borrowerType, $borrowerStudentId, $borrowerUserId, &$returnedBarcodes, &$borrowedBarcodes, &$missingBarcodes, &$unavailableBarcodes, &$touchedBorrowingIds) {
+      $activeBorrowing = null;
+
+      foreach ($requestedBarcodes as $barcode) {
+        if (isset($activeBorrowedByBarcode[$barcode])) {
+          $record = $activeBorrowedByBarcode[$barcode];
+
+          BorrowingItem::query()
+            ->where('id', $record['borrowing_item_id'])
+            ->update(['status' => 'returned']);
+
+          Device::query()
+            ->where('item_id', $record['item_id'])
+            ->update(['status' => 'available']);
+
+          $returnedBarcodes[] = $barcode;
+          $touchedBorrowingIds[$record['borrowing_id']] = $record['borrowing_id'];
+          continue;
+        }
+
+        $device = Device::query()->where('barcode', $barcode)->first();
+        if (!$device) {
+          $missingBarcodes[] = $barcode;
+          continue;
+        }
+
+        if (strtolower((string) ($device->status ?? '')) !== 'available') {
+          $unavailableBarcodes[] = $barcode;
+          continue;
+        }
+
+        if (!$activeBorrowing) {
+          $activeBorrowing = Borrowing::query()
+            ->where('borrower_type', $borrowerType)
+            ->when($borrowerType === 'student', function ($query) use ($borrowerStudentId) {
+              $query->where('student_id', $borrowerStudentId);
+            })
+            ->when($borrowerType === 'instructor', function ($query) use ($borrowerUserId) {
+              $query->where('user_id', $borrowerUserId);
+            })
+            ->whereIn('status', ['active', 'overdue'])
+            ->latest('borrowing_id')
+            ->first();
+
+          if (!$activeBorrowing) {
+            $activeBorrowing = Borrowing::query()->create([
+              'student_id' => $borrowerType === 'student' ? $borrowerStudentId : null,
+              'user_id' => $borrowerType === 'instructor' ? $borrowerUserId : null,
+              'borrower_type' => $borrowerType,
+              'borrowed_at' => now(),
+              'returned_at' => null,
+              'status' => 'active',
+            ]);
+          } elseif ($activeBorrowing->status !== 'active') {
+            Borrowing::query()
+              ->where('borrowing_id', $activeBorrowing->borrowing_id)
+              ->update([
+                'status' => 'active',
+                'returned_at' => null,
+              ]);
+          }
+        }
+
+        BorrowingItem::query()->create([
+          'borrowing_id' => $activeBorrowing->borrowing_id,
+          'item_id' => $device->item_id,
+          'quantity' => 1,
+          'status' => 'borrowed',
+        ]);
+
+        $device->update(['status' => 'borrowed']);
+
+        $borrowedBarcodes[] = $barcode;
+        $touchedBorrowingIds[$activeBorrowing->borrowing_id] = $activeBorrowing->borrowing_id;
+      }
+
+      foreach ($touchedBorrowingIds as $borrowingId) {
+        $hasBorrowedItems = BorrowingItem::query()
+          ->where('borrowing_id', $borrowingId)
+          ->where('status', 'borrowed')
+          ->exists();
+
+        if ($hasBorrowedItems) {
+          Borrowing::query()
+            ->where('borrowing_id', $borrowingId)
+            ->update([
+              'status' => 'active',
+              'returned_at' => null,
+            ]);
+        } else {
+          Borrowing::query()
+            ->where('borrowing_id', $borrowingId)
+            ->update([
+              'status' => 'returned',
+              'returned_at' => now(),
+            ]);
+        }
+      }
+    });
+
+    $returnedUnique = collect($returnedBarcodes)->unique()->values()->all();
+    $borrowedUnique = collect($borrowedBarcodes)->unique()->values()->all();
+    $missingUnique = collect($missingBarcodes)->unique()->values()->all();
+    $unavailableUnique = collect($unavailableBarcodes)->unique()->values()->all();
+
+    if (count($returnedUnique) === 0 && count($borrowedUnique) === 0) {
+      return response()->json([
+        'ok' => false,
+        'message' => 'No items were updated. Check barcode validity or item availability.',
+        'missing_barcodes' => $missingUnique,
+        'unavailable_barcodes' => $unavailableUnique,
+      ], 422);
+    }
+
+    $summary = [];
+    if (count($returnedUnique) > 0) {
+      $summary[] = count($returnedUnique) . ' returned';
+    }
+    if (count($borrowedUnique) > 0) {
+      $summary[] = count($borrowedUnique) . ' borrowed again';
+    }
+
+    return response()->json([
+      'ok' => true,
+      'message' => 'Items updated: ' . implode(', ', $summary) . '.',
+      'returned_barcodes' => $returnedUnique,
+      'borrowed_barcodes' => $borrowedUnique,
+      'missing_barcodes' => $missingUnique,
+      'unavailable_barcodes' => $unavailableUnique,
+    ]);
+  }
+
   private function buildBorrowRows(array $filters)
   {
     $statusMap = $this->statusMap();
 
-    $query = Borrowing::with(['student', 'instructor', 'items.item'])
+    $query = Borrowing::with(['student.course', 'student.section', 'instructor', 'items.item'])
       ->when($filters['search'] !== '', function ($query) use ($filters) {
         $term = $filters['search'];
         $query->where(function ($subQuery) use ($term) {
@@ -63,7 +277,11 @@ class BorrowController
               $itemQuery
                 ->where('item_name', 'like', "%{$term}%")
                 ->orWhere('item_code', 'like', "%{$term}%")
-                ->orWhere('barcode', 'like', "%{$term}%");
+                ->orWhere('item_sku', 'like', "%{$term}%")
+                ->orWhere('barcode', 'like', "%{$term}%")
+                ->orWhere('item_barcode', 'like', "%{$term}%")
+                ->orWhere('description', 'like', "%{$term}%")
+                ->orWhere('item_description', 'like', "%{$term}%");
             });
         });
       })
@@ -102,16 +320,37 @@ class BorrowController
         $minutes = $totalMinutes % 60;
         $duration = $hours > 0 ? "{$hours}h {$minutes}m" : "{$minutes}m";
 
+        $allItems = $borrowing->items->map(function ($bi) {
+          return [
+            'name' => $bi->item->item_name ?? 'Unknown Item',
+            'code' => $bi->item->item_code ?? 'N/A',
+            'type' => $bi->item->item_type ?? 'N/A',
+            'barcode' => $bi->item->barcode ?? 'N/A',
+            'quantity' => (int) $bi->quantity,
+            'status' => ucfirst((string) ($bi->status ?? 'borrowed')),
+            'borrowedAt' => $bi->created_at ? $bi->created_at->format('Y-m-d H:i:s') : null,
+            'returnedAt' => ($bi->status === 'returned') ? ($bi->updated_at ? $bi->updated_at->format('Y-m-d H:i:s') : null) : null,
+          ];
+        })->values()->toArray();
+
         return [
           'name' => $borrowerName !== '' ? $borrowerName : 'Unknown Borrower',
           'id' => $borrowerId,
           'role' => $isStudent ? 'Student' : 'Teacher',
+          'course' => $isStudent ? ($borrowing->student->course->course_code ?? 'N/A') : 'Faculty',
+          'section' => $isStudent ? ($borrowing->student->section->section_name ?? 'N/A') : 'N/A',
+          'year' => $isStudent ? $this->formatYearLabel((int) ($borrowing->student->year_level ?? 0)) : 'N/A',
+          'rfid' => $isStudent ? ($borrowing->student->rfid_tag ?? 'N/A') : ($borrowing->instructor->rfid_tag ?? 'N/A'),
+          'remarks' => $borrowing->remarks ?? '',
           'item' => $itemPreview,
+          'items' => $allItems,
           'number' => (int) $borrowing->items->sum('quantity'),
           'date' => $timeIn ? $timeIn->format('d F Y') : 'N/A',
           'status' => $statusMap[$borrowing->status] ?? 'Under Maintenance',
           'timeIn' => $timeIn ? $timeIn->format('H:i') : '00:00',
           'timeOut' => $timeOut ? $timeOut->format('H:i') : '00:00',
+          'borrowedAt' => $timeIn ? $timeIn->format('Y-m-d H:i:s') : null,
+          'returnedAt' => $timeOut ? $timeOut->format('Y-m-d H:i:s') : null,
           'hours' => $duration,
         ];
       })
@@ -123,7 +362,7 @@ class BorrowController
   private function buildBorrowerProfiles()
   {
     $studentBorrowers = Students::query()
-      ->leftJoin('courses', 'students.course_id', '=', 'courses.course_id')
+      ->leftJoin('strands', 'students.strand_id', '=', 'strands.strand_id')
       ->leftJoin('sections', 'students.section_id', '=', 'sections.section_id')
       ->whereNotNull('students.rfid_tag')
       ->select([
@@ -132,7 +371,7 @@ class BorrowController
         'students.first_name',
         'students.last_name',
         'students.year_level',
-        'courses.course_code as course',
+        'strands.strand_code as strand',
         'sections.section_name as section',
       ])
       ->get()
@@ -141,23 +380,22 @@ class BorrowController
           'rfid' => (string) $student->rfid,
           'name' => trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? '')),
           'studentId' => $student->studentId ?? 'N/A',
-          'course' => $student->course ?? 'N/A',
-          'year' => $this->formatYearLabel((int) ($student->year_level ?? 0)),
+          'strand' => $student->strand ?? 'N/A',
           'section' => $student->section ?? 'N/A',
+          'year' => $student->year_level ?? 'N/A',
           'role' => 'Student',
         ];
       });
 
     $userBorrowers = User::query()
       ->whereNotNull('rfid_tag')
-      ->select(['user_id', 'name', 'role', 'rfid_tag'])
       ->get()
       ->map(function ($user) {
         return [
           'rfid' => (string) $user->rfid_tag,
           'name' => $user->name ?? 'Unknown User',
           'studentId' => 'INS-' . ($user->user_id ?? 'N/A'),
-          'course' => 'Faculty',
+          'strand' => 'Faculty',
           'year' => 'N/A',
           'section' => 'N/A',
           'role' => ucfirst((string) ($user->role ?? 'Instructor')),
@@ -173,16 +411,20 @@ class BorrowController
   private function buildBorrowItemsCatalog()
   {
     return Device::query()
-      ->whereNotNull('barcode')
-      ->select(['item_name', 'item_code', 'item_type', 'barcode'])
+      ->where(function ($query) {
+        $query->whereNotNull('barcode')->orWhereNotNull('item_barcode');
+      })
+      ->select(['item_name', 'item_code', 'item_type', 'barcode', 'item_barcode', 'item_sku'])
       ->orderBy('item_code')
       ->get()
       ->map(function ($device) {
+        $barcode = $device->item_barcode ?: $device->barcode;
+
         return [
           'name' => $device->item_name,
-          'id' => $device->item_code,
+          'id' => $device->item_sku ?: $device->item_code,
           'type' => $device->item_type,
-          'barcode' => (string) $device->barcode,
+          'barcode' => (string) $barcode,
         ];
       })
       ->values();
@@ -192,8 +434,10 @@ class BorrowController
   {
     $map = [];
 
+    // Load ALL borrowings so that returned/closed ones can be shown as read-only history.
     $borrowings = Borrowing::with(['student', 'instructor', 'items.item'])
-      ->whereIn('status', ['active', 'overdue'])
+      ->orderByDesc('borrowed_at')
+      ->orderByDesc('borrowing_id')
       ->get();
 
     foreach ($borrowings as $borrowing) {
@@ -211,29 +455,74 @@ class BorrowController
       }
 
       if (!isset($map[$rfidKey])) {
-        $map[$rfidKey] = [];
+        $map[$rfidKey] = [
+          'hasActiveBorrowing' => false,
+          'items' => [],
+        ];
       }
+
+      $borrowingStatus = strtolower((string) ($borrowing->status ?? 'active'));
+      $isActiveBorrowing = in_array($borrowingStatus, ['active', 'overdue'], true);
+
+      if ($isActiveBorrowing) {
+        $map[$rfidKey]['hasActiveBorrowing'] = true;
+      }
+
+      $borrowedAt = $borrowing->borrowed_at?->format('Y-m-d H:i:s');
+      $borrowingReturnedAt = $borrowing->returned_at?->format('Y-m-d H:i:s');
 
       foreach ($borrowing->items as $item) {
         $borrowedItem = $item->item;
-        if (!$borrowedItem || empty($borrowedItem->barcode)) {
+        $barcode = $borrowedItem?->item_barcode ?: $borrowedItem?->barcode;
+
+        if (!$borrowedItem || empty($barcode)) {
           continue;
         }
 
-        $map[$rfidKey][] = [
+        $barcode = (string) $borrowedItem->barcode;
+
+        // If an active-borrowing entry already exists for this barcode, keep it.
+        if (isset($map[$rfidKey]['items'][$barcode])) {
+          $existingIsActive = in_array(
+            strtolower($map[$rfidKey]['items'][$barcode]['borrowingStatus'] ?? ''),
+            ['active', 'overdue'],
+            true,
+          );
+          if ($existingIsActive) {
+            continue;
+          }
+        }
+
+        $itemStatus = strtolower((string) ($item->status ?? 'borrowed'));
+        $statusLabel = match ($itemStatus) {
+          'returned' => 'Returned',
+          'borrowed' => 'Borrowed',
+          'damaged' => 'Damaged',
+          'lost' => 'Lost',
+          default => ucfirst($itemStatus),
+        };
+
+        // Use item's updated_at as returnedAt when the item was returned.
+        $itemReturnedAt = null;
+        if ($itemStatus === 'returned') {
+          $itemReturnedAt = $item->updated_at?->format('Y-m-d H:i:s') ?? $borrowingReturnedAt;
+        }
+
+        $map[$rfidKey]['items'][$barcode] = [
           'name' => $borrowedItem->item_name,
-          'id' => $borrowedItem->item_code,
+          'id' => $borrowedItem->item_sku ?: $borrowedItem->item_code,
           'type' => $borrowedItem->item_type,
-          'barcode' => (string) $borrowedItem->barcode,
+          'barcode' => $barcode,
+          'status' => $statusLabel,
+          'borrowingStatus' => $borrowingStatus,
+          'borrowedAt' => $borrowedAt,
+          'returnedAt' => $itemReturnedAt,
         ];
       }
     }
 
-    foreach ($map as $key => $items) {
-      $map[$key] = collect($items)
-        ->unique('barcode')
-        ->values()
-        ->all();
+    foreach ($map as $key => $data) {
+      $map[$key]['items'] = array_values($data['items']);
     }
 
     return $map;

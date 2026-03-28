@@ -5,18 +5,17 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Course extends Model
+class Laboratory extends Model
 {
     use HasFactory;
 
-    protected $table = 'courses';
-    protected $primaryKey = 'course_id';
+    protected $table = 'laboratories';
+    protected $primaryKey = 'laboratory_id';
 
     protected $fillable = [
-        'course_id',
-        'course_code',
-        'course_name',
-        'department',
+        'name',
+        'description',
+        'location',
         'status'
     ];
 }

@@ -4,14 +4,16 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Fortify\TwoFactorAuthenticatable;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    /* use HasFactory, Notifiable, TwoFactorAuthenticatable; */
+    use HasFactory, Notifiable, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -21,9 +23,13 @@ class User extends Authenticatable
     protected $primaryKey = 'user_id';
     protected $fillable = [
         'name',
+        'middle_name',
+        'last_name',
         'email',
         'password',
         'role',
+        'phone',
+        'gender',
         'rfid_tag',
     ];
 
@@ -50,5 +56,23 @@ class User extends Authenticatable
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Get the instructor associated with the user
+     */
+    public function instructor(): HasOne
+    {
+        return $this->hasOne(Instructor::class, 'user_id', 'user_id');
+    }
+
+    public function subjects(): HasMany
+    {
+        return $this->hasMany(Subject::class, 'user_id', 'user_id');
+    }
+
+    public function activityLogs(): HasMany
+    {
+        return $this->hasMany(ActivityLog::class, 'user_id', 'user_id');
     }
 }

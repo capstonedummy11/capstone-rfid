@@ -14,7 +14,7 @@ import RFID from '@/components/Icon/RFID.vue';
 import Schedule from '@/components/Icon/Schedule.vue';
 import Section from '@/components/Icon/Section.vue';
 import Trash from '@/components/Icon/Trash.vue';
-import Inventory from '@/components/Icon/Inventory.vue';
+// import TwoPerson from '@/components/Icon/TwoPerson.vue';
 
 const links = [
     {
@@ -27,36 +27,62 @@ const links = [
         text: 'School Year',
         //route: route('admin.instructorsManagement'),
     },
+
+
+    {
+        icon: Graduation,
+        text: 'Strands',
+        route: route('admin.strands.index'),
+    },
+    {
+        icon: Section,
+        text: 'Sections',
+        route: route('admin.sections.index'),
+    },
+    {
+        icon: Instructor,
+        text: 'Instructors',
+        route: route('admin.instructors.index'),
+    },
+    {
+        icon: Graduation,
+        text: 'Subjects',
+        route: route('admin.subjects.index'),
+    },
+    {
+        icon: Instructor,
+        text: 'Students',
+        route: route('admin.students.index'),
+    },
     {
         icon: Laboratory,
         text: 'Laboratories',
         route: route('admin.laboratories'),
     },
     {
-        icon: Schedule,
-        text: 'Schedule',
-    },
-    {
-        icon: Instructor,
-        text: 'Instructor',
-    },
-    {
-        icon: Section,
-        text: 'Section',
+        icon: RFID,
+        text: 'RFID',
+        route: route('admin.rfid'),
     },
     {
         icon: Attendance,
         text: 'Attendance',
+        route: route('admin.attendance.scanner'),
+    },
+    {
+        icon: Schedule,
+        text: 'Schedules',
+        route: route('admin.schedules.index'),
+    },
+    {
+        icon: Borrowing,
+        text: 'Inventory',
+        route: route('admin.inventory'),
     },
     {
         icon: Borrowing,
         text: 'Borrowing',
         route: route('admin.borrow'),
-    },
-    {
-        icon: Inventory,
-        text: 'Inventory',
-        route: route('admin.inventory'),
     },
     {
         icon: Reports,
@@ -65,15 +91,13 @@ const links = [
     {
         icon: ActivityLogs,
         text: 'Activity Logs',
+        route: route('admin.activity-logs.index'),
     },
     {
         icon: Trash,
         text: 'Trash',
     },
-    {
-        icon: RFID,
-        text: 'RFID Remarks',
-    },
+
 ];
 </script>
 
@@ -83,12 +107,12 @@ const links = [
     >
         <div class="flex flex-col">
             <header class="p-4 text-nav-header">
-                <h1 class="text-[18px]">Dashboard</h1>
+                <h1 class="text-[18px]">Admin</h1>
             </header>
 
             <div class="mb-5">
                 <Navlinks
-                    v-for="(item, index) in links.slice(0, 4)"
+                    v-for="(item, index) in links.slice(0, 1)"
                     :key="index"
                     :icon="item.icon"
                     :text="item.text"
@@ -102,7 +126,7 @@ const links = [
 
             <div>
                 <Navlinks
-                    v-for="(item, index) in links.slice(4, 9)"
+                    v-for="(item, index) in links.slice(1, 8)"
                     :key="index"
                     :icon="item.icon"
                     :text="item.text"
@@ -116,7 +140,7 @@ const links = [
 
             <div>
                 <Navlinks
-                    v-for="(item, index) in links.slice(9)"
+                    v-for="(item, index) in links.slice(7)"
                     :key="index"
                     :icon="item.icon"
                     :text="item.text"

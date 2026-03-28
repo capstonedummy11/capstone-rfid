@@ -182,7 +182,10 @@ const triggerTestPopup = () => {
   const sortedProfiles = [...registeredStudents.value].sort((a, b) =>
     String(a.studentId ?? '').localeCompare(String(b.studentId ?? '')),
   );
-  const demoRfid = sortedProfiles[0]?.rfid || '';
+  const preferredProfile = sortedProfiles.find((profile) =>
+    String(profile.name ?? '').trim().toLowerCase() === 'maria revera',
+  );
+  const demoRfid = preferredProfile?.rfid || sortedProfiles[0]?.rfid || '';
   if (!demoRfid) {
     Swal.fire({
       icon: 'info',
@@ -214,12 +217,242 @@ const getBorrowItems = (borrower) => {
   const rfidKey = String(borrower?.rfid ?? '').trim().toLowerCase();
   if (!rfidKey) return [];
 
-  const mappedItems = props.borrowItemsByRfid?.[rfidKey];
-  if (Array.isArray(mappedItems)) {
-    return mappedItems;
+  const data = props.borrowItemsByRfid?.[rfidKey];
+  if (!data) return [];
+
+  // New structure: { hasActiveBorrowing: bool, items: [...] }
+  if (data && typeof data === 'object' && !Array.isArray(data) && Array.isArray(data.items)) {
+    return data.items;
+  }
+
+  // Backward-compat: old structure was a direct array
+  if (Array.isArray(data)) {
+    return data;
   }
 
   return [];
+};
+
+const hasBorrowerActiveBorrowing = (borrower) => {
+  const rfidKey = String(borrower?.rfid ?? '').trim().toLowerCase();
+  if (!rfidKey) return false;
+
+  const data = props.borrowItemsByRfid?.[rfidKey];
+  if (!data) return false;
+  if (Array.isArray(data)) return true; // backward-compat
+  return data.hasActiveBorrowing === true;
+};
+
+const markItemsReturned = async (student, items) => {
+  const barcodes = (Array.isArray(items) ? items : [])
+    .map((item) => String(item?.barcode ?? '').trim())
+    .filter((barcode) => barcode !== '');
+
+  if (!student?.rfid || barcodes.length === 0) {
+    return { ok: false, message: 'No valid RFID or barcode payload for borrowing flow.' };
+  }
+
+  try {
+    const xsrfRaw = document.cookie
+      .split('; ')
+      .find((row) => row.startsWith('XSRF-TOKEN='))
+      ?.split('=')[1];
+
+    const response = await fetch('/admin/borrow/return-items', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        'X-XSRF-TOKEN': xsrfRaw ? decodeURIComponent(xsrfRaw) : '',
+      },
+      body: JSON.stringify({
+        rfid: student.rfid,
+        barcodes,
+      }),
+    });
+
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.ok) {
+      return {
+        ok: false,
+        message: payload?.message ?? 'Unable to update item borrowing status right now.',
+      };
+    }
+
+    return {
+      ok: true,
+      message: payload?.message ?? 'Items updated successfully.',
+      returned: Array.isArray(payload?.returned_barcodes) ? payload.returned_barcodes : [],
+      borrowed: Array.isArray(payload?.borrowed_barcodes) ? payload.borrowed_barcodes : [],
+      missing: Array.isArray(payload?.missing_barcodes) ? payload.missing_barcodes : [],
+      unavailable: Array.isArray(payload?.unavailable_barcodes) ? payload.unavailable_barcodes : [],
+    };
+  } catch {
+    return {
+      ok: false,
+      message: 'Connection error while updating borrowing flow.',
+    };
+  }
+};
+
+const showRowPopup = (row) => {
+  const formatDT = (dateStr) => {
+    if (!dateStr) return '—';
+    try {
+      const d = new Date(String(dateStr).replace(' ', 'T'));
+      return d.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return String(dateStr);
+    }
+  };
+
+  const badgeStyle = (status) => {
+    const s = String(status ?? '').toLowerCase();
+    if (s === 'returned') return 'background:#e0f2fe; color:#0369a1;';
+    if (s === 'borrowed') return 'background:#dcfce7; color:#15803d;';
+    if (s === 'overdue')  return 'background:#fee2e2; color:#b91c1c;';
+    if (s === 'damaged')  return 'background:#fef3c7; color:#92400e;';
+    return 'background:#f1f5f9; color:#64748b;';
+  };
+
+  const isReturned = String(row.status ?? '').toLowerCase() === 'returned';
+  const headerBg = isReturned
+    ? 'background:linear-gradient(135deg,#0c4a6e 0%,#0369a1 100%);'
+    : 'background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);';
+  const headerBadge = isReturned
+    ? 'background:rgba(255,255,255,0.15); color:#bae6fd; border:1px solid rgba(186,230,253,0.4);'
+    : 'background:rgba(255,255,255,0.15); color:#86efac; border:1px solid rgba(134,239,172,0.4);';
+  const headerBadgeText = isReturned ? '● RETURNED' : '● ACTIVE';
+
+  const itemsHtml = (Array.isArray(row.items) && row.items.length > 0)
+    ? row.items.map((item) => `
+        <div style="display:flex; flex-direction:column; gap:4px; padding:8px 0;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+            <div style="display:flex; flex-direction:column; gap:1px; min-width:0;">
+              <span style="color:#0f172a; font-size:12px; font-weight:700;">${escapeHtml(item.name)}</span>
+              <span style="color:#64748b; font-size:10px;">${escapeHtml(item.type)} &bull; <span style="font-family:monospace;">${escapeHtml(item.barcode)}</span></span>
+            </div>
+            <span style="${badgeStyle(item.status)} font-size:10px; font-weight:600; padding:2px 8px; border-radius:99px; white-space:nowrap; flex-shrink:0;">${escapeHtml(item.status)}</span>
+          </div>
+          <div style="display:flex; flex-wrap:wrap; gap:12px; font-size:10px; color:#64748b;">
+            <span>📅 Borrowed: <span style="color:#0f172a; font-weight:600;">${formatDT(item.borrowedAt)}</span></span>
+            <span>↩️ Returned: <span style="color:#0f172a; font-weight:600;">${formatDT(item.returnedAt)}</span></span>
+          </div>
+        </div>
+      `).join('<div style="height:1px; background:#e2e8f0;"></div>')
+    : `<div style="font-size:12px; color:#94a3b8; text-align:center; padding:12px 0;">No items recorded.</div>`;
+
+  Swal.fire({
+    html: `
+      <div style="font-family:'DM Sans',sans-serif; padding:0; display:flex; gap:16px; align-items:flex-start;">
+
+        <!-- LEFT: ID Card -->
+        <div style="flex:0 0 200px; min-width:0;">
+          <div style="${headerBg} border-radius:14px; overflow:hidden; box-shadow:0 8px 28px rgba(37,99,235,0.25);">
+            <div style="padding:12px 16px 8px; display:flex; justify-content:space-between; align-items:center;">
+              <span style="color:white; font-weight:700; font-size:11px; letter-spacing:0.5px;">${escapeHtml(row.role === 'Teacher' ? 'INSTRUCTOR ID' : 'STUDENT ID')}</span>
+              <span style="${headerBadge} font-size:9px; font-weight:700; padding:2px 8px; border-radius:99px; letter-spacing:0.5px;">${headerBadgeText}</span>
+            </div>
+            <div style="padding:6px 16px 14px; display:flex; gap:12px; align-items:flex-start;">
+              <div style="flex-shrink:0;">
+                <div style="width:68px; height:80px; border-radius:10px; overflow:hidden; border:3px solid rgba(255,255,255,0.3); box-shadow:0 4px 12px rgba(0,0,0,0.3);">
+                  <img src="https://api.dicebear.com/7.x/personas/svg?seed=${encodeURIComponent(row.name)}&backgroundColor=b6e3f4"
+                    style="width:100%; height:100%; object-fit:cover; background:#dbeafe;" />
+                </div>
+              </div>
+              <div style="flex:1; display:flex; flex-direction:column; gap:5px;">
+                <div>
+                  <div style="color:rgba(255,255,255,0.5); font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:1px;">Full Name</div>
+                  <div style="color:white; font-weight:700; font-size:13px; line-height:1.2;">${escapeHtml(row.name)}</div>
+                </div>
+                ${row.role === 'Student' ? `
+                <div>
+                  <div style="color:rgba(255,255,255,0.5); font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:1px;">Course &amp; Section</div>
+                  <div style="color:white; font-weight:600; font-size:11px;">${escapeHtml(row.course)} ${escapeHtml(row.section)}</div>
+                </div>
+                <div>
+                  <div style="color:rgba(255,255,255,0.5); font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:1px;">Year</div>
+                  <div style="color:white; font-weight:600; font-size:11px;">${escapeHtml(row.year)}</div>
+                </div>` : `
+                <div>
+                  <div style="color:rgba(255,255,255,0.5); font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:1px;">Department</div>
+                  <div style="color:white; font-weight:600; font-size:11px;">Faculty</div>
+                </div>`}
+                <div>
+                  <div style="color:rgba(255,255,255,0.5); font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:1px;">ID No.</div>
+                  <div style="color:#bfdbfe; font-weight:600; font-size:11px; font-family:monospace; letter-spacing:1px;">${escapeHtml(row.id)}</div>
+                </div>
+                <div>
+                  <div style="color:rgba(255,255,255,0.5); font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:1px;">RFID</div>
+                  <div style="color:#bfdbfe; font-weight:600; font-size:10px; font-family:monospace; letter-spacing:1px;">${escapeHtml(row.rfid)}</div>
+                </div>
+              </div>
+            </div>
+            <div style="background:rgba(0,0,0,0.2); padding:6px 16px; display:flex; justify-content:space-between; align-items:center;">
+              <span style="color:rgba(255,255,255,0.45); font-size:7px; letter-spacing:1px; text-transform:uppercase;">Academic Year 2025–2026</span>
+            </div>
+          </div>
+
+          <!-- Summary card -->
+          <div style="margin-top:10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:10px 14px; display:flex; flex-direction:column; gap:7px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="color:#64748b; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Status</span>
+              <span style="${badgeStyle(row.status)} font-size:10px; font-weight:700; padding:2px 8px; border-radius:99px;">${escapeHtml(row.status)}</span>
+            </div>
+            <div style="height:1px; background:#e2e8f0;"></div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="color:#64748b; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Items</span>
+              <span style="color:#0f172a; font-size:11px; font-weight:700;">${row.number}</span>
+            </div>
+            <div style="height:1px; background:#e2e8f0;"></div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="color:#64748b; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Duration</span>
+              <span style="color:#0f172a; font-size:11px; font-weight:700;">${escapeHtml(row.hours)}</span>
+            </div>
+            <div style="height:1px; background:#e2e8f0;"></div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="color:#64748b; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Borrowed</span>
+              <span style="color:#0f172a; font-size:11px; font-weight:600;">${formatDT(row.borrowedAt)}</span>
+            </div>
+            ${row.returnedAt ? `
+            <div style="height:1px; background:#e2e8f0;"></div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="color:#64748b; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Returned</span>
+              <span style="color:#0f172a; font-size:11px; font-weight:600;">${formatDT(row.returnedAt)}</span>
+            </div>` : ''}
+            ${row.remarks ? `
+            <div style="height:1px; background:#e2e8f0;"></div>
+            <div style="display:flex; flex-direction:column; gap:2px;">
+              <span style="color:#64748b; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Remarks</span>
+              <span style="color:#0f172a; font-size:11px;">${escapeHtml(row.remarks)}</span>
+            </div>` : ''}
+          </div>
+        </div>
+
+        <!-- RIGHT: Items -->
+        <div style="flex:1; min-width:0;">
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:12px 16px;">
+            <div style="font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#94a3b8; margin-bottom:10px;">Borrowed Items (${(Array.isArray(row.items) ? row.items : []).length})</div>
+            <div style="display:flex; flex-direction:column;">
+              ${itemsHtml}
+            </div>
+          </div>
+        </div>
+
+      </div>`,
+    showConfirmButton: true,
+    showCancelButton: false,
+    showCloseButton: true,
+    confirmButtonText: 'Close',
+    confirmButtonColor: '#2563eb',
+    allowOutsideClick: true,
+    customClass: {
+      popup:         'swal-id-popup',
+      confirmButton: 'swal-confirm-btn',
+      closeButton:   'swal-close-btn',
+      actions:       'swal-actions',
+    },
+  });
 };
 
 const showResultPopup = (confirmed, student, borrowItems) => {
@@ -240,8 +473,8 @@ const showResultPopup = (confirmed, student, borrowItems) => {
               </svg>
             </div>
             <div style="text-align:center;">
-              <div style="font-size:18px; font-weight:800; color:#0f172a; margin-bottom:3px;">Borrowing Successful!</div>
-              <div style="font-size:12px; color:#64748b; font-weight:500;">Transaction has been recorded.</div>
+              <div style="font-size:18px; font-weight:800; color:#0f172a; margin-bottom:3px;">Transaction Successful!</div>
+              <div style="font-size:12px; color:#64748b; font-weight:500;">Borrow and return updates were recorded.</div>
             </div>
 
             <!-- Student ID Card -->
@@ -256,7 +489,7 @@ const showResultPopup = (confirmed, student, borrowItems) => {
                 </div>
                 <div style="flex:1; display:flex; flex-direction:column; gap:4px;">
                   <div style="color:white; font-weight:700; font-size:13px; line-height:1.2;">${escapeHtml(student.name)}</div>
-                  <div style="color:rgba(255,255,255,0.7); font-size:10px;">${escapeHtml(student.course)} &bull; ${escapeHtml(student.section)}</div>
+                  <div style="color:rgba(255,255,255,0.7); font-size:10px;">${escapeHtml(student.strand)} &bull; ${escapeHtml(student.section)}</div>
                   <div style="color:rgba(255,255,255,0.7); font-size:10px;">${escapeHtml(student.year)} &bull; ${escapeHtml(student.role)}</div>
                   <div style="color:#93c5fd; font-size:9px; font-family:monospace; letter-spacing:1px;">${escapeHtml(student.studentId)}</div>
                 </div>
@@ -270,7 +503,7 @@ const showResultPopup = (confirmed, student, borrowItems) => {
             <!-- Transaction Details -->
             <div style="width:100%; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:12px 14px; display:flex; flex-direction:column; gap:8px;">
               <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span style="color:#16a34a; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Borrowed Items</span>
+                <span style="color:#16a34a; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Processed Items</span>
                 <span style="color:#0f172a; font-size:11px; font-weight:700;">${borrowItems.length} item${borrowItems.length !== 1 ? 's' : ''}</span>
               </div>
               <div style="height:1px; background:#dcfce7;"></div>
@@ -323,7 +556,7 @@ const showResultPopup = (confirmed, student, borrowItems) => {
                 </div>
                 <div style="flex:1; display:flex; flex-direction:column; gap:4px;">
                   <div style="color:white; font-weight:700; font-size:13px; line-height:1.2;">${escapeHtml(student.name)}</div>
-                  <div style="color:rgba(255,255,255,0.65); font-size:10px;">${escapeHtml(student.course)} &bull; ${escapeHtml(student.section)}</div>
+                  <div style="color:rgba(255,255,255,0.65); font-size:10px;">${escapeHtml(student.strand)} &bull; ${escapeHtml(student.section)}</div>
                   <div style="color:rgba(255,255,255,0.65); font-size:10px;">${escapeHtml(student.year)} &bull; ${escapeHtml(student.role)}</div>
                   <div style="color:#fca5a5; font-size:9px; font-family:monospace; letter-spacing:1px;">${escapeHtml(student.studentId)}</div>
                 </div>
@@ -380,17 +613,160 @@ const showUserInfo = (rfid) => {
     return;
   }
 
-  const studentCourseSection = `${student.course} ${student.section}`;
+  const studentStrandSection = `${student.strand} ${student.section}`;
   const borrowItems = getBorrowItems(student);
   if (borrowItems.length === 0) {
     Swal.fire({
       icon: 'info',
-      title: 'No active borrowing',
-      text: `${student.name} has no active borrowed items.`,
+      title: 'No borrowing history',
+      text: `${student.name} has no borrow/return history yet.`,
       confirmButtonColor: '#2563eb',
     }).then(() => startScanner());
     return;
   }
+
+  // --- Read-only history view for returned/closed borrowings ---
+  if (!hasBorrowerActiveBorrowing(student)) {
+    const formatDT = (dateStr) => {
+      if (!dateStr) return '—';
+      try {
+        const d = new Date(String(dateStr).replace(' ', 'T'));
+        return d.toLocaleString('en-US', {
+          month: 'short', day: 'numeric', year: 'numeric',
+          hour: '2-digit', minute: '2-digit',
+        });
+      } catch {
+        return String(dateStr);
+      }
+    };
+
+    const historyItemsHtml = borrowItems.map((item) => {
+      const itemStatus = String(item.status ?? 'Returned').trim().toLowerCase();
+      const statusBadgeStyle = itemStatus === 'returned'
+        ? 'background:#e0f2fe; color:#0369a1;'
+        : itemStatus === 'borrowed'
+          ? 'background:#dcfce7; color:#15803d;'
+          : 'background:#fef3c7; color:#92400e;';
+      const statusText = item.status ?? 'Returned';
+      return `
+        <div style="display:flex; flex-direction:column; gap:4px; padding:8px 0;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+            <div style="display:flex; flex-direction:column; gap:1px; min-width:0;">
+              <span style="color:#0f172a; font-size:12px; font-weight:700;">${escapeHtml(item.name)}</span>
+              <span style="color:#64748b; font-size:10px; font-family:monospace;">${escapeHtml(item.barcode)}</span>
+            </div>
+            <span style="${statusBadgeStyle} font-size:10px; font-weight:600; padding:2px 8px; border-radius:99px; white-space:nowrap; flex-shrink:0;">${escapeHtml(statusText)}</span>
+          </div>
+          <div style="display:flex; flex-wrap:wrap; gap:12px; font-size:10px; color:#64748b;">
+            <span>📅 Borrowed: <span style="color:#0f172a; font-weight:600;">${formatDT(item.borrowedAt)}</span></span>
+            <span>↩️ Returned: <span style="color:#0f172a; font-weight:600;">${formatDT(item.returnedAt)}</span></span>
+          </div>
+        </div>
+      `;
+    }).join('<div style="height:1px; background:#e2e8f0;"></div>');
+
+    Swal.fire({
+      html: `
+        <div style="font-family:'DM Sans',sans-serif; padding:0; display:flex; gap:16px; align-items:flex-start;">
+          <div style="flex:0 0 220px; min-width:0;">
+            <div style="background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%); border-radius:16px; overflow:hidden; box-shadow:0 8px 32px rgba(37,99,235,0.25);">
+              <div style="padding:14px 18px 10px; display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <div style="width:26px; height:26px; background:rgba(255,255,255,0.2); border-radius:6px; display:flex; align-items:center; justify-content:center;">
+                    <svg width="14" height="14" fill="none" stroke="white" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h8m-8 6h16"/>
+                    </svg>
+                  </div>
+                  <span style="color:white; font-weight:700; font-size:12px; letter-spacing:0.5px;">STUDENT ID</span>
+                </div>
+                <span style="background:rgba(255,255,255,0.15); color:#bfdbfe; font-size:9px; font-weight:700; padding:3px 10px; border-radius:99px; letter-spacing:1px; border:1px solid rgba(191,219,254,0.4);">● HISTORY</span>
+              </div>
+              <div style="padding:8px 18px 14px; display:flex; gap:14px; align-items:flex-start;">
+                <div style="flex-shrink:0;">
+                  <div style="width:78px; height:92px; border-radius:10px; overflow:hidden; border:3px solid rgba(255,255,255,0.3); box-shadow:0 4px 12px rgba(0,0,0,0.3);">
+                    <img src="https://api.dicebear.com/7.x/personas/svg?seed=${encodeURIComponent(student.name)}&backgroundColor=b6e3f4"
+                      style="width:100%; height:100%; object-fit:cover; background:#dbeafe;" />
+                  </div>
+                  <div style="text-align:center; margin-top:5px;">
+                    <span style="background:rgba(255,255,255,0.15); color:rgba(255,255,255,0.8); font-size:8px; font-weight:600; padding:2px 7px; border-radius:4px; letter-spacing:0.5px;">PHOTO</span>
+                  </div>
+                </div>
+                <div style="flex:1; display:flex; flex-direction:column; gap:6px;">
+                  <div>
+                    <div style="color:rgba(255,255,255,0.5); font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:1px;">Full Name</div>
+                    <div style="color:white; font-weight:700; font-size:14px;">${escapeHtml(student.name)}</div>
+                  </div>
+                  <div>
+                    <div style="color:rgba(255,255,255,0.5); font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:1px;">Course & Section</div>
+                    <div style="color:white; font-weight:600; font-size:12px;">${escapeHtml(studentCourseSection)}</div>
+                  </div>
+                  <div style="display:flex; gap:16px;">
+                    <div>
+                      <div style="color:rgba(255,255,255,0.5); font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:1px;">Role</div>
+                      <div style="color:white; font-weight:600; font-size:12px;">${escapeHtml(student.role)}</div>
+                    </div>
+                    <div>
+                      <div style="color:rgba(255,255,255,0.5); font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:1px;">Year</div>
+                      <div style="color:white; font-weight:600; font-size:12px;">${escapeHtml(student.year)}</div>
+                    </div>
+                  </div>
+                  <div>
+                    <div style="color:rgba(255,255,255,0.5); font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:1px;">Student ID</div>
+                    <div style="color:#bfdbfe; font-weight:600; font-size:11px; font-family:monospace; letter-spacing:1px;">${escapeHtml(student.studentId)}</div>
+                  </div>
+                  <div>
+                    <div style="color:rgba(255,255,255,0.5); font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:1px;">RFID</div>
+                    <div style="color:#bfdbfe; font-weight:600; font-size:11px; font-family:monospace; letter-spacing:1px;">${escapeHtml(student.rfid)}</div>
+                  </div>
+                </div>
+              </div>
+              <div style="background:rgba(0,0,0,0.2); padding:7px 18px; display:flex; justify-content:space-between; align-items:center;">
+                <span style="color:rgba(255,255,255,0.45); font-size:8px; letter-spacing:1px; text-transform:uppercase;">Academic Year 2025–2026</span>
+                <div style="display:flex; gap:3px;">
+                  <div style="width:18px; height:3px; background:rgba(255,255,255,0.6); border-radius:2px;"></div>
+                  <div style="width:8px;  height:3px; background:rgba(255,255,255,0.3); border-radius:2px;"></div>
+                  <div style="width:13px; height:3px; background:rgba(255,255,255,0.4); border-radius:2px;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT: History Items -->
+          <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:10px;">
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:12px 16px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <div style="font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#94a3b8;">Borrow History (${borrowItems.length} item${borrowItems.length !== 1 ? 's' : ''})</div>
+                <span style="background:#e0f2fe; color:#0369a1; font-size:9px; font-weight:700; padding:2px 8px; border-radius:99px;">Completed</span>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:0;">
+                ${historyItemsHtml}
+              </div>
+            </div>
+            <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; padding:10px 14px; display:flex; align-items:center; gap:8px;">
+              <svg width="16" height="16" fill="none" stroke="#2563eb" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <span style="font-size:11px; color:#1d4ed8; font-weight:600;">This borrow session has been completed. Read-only history view — no barcode scanning required.</span>
+            </div>
+          </div>
+        </div>`,
+      showConfirmButton: true,
+      showCancelButton: false,
+      showCloseButton: true,
+      confirmButtonText: 'Close',
+      confirmButtonColor: '#2563eb',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      customClass: {
+        popup:         'swal-id-popup',
+        confirmButton: 'swal-confirm-btn',
+        closeButton:   'swal-close-btn',
+        actions:       'swal-actions',
+      },
+    }).then(() => startScanner());
+    return;
+  }
+  // --- End read-only history view ---
 
   const confirmedBarcodes = new Set();
 
@@ -410,7 +786,14 @@ const showUserInfo = (rfid) => {
     if (matchedItem) {
       confirmedBarcodes.add(matchedItem.barcode);
       renderBorrowItemsStatus();
-      updateScanFeedback(`Confirmed: ${matchedItem.name}`, '#065f46');
+
+      const itemStatus = String(matchedItem.status ?? 'Borrowed').trim().toLowerCase();
+      if (itemStatus === 'returned') {
+        updateScanFeedback(`Already returned: ${matchedItem.name}. Confirm to borrow again.`, '#1d4ed8');
+      } else {
+        updateScanFeedback(`Currently borrowed: ${matchedItem.name}. Confirm to return.`, '#065f46');
+      }
+
       barcodeInput.value = '';
     } else {
       updateScanFeedback(`Barcode ${scannedCode} is not in this borrow list.`, '#b91c1c');
@@ -422,6 +805,15 @@ const showUserInfo = (rfid) => {
   const getBorrowItemsHtml = () => borrowItems
     .map((item) => {
       const isConfirmedItem = confirmedBarcodes.has(item.barcode);
+      const itemStatus = String(item.status ?? 'Borrowed').trim().toLowerCase();
+      const statusText = itemStatus === 'returned' ? 'Returned' : 'Borrowed';
+      const statusStyle = itemStatus === 'returned'
+        ? 'background:#e0f2fe; color:#0369a1;'
+        : 'background:#dcfce7; color:#15803d;';
+      const actionText = itemStatus === 'returned' ? 'Borrow Again' : 'Return Item';
+      const actionStyle = itemStatus === 'returned'
+        ? 'background:#dbeafe; color:#1d4ed8;'
+        : 'background:#dcfce7; color:#166534;';
 
       return `
         <div style="display:grid; grid-template-columns: auto 1fr auto auto; align-items:center; gap:8px;">
@@ -430,7 +822,7 @@ const showUserInfo = (rfid) => {
           </span>
           <span style="color:#0f172a; font-size:12px; font-weight:700;">${escapeHtml(item.name)}</span>
           <span style="color:#0f172a; font-size:10px; font-weight:600; font-family:monospace;">${escapeHtml(item.barcode)}</span>
-          <span style="background:${isConfirmedItem ? '#dcfce7' : '#dbeafe'}; color:${isConfirmedItem ? '#15803d' : '#1d4ed8'}; font-size:10px; font-weight:600; padding:2px 8px; border-radius:99px;">${isConfirmedItem ? 'Confirmed' : escapeHtml(item.type)}</span>
+          <span style="${isConfirmedItem ? actionStyle : statusStyle} font-size:10px; font-weight:600; padding:2px 8px; border-radius:99px;">${isConfirmedItem ? actionText : statusText}</span>
         </div>
       `;
     })
@@ -448,7 +840,7 @@ const showUserInfo = (rfid) => {
     }
 
     if (counter) {
-      counter.textContent = `${confirmedBarcodes.size}/${borrowItems.length} confirmed`;
+      counter.textContent = `${confirmedBarcodes.size}/${borrowItems.length} selected`;
     }
   };
 
@@ -497,8 +889,8 @@ const showUserInfo = (rfid) => {
                 <div style="color:white; font-weight:700; font-size:14px;">${escapeHtml(student.name)}</div>
               </div>
               <div>
-                <div style="color:rgba(255,255,255,0.5); font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:1px;">Course & Section</div>
-                <div style="color:white; font-weight:600; font-size:12px;">${escapeHtml(studentCourseSection)}</div>
+                <div style="color:rgba(255,255,255,0.5); font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:1px;">Strand & Section</div>
+                <div style="color:white; font-weight:600; font-size:12px;">${escapeHtml(studentStrandSection)}</div>
               </div>
               <div style="display:flex; gap:16px;">
                 <div>
@@ -537,8 +929,8 @@ const showUserInfo = (rfid) => {
         <!-- Item Info -->
         <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:12px 16px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-            <div style="font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#94a3b8;">Items to Borrow (${borrowItems.length})</div>
-            <div id="confirmed-items-counter" style="font-size:10px; color:#64748b; font-weight:700;">0/${borrowItems.length} confirmed</div>
+            <div style="font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#94a3b8;">Borrowed / Returned Items (${borrowItems.length})</div>
+            <div id="confirmed-items-counter" style="font-size:10px; color:#64748b; font-weight:700;">0/${borrowItems.length} selected</div>
           </div>
           <div id="borrow-items-list" style="display:flex; flex-direction:column; gap:8px;">
             ${getBorrowItemsHtml()}
@@ -549,7 +941,7 @@ const showUserInfo = (rfid) => {
         <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:12px; padding:12px 16px; text-align:left;">
           <div style="font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#9a3412; margin-bottom:8px;">Barcode Verification Required</div>
           <div style="font-size:12px; color:#7c2d12; margin-bottom:8px;">
-            Scan each item barcode. Only confirmed items will be borrowed.
+            Scan item barcode: borrowed items will be returned, returned items can be borrowed again.
           </div>
           <input
             id="barcode-confirm-input"
@@ -609,7 +1001,7 @@ const showUserInfo = (rfid) => {
       },
       preConfirm: () => {
         if (confirmedBarcodes.size === 0) {
-          Swal.showValidationMessage('Scan at least one item barcode before confirming.');
+          Swal.showValidationMessage('Scan at least one item barcode before confirming the update.');
           return false;
         }
 
@@ -627,8 +1019,25 @@ const showUserInfo = (rfid) => {
       closeButton:   'swal-close-btn',
       actions:       'swal-actions',
     },
-  }).then((result) => {
+  }).then(async (result) => {
     const confirmedItems = result.isConfirmed && Array.isArray(result.value) ? result.value : [];
+
+    if (result.isConfirmed) {
+      const returnResult = await markItemsReturned(student, confirmedItems);
+      if (!returnResult.ok) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Update failed',
+          text: returnResult.message,
+          confirmButtonColor: '#ef4444',
+        }).then(() => startScanner());
+        return;
+      }
+
+      const currentPageValue = Number(currentPage.value) > 0 ? Number(currentPage.value) : 1;
+      submitFilters(currentPageValue);
+    }
+
     showResultPopup(result.isConfirmed, student, confirmedItems);
   });
 };
@@ -740,7 +1149,8 @@ onUnmounted(() => {
               <div
                 v-for="(row, i) in rows"
                 :key="i"
-                class="flex items-center rounded-[10px] border border-gray-200 p-4 transition-colors hover:bg-blue-50/30"
+                class="flex items-center rounded-[10px] border border-gray-200 p-4 transition-colors hover:bg-blue-50/60 cursor-pointer"
+                @click="showRowPopup(row)"
               >
                 <span class="w-42.5 truncate font-medium text-gray-700">{{ row.name }}</span>
                 <span class="w-22.5 text-gray-500">{{ row.id }}</span>
