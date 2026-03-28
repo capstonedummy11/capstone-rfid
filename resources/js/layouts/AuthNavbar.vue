@@ -35,11 +35,6 @@ const links = [
         route: route('admin.strands.index'),
     },
     {
-        icon: Graduation,
-        text: 'Subjects',
-        route: route('admin.subjects.index'),
-    },
-    {
         icon: Section,
         text: 'Sections',
         route: route('admin.sections.index'),
@@ -48,6 +43,11 @@ const links = [
         icon: Instructor,
         text: 'Instructors',
         route: route('admin.instructors.index'),
+    },
+    {
+        icon: Graduation,
+        text: 'Subjects',
+        route: route('admin.subjects.index'),
     },
     {
         icon: Instructor,
