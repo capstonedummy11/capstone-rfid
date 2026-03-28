@@ -51,4 +51,9 @@ class User extends Authenticatable
             'two_factor_confirmed_at' => 'datetime',
         ];
     }
+
+    public function openedPanelSessions()
+    {
+        return $this->hasMany(RfidPanelSession::class, 'opened_by_user_id', 'user_id');
+    }
 }

@@ -10,15 +10,17 @@ class Attendance extends Model
     use HasFactory;
 
     protected $table = 'attendances';
+    protected $primaryKey = 'attendance_id';
 
     protected $fillable = [
         'attendance_id',
         'student_id',
+        'schedule_id',
         'date',
         'time_in',
         'time_out',
         'status',
-        'subject',
+        'subject_code',
         'room'
     ];
 }

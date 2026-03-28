@@ -29,4 +29,14 @@ class Students extends Model
         'rfid_tag',
         'status'
     ];
+
+    public function course()
+    {
+        return $this->belongsTo(Course::class, 'course_id', 'course_id');
+    }
+
+    public function section()
+    {
+        return $this->belongsTo(Section::class, 'section_id', 'section_id');
+    }
 }
