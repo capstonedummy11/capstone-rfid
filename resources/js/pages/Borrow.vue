@@ -618,62 +618,91 @@ const showUserInfo = (rfid) => {
   let barcodeFinalizeTimer = null;
   let barcodeKeydownHandler = null;
 
-  const finalizeBarcode = (barcodeInput) => {
-    const scannedCode = barcodeBuffer.trim();
-    if (!scannedCode) return;
+const finalizeBarcode = (barcodeInput) => {
+  const scannedCode = barcodeBuffer.trim();
+  if (!scannedCode) return;
 
-    barcodeInput.value = scannedCode;
-    barcodeInput.dispatchEvent(new Event('input', { bubbles: true }));
+  barcodeInput.value = scannedCode;
+  barcodeInput.dispatchEvent(new Event('input', { bubbles: true }));
 
-    const matchedItem = borrowItems.find((item) => item.barcode === scannedCode);
-    if (matchedItem) {
-      const itemStatus = String(matchedItem.status ?? 'Borrowed').trim().toLowerCase();
-      selectedItems.set(matchedItem.barcode, {
-        ...matchedItem,
-requestedAction: itemStatus === 'borrow'    ? 'borrowed'
-               : itemStatus === 'borrowed'  ? 'returned'
-               : 'borrow',      });
-      renderBorrowItemsStatus();
+  // ── Already queued this session → block re-scan ──
+  if (selectedItems.has(scannedCode)) {
+    const queued = selectedItems.get(scannedCode);
+    updateScanFeedback(
+      `${queued.name} is already queued (${queued.requestedAction}). Each item can only be changed once per session.`,
+      '#92400e',
+    );
+    barcodeInput.value = '';
+    barcodeBuffer = '';
+    return;
+  }
 
-      if (itemStatus === 'returned') {
-        updateScanFeedback(`Queued to borrow: ${matchedItem.name}. Confirm to change status back to borrowed.`, '#1d4ed8');
-      } else {
-        updateScanFeedback(`Queued to return: ${matchedItem.name}. Confirm to mark it returned.`, '#065f46');
-      }
+  const matchedItem = borrowItems.find((item) => item.barcode === scannedCode);
+  if (matchedItem) {
+    const itemStatus = String(matchedItem.status ?? 'Borrowed').trim().toLowerCase();
 
+    // ── Returned items cannot move further ──
+    if (itemStatus === 'returned') {
+      updateScanFeedback(
+        `${matchedItem.name} is already returned and cannot be changed in this session.`,
+        '#b91c1c',
+      );
       barcodeInput.value = '';
-    } else {
-      const catalogItem = borrowCatalogByBarcode.value.get(scannedCode);
-      if (!catalogItem) {
-        updateScanFeedback(`Barcode ${scannedCode} is not registered in inventory items.`, '#b91c1c');
-        barcodeBuffer = '';
-        return;
-      }
-
-      const catalogStatus = String(catalogItem.status ?? 'Available').trim().toLowerCase();
-      if (catalogStatus !== 'available') {
-        updateScanFeedback(`Item ${catalogItem.name} is currently ${catalogItem.status ?? 'Unavailable'} and cannot be borrowed right now.`, '#b91c1c');
-        barcodeBuffer = '';
-        return;
-      }
-
-      selectedItems.set(scannedCode, {
-        name: catalogItem.name,
-        id: catalogItem.id,
-        type: catalogItem.type,
-        barcode: scannedCode,
-        status: 'Asking To Borrow',
-        requestedAction: 'borrow',
-      });
-      renderBorrowItemsStatus();
-      updateScanFeedback(`Queued to borrow: ${catalogItem.name}. Confirm to change status to borrowed.`, '#1d4ed8');
-
-      barcodeInput.value = '';
+      barcodeBuffer = '';
+      return;
     }
 
-    barcodeBuffer = '';
-  };
+    // borrow → borrowed, borrowed → returned
+    const requestedAction = itemStatus === 'borrow' ? 'borrowed' : 'returned';
 
+    selectedItems.set(matchedItem.barcode, {
+      ...matchedItem,
+      requestedAction,
+    });
+    renderBorrowItemsStatus();
+
+    updateScanFeedback(
+      requestedAction === 'borrowed'
+        ? `Queued to borrow: ${matchedItem.name}. Confirm to mark it borrowed.`
+        : `Queued to return: ${matchedItem.name}. Confirm to mark it returned.`,
+      requestedAction === 'borrowed' ? '#1d4ed8' : '#065f46',
+    );
+
+    barcodeInput.value = '';
+
+  } else {
+    const catalogItem = borrowCatalogByBarcode.value.get(scannedCode);
+    if (!catalogItem) {
+      updateScanFeedback(`Barcode ${scannedCode} is not registered in inventory items.`, '#b91c1c');
+      barcodeBuffer = '';
+      return;
+    }
+
+    const catalogStatus = String(catalogItem.status ?? 'Available').trim().toLowerCase();
+    if (catalogStatus !== 'available') {
+      updateScanFeedback(
+        `Item ${catalogItem.name} is currently ${catalogItem.status ?? 'Unavailable'} and cannot be borrowed right now.`,
+        '#b91c1c',
+      );
+      barcodeBuffer = '';
+      return;
+    }
+
+    selectedItems.set(scannedCode, {
+      name: catalogItem.name,
+      id: catalogItem.id,
+      type: catalogItem.type,
+      barcode: scannedCode,
+      status: 'Asking To Borrow',
+      requestedAction: 'borrow',
+    });
+    renderBorrowItemsStatus();
+    updateScanFeedback(`Queued to borrow: ${catalogItem.name}. Confirm to change status to borrowed.`, '#1d4ed8');
+    barcodeInput.value = '';
+  }
+
+  barcodeBuffer = '';
+};
   const getDisplayItems = () => {
     const displayItems = [...borrowItems];
 
