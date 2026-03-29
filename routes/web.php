@@ -88,7 +88,7 @@ Route::prefix('admin')
     Route::post('/schedules', [ScheduleController::class, 'store'])->name('schedules.store');
     Route::put('/schedules/{id}', [ScheduleController::class, 'update'])->name('schedules.update');
     Route::delete('/schedules/{id}', [ScheduleController::class, 'destroy'])->name('schedules.destroy');
-    Route::get('/inventory', [InventoryController::class, 'indexAdmin'])->name('inventory');
+    Route::get('/inventory', [InventoryController::class, 'indexAdmin'])->name('inventory.index');
     Route::post('/inventory', [InventoryController::class, 'store'])->name('inventory.store');
     Route::put('/inventory/{id}', [InventoryController::class, 'update'])->name('inventory.update');
     Route::delete('/inventory/{id}', [InventoryController::class, 'destroy'])->name('inventory.destroy');
@@ -105,6 +105,13 @@ Route::prefix('admin')
     Route::inertia('/students-management', 'StudentsManagement')->name('studentsManagement');
     //Route::inertia('/instructors-management', 'InstructorsManagement', ['title' => 'Instructor Management'])->name('instructorsManagement');
     Route::post('/borrow/return-items', [BorrowController::class, 'returnItems'])->name('borrow.returnItems');
+    // Route::inertia('/inventory', 'Auth/Admin/Inventory', ['title' => 'Inventory', 'items' => fn() => \App\Models\Item::all(),])->name('inventory');
+    Route::get('/inventory', function () {
+      return Inertia::render('Auth/Admin/Inventory', [
+        'title' => 'Inventory',
+        'items' => \App\Models\Item::all(),
+      ]);
+    })->name('inventory');
     Route::post('/items', [ItemController::class, 'store'])->name('items.store');
   });
 
