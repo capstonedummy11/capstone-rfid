@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class BorrowingItem extends Model
 {
@@ -15,17 +16,17 @@ class BorrowingItem extends Model
     'status',
   ];
 
-  public function borrowing()
+  public function borrowing(): BelongsTo
   {
     return $this->belongsTo(Borrowing::class, 'borrowing_id', 'borrowing_id');
   }
 
-  public function item()
+  public function item(): BelongsTo
   {
-    return $this->belongsTo(Device::class, 'item_id', 'item_id');
+    return $this->belongsTo(Item::class, 'item_id', 'item_id');
   }
 
-  public function device()
+  public function device(): BelongsTo
   {
     return $this->item();
   }

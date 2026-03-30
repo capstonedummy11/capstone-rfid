@@ -11,13 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('courses', function (Blueprint $table) {
-            $table->id('course_id');
-            $table->string('course_code');
-            $table->string('course_name');
+        Schema::create('strands', function (Blueprint $table) {
+            $table->id('strand_id');
+            $table->string('strand_code')->unique();
+            $table->string('strand_name');
             $table->string('department');
             $table->enum('status', ['active', 'inactive'])->default('active');
-            $table->timestamps('');
+            $table->timestamps();
+            $table->softDeletes();
         });
     }
 
@@ -26,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('courses');
+        Schema::dropIfExists('strands');
     }
 };

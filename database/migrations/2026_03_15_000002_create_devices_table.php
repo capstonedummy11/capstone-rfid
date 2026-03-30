@@ -10,12 +10,9 @@ return new class extends Migration {
     Schema::create('items', function (Blueprint $table) {
       $table->id('item_id');
       $table->string('item_name');
-      $table->string('item_code')->unique();
-      $table->string('item_type');
-      $table->string('barcode')->unique();
-      $table->string('brand')->nullable();
-      $table->string('model')->nullable();
-      $table->text('description')->nullable();
+      $table->text('item_description')->nullable();
+      $table->string('item_sku')->nullable()->unique();
+      $table->string('item_barcode')->nullable()->unique();
       $table->enum('status', [
         'available',
         'borrowed',

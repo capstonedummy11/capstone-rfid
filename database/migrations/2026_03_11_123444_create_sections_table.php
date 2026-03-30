@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('sections', function (Blueprint $table) {
             $table->id('section_id');
-            $table->foreignId('course_id')->constrained('courses', 'course_id');
+            $table->foreignId('strand_id')->constrained('strands', 'strand_id');
             $table->string('section_name');
             $table->integer('year_level');
             $table->string('semester');  

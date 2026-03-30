@@ -28,6 +28,11 @@ const links = [
         //route: route('admin.instructorsManagement'),
     },
     {
+        icon: Graduation,
+        text: 'Strands',
+        route: route('admin.strands.index'),
+    },
+    {
         icon: Laboratory,
         text: 'Laboratories',
         route: route('admin.laboratories'),
@@ -35,18 +40,32 @@ const links = [
     {
         icon: Schedule,
         text: 'Schedule',
+        route: route('admin.schedules.index'),
     },
     {
         icon: Instructor,
         text: 'Instructor',
+        route: route('admin.instructors.index'),
+    },
+    {
+        icon: Instructor,
+        text: 'Students',
+        route: route('admin.students.index'),
     },
     {
         icon: Section,
         text: 'Section',
+        route: route('admin.sections.index'),
     },
     {
         icon: Attendance,
         text: 'Attendance',
+        route: route('admin.attendance.scanner'),
+    },
+    {
+        icon: Graduation,
+        text: 'Subjects',
+        route: route('admin.subjects.index'),
     },
     {
         icon: Borrowing,
@@ -65,6 +84,7 @@ const links = [
     {
         icon: ActivityLogs,
         text: 'Activity Logs',
+        route: route('admin.activity-logs.index'),
     },
     {
         icon: Trash,
@@ -72,7 +92,8 @@ const links = [
     },
     {
         icon: RFID,
-        text: 'RFID Remarks',
+        text: 'RFID',
+        route: route('admin.rfid'),
     },
 ];
 </script>

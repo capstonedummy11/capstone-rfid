@@ -19,7 +19,7 @@
                     />
                     <NavButton
                         :href="route('attendanceControlPanel')"
-                        :label="'Attendance Panel'"
+                        :label="'Panel'"
                         class="m-5"
                     />
                     <NavButton
