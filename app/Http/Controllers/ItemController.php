@@ -22,9 +22,28 @@ class ItemController extends Controller
             'name'        => $request->name,
             'sku'         => $request->sku,
             'description' => $request->description,
-            'status'
+            'status' => $request->status ?? 'Available',
         ]);
 
         return back()->with('success', 'Item added successfully.');
+    }
+    public function update(Request $request, Item $item)
+    {
+        $validated = $request->validate([
+            'barcode'     => 'required|string|max:255',
+            'name'        => 'required|string|max:255',
+            'sku'         => 'nullable|string|max:255',
+            'description' => 'nullable|string|max:255',
+            'status' => 'required|string|max:255',
+        ]);
+
+        $item->update($validated);
+
+        return back();
+    }
+    public function destroy(Item $item)
+    {
+        $item->delete();
+        return back()->with('success', 'Item deleted successfully.');
     }
 }

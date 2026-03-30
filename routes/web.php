@@ -72,7 +72,7 @@ Route::prefix('admin')
     Route::get('/rfid', [RfidController::class, 'index'])->name('rfid');
     Route::put('/rfid/{type}/{id}', [RfidController::class, 'update'])->name('rfid.update');
     Route::delete('/rfid/{type}/{id}', [RfidController::class, 'destroy'])->name('rfid.destroy');
-    Route::get('/students', [StudentsController::class, 'indexAdmin'])->name('students.index');
+    Route::get('/students', [StudentsController::class, 'indexAdmin'], ['title' => 'Instructor Management'])->name('students.index');
     Route::post('/students', [StudentsController::class, 'store'])->name('students.store');
     Route::put('/students/{id}', [StudentsController::class, 'update'])->name('students.update');
     Route::delete('/students/{id}', [StudentsController::class, 'destroy'])->name('students.destroy');
@@ -112,6 +112,8 @@ Route::prefix('admin')
         'items' => \App\Models\Item::all(),
       ]);
     })->name('inventory');
+    Route::put('/items/{item}', [ItemController::class, 'update'])->name('items.update');
+    Route::delete('/items/{item}', [ItemController::class, 'destroy'])->name('items.destroy');
     Route::post('/items', [ItemController::class, 'store'])->name('items.store');
   });
 
