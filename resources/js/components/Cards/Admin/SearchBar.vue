@@ -8,7 +8,10 @@ defineProps({
         type: String,
         required: true,
     },
+    modelValue: { type: String, default: '' },
 });
+
+defineEmits(['update:modelValue']);
 </script>
 
 <template>
@@ -17,6 +20,8 @@ defineProps({
             type="text"
             class="h-[40px] w-full border-2 pl-9"
             :placeholder="placeholder"
+            :value="modelValue"
+            @input="$emit('update:modelValue', $event.target.value)"
         />
         <component
             :is="icon"

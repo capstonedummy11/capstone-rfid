@@ -30,13 +30,13 @@
             />
           </div>
           <div>
-            <label for="courseFilter" class="block text-sm font-medium text-gray-700 mb-1">Filter by Course</label>
+            <label for="strandFilter" class="block text-sm font-medium text-gray-700 mb-1">Filter by Strand</label>
             <select
-              v-model="courseFilter"
-              id="courseFilter"
+              v-model="strandFilter"
+              id="strandFilter"
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">All Courses</option>
+              <option value="">All Strands</option>
               <option value="BSIT">BSIT</option>
               <option value="BSCS">BSCS</option>
               <option value="BSIS">BSIS</option>
@@ -67,7 +67,7 @@
               <tr class="bg-gray-50">
                 <th class="border border-gray-300 px-4 py-3 text-left font-medium">Name</th>
                 <th class="border border-gray-300 px-4 py-3 text-left font-medium">Student ID</th>
-                <th class="border border-gray-300 px-4 py-3 text-left font-medium">Course</th>
+                <th class="border border-gray-300 px-4 py-3 text-left font-medium">Strand</th>
                 <th class="border border-gray-300 px-4 py-3 text-left font-medium">RFID</th>
                 <th class="border border-gray-300 px-4 py-3 text-left font-medium">Actions</th>
               </tr>
@@ -76,7 +76,7 @@
               <tr v-for="student in filteredStudents" :key="student.id" class="hover:bg-gray-50">
                 <td class="border border-gray-300 px-4 py-3">{{ student.name }}</td>
                 <td class="border border-gray-300 px-4 py-3">{{ student.studentId }}</td>
-                <td class="border border-gray-300 px-4 py-3">{{ student.course }}</td>
+                <td class="border border-gray-300 px-4 py-3">{{ student.strand }}</td>
                 <td class="border border-gray-300 px-4 py-3">
                   <span v-if="student.rfid" class="text-green-600">{{ student.rfid }}</span>
                   <span v-else class="text-red-600">Not Assigned</span>
@@ -132,14 +132,14 @@
             </div>
 
             <div>
-              <label for="studentCourse" class="block text-sm font-medium text-gray-700 mb-1">Course</label>
+              <label for="studentStrand" class="block text-sm font-medium text-gray-700 mb-1">Strand</label>
               <select
-                v-model="studentForm.course"
-                id="studentCourse"
+                v-model="studentForm.strand"
+                id="studentStrand"
                 required
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">Select Course</option>
+                <option value="">Select Strand</option>
                 <option value="BSIT">BSIT</option>
                 <option value="BSCS">BSCS</option>
                 <option value="BSIS">BSIS</option>
@@ -200,7 +200,7 @@
 import { ref, computed } from 'vue'
 
 const searchQuery = ref('')
-const courseFilter = ref('')
+const strandFilter = ref('')
 const yearFilter = ref('')
 const showAddStudentModal = ref(false)
 const showEditStudentModal = ref(false)
@@ -211,7 +211,7 @@ const students = ref([
     id: 1,
     name: 'Juan Cruz',
     studentId: '2023001',
-    course: 'BSIT',
+    strand: 'BSIT',
     year: '3',
     section: '3A',
     rfid: 'RFID200'
@@ -220,7 +220,7 @@ const students = ref([
     id: 2,
     name: 'Maria Santos',
     studentId: '2023002',
-    course: 'BSCS',
+    strand: 'BSCS',
     year: '2',
     section: '2B',
     rfid: 'RFID201'
@@ -229,7 +229,7 @@ const students = ref([
     id: 3,
     name: 'Pedro Reyes',
     studentId: '2023003',
-    course: 'BSIT',
+    strand: 'BSIT',
     year: '1',
     section: '1A',
     rfid: null
@@ -239,7 +239,7 @@ const students = ref([
 const studentForm = ref({
   name: '',
   studentId: '',
-  course: '',
+  strand: '',
   year: '',
   section: ''
 })
@@ -247,10 +247,10 @@ const studentForm = ref({
 const filteredStudents = computed(() => {
   return students.value.filter(student => {
     const matchesSearch = student.name.toLowerCase().includes(searchQuery.value.toLowerCase())
-    const matchesCourse = !courseFilter.value || student.course === courseFilter.value
+    const matchesStrand = !strandFilter.value || student.strand === strandFilter.value
     const matchesYear = !yearFilter.value || student.year === yearFilter.value
 
-    return matchesSearch && matchesCourse && matchesYear
+    return matchesSearch && matchesStrand && matchesYear
   })
 })
 
@@ -259,7 +259,7 @@ const editStudent = (student) => {
   studentForm.value = {
     name: student.name,
     studentId: student.studentId,
-    course: student.course,
+    strand: student.strand,
     year: student.year,
     section: student.section
   }
@@ -299,7 +299,7 @@ const closeModal = () => {
   studentForm.value = {
     name: '',
     studentId: '',
-    course: '',
+    strand: '',
     year: '',
     section: ''
   }

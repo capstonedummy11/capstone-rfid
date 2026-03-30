@@ -7,6 +7,10 @@ import Overdue from '@/components/Icon/Overdue.vue';
 import Reserved from '@/components/Icon/Reserved.vue';
 import Returned from '@/components/Icon/Returned.vue';
 import Stacks from '@/components/Icon/Stacks.vue';
+
+defineProps({
+    items: { type: Array, default: () => [] },
+});
 const card = [
     {
         count: '422',
@@ -55,7 +59,7 @@ const table = [
                 barcode: '8901-2345-67890',
                 description:
                     'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et',
-                quantity: '5',
+                number: '5',
                 date: '29 July 2026',
                 status: 'Available',
             },
@@ -65,7 +69,7 @@ const table = [
                 barcode: '8901-2345-67890',
                 description:
                     'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et',
-                quantity: '5',
+                number: '5',
                 date: '29 July 2026',
                 status: 'Available',
             },
@@ -75,7 +79,7 @@ const table = [
                 barcode: '8901-2345-67890',
                 description:
                     'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et',
-                quantity: '5',
+                number: '5',
                 date: '29 July 2026',
                 status: 'Available',
             },
@@ -85,7 +89,7 @@ const table = [
                 barcode: '8901-2345-67890',
                 description:
                     'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et',
-                quantity: '5',
+                number: '5',
                 date: '29 July 2026',
                 status: 'Available',
             },
@@ -95,7 +99,7 @@ const table = [
                 barcode: '8901-2345-67890',
                 description:
                     'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et',
-                quantity: '5',
+                number: '5',
                 date: '29 July 2026',
                 status: 'Available',
             },
@@ -136,7 +140,7 @@ const table = [
             v-for="(item, index) in table"
             :key="index"
             :table_header="item.table_header"
-            :rows="item.rows"
+            :rows="items"
         />
     </div>
 </template>
