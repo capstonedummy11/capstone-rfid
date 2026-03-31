@@ -14,30 +14,30 @@ import TwoPerson from '@/components/Icon/TwoPerson.vue';
 // defineOptions({ layout: null });
 
 const props = defineProps({
-  borrowRows: {
-    type: [Array, Object],
-    default: () => ({ data: [] }),
-  },
-  borrowerProfiles: {
-    type: Array,
-    default: () => [],
-  },
-  borrowItemsCatalog: {
-    type: Array,
-    default: () => [],
-  },
-  borrowItemsByRfid: {
-    type: Object,
-    default: () => ({}),
-  },
-  dashboardStats: {
-    type: Array,
-    default: () => [],
-  },
-  filters: {
-    type: Object,
-    default: () => ({ search: '', status: '', perPage: 10 }),
-  },
+    borrowRows: {
+        type: [Array, Object],
+        default: () => ({ data: [] }),
+    },
+    borrowerProfiles: {
+        type: Array,
+        default: () => [],
+    },
+    borrowItemsCatalog: {
+        type: Array,
+        default: () => [],
+    },
+    borrowItemsByRfid: {
+        type: Object,
+        default: () => ({}),
+    },
+    dashboardStats: {
+        type: Array,
+        default: () => [],
+    },
+    filters: {
+        type: Object,
+        default: () => ({ search: '', status: '', perPage: 10 }),
+    },
 });
 
 let rfidBuffer = '';
@@ -52,33 +52,48 @@ const scanPulse = ref(false);
 const SCAN_TERMINATORS = new Set(['Enter', 'NumpadEnter', 'Tab']);
 
 const registeredStudents = computed(() => props.borrowerProfiles);
-const borrowCatalogByBarcode = computed(() => new Map(
-  props.borrowItemsCatalog
-    .map((item) => [String(item?.barcode ?? '').trim(), item])
-    .filter(([barcode]) => barcode !== ''),
-));
+const borrowCatalogByBarcode = computed(
+    () =>
+        new Map(
+            props.borrowItemsCatalog
+                .map((item) => [String(item?.barcode ?? '').trim(), item])
+                .filter(([barcode]) => barcode !== ''),
+        ),
+);
 
 const rows = computed(() => {
-  if (Array.isArray(props.borrowRows?.data)) return props.borrowRows.data;
-  if (Array.isArray(props.borrowRows)) return props.borrowRows;
-  return [];
+    if (Array.isArray(props.borrowRows?.data)) return props.borrowRows.data;
+    if (Array.isArray(props.borrowRows)) return props.borrowRows;
+    return [];
 });
 const stats = computed(() => props.dashboardStats);
 
-const cardIcons = [TwoPerson, DashboardCardIcon, DashboardIcon2, DashboardIcon3];
+const cardIcons = [
+    TwoPerson,
+    DashboardCardIcon,
+    DashboardIcon2,
+    DashboardIcon3,
+];
 const smallIcons = [Plus, SmallIcon, SmallIcon2, SmallIcon2];
 
-const dashboardCards = computed(() => cardIcons.map((icon, index) => {
-  const stat = Array.isArray(stats.value) ? stats.value[index] ?? {} : {};
+const dashboardCards = computed(() =>
+    cardIcons.map((icon, index) => {
+        const stat = Array.isArray(stats.value)
+            ? (stats.value[index] ?? {})
+            : {};
 
-  return {
-    count: String(stat.value ?? '0'),
-    text: String(stat.label ?? `Metric ${index + 1}`),
-    subText: index === 0 ? 'Updated moments ago' : 'Live borrowing analytics',
-    icon,
-    smallIcon: smallIcons[index],
-  };
-}));
+        return {
+            count: String(stat.value ?? '0'),
+            text: String(stat.label ?? `Metric ${index + 1}`),
+            subText:
+                index === 0
+                    ? 'Updated moments ago'
+                    : 'Live borrowing analytics',
+            icon,
+            smallIcon: smallIcons[index],
+        };
+    }),
+);
 
 const currentPage = computed(() => props.borrowRows?.current_page ?? 1);
 const lastPage = computed(() => props.borrowRows?.last_page ?? 1);
@@ -91,235 +106,283 @@ const statusFilter = ref(props.filters?.status ?? '');
 const perPageFilter = ref(Number(props.filters?.perPage ?? 10));
 
 const submitFilters = (page = 1) => {
-  router.get('/admin/borrow', {
-    search: searchFilter.value,
-    status: statusFilter.value,
-    perPage: perPageFilter.value,
-    page,
-  }, {
-    replace: true,
-    preserveState: true,
-    preserveScroll: true,
-  });
+    router.get(
+        '/admin/borrow',
+        {
+            search: searchFilter.value,
+            status: statusFilter.value,
+            perPage: perPageFilter.value,
+            page,
+        },
+        {
+            replace: true,
+            preserveState: true,
+            preserveScroll: true,
+        },
+    );
 };
 
 const resetFilters = () => {
-  searchFilter.value = '';
-  statusFilter.value = '';
-  perPageFilter.value = 10;
-  submitFilters(1);
+    searchFilter.value = '';
+    statusFilter.value = '';
+    perPageFilter.value = 10;
+    submitFilters(1);
 };
 
 const goToPage = (page) => {
-  if (page < 1 || page > lastPage.value || page === currentPage.value) return;
-  submitFilters(page);
+    if (page < 1 || page > lastPage.value || page === currentPage.value) return;
+    submitFilters(page);
 };
 
 const statusStyle = (status) => {
-  const map = {
-    'Borrowed':          'bg-emerald-100 text-emerald-700',
-    'Available':         'bg-emerald-100 text-emerald-700',
-    'Overdue':           'bg-red-100 text-red-700',
-    'Returned':          'bg-sky-100 text-sky-700',
-    'Damaged':           'bg-slate-200 text-slate-600',
-    'Under Maintenance': 'bg-amber-100 text-amber-700',
-  };
-  return map[status] || 'bg-gray-100 text-gray-600';
+    const map = {
+        Borrowed: 'bg-emerald-100 text-emerald-700',
+        Available: 'bg-emerald-100 text-emerald-700',
+        Overdue: 'bg-red-100 text-red-700',
+        Returned: 'bg-sky-100 text-sky-700',
+        Damaged: 'bg-slate-200 text-slate-600',
+        'Under Maintenance': 'bg-amber-100 text-amber-700',
+    };
+    return map[status] || 'bg-gray-100 text-gray-600';
 };
 
 const stopScanner = () => {
-  isScanning.value = false;
-  window.removeEventListener('keydown', handleKeydown);
-  if (scanFinalizeTimer) {
-    clearTimeout(scanFinalizeTimer);
-    scanFinalizeTimer = null;
-  }
+    isScanning.value = false;
+    window.removeEventListener('keydown', handleKeydown);
+    if (scanFinalizeTimer) {
+        clearTimeout(scanFinalizeTimer);
+        scanFinalizeTimer = null;
+    }
 };
 
 const startScanner = () => {
-  rfidBuffer = '';
-  isScanning.value = true;
-  window.removeEventListener('keydown', handleKeydown);
-  window.addEventListener('keydown', handleKeydown);
+    rfidBuffer = '';
+    isScanning.value = true;
+    window.removeEventListener('keydown', handleKeydown);
+    window.addEventListener('keydown', handleKeydown);
 };
 
 const finalizeScan = () => {
-  const scannedValue = rfidBuffer.trim();
-  if (!scannedValue) return;
+    const scannedValue = rfidBuffer.trim();
+    if (!scannedValue) return;
 
-  stopScanner();
-  lastScanned.value = scannedValue;
-  showUserInfo(scannedValue);
-  rfidBuffer = '';
+    stopScanner();
+    lastScanned.value = scannedValue;
+    showUserInfo(scannedValue);
+    rfidBuffer = '';
 };
 
 const handleKeydown = (event) => {
-  if (!isScanning.value) return;
+    if (!isScanning.value) return;
 
-  const activeEl = document.activeElement;
-  if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT' || activeEl.isContentEditable)) return;
+    const activeEl = document.activeElement;
+    if (
+        activeEl &&
+        (activeEl.tagName === 'INPUT' ||
+            activeEl.tagName === 'TEXTAREA' ||
+            activeEl.tagName === 'SELECT' ||
+            activeEl.isContentEditable)
+    )
+        return;
 
-  const currentTime = Date.now();
+    const currentTime = Date.now();
 
-  if (currentTime - lastKeyTime > SCAN_TIMEOUT) {
-    rfidBuffer = '';
-  }
+    if (currentTime - lastKeyTime > SCAN_TIMEOUT) {
+        rfidBuffer = '';
+    }
 
-  lastKeyTime = currentTime;
+    lastKeyTime = currentTime;
 
-  if (SCAN_TERMINATORS.has(event.key)) {
-    event.preventDefault();
-    if (scanFinalizeTimer) clearTimeout(scanFinalizeTimer);
-    finalizeScan();
-  } else if (event.key.length === 1) {
-    rfidBuffer += event.key;
+    if (SCAN_TERMINATORS.has(event.key)) {
+        event.preventDefault();
+        if (scanFinalizeTimer) clearTimeout(scanFinalizeTimer);
+        finalizeScan();
+    } else if (event.key.length === 1) {
+        rfidBuffer += event.key;
 
-    if (scanFinalizeTimer) clearTimeout(scanFinalizeTimer);
-    scanFinalizeTimer = setTimeout(() => {
-      finalizeScan();
-      scanFinalizeTimer = null;
-    }, AUTO_FINALIZE_DELAY);
-  }
+        if (scanFinalizeTimer) clearTimeout(scanFinalizeTimer);
+        scanFinalizeTimer = setTimeout(() => {
+            finalizeScan();
+            scanFinalizeTimer = null;
+        }, AUTO_FINALIZE_DELAY);
+    }
 };
 
 const triggerTestPopup = () => {
-  const sortedProfiles = [...registeredStudents.value].sort((a, b) =>
-    String(a.studentId ?? '').localeCompare(String(b.studentId ?? '')),
-  );
-  const preferredProfile = sortedProfiles.find((profile) =>
-    String(profile.name ?? '').trim().toLowerCase() === 'maria revera',
-  );
-  const demoRfid = preferredProfile?.rfid || sortedProfiles[0]?.rfid || '';
-  if (!demoRfid) {
-    Swal.fire({
-      icon: 'info',
-      title: 'No RFID profiles found',
-      text: 'Seed borrower profiles first to test the popup.',
-      confirmButtonColor: '#2563eb',
-    });
-    return;
-  }
+    const sortedProfiles = [...registeredStudents.value].sort((a, b) =>
+        String(a.studentId ?? '').localeCompare(String(b.studentId ?? '')),
+    );
+    const preferredProfile = sortedProfiles.find(
+        (profile) =>
+            String(profile.name ?? '')
+                .trim()
+                .toLowerCase() === 'maria revera',
+    );
+    const demoRfid = preferredProfile?.rfid || sortedProfiles[0]?.rfid || '';
+    if (!demoRfid) {
+        Swal.fire({
+            icon: 'info',
+            title: 'No RFID profiles found',
+            text: 'Seed borrower profiles first to test the popup.',
+            confirmButtonColor: '#2563eb',
+        });
+        return;
+    }
 
-  stopScanner();
-  lastScanned.value = demoRfid;
-  showUserInfo(demoRfid);
+    stopScanner();
+    lastScanned.value = demoRfid;
+    showUserInfo(demoRfid);
 };
 
-const escapeHtml = (value = '') => String(value)
-  .replaceAll('&', '&amp;')
-  .replaceAll('<', '&lt;')
-  .replaceAll('>', '&gt;')
-  .replaceAll('"', '&quot;')
-  .replaceAll("'", '&#039;');
+const escapeHtml = (value = '') =>
+    String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
 
 const findStudentByRfid = (rfid) => {
-  const normalizedRfid = String(rfid).trim().toLowerCase();
-  return registeredStudents.value.find((student) => student.rfid.toLowerCase() === normalizedRfid) || null;
+    const normalizedRfid = String(rfid).trim().toLowerCase();
+    return (
+        registeredStudents.value.find(
+            (student) => student.rfid.toLowerCase() === normalizedRfid,
+        ) || null
+    );
 };
 
 const getBorrowItems = (borrower) => {
-  const rfidKey = String(borrower?.rfid ?? '').trim().toLowerCase();
-  if (!rfidKey) return [];
+    const rfidKey = String(borrower?.rfid ?? '')
+        .trim()
+        .toLowerCase();
+    if (!rfidKey) return [];
 
-  const data = props.borrowItemsByRfid?.[rfidKey];
-  if (!data) return [];
+    const data = props.borrowItemsByRfid?.[rfidKey];
+    if (!data) return [];
 
-  // New structure: { hasActiveBorrowing: bool, items: [...] }
-  if (data && typeof data === 'object' && !Array.isArray(data) && Array.isArray(data.items)) {
-    return data.items;
-  }
+    // New structure: { hasActiveBorrowing: bool, items: [...] }
+    if (
+        data &&
+        typeof data === 'object' &&
+        !Array.isArray(data) &&
+        Array.isArray(data.items)
+    ) {
+        return data.items;
+    }
 
-  // Backward-compat: old structure was a direct array
-  if (Array.isArray(data)) {
-    return data;
-  }
+    // Backward-compat: old structure was a direct array
+    if (Array.isArray(data)) {
+        return data;
+    }
 
-  return [];
+    return [];
 };
 
 const submitBorrowingUpdate = async (student, items) => {
-  const barcodes = (Array.isArray(items) ? items : [])
-    .map((item) => String(item?.barcode ?? '').trim())
-    .filter((barcode) => barcode !== '');
+    const barcodes = (Array.isArray(items) ? items : [])
+        .map((item) => String(item?.barcode ?? '').trim())
+        .filter((barcode) => barcode !== '');
 
-  if (!student?.rfid || barcodes.length === 0) {
-    return { ok: false, message: 'No valid RFID or barcode payload for borrowing flow.' };
-  }
-
-  try {
-    const xsrfRaw = document.cookie
-      .split('; ')
-      .find((row) => row.startsWith('XSRF-TOKEN='))
-      ?.split('=')[1];
-
-    const response = await fetch('/admin/borrow/return-items', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        'X-XSRF-TOKEN': xsrfRaw ? decodeURIComponent(xsrfRaw) : '',
-      },
-      body: JSON.stringify({
-        rfid: student.rfid,
-        barcodes,
-      }),
-    });
-
-    const payload = await response.json().catch(() => null);
-    if (!response.ok || !payload?.ok) {
-      return {
-        ok: false,
-        message: payload?.message ?? 'Unable to update item borrowing status right now.',
-      };
+    if (!student?.rfid || barcodes.length === 0) {
+        return {
+            ok: false,
+            message: 'No valid RFID or barcode payload for borrowing flow.',
+        };
     }
 
-    return {
-      ok: true,
-      message: payload?.message ?? 'Items updated successfully.',
-      returned: Array.isArray(payload?.returned_barcodes) ? payload.returned_barcodes : [],
-      borrowed: Array.isArray(payload?.borrowed_barcodes) ? payload.borrowed_barcodes : [],
-      missing: Array.isArray(payload?.missing_barcodes) ? payload.missing_barcodes : [],
-      unavailable: Array.isArray(payload?.unavailable_barcodes) ? payload.unavailable_barcodes : [],
-    };
-  } catch {
-    return {
-      ok: false,
-      message: 'Connection error while updating borrowing flow.',
-    };
-  }
+    try {
+        const xsrfRaw = document.cookie
+            .split('; ')
+            .find((row) => row.startsWith('XSRF-TOKEN='))
+            ?.split('=')[1];
+
+        const response = await fetch('/admin/borrow/return-items', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'X-XSRF-TOKEN': xsrfRaw ? decodeURIComponent(xsrfRaw) : '',
+            },
+            body: JSON.stringify({
+                rfid: student.rfid,
+                barcodes,
+            }),
+        });
+
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || !payload?.ok) {
+            return {
+                ok: false,
+                message:
+                    payload?.message ??
+                    'Unable to update item borrowing status right now.',
+            };
+        }
+
+        return {
+            ok: true,
+            message: payload?.message ?? 'Items updated successfully.',
+            returned: Array.isArray(payload?.returned_barcodes)
+                ? payload.returned_barcodes
+                : [],
+            borrowed: Array.isArray(payload?.borrowed_barcodes)
+                ? payload.borrowed_barcodes
+                : [],
+            missing: Array.isArray(payload?.missing_barcodes)
+                ? payload.missing_barcodes
+                : [],
+            unavailable: Array.isArray(payload?.unavailable_barcodes)
+                ? payload.unavailable_barcodes
+                : [],
+        };
+    } catch {
+        return {
+            ok: false,
+            message: 'Connection error while updating borrowing flow.',
+        };
+    }
 };
 
 const showRowPopup = (row) => {
-  const formatDT = (dateStr) => {
-    if (!dateStr) return '—';
-    try {
-      const d = new Date(String(dateStr).replace(' ', 'T'));
-      return d.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-    } catch {
-      return String(dateStr);
-    }
-  };
+    const formatDT = (dateStr) => {
+        if (!dateStr) return '—';
+        try {
+            const d = new Date(String(dateStr).replace(' ', 'T'));
+            return d.toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+            });
+        } catch {
+            return String(dateStr);
+        }
+    };
 
-  const badgeStyle = (status) => {
-    const s = String(status ?? '').toLowerCase();
-    if (s === 'returned') return 'background:#e0f2fe; color:#0369a1;';
-    if (s === 'borrowed') return 'background:#dcfce7; color:#15803d;';
-    if (s === 'overdue')  return 'background:#fee2e2; color:#b91c1c;';
-    if (s === 'damaged')  return 'background:#fef3c7; color:#92400e;';
-    return 'background:#f1f5f9; color:#64748b;';
-  };
+    const badgeStyle = (status) => {
+        const s = String(status ?? '').toLowerCase();
+        if (s === 'returned') return 'background:#e0f2fe; color:#0369a1;';
+        if (s === 'borrowed') return 'background:#dcfce7; color:#15803d;';
+        if (s === 'overdue') return 'background:#fee2e2; color:#b91c1c;';
+        if (s === 'damaged') return 'background:#fef3c7; color:#92400e;';
+        return 'background:#f1f5f9; color:#64748b;';
+    };
 
-  const isReturned = String(row.status ?? '').toLowerCase() === 'returned';
-  const headerBg = isReturned
-    ? 'background:linear-gradient(135deg,#0c4a6e 0%,#0369a1 100%);'
-    : 'background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);';
-  const headerBadge = isReturned
-    ? 'background:rgba(255,255,255,0.15); color:#bae6fd; border:1px solid rgba(186,230,253,0.4);'
-    : 'background:rgba(255,255,255,0.15); color:#86efac; border:1px solid rgba(134,239,172,0.4);';
-  const headerBadgeText = isReturned ? '● RETURNED' : '● ACTIVE';
+    const isReturned = String(row.status ?? '').toLowerCase() === 'returned';
+    const headerBg = isReturned
+        ? 'background:linear-gradient(135deg,#0c4a6e 0%,#0369a1 100%);'
+        : 'background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);';
+    const headerBadge = isReturned
+        ? 'background:rgba(255,255,255,0.15); color:#bae6fd; border:1px solid rgba(186,230,253,0.4);'
+        : 'background:rgba(255,255,255,0.15); color:#86efac; border:1px solid rgba(134,239,172,0.4);';
+    const headerBadgeText = isReturned ? '● RETURNED' : '● ACTIVE';
 
-  const itemsHtml = (Array.isArray(row.items) && row.items.length > 0)
-    ? row.items.map((item) => `
+    const itemsHtml =
+        Array.isArray(row.items) && row.items.length > 0
+            ? row.items
+                  .map(
+                      (item) => `
         <div style="display:flex; flex-direction:column; gap:4px; padding:8px 0;">
           <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
             <div style="display:flex; flex-direction:column; gap:1px; min-width:0;">
@@ -333,11 +396,13 @@ const showRowPopup = (row) => {
             <span>↩️ Returned: <span style="color:#0f172a; font-weight:600;">${formatDT(item.returnedAt)}</span></span>
           </div>
         </div>
-      `).join('<div style="height:1px; background:#e2e8f0;"></div>')
-    : `<div style="font-size:12px; color:#94a3b8; text-align:center; padding:12px 0;">No items recorded.</div>`;
+      `,
+                  )
+                  .join('<div style="height:1px; background:#e2e8f0;"></div>')
+            : `<div style="font-size:12px; color:#94a3b8; text-align:center; padding:12px 0;">No items recorded.</div>`;
 
-  Swal.fire({
-    html: `
+    Swal.fire({
+        html: `
       <div style="font-family:'DM Sans',sans-serif; padding:0; display:flex; gap:16px; align-items:flex-start;">
 
         <!-- LEFT: ID Card -->
@@ -359,7 +424,9 @@ const showRowPopup = (row) => {
                   <div style="color:rgba(255,255,255,0.5); font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:1px;">Full Name</div>
                   <div style="color:white; font-weight:700; font-size:13px; line-height:1.2;">${escapeHtml(row.name)}</div>
                 </div>
-                ${row.role === 'Student' ? `
+                ${
+                    row.role === 'Student'
+                        ? `
                 <div>
                   <div style="color:rgba(255,255,255,0.5); font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:1px;">Course &amp; Section</div>
                   <div style="color:white; font-weight:600; font-size:11px;">${escapeHtml(row.course)} ${escapeHtml(row.section)}</div>
@@ -367,11 +434,13 @@ const showRowPopup = (row) => {
                 <div>
                   <div style="color:rgba(255,255,255,0.5); font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:1px;">Year</div>
                   <div style="color:white; font-weight:600; font-size:11px;">${escapeHtml(row.year)}</div>
-                </div>` : `
+                </div>`
+                        : `
                 <div>
                   <div style="color:rgba(255,255,255,0.5); font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:1px;">Department</div>
                   <div style="color:white; font-weight:600; font-size:11px;">Faculty</div>
-                </div>`}
+                </div>`
+                }
                 <div>
                   <div style="color:rgba(255,255,255,0.5); font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:1px;">ID No.</div>
                   <div style="color:#bfdbfe; font-weight:600; font-size:11px; font-family:monospace; letter-spacing:1px;">${escapeHtml(row.id)}</div>
@@ -408,18 +477,26 @@ const showRowPopup = (row) => {
               <span style="color:#64748b; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Borrowed</span>
               <span style="color:#0f172a; font-size:11px; font-weight:600;">${formatDT(row.borrowedAt)}</span>
             </div>
-            ${row.returnedAt ? `
+            ${
+                row.returnedAt
+                    ? `
             <div style="height:1px; background:#e2e8f0;"></div>
             <div style="display:flex; justify-content:space-between; align-items:center;">
               <span style="color:#64748b; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Returned</span>
               <span style="color:#0f172a; font-size:11px; font-weight:600;">${formatDT(row.returnedAt)}</span>
-            </div>` : ''}
-            ${row.remarks ? `
+            </div>`
+                    : ''
+            }
+            ${
+                row.remarks
+                    ? `
             <div style="height:1px; background:#e2e8f0;"></div>
             <div style="display:flex; flex-direction:column; gap:2px;">
               <span style="color:#64748b; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Remarks</span>
               <span style="color:#0f172a; font-size:11px;">${escapeHtml(row.remarks)}</span>
-            </div>` : ''}
+            </div>`
+                    : ''
+            }
           </div>
         </div>
 
@@ -434,29 +511,32 @@ const showRowPopup = (row) => {
         </div>
 
       </div>`,
-    showConfirmButton: true,
-    showCancelButton: false,
-    showCloseButton: true,
-    confirmButtonText: 'Close',
-    confirmButtonColor: '#2563eb',
-    allowOutsideClick: true,
-    customClass: {
-      popup:         'swal-id-popup',
-      confirmButton: 'swal-confirm-btn',
-      closeButton:   'swal-close-btn',
-      actions:       'swal-actions',
-    },
-  });
+        showConfirmButton: true,
+        showCancelButton: false,
+        showCloseButton: true,
+        confirmButtonText: 'Close',
+        confirmButtonColor: '#2563eb',
+        allowOutsideClick: true,
+        customClass: {
+            popup: 'swal-id-popup',
+            confirmButton: 'swal-confirm-btn',
+            closeButton: 'swal-close-btn',
+            actions: 'swal-actions',
+        },
+    });
 };
 
 const showResultPopup = (confirmed, student, borrowItems) => {
-  const itemsListHtml = borrowItems
-    .map((item) => `<div style="font-size:11px; color:#1f2937;">• ${escapeHtml(item.name)} <span style="color:#64748b;">(${escapeHtml(item.id)})</span></div>`)
-    .join('');
+    const itemsListHtml = borrowItems
+        .map(
+            (item) =>
+                `<div style="font-size:11px; color:#1f2937;">• ${escapeHtml(item.name)} <span style="color:#64748b;">(${escapeHtml(item.id)})</span></div>`,
+        )
+        .join('');
 
-  if (confirmed) {
-    Swal.fire({
-      html: `
+    if (confirmed) {
+        Swal.fire({
+            html: `
         <div style="font-family:'DM Sans',sans-serif; padding:4px 0;">
           <div style="display:flex; flex-direction:column; align-items:center; gap:14px;">
 
@@ -513,17 +593,19 @@ const showResultPopup = (confirmed, student, borrowItems) => {
 
           </div>
         </div>`,
-      showConfirmButton: true,
-      confirmButtonText: 'Done',
-      confirmButtonColor: '#16a34a',
-      allowOutsideClick: false,
-      allowEscapeKey: false,
-      customClass: { popup: 'swal-result-popup', confirmButton: 'swal-confirm-btn' },
-    }).then(() => startScanner());
-
-  } else {
-    Swal.fire({
-      html: `
+            showConfirmButton: true,
+            confirmButtonText: 'Done',
+            confirmButtonColor: '#16a34a',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            customClass: {
+                popup: 'swal-result-popup',
+                confirmButton: 'swal-confirm-btn',
+            },
+        }).then(() => startScanner());
+    } else {
+        Swal.fire({
+            html: `
         <div style="font-family:'DM Sans',sans-serif; padding:4px 0;">
           <div style="display:flex; flex-direction:column; align-items:center; gap:14px;">
 
@@ -581,193 +663,221 @@ const showResultPopup = (confirmed, student, borrowItems) => {
 
           </div>
         </div>`,
-      showConfirmButton: true,
-      confirmButtonText: 'Close',
-      confirmButtonColor: '#ef4444',
-      allowOutsideClick: false,
-      allowEscapeKey: false,
-      customClass: { popup: 'swal-result-popup', confirmButton: 'swal-confirm-btn' },
-    }).then(() => startScanner());
-  }
+            showConfirmButton: true,
+            confirmButtonText: 'Close',
+            confirmButtonColor: '#ef4444',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            customClass: {
+                popup: 'swal-result-popup',
+                confirmButton: 'swal-confirm-btn',
+            },
+        }).then(() => startScanner());
+    }
 };
 
 const showUserInfo = (rfid) => {
-  isScanning.value = false;
-  scanPulse.value = true;
-  setTimeout(() => (scanPulse.value = false), 600);
+    isScanning.value = false;
+    scanPulse.value = true;
+    setTimeout(() => (scanPulse.value = false), 600);
 
-  const student = findStudentByRfid(rfid);
-  if (!student) {
-    Swal.fire({
-      icon: 'warning',
-      title: 'RFID not registered',
-      text: `No student found for RFID: ${rfid}`,
-      confirmButtonColor: '#ef4444',
-    }).then(() => startScanner());
-    return;
-  }
-
-  const studentStrandSection = `${student.strand} ${student.section}`;
-  const borrowItems = getBorrowItems(student);
-
-  const selectedItems = new Map();
-
-  let barcodeBuffer = '';
-  let barcodeLastKeyTime = 0;
-  let barcodeFinalizeTimer = null;
-  let barcodeKeydownHandler = null;
-
-  const finalizeBarcode = (barcodeInput) => {
-    const scannedCode = barcodeBuffer.trim();
-    if (!scannedCode) return;
-
-    barcodeInput.value = scannedCode;
-    barcodeInput.dispatchEvent(new Event('input', { bubbles: true }));
-
-    // ── One item per session only — block any further scans once one is queued ──
-    if (selectedItems.size >= 1) {
-      const [, queued] = [...selectedItems.entries()][0];
-      updateScanFeedback(
-        `Already queued: "${queued.name}". Only one item can be processed per session. Confirm or close to continue.`,
-        '#92400e',
-      );
-      barcodeInput.value = '';
-      barcodeBuffer = '';
-      return;
+    const student = findStudentByRfid(rfid);
+    if (!student) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'RFID not registered',
+            text: `No student found for RFID: ${rfid}`,
+            confirmButtonColor: '#ef4444',
+        }).then(() => startScanner());
+        return;
     }
 
-    const matchedItem = borrowItems.find((item) => item.barcode === scannedCode);
+    const studentStrandSection = `${student.strand} ${student.section}`;
+    const borrowItems = getBorrowItems(student);
 
-    if (matchedItem) {
-      const itemStatus = String(matchedItem.status ?? '').trim().toLowerCase();
+    const selectedItems = new Map();
 
-      // ── returned → fully blocked, cannot move further ──
-      if (itemStatus === 'returned') {
-        updateScanFeedback(
-          `"${matchedItem.name}" is already returned. Status cannot be changed.`,
-          '#b91c1c',
+    let barcodeBuffer = '';
+    let barcodeLastKeyTime = 0;
+    let barcodeFinalizeTimer = null;
+    let barcodeKeydownHandler = null;
+
+    const finalizeBarcode = (barcodeInput) => {
+        const scannedCode = barcodeBuffer.trim();
+        if (!scannedCode) return;
+
+        barcodeInput.value = scannedCode;
+        barcodeInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+        // ── One item per session only — block any further scans once one is queued ──
+        if (selectedItems.size >= 1) {
+            const [, queued] = [...selectedItems.entries()][0];
+            updateScanFeedback(
+                `Already queued: "${queued.name}". Only one item can be processed per session. Confirm or close to continue.`,
+                '#92400e',
+            );
+            barcodeInput.value = '';
+            barcodeBuffer = '';
+            return;
+        }
+
+        const matchedItem = borrowItems.find(
+            (item) => item.barcode === scannedCode,
         );
-        barcodeInput.value = '';
-        barcodeBuffer = '';
-        return;
-      }
 
-      // ── borrowed → can only move forward to returned (never back to borrow) ──
-      if (itemStatus === 'borrowed') {
-        selectedItems.set(matchedItem.barcode, {
-          ...matchedItem,
-          requestedAction: 'returned',
+        if (matchedItem) {
+            const itemStatus = String(matchedItem.status ?? '')
+                .trim()
+                .toLowerCase();
+
+            // ── returned → fully blocked, show message, do NOT show in list ──
+            if (itemStatus === 'returned') {
+                updateScanFeedback(
+                    `⚠️ "${matchedItem.name}" has already been returned and cannot be processed again.`,
+                    '#b91c1c',
+                );
+                barcodeInput.value = '';
+                barcodeBuffer = '';
+                return;
+            }
+
+            // ── borrowed → can only move forward to returned (never back to borrow) ──
+            if (itemStatus === 'borrowed') {
+                selectedItems.set(matchedItem.barcode, {
+                    ...matchedItem,
+                    requestedAction: 'returned',
+                });
+                renderBorrowItemsStatus();
+                updateScanFeedback(
+                    `"${matchedItem.name}" queued to return. Confirm to mark as Returned.`,
+                    '#065f46',
+                );
+                barcodeInput.value = '';
+                barcodeBuffer = '';
+                return;
+            }
+
+            // ── borrow (pending) → can only move forward to borrowed ──
+            if (itemStatus === 'borrow') {
+                selectedItems.set(matchedItem.barcode, {
+                    ...matchedItem,
+                    requestedAction: 'borrowed',
+                });
+                renderBorrowItemsStatus();
+                updateScanFeedback(
+                    `"${matchedItem.name}" queued to borrow. Confirm to mark as Borrowed.`,
+                    '#1d4ed8',
+                );
+                barcodeInput.value = '';
+                barcodeBuffer = '';
+                return;
+            }
+
+            // ── any other unrecognised status → block ──
+            updateScanFeedback(
+                `"${matchedItem.name}" has an unrecognised status (${matchedItem.status}) and cannot be processed.`,
+                '#b91c1c',
+            );
+            barcodeInput.value = '';
+            barcodeBuffer = '';
+        } else {
+            // ── Not in borrow history → check catalog for a fresh borrow ──
+            const catalogItem = borrowCatalogByBarcode.value.get(scannedCode);
+            if (!catalogItem) {
+                updateScanFeedback(
+                    `Barcode "${scannedCode}" is not registered in inventory.`,
+                    '#b91c1c',
+                );
+                barcodeBuffer = '';
+                return;
+            }
+
+            const catalogStatus = String(catalogItem.status ?? '')
+                .trim()
+                .toLowerCase();
+            if (catalogStatus !== 'available') {
+                updateScanFeedback(
+                    `"${catalogItem.name}" is currently ${catalogItem.status ?? 'unavailable'} and cannot be borrowed.`,
+                    '#b91c1c',
+                );
+                barcodeBuffer = '';
+                return;
+            }
+
+            // ── Available catalog item → queue as borrow (first step) ──
+            selectedItems.set(scannedCode, {
+                name: catalogItem.name,
+                id: catalogItem.id,
+                type: catalogItem.type,
+                barcode: scannedCode,
+                status: 'borrow',
+                requestedAction: 'borrowed',
+            });
+            renderBorrowItemsStatus();
+            updateScanFeedback(
+                `"${catalogItem.name}" queued to borrow. Confirm to mark as Borrowed.`,
+                '#1d4ed8',
+            );
+            barcodeInput.value = '';
+        }
+
+        barcodeBuffer = '';
+    };
+
+    // ── FIX: Filter out returned items from the display list ──
+    const getDisplayItems = () => {
+        const displayItems = [...borrowItems].filter(
+            (item) =>
+                String(item.status ?? '')
+                    .trim()
+                    .toLowerCase() !== 'returned',
+        );
+
+        selectedItems.forEach((selectedItem, barcode) => {
+            if (!displayItems.some((item) => item.barcode === barcode)) {
+                displayItems.push(selectedItem);
+            }
         });
-        renderBorrowItemsStatus();
-        updateScanFeedback(
-          `"${matchedItem.name}" queued to return. Confirm to mark as Returned.`,
-          '#065f46',
-        );
-        barcodeInput.value = '';
-        barcodeBuffer = '';
-        return;
-      }
 
-      // ── borrow (pending) → can only move forward to borrowed ──
-      if (itemStatus === 'borrow') {
-        selectedItems.set(matchedItem.barcode, {
-          ...matchedItem,
-          requestedAction: 'borrowed',
-        });
-        renderBorrowItemsStatus();
-        updateScanFeedback(
-          `"${matchedItem.name}" queued to borrow. Confirm to mark as Borrowed.`,
-          '#1d4ed8',
-        );
-        barcodeInput.value = '';
-        barcodeBuffer = '';
-        return;
-      }
+        return displayItems;
+    };
 
-      // ── any other unrecognised status → block ──
-      updateScanFeedback(
-        `"${matchedItem.name}" has an unrecognised status (${matchedItem.status}) and cannot be processed.`,
-        '#b91c1c',
-      );
-      barcodeInput.value = '';
-      barcodeBuffer = '';
+    const getBorrowItemsHtml = () =>
+        getDisplayItems()
+            .map((item) => {
+                const selectedItem = selectedItems.get(item.barcode);
+                const isConfirmedItem = Boolean(selectedItem);
+                const itemStatus = String(item.status ?? 'Borrowed')
+                    .trim()
+                    .toLowerCase();
 
-    } else {
-      // ── Not in borrow history → check catalog for a fresh borrow ──
-      const catalogItem = borrowCatalogByBarcode.value.get(scannedCode);
-      if (!catalogItem) {
-        updateScanFeedback(`Barcode "${scannedCode}" is not registered in inventory.`, '#b91c1c');
-        barcodeBuffer = '';
-        return;
-      }
+                const statusText =
+                    itemStatus === 'returned'
+                        ? 'Returned'
+                        : itemStatus === 'borrowed'
+                          ? 'Borrowed'
+                          : 'Borrow';
 
-      const catalogStatus = String(catalogItem.status ?? '').trim().toLowerCase();
-      if (catalogStatus !== 'available') {
-        updateScanFeedback(
-          `"${catalogItem.name}" is currently ${catalogItem.status ?? 'unavailable'} and cannot be borrowed.`,
-          '#b91c1c',
-        );
-        barcodeBuffer = '';
-        return;
-      }
+                const statusStyle =
+                    itemStatus === 'returned'
+                        ? 'background:#e0f2fe; color:#0369a1;'
+                        : itemStatus === 'borrowed'
+                          ? 'background:#fef9c3; color:#a16207;'
+                          : 'background:#dcfce7; color:#15803d;';
 
-      // ── Available catalog item → queue as borrow (first step) ──
-      selectedItems.set(scannedCode, {
-        name: catalogItem.name,
-        id: catalogItem.id,
-        type: catalogItem.type,
-        barcode: scannedCode,
-        status: 'borrow',
-        requestedAction: 'borrowed',
-      });
-      renderBorrowItemsStatus();
-      updateScanFeedback(`"${catalogItem.name}" queued to borrow. Confirm to mark as Borrowed.`, '#1d4ed8');
-      barcodeInput.value = '';
-    }
+                const actionText =
+                    selectedItem?.requestedAction === 'borrow'
+                        ? 'Asking To Borrow'
+                        : selectedItem?.requestedAction === 'borrowed'
+                          ? 'Permit Borrow'
+                          : 'Return Item';
 
-    barcodeBuffer = '';
-  };
+                const actionStyle =
+                    selectedItem?.requestedAction === 'borrow'
+                        ? 'background:#dbeafe; color:#1d4ed8;'
+                        : 'background:#dcfce7; color:#166534;';
 
-  const getDisplayItems = () => {
-    const displayItems = [...borrowItems];
-
-    selectedItems.forEach((selectedItem, barcode) => {
-      if (!displayItems.some((item) => item.barcode === barcode)) {
-        displayItems.push(selectedItem);
-      }
-    });
-
-    return displayItems;
-  };
-
-  const getBorrowItemsHtml = () => getDisplayItems()
-    .map((item) => {
-      const selectedItem = selectedItems.get(item.barcode);
-      const isConfirmedItem = Boolean(selectedItem);
-      const itemStatus = String(item.status ?? 'Borrowed').trim().toLowerCase();
-
-      const statusText =
-        itemStatus === 'returned' ? 'Returned'
-        : itemStatus === 'borrowed' ? 'Borrowed'
-        : 'Borrow';
-
-      const statusStyle =
-        itemStatus === 'returned'
-          ? 'background:#e0f2fe; color:#0369a1;'
-          : itemStatus === 'borrowed'
-          ? 'background:#fef9c3; color:#a16207;'
-          : 'background:#dcfce7; color:#15803d;';
-
-      const actionText =
-        selectedItem?.requestedAction === 'borrow'    ? 'Asking To Borrow'
-        : selectedItem?.requestedAction === 'borrowed' ? 'Permit Borrow'
-        : 'Return Item';
-
-      const actionStyle = selectedItem?.requestedAction === 'borrow'
-        ? 'background:#dbeafe; color:#1d4ed8;'
-        : 'background:#dcfce7; color:#166534;';
-
-      return `
+                return `
         <div style="display:grid; grid-template-columns: auto 1fr auto auto; align-items:center; gap:8px;">
           <span style="width:18px; height:18px; border-radius:999px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; ${isConfirmedItem ? 'background:#16a34a; color:#ffffff;' : 'background:#e2e8f0; color:#64748b;'}">
             ${isConfirmedItem ? '✓' : '•'}
@@ -777,38 +887,38 @@ const showUserInfo = (rfid) => {
           <span style="${isConfirmedItem ? actionStyle : statusStyle} font-size:10px; font-weight:600; padding:2px 8px; border-radius:99px;">${isConfirmedItem ? actionText : statusText}</span>
         </div>
       `;
-    })
-    .join('<div style="height:1px; background:#e2e8f0;"></div>');
+            })
+            .join('<div style="height:1px; background:#e2e8f0;"></div>');
 
-  const renderBorrowItemsStatus = () => {
-    const popup = Swal.getPopup();
-    if (!popup) return;
+    const renderBorrowItemsStatus = () => {
+        const popup = Swal.getPopup();
+        if (!popup) return;
 
-    const container = popup.querySelector('#borrow-items-list');
-    const counter = popup.querySelector('#confirmed-items-counter');
+        const container = popup.querySelector('#borrow-items-list');
+        const counter = popup.querySelector('#confirmed-items-counter');
 
-    if (container) {
-      container.innerHTML = getBorrowItemsHtml();
-    }
+        if (container) {
+            container.innerHTML = getBorrowItemsHtml();
+        }
 
-    if (counter) {
-      counter.textContent = `${selectedItems.size} selected`;
-    }
-  };
+        if (counter) {
+            counter.textContent = `${selectedItems.size} selected`;
+        }
+    };
 
-  const updateScanFeedback = (message, color) => {
-    const popup = Swal.getPopup();
-    if (!popup) return;
+    const updateScanFeedback = (message, color) => {
+        const popup = Swal.getPopup();
+        if (!popup) return;
 
-    const feedback = popup.querySelector('#scan-feedback');
-    if (!feedback) return;
+        const feedback = popup.querySelector('#scan-feedback');
+        if (!feedback) return;
 
-    feedback.textContent = message;
-    feedback.style.color = color;
-  };
+        feedback.textContent = message;
+        feedback.style.color = color;
+    };
 
-  Swal.fire({
-    html: `
+    Swal.fire({
+        html: `
       <div style="font-family:'DM Sans',sans-serif; padding:0; display:flex; gap:16px; align-items:flex-start;">
         <div style="flex:0 0 220px; min-width:0;">
 
@@ -881,15 +991,18 @@ const showUserInfo = (rfid) => {
         <!-- Item Info -->
         <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:12px 16px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-            <div style="font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#94a3b8;">Borrowed / Returned Items (${getDisplayItems().length})</div>
+            <div style="font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#94a3b8;">Active Items (${getDisplayItems().length})</div>
             <div id="confirmed-items-counter" style="font-size:10px; color:#64748b; font-weight:700;">0 selected</div>
           </div>
           <div id="borrow-items-list" style="display:flex; flex-direction:column; gap:8px;">
-            ${getDisplayItems().length > 0 ? getBorrowItemsHtml() : '<div style="font-size:12px; color:#94a3b8; text-align:center; padding:12px 0;">No current borrow history. Scan an inventory item barcode to ask for borrowing.</div>'}
+            ${getDisplayItems().length > 0 ? getBorrowItemsHtml() : '<div style="font-size:12px; color:#94a3b8; text-align:center; padding:12px 0;">No active items. Scan an inventory item barcode to borrow.</div>'}
           </div>
         </div>
 
-        <!-- Barcode Confirmation -->
+        <!-- Barcode Confirmation — only shown when there are active items -->
+        ${
+            getDisplayItems().length > 0
+                ? `
         <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:12px; padding:12px 16px; text-align:left;">
           <div style="font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#9a3412; margin-bottom:8px;">Barcode Verification Required</div>
           <div style="font-size:12px; color:#7c2d12; margin-bottom:8px;">
@@ -905,289 +1018,438 @@ const showUserInfo = (rfid) => {
           />
           <div id="scan-feedback" style="font-size:11px; margin-top:8px; color:#7c2d12;">Waiting for barcode scan...</div>
         </div>
+        `
+                : `
+        <div style="background:#f1f5f9; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px; text-align:center;">
+          <div style="font-size:13px; font-weight:700; color:#64748b; margin-bottom:4px;">No Active Items</div>
+          <div style="font-size:11px; color:#94a3b8;">All items have been returned. No further action needed.</div>
+        </div>
+        `
+        }
         </div>
 
       </div>`,
-    showConfirmButton: true,
-    showCancelButton: false,
-    showCloseButton: true,
-    confirmButtonText: '✓ Confirm Borrowing',
-    confirmButtonColor: '#2563eb',
-    allowOutsideClick: false,
-    allowEscapeKey: false,
-    focusConfirm: true,
-    didOpen: () => {
-      const popup = Swal.getPopup();
-      if (!popup) return;
+        showConfirmButton: true,
+        showCancelButton: false,
+        showCloseButton: true,
+        confirmButtonText: '✓ Confirm Borrowing',
+        confirmButtonColor: '#2563eb',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        focusConfirm: true,
+        didOpen: () => {
+            const popup = Swal.getPopup();
+            if (!popup) return;
 
-      const barcodeInput = popup.querySelector('#barcode-confirm-input');
-      if (!barcodeInput) return;
+            const barcodeInput = popup.querySelector('#barcode-confirm-input');
+            if (!barcodeInput) return;
 
-      barcodeInput.focus();
+            barcodeInput.focus();
 
-      barcodeKeydownHandler = (event) => {
-        const currentTime = Date.now();
+            barcodeKeydownHandler = (event) => {
+                const currentTime = Date.now();
 
-        if (currentTime - barcodeLastKeyTime > SCAN_TIMEOUT) {
-          barcodeBuffer = '';
+                if (currentTime - barcodeLastKeyTime > SCAN_TIMEOUT) {
+                    barcodeBuffer = '';
+                }
+
+                barcodeLastKeyTime = currentTime;
+
+                if (SCAN_TERMINATORS.has(event.key)) {
+                    event.preventDefault();
+                    if (barcodeFinalizeTimer)
+                        clearTimeout(barcodeFinalizeTimer);
+                    finalizeBarcode(barcodeInput);
+                } else if (event.key.length === 1) {
+                    barcodeBuffer += event.key;
+
+                    if (barcodeFinalizeTimer)
+                        clearTimeout(barcodeFinalizeTimer);
+                    barcodeFinalizeTimer = setTimeout(() => {
+                        finalizeBarcode(barcodeInput);
+                        barcodeFinalizeTimer = null;
+                    }, AUTO_FINALIZE_DELAY);
+                }
+            };
+
+            document.addEventListener('keydown', barcodeKeydownHandler, true);
+        },
+        preConfirm: () => {
+            if (selectedItems.size === 0) {
+                Swal.showValidationMessage(
+                    'Scan at least one item barcode before confirming the update.',
+                );
+                return false;
+            }
+
+            return Array.from(selectedItems.values());
+        },
+        willClose: () => {
+            if (barcodeFinalizeTimer) clearTimeout(barcodeFinalizeTimer);
+            if (barcodeKeydownHandler) {
+                document.removeEventListener(
+                    'keydown',
+                    barcodeKeydownHandler,
+                    true,
+                );
+            }
+        },
+        customClass: {
+            popup: 'swal-id-popup',
+            confirmButton: 'swal-confirm-btn',
+            closeButton: 'swal-close-btn',
+            actions: 'swal-actions',
+        },
+    }).then(async (result) => {
+        const confirmedItems =
+            result.isConfirmed && Array.isArray(result.value)
+                ? result.value
+                : [];
+
+        if (result.isConfirmed) {
+            const returnResult = await submitBorrowingUpdate(
+                student,
+                confirmedItems,
+            );
+            if (!returnResult.ok) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Update failed',
+                    text: returnResult.message,
+                    confirmButtonColor: '#ef4444',
+                }).then(() => startScanner());
+                return;
+            }
+
+            const currentPageValue =
+                Number(currentPage.value) > 0 ? Number(currentPage.value) : 1;
+            submitFilters(currentPageValue);
         }
 
-        barcodeLastKeyTime = currentTime;
-
-        if (SCAN_TERMINATORS.has(event.key)) {
-          event.preventDefault();
-          if (barcodeFinalizeTimer) clearTimeout(barcodeFinalizeTimer);
-          finalizeBarcode(barcodeInput);
-        } else if (event.key.length === 1) {
-          barcodeBuffer += event.key;
-
-          if (barcodeFinalizeTimer) clearTimeout(barcodeFinalizeTimer);
-          barcodeFinalizeTimer = setTimeout(() => {
-            finalizeBarcode(barcodeInput);
-            barcodeFinalizeTimer = null;
-          }, AUTO_FINALIZE_DELAY);
-        }
-      };
-
-      document.addEventListener('keydown', barcodeKeydownHandler, true);
-    },
-    preConfirm: () => {
-      if (selectedItems.size === 0) {
-        Swal.showValidationMessage('Scan at least one item barcode before confirming the update.');
-        return false;
-      }
-
-      return Array.from(selectedItems.values());
-    },
-    willClose: () => {
-      if (barcodeFinalizeTimer) clearTimeout(barcodeFinalizeTimer);
-      if (barcodeKeydownHandler) {
-        document.removeEventListener('keydown', barcodeKeydownHandler, true);
-      }
-    },
-    customClass: {
-      popup:         'swal-id-popup',
-      confirmButton: 'swal-confirm-btn',
-      closeButton:   'swal-close-btn',
-      actions:       'swal-actions',
-    },
-  }).then(async (result) => {
-    const confirmedItems = result.isConfirmed && Array.isArray(result.value) ? result.value : [];
-
-    if (result.isConfirmed) {
-      const returnResult = await submitBorrowingUpdate(student, confirmedItems);
-      if (!returnResult.ok) {
-        Swal.fire({
-          icon: 'warning',
-          title: 'Update failed',
-          text: returnResult.message,
-          confirmButtonColor: '#ef4444',
-        }).then(() => startScanner());
-        return;
-      }
-
-      const currentPageValue = Number(currentPage.value) > 0 ? Number(currentPage.value) : 1;
-      submitFilters(currentPageValue);
-    }
-
-    showResultPopup(result.isConfirmed, student, confirmedItems);
-  });
+        showResultPopup(result.isConfirmed, student, confirmedItems);
+    });
 };
 
 onMounted(() => window.addEventListener('keydown', handleKeydown));
 onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeydown);
-  if (scanFinalizeTimer) clearTimeout(scanFinalizeTimer);
+    window.removeEventListener('keydown', handleKeydown);
+    if (scanFinalizeTimer) clearTimeout(scanFinalizeTimer);
 });
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#f5f6fa]">
-    <div class="p-4 space-y-4">
-      <div class="flex flex-wrap gap-4">
-        <div
-          v-for="(item, index) in dashboardCards"
-          :key="`${item.text}-${index}`"
-          class="min-w-60 flex-1"
+    <div class="min-h-screen bg-[#f5f6fa]">
+        <div class="space-y-4 p-4">
+            <div class="flex flex-wrap gap-4">
+                <div
+                    v-for="(item, index) in dashboardCards"
+                    :key="`${item.text}-${index}`"
+                    class="min-w-60 flex-1"
+                >
+                    <DashboardCard
+                        :count="item.count"
+                        :text="item.text"
+                        :sub-text="item.subText"
+                        :icon="item.icon"
+                        :small_icon="item.smallIcon"
+                    />
+                </div>
+            </div>
+
+            <div class="w-full rounded-[10px] bg-white p-5">
+                <div
+                    class="flex flex-wrap items-center justify-between gap-3 border-b-2 pb-4"
+                >
+                    <div class="flex items-center gap-3">
+                        <h1 class="text-[20px] font-medium">
+                            Borrowing Overview
+                        </h1>
+                        <div
+                            class="flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold transition-all duration-300"
+                            :class="
+                                isScanning
+                                    ? 'border border-emerald-200 bg-emerald-50 text-emerald-600'
+                                    : 'border border-amber-200 bg-amber-50 text-amber-600'
+                            "
+                        >
+                            <span
+                                class="inline-block h-2 w-2 rounded-full"
+                                :class="
+                                    isScanning
+                                        ? 'animate-pulse bg-emerald-500'
+                                        : 'bg-amber-400'
+                                "
+                            ></span>
+                            {{
+                                isScanning ? 'Ready to Scan' : 'Scanner Paused'
+                            }}
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center justify-end gap-3">
+                        <div class="relative">
+                            <svg
+                                class="absolute top-2.5 left-3 h-3.5 w-3.5 text-gray-400"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                />
+                            </svg>
+                            <input
+                                v-model="searchFilter"
+                                type="text"
+                                placeholder="Search borrower/item/RFID"
+                                class="w-52 rounded-lg border border-gray-200 bg-gray-50 py-1.5 pr-4 pl-8 text-xs text-gray-700 outline-none focus:border-blue-400"
+                                @keyup.enter="submitFilters(1)"
+                            />
+                        </div>
+                        <select
+                            v-model="statusFilter"
+                            class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700 outline-none focus:border-blue-400"
+                        >
+                            <option value="">All Status</option>
+                            <option value="active">Borrowed</option>
+                            <option value="overdue">Overdue</option>
+                            <option value="returned">Returned</option>
+                            <option value="damaged">Damaged</option>
+                            <option value="lost">Lost</option>
+                        </select>
+                        <select
+                            v-model="perPageFilter"
+                            class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700 outline-none focus:border-blue-400"
+                            @change="submitFilters(1)"
+                        >
+                            <option :value="5">5 / page</option>
+                            <option :value="10">10 / page</option>
+                            <option :value="20">20 / page</option>
+                            <option :value="50">50 / page</option>
+                        </select>
+                        <button
+                            class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-blue-700"
+                            @click="submitFilters(1)"
+                        >
+                            Apply
+                        </button>
+                        <button
+                            class="rounded-lg border border-gray-200 bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-200"
+                            @click="resetFilters"
+                        >
+                            Reset
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-4 overflow-x-auto">
+                    <div class="w-full">
+                        <!-- Table Header -->
+                        <div
+                            class="flex items-center gap-2 px-4 text-sm text-gray-400"
+                        >
+                            <span class="min-w-0 flex-[2] truncate"
+                                >Borrowers</span
+                            >
+                            <span class="min-w-0 flex-[1.2]">ID</span>
+                            <span class="min-w-0 flex-[1.2]">Role</span>
+                            <span class="min-w-0 flex-[1.8]">Item</span>
+                            <span class="min-w-0 flex-[1] text-center"
+                                >Number</span
+                            >
+                            <span class="min-w-0 flex-[1.5]">Date</span>
+                            <span class="min-w-0 flex-[1.5]">Status</span>
+                            <span class="min-w-0 flex-[1.5]"
+                                >Borrowed Time</span
+                            >
+                            <span class="min-w-0 flex-[1.3]">Return Time</span>
+                            <span class="min-w-0 flex-[1.5]"
+                                >Borrowed Hours</span
+                            >
+                        </div>
+
+                        <!-- Table Rows -->
+                        <div class="mt-2 flex flex-col gap-3">
+                            <div
+                                v-for="(row, i) in rows"
+                                :key="i"
+                                class="flex cursor-pointer items-center gap-2 rounded-[10px] border border-gray-200 p-4 transition-colors hover:bg-blue-50/60"
+                                @click="showRowPopup(row)"
+                            >
+                                <span
+                                    class="min-w-0 flex-[2] truncate font-medium text-gray-700"
+                                    >{{ row.name }}</span
+                                >
+                                <span
+                                    class="min-w-0 flex-[1.2] truncate text-gray-500"
+                                    >{{ row.id }}</span
+                                >
+                                <span
+                                    class="min-w-0 flex-[1.2]"
+                                    :class="
+                                        row.role === 'Teacher'
+                                            ? 'font-semibold text-blue-600'
+                                            : 'text-gray-500'
+                                    "
+                                    >{{ row.role }}</span
+                                >
+                                <span
+                                    class="min-w-0 flex-[1.8] truncate text-gray-600"
+                                    >{{ row.item }}</span
+                                >
+                                <span
+                                    class="min-w-0 flex-[1] text-center text-gray-500"
+                                    >{{ row.number }}</span
+                                >
+                                <span
+                                    class="min-w-0 flex-[1.5] whitespace-nowrap text-gray-500"
+                                    >{{ row.date }}</span
+                                >
+                                <span class="min-w-0 flex-[1.5]">
+                                    <span
+                                        :class="[
+                                            'rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap',
+                                            statusStyle(row.status),
+                                        ]"
+                                    >
+                                        {{ row.status }}
+                                    </span>
+                                </span>
+                                <span
+                                    class="min-w-0 flex-[1.5] font-mono text-xs text-gray-500"
+                                    >{{ row.timeIn }}</span
+                                >
+                                <span
+                                    class="min-w-0 flex-[1.3] font-mono text-xs"
+                                    :class="
+                                        row.timeOut === '00:00'
+                                            ? 'text-red-400'
+                                            : 'text-gray-500'
+                                    "
+                                    >{{ row.timeOut }}</span
+                                >
+                                <span
+                                    class="min-w-0 flex-[1.5] text-xs font-medium text-gray-600"
+                                    >{{ row.hours }}</span
+                                >
+                            </div>
+
+                            <div
+                                v-if="rows.length === 0"
+                                class="rounded-[10px] border border-dashed border-gray-200 px-6 py-8 text-center text-sm text-gray-400"
+                            >
+                                No borrowing records found for the current
+                                filters.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div
+                    class="flex items-center justify-between border-t border-gray-100 px-6 py-3 text-xs text-gray-500"
+                >
+                    <div>
+                        Showing {{ fromRow }} to {{ toRow }} of
+                        {{ totalRows }} records
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button
+                            class="rounded-md border border-gray-200 bg-white px-2.5 py-1 hover:bg-gray-50 disabled:opacity-40"
+                            :disabled="currentPage <= 1"
+                            @click="goToPage(currentPage - 1)"
+                        >
+                            Prev
+                        </button>
+                        <span>Page {{ currentPage }} of {{ lastPage }}</span>
+                        <button
+                            class="rounded-md border border-gray-200 bg-white px-2.5 py-1 hover:bg-gray-50 disabled:opacity-40"
+                            :disabled="currentPage >= lastPage"
+                            @click="goToPage(currentPage + 1)"
+                        >
+                            Next
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Floating RFID Toggle Button -->
+        <button
+            type="button"
+            class="fixed right-6 bottom-6 z-50 flex cursor-pointer items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold shadow-lg transition-all duration-300 select-none"
+            :class="
+                scanPulse
+                    ? 'scale-110 bg-emerald-500 text-white'
+                    : isScanning
+                      ? 'border border-gray-200 bg-white text-gray-700 hover:border-emerald-300 hover:bg-emerald-50'
+                      : 'border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
+            "
+            :title="
+                isScanning
+                    ? 'Click to disable RFID scanner'
+                    : 'Click to enable RFID scanner'
+            "
+            @click="!scanPulse && (isScanning ? stopScanner() : startScanner())"
         >
-          <DashboardCard
-            :count="item.count"
-            :text="item.text"
-            :sub-text="item.subText"
-            :icon="item.icon"
-            :small_icon="item.smallIcon"
-          />
-        </div>
-      </div>
+            <svg
+                class="h-5 w-5"
+                :class="isScanning ? 'text-emerald-500' : 'text-amber-400'"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                viewBox="0 0 24 24"
+            >
+                <rect
+                    x="2"
+                    y="5"
+                    width="20"
+                    height="14"
+                    rx="2"
+                    stroke-width="1.8"
+                />
+                <rect
+                    x="5"
+                    y="9"
+                    width="5"
+                    height="4"
+                    rx="1"
+                    stroke-width="1.5"
+                />
+                <path
+                    stroke-linecap="round"
+                    stroke-width="1.5"
+                    d="M15 10.5a1.5 1.5 0 0 1 0 3"
+                />
+                <path
+                    stroke-linecap="round"
+                    stroke-width="1.5"
+                    d="M17.5 8.5a4 4 0 0 1 0 7"
+                />
+            </svg>
+            <span>{{
+                scanPulse
+                    ? 'Scanned!'
+                    : isScanning
+                      ? 'RFID Listening'
+                      : 'Scanner Paused'
+            }}</span>
+            <span
+                v-if="isScanning && !scanPulse"
+                class="absolute top-2 right-2 h-2 w-2 animate-ping rounded-full bg-emerald-500"
+            ></span>
+        </button>
 
-      <div class="w-full rounded-[10px] bg-white p-5">
-        <div class="flex flex-wrap items-center justify-between gap-3 border-b-2 pb-4">
-          <div class="flex items-center gap-3">
-            <h1 class="text-[20px] font-medium">Borrowing Overview</h1>
-            <div
-              class="flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold transition-all duration-300"
-              :class="isScanning ? 'border border-emerald-200 bg-emerald-50 text-emerald-600' : 'border border-amber-200 bg-amber-50 text-amber-600'"
-            >
-              <span class="inline-block h-2 w-2 rounded-full" :class="isScanning ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'"></span>
-              {{ isScanning ? 'Ready to Scan' : 'Scanner Paused' }}
-            </div>
-          </div>
-
-          <div class="flex items-center gap-3 flex-wrap justify-end">
-            <div class="relative">
-              <svg class="absolute left-3 top-2.5 w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input
-                v-model="searchFilter"
-                type="text"
-                placeholder="Search borrower/item/RFID"
-                class="pl-8 pr-4 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-700 w-52 outline-none focus:border-blue-400"
-                @keyup.enter="submitFilters(1)"
-              />
-            </div>
-            <select
-              v-model="statusFilter"
-              class="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-700 font-medium outline-none focus:border-blue-400"
-            >
-              <option value="">All Status</option>
-              <option value="active">Borrowed</option>
-              <option value="overdue">Overdue</option>
-              <option value="returned">Returned</option>
-              <option value="damaged">Damaged</option>
-              <option value="lost">Lost</option>
-            </select>
-            <select
-              v-model="perPageFilter"
-              class="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-700 font-medium outline-none focus:border-blue-400"
-              @change="submitFilters(1)"
-            >
-              <option :value="5">5 / page</option>
-              <option :value="10">10 / page</option>
-              <option :value="20">20 / page</option>
-              <option :value="50">50 / page</option>
-            </select>
-            <button
-              class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors"
-              @click="submitFilters(1)"
-            >
-              Apply
-            </button>
-            <button
-              class="px-3 py-1.5 bg-gray-100 border border-gray-200 text-gray-700 rounded-lg text-xs font-semibold hover:bg-gray-200 transition-colors"
-              @click="resetFilters"
-            >
-              Reset
-            </button>
-          </div>
-        </div>
-
-        <div class="mt-4 overflow-x-auto">
-          <div class="w-full">
-            <!-- Table Header -->
-            <div class="flex items-center px-4 text-sm text-gray-400 gap-2">
-              <span class="flex-[2] min-w-0 truncate">Borrowers</span>
-              <span class="flex-[1.2] min-w-0">ID</span>
-              <span class="flex-[1.2] min-w-0">Role</span>
-              <span class="flex-[1.8] min-w-0">Item</span>
-              <span class="flex-[1] min-w-0 text-center">Number</span>
-              <span class="flex-[1.5] min-w-0">Date</span>
-              <span class="flex-[1.5] min-w-0">Status</span>
-              <span class="flex-[1.5] min-w-0">Borrowed Time</span>
-              <span class="flex-[1.3] min-w-0">Return Time</span>
-              <span class="flex-[1.5] min-w-0">Borrowed Hours</span>
-            </div>
-
-            <!-- Table Rows -->
-            <div class="mt-2 flex flex-col gap-3">
-              <div
-                v-for="(row, i) in rows"
-                :key="i"
-                class="flex items-center gap-2 rounded-[10px] border border-gray-200 p-4 transition-colors hover:bg-blue-50/60 cursor-pointer"
-                @click="showRowPopup(row)"
-              >
-                <span class="flex-[2] min-w-0 truncate font-medium text-gray-700">{{ row.name }}</span>
-                <span class="flex-[1.2] min-w-0 truncate text-gray-500">{{ row.id }}</span>
-                <span class="flex-[1.2] min-w-0" :class="row.role === 'Teacher' ? 'font-semibold text-blue-600' : 'text-gray-500'">{{ row.role }}</span>
-                <span class="flex-[1.8] min-w-0 truncate text-gray-600">{{ row.item }}</span>
-                <span class="flex-[1] min-w-0 text-center text-gray-500">{{ row.number }}</span>
-                <span class="flex-[1.5] min-w-0 whitespace-nowrap text-gray-500">{{ row.date }}</span>
-                <span class="flex-[1.5] min-w-0">
-                  <span :class="['rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap', statusStyle(row.status)]">
-                    {{ row.status }}
-                  </span>
-                </span>
-                <span class="flex-[1.5] min-w-0 font-mono text-xs text-gray-500">{{ row.timeIn }}</span>
-                <span class="flex-[1.3] min-w-0 font-mono text-xs" :class="row.timeOut === '00:00' ? 'text-red-400' : 'text-gray-500'">{{ row.timeOut }}</span>
-                <span class="flex-[1.5] min-w-0 text-xs font-medium text-gray-600">{{ row.hours }}</span>
-              </div>
-
-              <div
-                v-if="rows.length === 0"
-                class="rounded-[10px] border border-dashed border-gray-200 px-6 py-8 text-center text-sm text-gray-400"
-              >
-                No borrowing records found for the current filters.
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="flex items-center justify-between border-t border-gray-100 px-6 py-3 text-xs text-gray-500">
-          <div>
-            Showing {{ fromRow }} to {{ toRow }} of {{ totalRows }} records
-          </div>
-          <div class="flex items-center gap-2">
-            <button
-              class="px-2.5 py-1 border border-gray-200 rounded-md bg-white hover:bg-gray-50 disabled:opacity-40"
-              :disabled="currentPage <= 1"
-              @click="goToPage(currentPage - 1)"
-            >
-              Prev
-            </button>
-            <span>Page {{ currentPage }} of {{ lastPage }}</span>
-            <button
-              class="px-2.5 py-1 border border-gray-200 rounded-md bg-white hover:bg-gray-50 disabled:opacity-40"
-              :disabled="currentPage >= lastPage"
-              @click="goToPage(currentPage + 1)"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      </div>
+        <button
+            type="button"
+            class="fixed right-6 bottom-20 z-50 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-md transition-colors hover:bg-blue-700"
+            @click="triggerTestPopup"
+        >
+            Test RFID Popup
+        </button>
     </div>
-
-    <!-- Floating RFID Toggle Button -->
-    <button
-      type="button"
-      class="fixed bottom-6 right-6 flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg text-sm font-semibold transition-all duration-300 z-50 select-none cursor-pointer"
-      :class="scanPulse
-        ? 'bg-emerald-500 text-white scale-110'
-        : isScanning
-          ? 'bg-white text-gray-700 border border-gray-200 hover:bg-emerald-50 hover:border-emerald-300'
-          : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'"
-      :title="isScanning ? 'Click to disable RFID scanner' : 'Click to enable RFID scanner'"
-      @click="!scanPulse && (isScanning ? stopScanner() : startScanner())"
-    >
-      <svg class="w-5 h-5" :class="isScanning ? 'text-emerald-500' : 'text-amber-400'" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-        <rect x="2" y="5" width="20" height="14" rx="2" stroke-width="1.8"/>
-        <rect x="5" y="9" width="5" height="4" rx="1" stroke-width="1.5"/>
-        <path stroke-linecap="round" stroke-width="1.5" d="M15 10.5a1.5 1.5 0 0 1 0 3"/>
-        <path stroke-linecap="round" stroke-width="1.5" d="M17.5 8.5a4 4 0 0 1 0 7"/>
-      </svg>
-      <span>{{ scanPulse ? 'Scanned!' : isScanning ? 'RFID Listening' : 'Scanner Paused' }}</span>
-      <span v-if="isScanning && !scanPulse" class="w-2 h-2 rounded-full bg-emerald-500 animate-ping absolute top-2 right-2"></span>
-    </button>
-
-    <button
-      type="button"
-      class="fixed bottom-20 right-6 px-3 py-2 rounded-lg bg-blue-600 text-white text-xs font-semibold shadow-md hover:bg-blue-700 transition-colors z-50"
-      @click="triggerTestPopup"
-    >
-      Test RFID Popup
-    </button>
-
-  </div>
 </template>
 
 <style>
@@ -1195,61 +1457,63 @@ onUnmounted(() => {
 
 /* ── Popup 1: ID card + item ── */
 .swal-id-popup {
-  border-radius: 20px !important;
-  padding: 20px !important;
-  width: 760px !important;
-  max-width: 95vw !important;
-  font-family: 'DM Sans', sans-serif !important;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.15) !important;
+    border-radius: 20px !important;
+    padding: 20px !important;
+    width: 760px !important;
+    max-width: 95vw !important;
+    font-family: 'DM Sans', sans-serif !important;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15) !important;
 }
 .swal-id-popup .swal2-html-container {
-  overflow: visible !important;
-  text-align: left !important;
-  margin: 0 !important;
-  padding: 0 !important;
+    overflow: visible !important;
+    text-align: left !important;
+    margin: 0 !important;
+    padding: 0 !important;
 }
 
 /* ── Popup 2: result ── */
 .swal-result-popup {
-  border-radius: 20px !important;
-  padding: 28px 24px 24px !important;
-  max-width: 420px !important;
-  font-family: 'DM Sans', sans-serif !important;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.15) !important;
+    border-radius: 20px !important;
+    padding: 28px 24px 24px !important;
+    max-width: 420px !important;
+    font-family: 'DM Sans', sans-serif !important;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15) !important;
 }
 
 .swal-actions {
-  margin-top: 16px !important;
-  gap: 10px !important;
+    margin-top: 16px !important;
+    gap: 10px !important;
 }
 
 .swal-confirm-btn {
-  border-radius: 10px !important;
-  font-family: 'DM Sans', sans-serif !important;
-  font-weight: 700 !important;
-  font-size: 13px !important;
-  padding: 10px 28px !important;
-  letter-spacing: 0.3px !important;
+    border-radius: 10px !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-weight: 700 !important;
+    font-size: 13px !important;
+    padding: 10px 28px !important;
+    letter-spacing: 0.3px !important;
 }
 
 /* ── X close button top-right ── */
 .swal-close-btn {
-  width: 30px !important;
-  height: 30px !important;
-  border-radius: 50% !important;
-  background: #f1f5f9 !important;
-  color: #64748b !important;
-  font-size: 20px !important;
-  top: 10px !important;
-  right: 10px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  transition: background 0.15s, color 0.15s !important;
+    width: 30px !important;
+    height: 30px !important;
+    border-radius: 50% !important;
+    background: #f1f5f9 !important;
+    color: #64748b !important;
+    font-size: 20px !important;
+    top: 10px !important;
+    right: 10px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition:
+        background 0.15s,
+        color 0.15s !important;
 }
 
 .swal-close-btn:hover {
-  background: #fee2e2 !important;
-  color: #ef4444 !important;
+    background: #fee2e2 !important;
+    color: #ef4444 !important;
 }
 </style>

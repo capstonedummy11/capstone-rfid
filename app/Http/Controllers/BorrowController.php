@@ -40,8 +40,8 @@ class BorrowController
     ]);
   }
 
-  public function returnItems(Request $request): JsonResponse
-  {
+public function returnItems(Request $request): JsonResponse
+{
     $validated = $request->validate([
       'rfid' => ['required', 'string', 'max:255'],
       'barcodes' => ['required', 'array', 'min:1'],
@@ -114,12 +114,12 @@ class BorrowController
       }
     }
 
-    $advancedBarcodes = []; // successfully advanced to next state
-    $missingBarcodes = []; // barcode not in inventory
-    $unavailableBarcodes = []; // available item but already at final state / taken by someone else
+    $advancedBarcodes = [];
+    $missingBarcodes = [];
+    $unavailableBarcodes = [];
     $touchedBorrowingIds = [];
 
-    DB::transaction(function () use ($requestedBarcodes, $borrowItemByBarcode, $borrowerType, $borrowerStudentId, $borrowerUserId, &$advancedBarcodes, &$missingBarcodes, &$unavailableBarcodes, &$touchedBorrowingIds, ) {
+    DB::transaction(function () use ($requestedBarcodes, $borrowItemByBarcode, $borrowerType, $borrowerStudentId, $borrowerUserId, &$advancedBarcodes, &$missingBarcodes, &$unavailableBarcodes, &$touchedBorrowingIds) {
       $activeBorrowing = null;
 
       foreach ($requestedBarcodes as $barcode) {
@@ -151,13 +151,24 @@ class BorrowController
               ->where('id', $record['borrowing_item_id'])
               ->update(['status' => 'returned']);
 
+            // Count how many times this item has been borrowed
+            $borrowCount = BorrowingItem::query()
+              ->where('item_id', $record['item_id'])
+              ->where('status', 'returned')
+              ->count();
+
+            // If divisible by 15, send to maintenance; otherwise mark available
+            $newItemStatus = ($borrowCount % 15 === 0) ? 'Maintenance' : 'Available';
+
             Item::query()
               ->where('item_id', $record['item_id'])
-              ->update(['status' => 'Available']);
+              ->update(['status' => $newItemStatus]);
 
             Log::info('[BorrowFlow] borrowed → returned', [
               'barcode' => $barcode,
               'borrowing_item_id' => $record['borrowing_item_id'],
+              'borrow_count' => $borrowCount,
+              'item_status_set' => $newItemStatus,
             ]);
           }
 
@@ -272,7 +283,7 @@ class BorrowController
       'missing_barcodes' => $missingUnique,
       'unavailable_barcodes' => $unavailableUnique,
     ]);
-  }
+}
   public function borrowItemsOnly(Request $request): JsonResponse
   {
     $validated = $request->validate([
@@ -362,7 +373,7 @@ class BorrowController
           'borrowing_id' => $activeBorrowing->borrowing_id,
           'item_id' => $inventoryItem->item_id,
           'quantity' => 1,
-          'status' => 'borrow',
+          'status' => 'borrowed',
         ]);
 
         $inventoryItem->update(['status' => 'Borrowed']);
