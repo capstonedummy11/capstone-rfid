@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\AttendanceLog;
+use App\Services\CompreFaceService;
 use Inertia\Inertia;
 
 class AttendanceController
@@ -566,6 +567,42 @@ class AttendanceController
         return response()->json([
             'found' => false,
             'message' => 'RFID not found in users or students.',
+        ]);
+    }
+
+    /**
+     * Face verification endpoint.
+     * Accepts a base64 image from the webcam and returns whether the recognized
+     * subject matches the given student_number (RFID owner).
+     */
+    public function verifyFace(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'image'          => ['required', 'string'],      // base64 data URL
+            'student_number' => ['required', 'string', 'max:255'],
+        ]);
+
+        $result = (new CompreFaceService())->recognizeBase64($validated['image']);
+
+        if ($result === null) {
+            return response()->json([
+                'ok'       => false,
+                'verified' => false,
+                'message'  => 'CompreFace could not detect or match a face.',
+            ]);
+        }
+
+        $verified  = strtolower(trim($result['subject'])) === strtolower(trim($validated['student_number']));
+        $similarity = $result['similarity'];
+
+        return response()->json([
+            'ok'         => true,
+            'verified'   => $verified,
+            'similarity' => $similarity,
+            'matched'    => $result['subject'],
+            'message'    => $verified
+                ? "Face verified ({$similarity})."
+                : "Face does not match the RFID card holder (matched: {$result['subject']}, expected: {$validated['student_number']}).",
         ]);
     }
 

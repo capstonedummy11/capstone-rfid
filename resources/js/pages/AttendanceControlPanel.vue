@@ -572,6 +572,34 @@ const endAttendanceSession = () => {
     showToast('info', 'Attendance session ended');
 };
 
+const verifyFaceWithCompreFace = async (base64DataUrl, studentNumber) => {
+    try {
+        const xsrfRaw = document.cookie
+            .split('; ')
+            .find((row) => row.startsWith('XSRF-TOKEN='))
+            ?.split('=')[1];
+
+        const response = await fetch('/attendance-control-panel/verify-face', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'X-XSRF-TOKEN': xsrfRaw ? decodeURIComponent(xsrfRaw) : '',
+            },
+            body: JSON.stringify({
+                image: base64DataUrl,
+                student_number: studentNumber,
+            }),
+        });
+
+        const payload = await response.json().catch(() => null);
+        if (!payload?.ok) return null; // CompreFace offline or no face — silently pass
+        return payload; // { verified, similarity, matched }
+    } catch {
+        return null; // Network error — silently pass (don't block attendance)
+    }
+};
+
 const recordAttendance = async (student) => {
     showStudentTemporarily(student);
     triggerCameraCapture();
@@ -581,6 +609,27 @@ const recordAttendance = async (student) => {
         minute: '2-digit',
         hour12: true,
     });
+
+    // --- Face verification via CompreFace ---
+    if (capturedPhotoUrl.value && student.studentId) {
+        const faceResult = await verifyFaceWithCompreFace(
+            capturedPhotoUrl.value,
+            student.studentId,
+        );
+        if (faceResult !== null && !faceResult.verified) {
+            showStudentToast(
+                student,
+                `Face mismatch — camera does not match the RFID card holder (${Math.round((faceResult.similarity ?? 0) * 100)}% similar to ${faceResult.matched ?? 'unknown'}).`,
+                'warning',
+            );
+            pushHistory(
+                'Face mismatch',
+                `${student.name}: face recognition failed.`,
+                'warning',
+            );
+            return;
+        }
+    }
 
     const tapResult = await recordStudentTapOnServer(student);
     if (!tapResult?.ok) {

@@ -34,6 +34,7 @@ Route::post('/attendance-control-panel/session-state', [AttendanceController::cl
 Route::post('/attendance-control-panel/student-tap', [AttendanceController::class, 'recordStudentTap'])->name('attendanceControlPanel.studentTap');
 Route::post('/attendance-control-panel/attendance-logs', [AttendanceController::class, 'attendanceLogSnapshot'])->name('attendanceControlPanel.attendanceLogs');
 Route::post('/attendance-control-panel/borrow-items-only', [BorrowController::class, 'borrowItemsOnly'])->name('attendanceControlPanel.borrowItemsOnly');
+Route::post('/attendance-control-panel/verify-face', [AttendanceController::class, 'verifyFace'])->name('attendanceControlPanel.verifyFace');
 
 Route::post('/panel-verify', function (\Illuminate\Http\Request $request) {
   $pin = (string) config('panel.pin', '1234');
@@ -76,6 +77,8 @@ Route::prefix('admin')
     Route::post('/students', [StudentsController::class, 'store'])->name('students.store');
     Route::put('/students/{id}', [StudentsController::class, 'update'])->name('students.update');
     Route::delete('/students/{id}', [StudentsController::class, 'destroy'])->name('students.destroy');
+    Route::post('/students/{id}/face-images', [StudentsController::class, 'uploadFaceImage'])->name('students.face-images.upload');
+    Route::delete('/students/{id}/face-images/{index}', [StudentsController::class, 'deleteFaceImage'])->name('students.face-images.delete');
     Route::get('/sections', [SectionController::class, 'indexAdmin'])->name('sections.index');
     Route::post('/sections', [SectionController::class, 'store'])->name('sections.store');
     Route::put('/sections/{id}', [SectionController::class, 'update'])->name('sections.update');

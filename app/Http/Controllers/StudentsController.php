@@ -6,8 +6,10 @@ use App\Models\ActivityLog;
 use App\Models\Section;
 use App\Models\Strand;
 use App\Models\Students;
+use App\Services\CompreFaceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class StudentsController
@@ -74,6 +76,7 @@ class StudentsController
                     'semester' => $student->semester,
                     'school_year' => $student->school_year,
                     'rfid_tag' => $student->rfid_tag,
+                    'face_images' => $student->face_images ?? [],
                     'status' => $student->status ?? 'active',
                 ];
             })
@@ -175,10 +178,69 @@ class StudentsController
         return back()->with('success', 'Student updated successfully.');
     }
 
+    public function uploadFaceImage(Request $request, $id)
+    {
+        $request->validate([
+            'image' => 'required|image|mimes:jpeg,png,jpg|max:4096',
+        ]);
+
+        $student = Students::findOrFail($id);
+        $currentImages = $student->face_images ?? [];
+
+        if (count($currentImages) >= 5) {
+            return response()->json(['ok' => false, 'message' => 'Maximum 5 face images allowed per student.'], 422);
+        }
+
+        $path = $request->file('image')->store('student_faces', 'public');
+        $currentImages[] = $path;
+        $student->update(['face_images' => $currentImages]);
+
+        // Enroll this face into CompreFace (student_number is the subject)
+        $absolutePath = Storage::disk('public')->path($path);
+        (new CompreFaceService())->enrollFace($student->student_number, $absolutePath);
+
+        $this->logActivity('update', 'students', 'Added face image for student ' . $student->student_number);
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Face image uploaded successfully.',
+            'face_images' => $student->fresh()->face_images ?? [],
+        ]);
+    }
+
+    public function deleteFaceImage($id, $index)
+    {
+        $student = Students::findOrFail($id);
+        $currentImages = $student->face_images ?? [];
+
+        if (!isset($currentImages[(int) $index])) {
+            return response()->json(['ok' => false, 'message' => 'Image not found.'], 404);
+        }
+
+        Storage::disk('public')->delete($currentImages[(int) $index]);
+        array_splice($currentImages, (int) $index, 1);
+        $student->update(['face_images' => array_values($currentImages)]);
+
+        $this->logActivity('update', 'students', 'Removed face image for student ' . $student->student_number);
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Face image removed successfully.',
+            'face_images' => $student->fresh()->face_images ?? [],
+        ]);
+    }
+
     public function destroy($id)
     {
         $student = Students::findOrFail($id);
         $studentNumber = $student->student_number;
+
+        // Remove all stored face image files and CompreFace subject
+        foreach ($student->face_images ?? [] as $imagePath) {
+            Storage::disk('public')->delete($imagePath);
+        }
+        (new CompreFaceService())->deleteSubject($student->student_number);
+
         $student->delete();
 
         $this->logActivity('delete', 'students', 'Deleted student ' . $studentNumber);

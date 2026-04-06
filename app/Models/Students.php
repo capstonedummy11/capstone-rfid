@@ -34,7 +34,12 @@ class Students extends Model
         'semester',
         'school_year',
         'rfid_tag',
+        'face_images',
         'status'
+    ];
+
+    protected $casts = [
+        'face_images' => 'array',
     ];
 
     public function section(): BelongsTo

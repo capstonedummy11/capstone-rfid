@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'compreface' => [
+        'url'     => env('COMPREFACE_URL', 'http://localhost:8000'),
+        'api_key' => env('COMPREFACE_API_KEY', ''),
+    ],
+
 ];
