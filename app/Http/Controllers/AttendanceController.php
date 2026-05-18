@@ -20,8 +20,10 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use App\Models\AttendanceLog;
+use App\Services\AwsFaceRecognitionService;
 use App\Services\CompreFaceService;
 use Inertia\Inertia;
 
@@ -292,6 +294,135 @@ class AttendanceController
         ]);
     }
 
+    public function studentFaceCheck(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'rfid' => ['required', 'string', 'max:255'],
+            'room' => ['required', 'string', 'max:255'],
+            'subject_code' => ['nullable', 'string', 'max:255'],
+            'schedule_id' => ['nullable', 'integer'],
+            'image' => ['required', 'string'],
+        ]);
+
+        $rfid = strtolower(trim($validated['rfid']));
+        $student = Students::query()
+            ->with(['strand', 'section'])
+            ->whereRaw('LOWER(rfid_tag) = ?', [$rfid])
+            ->first();
+
+        if (! $student) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Student not found for this RFID.',
+            ], 404);
+        }
+
+        $attendanceSession = DB::table('attendance_sessions')
+            ->where('room', $validated['room'])
+            ->whereDate('date', now()->toDateString())
+            ->where('status', 'attendance')
+            ->orderByDesc('attendance_id')
+            ->first();
+
+        if (! $attendanceSession) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No active attendance session was found for this room.',
+            ], 422);
+        }
+
+        $scheduleId = $validated['schedule_id'] ?? $attendanceSession->schedule_id;
+        $subjectCode = $validated['subject_code'] ?? $attendanceSession->subject_code;
+        $currentSchedule = $scheduleId ? Schedule::query()->find($scheduleId) : null;
+
+        if (! $currentSchedule) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Current class schedule could not be resolved.',
+            ], 422);
+        }
+
+        if ((int) $student->section_id !== (int) $currentSchedule->section_id) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Student is not enrolled in this class section.',
+            ], 422);
+        }
+
+        $currentSubject = null;
+        if ($subjectCode) {
+            $currentSubject = Subject::query()
+                ->where('subject_code', $subjectCode)
+                ->where('section_id', $currentSchedule->section_id)
+                ->first();
+        }
+
+        if ($currentSubject && ! is_null($currentSubject->year_level) && (int) $student->year_level !== (int) $currentSubject->year_level) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Student year level does not match this class.',
+            ], 422);
+        }
+
+        $faceImages = array_values(array_filter($student->face_images ?? []));
+
+        if (count($faceImages) === 0) {
+            $path = $this->storeStudentFaceCapture($validated['image'], $student);
+
+            if (! $path) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'Unable to capture the first face reference. Please check the camera.',
+                ], 422);
+            }
+
+            $student->update(['face_images' => [$path]]);
+
+            return response()->json([
+                'ok' => true,
+                'verified' => true,
+                'reference_captured' => true,
+                'provider' => 'first_capture',
+                'message' => 'First face reference captured. Attendance can continue.',
+            ]);
+        }
+
+        $faceResult = (new AwsFaceRecognitionService())->compareBase64WithStoredImage(
+            $validated['image'],
+            $faceImages[0],
+        );
+
+        if ($faceResult === null) {
+            return response()->json([
+                'ok' => true,
+                'verified' => true,
+                'provider' => 'aws_rekognition',
+                'provider_unavailable' => true,
+                'message' => 'AWS face recognition is not available. Attendance was allowed after enrollment validation.',
+            ]);
+        }
+
+        if (! $faceResult['verified']) {
+            return response()->json([
+                'ok' => false,
+                'verified' => false,
+                'provider' => $faceResult['provider'],
+                'similarity' => $faceResult['similarity'],
+                'threshold' => $faceResult['threshold'],
+                'message' => 'Face mismatch. Camera image does not match the enrolled student photo.',
+            ], 422);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'verified' => true,
+            'provider' => $faceResult['provider'],
+            'similarity' => $faceResult['similarity'],
+            'threshold' => $faceResult['threshold'],
+            'message' => 'Face verified.',
+        ]);
+    }
+
     public function attendanceLogSnapshot(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -539,6 +670,8 @@ class AttendanceController
                     'strand' => $student->strand?->strand_code ?? $student->section?->strand?->strand_code,
                     'section' => $student->section?->section_name,
                     'avatarSeed' => $fullName,
+                    'hasFaceImage' => count($student->face_images ?? []) > 0,
+                    'faceImageCount' => count($student->face_images ?? []),
                 ],
             ]);
         }
@@ -605,6 +738,72 @@ class AttendanceController
             'message'    => $verified
                 ? "Face verified ({$similarity})."
                 : "Face does not match the RFID card holder (matched: {$result['subject']}, expected: {$validated['student_number']}).",
+        ]);
+    }
+
+    public function verifyStudentFace(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'image' => ['required', 'string'],
+            'student_number' => ['required', 'string', 'max:255'],
+        ]);
+
+        $student = Students::query()
+            ->where('student_number', $validated['student_number'])
+            ->first();
+
+        if (! $student) {
+            return response()->json([
+                'ok' => false,
+                'verified' => false,
+                'message' => 'Student not found.',
+            ], 404);
+        }
+
+        $faceImages = array_values(array_filter($student->face_images ?? []));
+
+        if (count($faceImages) === 0) {
+            return response()->json([
+                'ok' => false,
+                'verified' => false,
+                'message' => 'Student has no saved face image.',
+            ], 422);
+        }
+
+        $faceResult = (new AwsFaceRecognitionService())->compareBase64WithStoredImage(
+            $validated['image'],
+            $faceImages[0],
+        );
+
+        if ($faceResult === null) {
+            return response()->json([
+                'ok' => false,
+                'verified' => false,
+                'message' => 'AWS face recognition is unavailable or could not compare the images.',
+            ], 503);
+        }
+
+        if (! $faceResult['verified']) {
+            return response()->json([
+                'ok' => false,
+                'verified' => false,
+                'provider' => $faceResult['provider'],
+                'similarity' => $faceResult['similarity'],
+                'threshold' => $faceResult['threshold'],
+                'message' => 'Face mismatch.',
+            ], 422);
+        }
+
+        // TODO: Add the action you want after successful facial recognition here.
+        // Example: mark a gate entry, unlock a device, create an audit log, or redirect the frontend.
+
+        return response()->json([
+            'ok' => true,
+            'verified' => true,
+            'provider' => $faceResult['provider'],
+            'similarity' => $faceResult['similarity'],
+            'threshold' => $faceResult['threshold'],
+            'message' => 'Face verified.',
         ]);
     }
 
@@ -817,6 +1016,24 @@ class AttendanceController
             ->all();
 
         return $rooms;
+    }
+
+    private function storeStudentFaceCapture(string $dataUrl, Students $student): ?string
+    {
+        $base64 = preg_replace('/^data:[^;]+;base64,/', '', $dataUrl);
+        $bytes = base64_decode((string) $base64, true);
+
+        if ($bytes === false || strlen($bytes) === 0) {
+            return null;
+        }
+
+        $fileName = sprintf(
+            'student_faces/%s-panel-%s.jpg',
+            Str::slug((string) $student->student_number),
+            now()->format('YmdHis')
+        );
+
+        return Storage::disk('public')->put($fileName, $bytes) ? $fileName : null;
     }
 
     private function buildBorrowItemsByRfid(): array

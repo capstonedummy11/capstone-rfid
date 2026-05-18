@@ -40,4 +40,11 @@ return [
         'api_key' => env('COMPREFACE_API_KEY', ''),
     ],
 
+    'aws_rekognition' => [
+        'key' => env('AWS_ACCESS_KEY_ID'),
+        'secret' => env('AWS_SECRET_ACCESS_KEY'),
+        'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
+        'similarity_threshold' => env('AWS_REKOGNITION_SIMILARITY_THRESHOLD', 90),
+    ],
+
 ];

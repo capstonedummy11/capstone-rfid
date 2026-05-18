@@ -540,31 +540,40 @@ const endAttendanceSession = () => {
     showToast('info', 'Attendance session ended');
 };
 
-const verifyFaceWithCompreFace = async (base64DataUrl, studentNumber) => {
+const checkStudentFaceForAttendance = async (student, base64DataUrl) => {
     try {
         const xsrfRaw = document.cookie
             .split('; ')
             .find((row) => row.startsWith('XSRF-TOKEN='))
             ?.split('=')[1];
 
-        const response = await fetch('/attendance-control-panel/verify-face', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Accept: 'application/json',
-                'X-XSRF-TOKEN': xsrfRaw ? decodeURIComponent(xsrfRaw) : '',
+        const response = await fetch(
+            '/attendance-control-panel/student-face-check',
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-XSRF-TOKEN': xsrfRaw ? decodeURIComponent(xsrfRaw) : '',
+                },
+                body: JSON.stringify({
+                    rfid: student.rfid,
+                    room: selectedRoom.value,
+                    subject_code: activeProfessor.value?.subject_code ?? null,
+                    schedule_id: activeProfessor.value?.schedule_id ?? null,
+                    image: base64DataUrl,
+                }),
             },
-            body: JSON.stringify({
-                image: base64DataUrl,
-                student_number: studentNumber,
-            }),
-        });
+        );
 
         const payload = await response.json().catch(() => null);
-        if (!payload?.ok) return null; // CompreFace offline or no face — silently pass
-        return payload; // { verified, similarity, matched }
+        if (!response.ok) return payload ?? { ok: false };
+        return payload;
     } catch {
-        return null; // Network error — silently pass (don't block attendance)
+        return {
+            ok: false,
+            message: 'Connection error during face verification.',
+        };
     }
 };
 
@@ -578,25 +587,62 @@ const recordAttendance = async (student) => {
         hour12: true,
     });
 
-    // --- Face verification via CompreFace ---
-    if (capturedPhotoUrl.value && student.studentId) {
-        const faceResult = await verifyFaceWithCompreFace(
-            capturedPhotoUrl.value,
-            student.studentId,
+    if (!capturedPhotoUrl.value) {
+        showStudentToast(
+            student,
+            'Camera capture is required before attendance can be recorded.',
+            'warning',
         );
-        if (faceResult !== null && !faceResult.verified) {
-            showStudentToast(
-                student,
-                `Face mismatch — camera does not match the RFID card holder (${Math.round((faceResult.similarity ?? 0) * 100)}% similar to ${faceResult.matched ?? 'unknown'}).`,
-                'warning',
-            );
-            pushHistory(
-                'Face mismatch',
-                `${student.name}: face recognition failed.`,
-                'warning',
-            );
-            return;
-        }
+        pushHistory(
+            'Camera capture required',
+            `${student.name} must be captured before attendance is saved.`,
+            'warning',
+        );
+        return;
+    }
+
+    const faceResult = await checkStudentFaceForAttendance(
+        student,
+        capturedPhotoUrl.value,
+    );
+
+    if (!faceResult?.ok || faceResult.verified === false) {
+        showStudentToast(
+            student,
+            faceResult?.message ??
+                'Face verification failed. Attendance was not recorded.',
+            'warning',
+        );
+        pushHistory(
+            'Face verification blocked',
+            `${student.name}: ${faceResult?.message ?? 'verification failed.'}`,
+            'warning',
+        );
+        setTapHeadline('Face Verification Failed');
+        return;
+    }
+
+    if (faceResult.reference_captured) {
+        student.hasFaceImage = true;
+        student.faceImageCount = 1;
+        pushHistory(
+            'Face reference captured',
+            `${student.name} had no saved photo, so this camera capture was saved as the reference.`,
+            'success',
+        );
+        showStudentToast(student, faceResult.message, 'success');
+    } else if (faceResult.provider_unavailable) {
+        pushHistory(
+            'Face provider unavailable',
+            faceResult.message,
+            'warning',
+        );
+    } else {
+        pushHistory(
+            'Face verified',
+            `${student.name} passed AWS face verification.`,
+            'success',
+        );
     }
 
     const tapResult = await recordStudentTapOnServer(student);
@@ -944,26 +990,46 @@ const processBorrowerMode = (student) => {
     return swalPromise;
 };
 
+const triggerEmergencyCall = () => {
+    const professorName = activeProfessor.value?.name ?? 'Instructor';
+    lastAction.value = `${professorName} triggered an emergency call from ${selectedRoom.value}.`;
+    pushHistory(
+        'Emergency call triggered',
+        `${professorName} requested emergency assistance for ${selectedRoom.value}.`,
+        'warning',
+    );
+    setTapHeadline('Emergency Call Triggered', 4000);
+    syncPanelSessionState('attendance', {
+        emergency_call: true,
+        emergency_called_at: new Date().toISOString(),
+    });
+    Swal.fire({
+        icon: 'warning',
+        title: 'Emergency Call Triggered',
+        text: `Emergency assistance has been marked for ${selectedRoom.value}.`,
+        confirmButtonColor: '#dc2626',
+    });
+};
+
 const showInstructorOptions = async () => {
     if (currentMode.value === 'borrowing') {
-        // Borrowing mode: prof can borrow an item themselves, or just resume attendance, or end session
         const result = await Swal.fire({
             title: 'Instructor RFID detected',
-            text: 'You are in Borrowing Mode. What would you like to do?',
+            text: 'Choose the next action for this live class.',
             showConfirmButton: true,
             showDenyButton: true,
             showCancelButton: true,
-            confirmButtonText: 'Borrow Item',
-            denyButtonText: 'Resume Attendance',
-            cancelButtonText: 'End Session',
+            confirmButtonText: 'Borrowing Mode',
+            denyButtonText: 'Continue Class',
+            cancelButtonText: 'Emergency Call',
             confirmButtonColor: '#d97706',
             denyButtonColor: '#16a34a',
             cancelButtonColor: '#dc2626',
             reverseButtons: true,
+            allowOutsideClick: false,
         });
 
         if (result.isConfirmed) {
-            // Open borrow popup for the professor, then auto-resume attendance after it closes
             const prof = activeProfessor.value;
             if (prof) {
                 await processBorrowerMode(prof);
@@ -993,13 +1059,12 @@ const showInstructorOptions = async () => {
             return;
         }
 
-        if (result.isDismissed) {
-            endAttendanceSession();
+        if (result.dismiss === Swal.DismissReason.cancel) {
+            triggerEmergencyCall();
         }
         return;
     }
 
-    // Attendance mode: only offer switching to borrowing mode
     const result = await Swal.fire({
         title: 'Instructor RFID detected again',
         text: 'Choose the next action for this live session.',
@@ -1007,12 +1072,13 @@ const showInstructorOptions = async () => {
         showDenyButton: true,
         showCancelButton: true,
         confirmButtonText: 'Borrowing Mode',
-        denyButtonText: 'End Attendance Session',
-        cancelButtonText: 'Keep Attendance / Exit',
+        denyButtonText: 'Continue Class',
+        cancelButtonText: 'Emergency Call',
         confirmButtonColor: '#d97706',
-        denyButtonColor: '#dc2626',
-        cancelButtonColor: '#64748b',
+        denyButtonColor: '#16a34a',
+        cancelButtonColor: '#dc2626',
         reverseButtons: true,
+        allowOutsideClick: false,
     });
 
     if (result.isConfirmed) {
@@ -1029,7 +1095,20 @@ const showInstructorOptions = async () => {
     }
 
     if (result.isDenied) {
-        endAttendanceSession();
+        currentMode.value = 'attendance';
+        lastAction.value = `${activeProfessor.value?.name ?? 'Instructor'} continued the class session.`;
+        pushHistory(
+            'Class continued',
+            'Attendance recording remains active.',
+            'success',
+        );
+        syncPanelSessionState('attendance');
+        showToast('success', 'Class continued');
+        return;
+    }
+
+    if (result.dismiss === Swal.DismissReason.cancel) {
+        triggerEmergencyCall();
     }
 };
 
