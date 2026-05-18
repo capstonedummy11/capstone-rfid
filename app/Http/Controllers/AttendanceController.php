@@ -18,7 +18,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use App\Models\AttendanceLog;
 use App\Services\CompreFaceService;
 use Inertia\Inertia;
@@ -608,6 +610,169 @@ class AttendanceController
 
     public function controlPanel()
     {
+        $panelRoom = session('panel.room');
+
+        if (! $panelRoom) {
+            return redirect()->route('attendanceControlPanel.login');
+        }
+
+        return Inertia::render('AttendanceControlPanel', [
+            ...$this->panelPayload(),
+            'panelRoom' => $panelRoom,
+        ]);
+    }
+
+    public function panelLogin()
+    {
+        $isConsole = strtolower(trim((string) Auth::user()?->role)) === 'console';
+
+        if ($isConsole && session('panel.room')) {
+            return redirect()->route('attendanceControlPanel');
+        }
+
+        return Inertia::render('AttendancePanelLogin', [
+            'rooms' => $this->panelRooms(),
+            'alreadyVerified' => $isConsole,
+        ]);
+    }
+
+    public function verifyPanelPin(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'pin' => ['required', 'string'],
+        ]);
+
+        $pin = (string) config('panel.pin', '1234');
+
+        if ((string) $validated['pin'] !== $pin) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Incorrect PIN. Please try again.',
+            ], 401);
+        }
+
+        $consoleUser = User::withTrashed()->updateOrCreate(
+            ['email' => 'console@rfid-panel.local'],
+            [
+                'name' => 'Attendance Console',
+                'password' => Hash::make(Str::random(40)),
+                'role' => 'console',
+            ],
+        );
+
+        if (method_exists($consoleUser, 'restore') && $consoleUser->trashed()) {
+            $consoleUser->restore();
+        }
+
+        Auth::login($consoleUser);
+        $request->session()->regenerate();
+
+        return response()->json(['success' => true]);
+    }
+
+    public function selectPanelRoom(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'room' => ['required', 'string', 'max:255'],
+        ]);
+
+        session(['panel.room' => $validated['room']]);
+
+        return response()->json(['success' => true]);
+    }
+
+    public function panelLogout(Request $request): JsonResponse
+    {
+        $room = trim((string) ($request->input('room') ?? session('panel.room')));
+
+        if ($room !== '') {
+            $panelSession = RfidPanelSession::query()
+                ->where('room', $room)
+                ->whereNull('ended_at')
+                ->latest('panel_session_id')
+                ->first();
+
+            if ($panelSession) {
+                $panelSession->forceFill([
+                    'status' => 'offline',
+                    'is_listening' => false,
+                    'ended_at' => now(),
+                ])->save();
+            }
+
+            $attendanceSession = DB::table('attendance_sessions')
+                ->where('room', $room)
+                ->whereDate('date', now()->toDateString())
+                ->whereNull('time_end')
+                ->orderByDesc('attendance_id')
+                ->first();
+
+            if ($attendanceSession) {
+                DB::table('attendance_sessions')
+                    ->where('attendance_id', $attendanceSession->attendance_id)
+                    ->update([
+                    'status' => 'offline',
+                    'time_end' => now()->format('H:i:s'),
+                    'updated_at' => now(),
+                ]);
+            }
+        }
+
+        Auth::logout();
+        $request->session()->forget('panel.room');
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return response()->json([
+            'success' => true,
+            'redirect' => route('attendanceControlPanel.login'),
+        ]);
+    }
+
+    private function panelPayload(): array
+    {
+        return [
+            'rooms' => $this->panelRooms(),
+            'demoInstructorRfids' => User::query()
+                ->whereRaw('LOWER(role) = ?', ['instructor'])
+                ->whereNotNull('rfid_tag')
+                ->where('rfid_tag', '!=', '')
+                ->orderBy('name')
+                ->pluck('rfid_tag')
+                ->values()
+                ->all(),
+            'demoStudentRfids' => Students::query()
+                ->whereNotNull('rfid_tag')
+                ->where('rfid_tag', '!=', '')
+                ->where('status', 'active')
+                ->orderBy('student_number')
+                ->pluck('rfid_tag')
+                ->values()
+                ->all(),
+            'borrowItemsCatalog' => Item::query()
+                ->whereNotNull('barcode')
+                ->select(['item_id', 'name', 'sku', 'description', 'barcode', 'status'])
+                ->orderBy('name')
+                ->get()
+                ->map(function ($device) {
+                    return [
+                        'name' => $device->name,
+                        'id' => $device->sku ?? ('ITEM-' . $device->item_id),
+                        'type' => $device->description ?? 'Device',
+                        'barcode' => (string) $device->barcode,
+                        'status' => $device->status,
+                    ];
+                })
+                ->values()
+                ->all(),
+            'borrowItemsByRfid' => $this->buildBorrowItemsByRfid(),
+            'studentToastSeconds' => config('panel.student_toast_seconds', 15),
+            'studentInfoVisibleSeconds' => config('panel.student_info_visible_seconds', 10),
+        ];
+    }
+
+    private function panelRooms(): array
+    {
         $latestSessionsByRoom = RfidPanelSession::query()
             ->orderByDesc('created_at')
             ->get()
@@ -651,44 +816,7 @@ class AttendanceController
             ->values()
             ->all();
 
-        return Inertia::render('AttendanceControlPanel', [
-            'rooms' => $rooms,
-            'demoInstructorRfids' => User::query()
-                ->whereRaw('LOWER(role) = ?', ['instructor'])
-                ->whereNotNull('rfid_tag')
-                ->where('rfid_tag', '!=', '')
-                ->orderBy('name')
-                ->pluck('rfid_tag')
-                ->values()
-                ->all(),
-            'demoStudentRfids' => Students::query()
-                ->whereNotNull('rfid_tag')
-                ->where('rfid_tag', '!=', '')
-                ->where('status', 'active')
-                ->orderBy('student_number')
-                ->pluck('rfid_tag')
-                ->values()
-                ->all(),
-            'borrowItemsCatalog' => Item::query()
-                ->whereNotNull('barcode')
-                ->select(['item_id', 'name', 'sku', 'description', 'barcode', 'status'])
-                ->orderBy('name')
-                ->get()
-                ->map(function ($device) {
-                    return [
-                        'name' => $device->name,
-                        'id' => $device->sku ?? ('ITEM-' . $device->item_id),
-                        'type' => $device->description ?? 'Device',
-                        'barcode' => (string) $device->barcode,
-                        'status' => $device->status,
-                    ];
-                })
-                ->values()
-                ->all(),
-            'borrowItemsByRfid' => $this->buildBorrowItemsByRfid(),
-            'studentToastSeconds' => config('panel.student_toast_seconds', 15),
-            'studentInfoVisibleSeconds' => config('panel.student_info_visible_seconds', 10),
-        ]);
+        return $rooms;
     }
 
     private function buildBorrowItemsByRfid(): array

@@ -28,21 +28,20 @@ Route::get('/', function (Request $request) {
   return Inertia::render('LandingPage');
 })->name('landingPage');
 Route::inertia('/about', 'About')->name('about');
-Route::get('/attendance-control-panel', [AttendanceController::class, 'controlPanel'])->name('attendanceControlPanel');
-Route::post('/attendance-control-panel/rfid-lookup', [AttendanceController::class, 'lookupRfid'])->name('attendanceControlPanel.lookupRfid');
-Route::post('/attendance-control-panel/session-state', [AttendanceController::class, 'updatePanelSessionState'])->name('attendanceControlPanel.sessionState');
-Route::post('/attendance-control-panel/student-tap', [AttendanceController::class, 'recordStudentTap'])->name('attendanceControlPanel.studentTap');
-Route::post('/attendance-control-panel/attendance-logs', [AttendanceController::class, 'attendanceLogSnapshot'])->name('attendanceControlPanel.attendanceLogs');
-Route::post('/attendance-control-panel/borrow-items-only', [BorrowController::class, 'borrowItemsOnly'])->name('attendanceControlPanel.borrowItemsOnly');
-Route::post('/attendance-control-panel/verify-face', [AttendanceController::class, 'verifyFace'])->name('attendanceControlPanel.verifyFace');
+Route::get('/attendance-control-panel/login', [AttendanceController::class, 'panelLogin'])->name('attendanceControlPanel.login');
+Route::post('/panel-verify', [AttendanceController::class, 'verifyPanelPin'])->name('panelVerify');
 
-Route::post('/panel-verify', function (\Illuminate\Http\Request $request) {
-  $pin = (string) config('panel.pin', '1234');
-  if ((string) $request->input('pin', '') === $pin) {
-    return response()->json(['success' => true]);
-  }
-  return response()->json(['success' => false, 'message' => 'Incorrect PIN. Please try again.'], 401);
-})->name('panelVerify');
+Route::middleware(['auth', 'role:console'])->group(function () {
+  Route::get('/attendance-control-panel', [AttendanceController::class, 'controlPanel'])->name('attendanceControlPanel');
+  Route::post('/attendance-control-panel/room', [AttendanceController::class, 'selectPanelRoom'])->name('attendanceControlPanel.room');
+  Route::post('/attendance-control-panel/logout', [AttendanceController::class, 'panelLogout'])->name('attendanceControlPanel.logout');
+  Route::post('/attendance-control-panel/rfid-lookup', [AttendanceController::class, 'lookupRfid'])->name('attendanceControlPanel.lookupRfid');
+  Route::post('/attendance-control-panel/session-state', [AttendanceController::class, 'updatePanelSessionState'])->name('attendanceControlPanel.sessionState');
+  Route::post('/attendance-control-panel/student-tap', [AttendanceController::class, 'recordStudentTap'])->name('attendanceControlPanel.studentTap');
+  Route::post('/attendance-control-panel/attendance-logs', [AttendanceController::class, 'attendanceLogSnapshot'])->name('attendanceControlPanel.attendanceLogs');
+  Route::post('/attendance-control-panel/borrow-items-only', [BorrowController::class, 'borrowItemsOnly'])->name('attendanceControlPanel.borrowItemsOnly');
+  Route::post('/attendance-control-panel/verify-face', [AttendanceController::class, 'verifyFace'])->name('attendanceControlPanel.verifyFace');
+});
 
 Route::inertia('/register', 'Auth/Register')->name('register_page');
 

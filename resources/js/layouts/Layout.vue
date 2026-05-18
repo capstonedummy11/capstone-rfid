@@ -18,7 +18,7 @@
                         class="m-5"
                     />
                     <NavButton
-                        :href="route('attendanceControlPanel')"
+                        :href="route('attendanceControlPanel.login')"
                         :label="'Panel'"
                         class="m-5"
                     />
@@ -51,7 +51,7 @@
                     @click="isMenuOpen = false"
                 />
                 <NavButton
-                    :href="route('attendanceControlPanel')"
+                    :href="route('attendanceControlPanel.login')"
                     :label="'Attendance Panel'"
                     class="m-5"
                     @click="isMenuOpen = false"

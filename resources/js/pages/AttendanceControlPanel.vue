@@ -4,7 +4,6 @@ defineOptions({
 });
 
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { Link } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
 import CameraCapture from '@/components/CameraCapture.vue';
 
@@ -37,45 +36,15 @@ const props = defineProps({
         type: Number,
         default: 10,
     },
+    panelRoom: {
+        type: String,
+        default: '',
+    },
 });
 
 // --- Panel gate / access control ---
 const panelUnlocked = ref(false);
 const selectedRoom = ref('');
-const gateStep = ref('pin'); // 'pin' | 'room'
-const pinVerified = ref(false);
-const pinValue = ref('');
-const pinError = ref('');
-const pinLoading = ref(false);
-const roomSearch = ref('');
-
-const roomOptions = computed(() =>
-    props.rooms
-        .map((room) => {
-            if (typeof room === 'string') {
-                return {
-                    name: room,
-                    status: 'offline',
-                    label: 'Not in use',
-                };
-            }
-
-            return {
-                name: room?.name ?? '',
-                status: room?.status ?? 'offline',
-                label: room?.label ?? 'Not in use',
-            };
-        })
-        .filter((room) => room.name !== ''),
-);
-
-const filteredRooms = computed(() => {
-    if (!roomSearch.value) return roomOptions.value;
-    const query = roomSearch.value.toLowerCase();
-    return roomOptions.value.filter((room) =>
-        room.name.toLowerCase().includes(query),
-    );
-});
 
 const systemModeStyles = {
     attendance: 'border-emerald-200 bg-emerald-50 text-emerald-700',
@@ -124,7 +93,6 @@ let captureResetTimer = null;
 const cameraRef = ref(null);
 const capturedPhotoUrl = ref(null);
 
-const PANEL_AUTH_KEY = 'panelAuth';
 const PANEL_RUNTIME_KEY = 'panelRuntime';
 
 const SCAN_TIMEOUT = 300;
@@ -1065,64 +1033,9 @@ const showInstructorOptions = async () => {
     }
 };
 
-const verifyPin = async () => {
-    if (!pinValue.value) return;
-    pinError.value = '';
-    pinLoading.value = true;
-    try {
-        const xsrfRaw = document.cookie
-            .split('; ')
-            .find((row) => row.startsWith('XSRF-TOKEN='))
-            ?.split('=')[1];
-        const response = await fetch('/panel-verify', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Accept: 'application/json',
-                'X-XSRF-TOKEN': xsrfRaw ? decodeURIComponent(xsrfRaw) : '',
-            },
-            body: JSON.stringify({ pin: pinValue.value }),
-        });
-        if (response.ok) {
-            pinVerified.value = true;
-            gateStep.value = 'room';
-        } else {
-            const data = await response.json().catch(() => ({}));
-            pinError.value = data.message ?? 'Incorrect PIN. Please try again.';
-            pinValue.value = '';
-            pinVerified.value = false;
-        }
-    } catch {
-        pinError.value = 'Connection error. Please retry.';
-        pinVerified.value = false;
-    } finally {
-        pinLoading.value = false;
-    }
-};
-
-const unlockPanel = () => {
-    if (!selectedRoom.value || !pinVerified.value) return;
-
-    localStorage.setItem(
-        PANEL_AUTH_KEY,
-        JSON.stringify({
-            unlocked: true,
-            room: selectedRoom.value,
-            timestamp: Date.now(),
-        }),
-    );
-    panelUnlocked.value = true;
-    syncPanelSessionState('online');
-};
-
-const logoutPanel = () => {
+const logoutPanel = async () => {
+    const roomToClose = selectedRoom.value;
     panelUnlocked.value = false;
-    selectedRoom.value = '';
-    gateStep.value = 'pin';
-    pinVerified.value = false;
-    pinValue.value = '';
-    pinError.value = '';
-    roomSearch.value = '';
     sessionActive.value = false;
     currentMode.value = 'idle';
     activeProfessor.value = null;
@@ -1139,9 +1052,32 @@ const logoutPanel = () => {
         clearTimeout(tapHeadlineTimer);
         tapHeadlineTimer = null;
     }
-    localStorage.removeItem(PANEL_AUTH_KEY);
     clearPanelRuntime();
-    syncPanelSessionState('offline');
+    selectedRoom.value = roomToClose;
+    await syncPanelSessionState('offline');
+
+    try {
+        const xsrfRaw = document.cookie
+            .split('; ')
+            .find((row) => row.startsWith('XSRF-TOKEN='))
+            ?.split('=')[1];
+
+        const response = await fetch('/attendance-control-panel/logout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'X-XSRF-TOKEN': xsrfRaw ? decodeURIComponent(xsrfRaw) : '',
+            },
+            body: JSON.stringify({ room: roomToClose }),
+        });
+
+        const payload = await response.json().catch(() => ({}));
+        window.location.href =
+            payload.redirect ?? '/attendance-control-panel/login';
+    } catch {
+        window.location.href = '/attendance-control-panel/login';
+    }
 };
 
 const handleRfidScan = async (rfid) => {
@@ -1430,39 +1366,42 @@ const runDemoBorrowTap = () => {
 };
 
 onMounted(() => {
-    const panelAuthRaw = localStorage.getItem(PANEL_AUTH_KEY);
-    if (panelAuthRaw) {
-        try {
-            const panelAuth = JSON.parse(panelAuthRaw);
-            if (panelAuth.unlocked && panelAuth.room) {
-                selectedRoom.value = panelAuth.room;
-                panelUnlocked.value = true;
+    if (!props.panelRoom) {
+        window.location.href = '/attendance-control-panel/login';
+        return;
+    }
 
-                const panelRuntimeRaw = localStorage.getItem(PANEL_RUNTIME_KEY);
-                if (panelRuntimeRaw) {
-                    const panelRuntime = JSON.parse(panelRuntimeRaw);
-                    sessionActive.value = Boolean(panelRuntime.sessionActive);
-                    currentMode.value =
-                        panelRuntime.currentMode ||
-                        (panelRuntime.sessionActive ? 'attendance' : 'idle');
-                    isListening.value = panelRuntime.isListening ?? true;
-                    activeProfessor.value =
-                        panelRuntime.activeProfessor ?? null;
-                    if (panelRuntime.lastAction) {
-                        lastAction.value = panelRuntime.lastAction;
-                    }
+    try {
+        selectedRoom.value = props.panelRoom;
+        panelUnlocked.value = true;
 
-                    if (
-                        panelRuntime.sessionActive &&
-                        (panelRuntime.currentMode || 'idle') === 'attendance'
-                    ) {
-                        loadAttendanceLogsFromServer();
-                    }
-                }
+        const panelRuntimeRaw = localStorage.getItem(PANEL_RUNTIME_KEY);
+        if (panelRuntimeRaw) {
+            const panelRuntime = JSON.parse(panelRuntimeRaw);
+            sessionActive.value = Boolean(panelRuntime.sessionActive);
+            currentMode.value =
+                panelRuntime.currentMode ||
+                (panelRuntime.sessionActive ? 'attendance' : 'idle');
+            isListening.value = panelRuntime.isListening ?? true;
+            activeProfessor.value = panelRuntime.activeProfessor ?? null;
+            if (panelRuntime.lastAction) {
+                lastAction.value = panelRuntime.lastAction;
             }
-        } catch {
-            // skip
+
+            if (
+                panelRuntime.sessionActive &&
+                (panelRuntime.currentMode || 'idle') === 'attendance'
+            ) {
+                loadAttendanceLogsFromServer();
+            }
         }
+
+        if (!sessionActive.value) {
+            syncPanelSessionState('online');
+        }
+    } catch {
+        window.location.href = '/attendance-control-panel/login';
+        return;
     }
 
     updateClock();
@@ -1505,209 +1444,11 @@ watch(
 </script>
 
 <template>
-    <!-- ═══ Gate Screen ═══ -->
+    <!-- Main Panel -->
     <div
-        v-if="!panelUnlocked"
-        class="flex min-h-screen w-full items-center justify-center bg-[#f5f6fa] p-6"
+        v-if="panelUnlocked"
+        class="min-h-screen w-full bg-[#f5f6fa] p-4 sm:p-5 lg:p-6"
     >
-        <div class="w-full max-w-2xl">
-            <!-- Icon + heading -->
-            <div class="mb-10 text-center">
-                <div
-                    class="inline-flex h-20 w-20 items-center justify-center rounded-3xl bg-[#123456] text-white shadow-lg"
-                >
-                    <svg
-                        class="h-10 w-10"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.8"
-                        viewBox="0 0 24 24"
-                    >
-                        <rect
-                            x="3"
-                            y="11"
-                            width="18"
-                            height="11"
-                            rx="2"
-                            stroke-width="1.8"
-                        />
-                        <path
-                            stroke-linecap="round"
-                            stroke-width="1.8"
-                            d="M7 11V7a5 5 0 0 1 10 0v4"
-                        />
-                    </svg>
-                </div>
-                <h1 class="mt-5 text-3xl font-extrabold text-slate-900">
-                    Panel Access
-                </h1>
-                <p class="mt-2 text-base text-slate-500">
-                    Verify to activate the attendance panel.
-                </p>
-            </div>
-
-            <!-- Card -->
-            <div
-                class="rounded-[28px] bg-white p-10 shadow-xl ring-1 ring-slate-200/70"
-            >
-                <!-- Step 1: PIN Entry -->
-                <div v-if="gateStep === 'pin'">
-                    <div
-                        class="text-[10px] font-bold tracking-[0.28em] text-slate-400 uppercase"
-                    >
-                        Step 1 of 2
-                    </div>
-                    <h2 class="mt-3 text-2xl font-extrabold text-slate-900">
-                        Enter Access PIN
-                    </h2>
-                    <p class="mt-2 text-base text-slate-500">
-                        Verify administrator access before selecting a room.
-                    </p>
-                    <div class="mt-5">
-                        <input
-                            v-model="pinValue"
-                            type="password"
-                            inputmode="numeric"
-                            maxlength="8"
-                            placeholder="● ● ● ●"
-                            autocomplete="one-time-code"
-                            class="w-full rounded-2xl border-2 border-slate-200 bg-slate-50 px-4 py-3.5 text-center text-xl font-bold tracking-[0.5em] text-slate-900 transition outline-none placeholder:tracking-normal placeholder:text-slate-300 focus:border-[#123456] focus:bg-white focus:ring-2 focus:ring-[#123456]/10"
-                            :class="
-                                pinError
-                                    ? 'border-red-300 focus:border-red-400 focus:ring-red-100'
-                                    : ''
-                            "
-                            @keydown.enter="verifyPin"
-                        />
-                        <p
-                            v-if="pinError"
-                            class="mt-2 text-center text-xs font-semibold text-red-500"
-                        >
-                            {{ pinError }}
-                        </p>
-                    </div>
-                    <button
-                        type="button"
-                        class="mt-5 w-full rounded-2xl bg-[#123456] py-4 text-base font-bold text-white shadow-sm transition hover:bg-[#0e2840] disabled:cursor-not-allowed disabled:opacity-40"
-                        :disabled="!pinValue || pinLoading"
-                        @click="verifyPin"
-                    >
-                        <span v-if="pinLoading">Verifying...</span>
-                        <span v-else>Continue to Room Selection →</span>
-                    </button>
-                    <Link
-                        :href="route('landingPage')"
-                        class="mt-3 block w-full rounded-2xl border border-slate-200 bg-white py-3 text-center text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
-                    >
-                        Exit
-                    </Link>
-                </div>
-
-                <!-- Step 2: Room Selection -->
-                <div v-else>
-                    <button
-                        type="button"
-                        class="text-xs font-semibold text-slate-400 transition hover:text-slate-700"
-                        @click="
-                            gateStep = 'pin';
-                            pinValue = '';
-                            pinError = '';
-                            pinVerified = false;
-                        "
-                    >
-                        ← Change PIN
-                    </button>
-                    <div
-                        class="mt-4 text-[10px] font-bold tracking-[0.28em] text-slate-400 uppercase"
-                    >
-                        Step 2 of 2
-                    </div>
-                    <h2 class="mt-3 text-2xl font-extrabold text-slate-900">
-                        Select a Room
-                    </h2>
-                    <p class="mt-2 text-base text-slate-500">
-                        Which room is this panel assigned to?
-                    </p>
-
-                    <div class="mt-5">
-                        <input
-                            v-model="roomSearch"
-                            type="text"
-                            placeholder="Search rooms..."
-                            class="w-full rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-3 text-base transition outline-none focus:border-[#123456] focus:bg-white focus:ring-2 focus:ring-[#123456]/10"
-                        />
-                    </div>
-
-                    <div
-                        class="mt-4 max-h-96 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50/30 p-4"
-                    >
-                        <div
-                            class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
-                        >
-                            <button
-                                v-for="room in filteredRooms"
-                                :key="room.name"
-                                type="button"
-                                class="rounded-2xl border-2 px-4 py-4 text-left text-sm font-semibold transition-all duration-150"
-                                :class="
-                                    selectedRoom === room.name
-                                        ? 'border-[#123456] bg-[#123456] text-white shadow-md'
-                                        : 'border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-white'
-                                "
-                                @click="selectedRoom = room.name"
-                            >
-                                <div
-                                    class="mb-1 text-[10px] font-bold tracking-wide uppercase"
-                                    :class="
-                                        selectedRoom === room.name
-                                            ? 'text-white/60'
-                                            : 'text-slate-400'
-                                    "
-                                >
-                                    Room
-                                </div>
-                                <div class="min-h-8 whitespace-normal">
-                                    {{ room.name }}
-                                </div>
-                                <div
-                                    class="mt-3 inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold tracking-[0.18em] uppercase"
-                                    :class="
-                                        selectedRoom === room.name
-                                            ? 'bg-white/15 text-white'
-                                            : 'bg-slate-200 text-slate-600'
-                                    "
-                                >
-                                    {{ room.label }}
-                                </div>
-                            </button>
-                        </div>
-                        <div
-                            v-if="filteredRooms.length === 0"
-                            class="py-8 text-center text-sm text-slate-500"
-                        >
-                            No rooms found
-                        </div>
-                    </div>
-
-                    <button
-                        type="button"
-                        class="mt-5 w-full rounded-2xl bg-[#123456] py-4 text-base font-bold text-white shadow-sm transition hover:bg-[#0e2840] disabled:cursor-not-allowed disabled:opacity-40"
-                        :disabled="!selectedRoom || !pinVerified"
-                        @click="unlockPanel"
-                    >
-                        Unlock Panel
-                    </button>
-                </div>
-            </div>
-
-            <p class="mt-6 text-center text-xs text-slate-400">
-                Contact your system administrator if you need access assistance.
-            </p>
-        </div>
-    </div>
-
-    <!-- ═══ Main Panel ═══ -->
-    <div v-else class="min-h-screen w-full bg-[#f5f6fa] p-4 sm:p-5 lg:p-6">
         <div
             class="grid min-h-[calc(100vh-2rem)] w-full gap-4 sm:min-h-[calc(100vh-2.5rem)] lg:min-h-[calc(100vh-3rem)] lg:grid-rows-[auto_1fr_auto]"
             :class="
@@ -2267,6 +2008,7 @@ watch(
             ></span>
         </button>
     </div>
+    <div v-else class="min-h-screen w-full bg-[#f5f6fa]"></div>
 </template>
 
 <style>

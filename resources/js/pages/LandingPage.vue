@@ -34,7 +34,7 @@
                         data-aos-duration="1000"
                     >
                         <Button
-                            href="#"
+                            :href="route('attendanceControlPanel.login')"
                             label="GET STARTED TODAY"
                             class="border-white p-3 hover:bg-black/50"
                             is-blue="true"
