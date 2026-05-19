@@ -19,9 +19,14 @@ class LoginResponse implements LoginResponseContract
       'normalized_role' => $role,
     ]);
 
-    if ($role === 'admin') {
+    if (in_array($role, ['admin', 'instructor'], true)) {
       Log::info('LoginResponse redirect', ['target' => 'admin.dashboard']);
       return redirect()->route('admin.dashboard');
+    }
+
+    if ($role === 'clinic') {
+      Log::info('LoginResponse redirect', ['target' => 'clinic.dashboard']);
+      return redirect()->route('clinic.dashboard');
     }
 
     Log::info('LoginResponse redirect', ['target' => config('fortify.home', '/')]);

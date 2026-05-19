@@ -16,16 +16,30 @@ class ScheduleController
 {
     public function indexAdmin(Request $request)
     {
-        $laboratoryId = $request->input('laboratory_id') ? (int) $request->input('laboratory_id') : null;
+        $user = $request->user();
+        $role = strtolower(trim((string) $user?->role));
+        $isAdmin = $role === 'admin';
+        $isInstructor = $role === 'instructor';
+        $instructorId = $isInstructor
+            ? Instructor::query()->where('user_id', $user?->user_id)->value('instructor_id')
+            : null;
+        $laboratoryId = $isAdmin && $request->input('laboratory_id') ? (int) $request->input('laboratory_id') : null;
 
         $query = Schedule::query()->with(['laboratory', 'instructor.user', 'section', 'subject']);
 
-        if ($laboratoryId !== null) {
+        if ($isInstructor) {
+            $query->where('instructor_id', $instructorId ?: 0);
+        } elseif ($laboratoryId !== null) {
             $query->where('laboratory_id', $laboratoryId);
         }
 
         return Inertia::render('Auth/Admin/Schedules', [
-            'schedules' => $query->get()->map(fn (Schedule $schedule) => [
+            'schedules' => $query
+                ->orderBy('room')
+                ->orderBy('weekdays')
+                ->orderBy('time_start')
+                ->get()
+                ->map(fn (Schedule $schedule) => [
                 'scheduled_id'   => $schedule->scheduled_id,
                 'laboratory_id'  => $schedule->laboratory_id,
                 'laboratory_name' => $schedule->laboratory?->name,
@@ -41,13 +55,21 @@ class ScheduleController
                 'room'           => $schedule->room,
             ])->values(),
             'filters' => ['laboratory_id' => $laboratoryId],
-            'laboratories' => Laboratory::query()->orderBy('name')->get(['laboratory_id', 'name', 'status'])->values(),
-            'sectionOptions' => Section::query()->orderBy('section_name')->get(['section_id', 'section_name'])->values(),
-            'subjectOptions' => Subject::query()->orderBy('subject_code')->get(['subject_code', 'subject_name'])->values(),
-            'instructorOptions' => Instructor::query()->with('user')->get()->map(fn (Instructor $i) => [
+            'currentUserRole' => $role,
+            'canManageSchedules' => $isAdmin,
+            'laboratories' => $isAdmin
+                ? Laboratory::query()->orderBy('name')->get(['laboratory_id', 'name', 'status'])->values()
+                : [],
+            'sectionOptions' => $isAdmin
+                ? Section::query()->orderBy('section_name')->get(['section_id', 'section_name'])->values()
+                : [],
+            'subjectOptions' => $isAdmin
+                ? Subject::query()->orderBy('subject_code')->get(['subject_code', 'subject_name'])->values()
+                : [],
+            'instructorOptions' => $isAdmin ? Instructor::query()->with('user')->get()->map(fn (Instructor $i) => [
                 'instructor_id' => $i->instructor_id,
                 'name'          => $i->user?->name ?? '(No name)',
-            ])->sortBy('name')->values(),
+            ])->sortBy('name')->values() : [],
         ]);
     }
 
@@ -119,4 +141,3 @@ class ScheduleController
         ]);
     }
 }
-

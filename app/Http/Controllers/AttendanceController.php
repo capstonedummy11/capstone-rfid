@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use App\Models\Attendance;
 use App\Models\Borrowing;
+use App\Models\EmergencyType;
 use App\Models\Item;
 use App\Models\Instructor;
 use App\Models\RfidPanelSession;
@@ -936,6 +937,7 @@ class AttendanceController
                 ->whereRaw('LOWER(role) = ?', ['instructor'])
                 ->whereNotNull('rfid_tag')
                 ->where('rfid_tag', '!=', '')
+                ->orderByRaw("CASE WHEN email = ? THEN 0 ELSE 1 END", ['instructor@sample.com'])
                 ->orderBy('name')
                 ->pluck('rfid_tag')
                 ->values()
@@ -965,6 +967,19 @@ class AttendanceController
                 ->values()
                 ->all(),
             'borrowItemsByRfid' => $this->buildBorrowItemsByRfid(),
+            'emergencyTypes' => EmergencyType::query()
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get(['emergency_type_id', 'name', 'category', 'default_message'])
+                ->map(fn (EmergencyType $type) => [
+                    'emergency_type_id' => $type->emergency_type_id,
+                    'name' => $type->name,
+                    'category' => $type->category,
+                    'default_message' => $type->default_message,
+                ])
+                ->values()
+                ->all(),
             'studentToastSeconds' => config('panel.student_toast_seconds', 15),
             'studentInfoVisibleSeconds' => config('panel.student_info_visible_seconds', 10),
         ];
@@ -1095,20 +1110,39 @@ class AttendanceController
      */
     public function index()
     {
+        $user = request()->user();
+        $role = strtolower(trim((string) $user?->role));
+        $isInstructor = $role === 'instructor';
+        $instructorId = $isInstructor
+            ? Instructor::query()->where('user_id', $user?->user_id)->value('instructor_id')
+            : null;
+        $handledSectionIds = $isInstructor
+            ? Schedule::query()
+                ->where('instructor_id', $instructorId ?: 0)
+                ->pluck('section_id')
+                ->unique()
+                ->values()
+            : collect();
+
         $currentSchedule = Schedule::query()
-            ->with(['subject.user', 'section.strand'])
+            ->with(['subject.user', 'section.strand', 'instructor.user'])
+            ->when($isInstructor, fn ($scheduleQuery) => $scheduleQuery->where('instructor_id', $instructorId ?: 0))
             ->orderByDesc('scheduled_id')
             ->first();
 
         $recentScans = AttendanceLog::query()
-            ->with(['student.section.strand', 'student.strand', 'attendance.subjectRecord.user'])
+            ->with(['student.section.strand', 'student.strand', 'attendance.schedule.subject.user', 'attendance.schedule.instructor.user'])
+            ->when($isInstructor, function ($attendanceLogQuery) use ($instructorId) {
+                $attendanceLogQuery->whereHas('attendance.schedule', fn ($scheduleQuery) => $scheduleQuery->where('instructor_id', $instructorId ?: 0));
+            })
             ->orderByDesc('id')
             ->limit(12)
             ->get()
             ->map(function (AttendanceLog $log) {
                 $student = $log->student;
                 $attendance = $log->attendance;
-                $subject = $attendance?->subjectRecord;
+                $schedule = $attendance?->schedule;
+                $subject = $schedule?->subject ?? $attendance?->subjectRecord;
 
                 return [
                     'id' => $log->id,
@@ -1126,6 +1160,7 @@ class AttendanceController
         $registeredStudents = Students::query()
             ->with(['section.strand', 'strand'])
             ->whereNotNull('rfid_tag')
+            ->when($isInstructor, fn ($studentQuery) => $studentQuery->whereIn('section_id', $handledSectionIds->all()))
             ->orderBy('last_name')
             ->orderBy('first_name')
             ->get()
@@ -1142,7 +1177,7 @@ class AttendanceController
 
         return Inertia::render('AttendanceScanner', [
             'session' => $currentSchedule ? [
-                'instructor' => $currentSchedule->subject?->user?->name ?? 'Unassigned Instructor',
+                'instructor' => $currentSchedule->instructor?->user?->name ?? $currentSchedule->subject?->user?->name ?? 'Unassigned Instructor',
                 'subject' => $currentSchedule->subject?->subject_name ?? 'Unassigned Subject',
                 'subjectCode' => $currentSchedule->subject?->subject_code,
                 'section' => $currentSchedule->section?->section_name ?? 'Unassigned Section',
@@ -1153,6 +1188,7 @@ class AttendanceController
             ] : null,
             'recentScans' => $recentScans,
             'registeredStudents' => $registeredStudents,
+            'currentUserRole' => $role,
         ]);
     }
 
@@ -1167,14 +1203,35 @@ class AttendanceController
             'date' => trim((string) $request->input('date', '')),
             'subject' => trim((string) $request->input('subject', '')),
             'section' => trim((string) $request->input('section', '')),
+            'school_year' => trim((string) $request->input('school_year', '')),
             'instructor' => trim((string) $request->input('instructor', '')),
         ];
+
+        $user = $request->user();
+        $role = strtolower(trim((string) $user?->role));
+        $isAdmin = $role === 'admin';
+        $isInstructor = $role === 'instructor';
+        $instructorId = $isInstructor
+            ? Instructor::query()->where('user_id', $user?->user_id)->value('instructor_id')
+            : null;
+        $handledSectionIds = $isInstructor
+            ? Schedule::query()
+                ->where('instructor_id', $instructorId ?: 0)
+                ->pluck('section_id')
+                ->unique()
+                ->values()
+            : collect();
 
         $query = AttendanceLog::query()->with([
             'student.section.strand',
             'student.strand',
-            'attendance.subjectRecord.user',
+            'attendance.schedule.subject.user',
+            'attendance.schedule.instructor.user',
         ]);
+
+        if ($isInstructor) {
+            $query->whereHas('attendance.schedule', fn ($scheduleQuery) => $scheduleQuery->where('instructor_id', $instructorId ?: 0));
+        }
 
         if ($filters['date'] !== '') {
             $query->whereHas('attendance', function ($attendanceQuery) use ($filters) {
@@ -1183,20 +1240,30 @@ class AttendanceController
         }
 
         if ($filters['subject'] !== '') {
-            $query->whereHas('attendance.subjectRecord', function ($subjectQuery) use ($filters) {
+            $query->whereHas('attendance.schedule.subject', function ($subjectQuery) use ($filters) {
                 $subjectQuery->where('subject_id', $filters['subject']);
             });
         }
 
         if ($filters['section'] !== '') {
+            if ($isInstructor && ! $handledSectionIds->contains((int) $filters['section'])) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->whereHas('student', function ($studentQuery) use ($filters) {
+                    $studentQuery->where('section_id', $filters['section']);
+                });
+            }
+        }
+
+        if ($filters['school_year'] !== '') {
             $query->whereHas('student', function ($studentQuery) use ($filters) {
-                $studentQuery->where('section_id', $filters['section']);
+                $studentQuery->where('school_year', $filters['school_year']);
             });
         }
 
-        if ($filters['instructor'] !== '') {
-            $query->whereHas('attendance.subjectRecord.user', function ($userQuery) use ($filters) {
-                $userQuery->where('user_id', $filters['instructor']);
+        if ($isAdmin && $filters['instructor'] !== '') {
+            $query->whereHas('attendance.schedule.instructor', function ($instructorQuery) use ($filters) {
+                $instructorQuery->where('user_id', $filters['instructor']);
             });
         }
 
@@ -1206,14 +1273,16 @@ class AttendanceController
             ->map(function (AttendanceLog $log) {
                 $student = $log->student;
                 $attendance = $log->attendance;
-                $subject = $attendance?->subjectRecord;
+                $schedule = $attendance?->schedule;
+                $subject = $schedule?->subject ?? $attendance?->subjectRecord;
 
                 return [
                     'id' => $log->id,
                     'student' => trim(($student?->first_name ?? '') . ' ' . ($student?->last_name ?? '')),
                     'subject' => $subject?->subject_name ?? $attendance?->subject ?? 'N/A',
                     'section' => $student?->section?->section_name ?? 'N/A',
-                    'instructor' => $subject?->user?->name ?? 'Unassigned Instructor',
+                    'school_year' => $student?->school_year,
+                    'instructor' => $schedule?->instructor?->user?->name ?? $subject?->user?->name ?? 'Unassigned Instructor',
                     'date' => $attendance?->date?->format('Y-m-d') ?? null,
                     'time' => $this->formatTime($log->time_in) ?? $this->formatTime($attendance?->time_in) ?? 'N/A',
                     'status' => ucfirst((string) ($log->status ?? $attendance?->status ?? 'pending')),
@@ -1224,7 +1293,12 @@ class AttendanceController
         return Inertia::render('AttendanceLogs', [
             'logs' => $logs,
             'filters' => $filters,
+            'currentUserRole' => $role,
+            'canInspectAllAttendance' => $isAdmin,
             'subjectOptions' => Subject::query()
+                ->when($isInstructor, function ($subjectQuery) use ($instructorId) {
+                    $subjectQuery->whereHas('schedules', fn ($scheduleQuery) => $scheduleQuery->where('instructor_id', $instructorId ?: 0));
+                })
                 ->orderBy('subject_name')
                 ->get(['subject_id', 'subject_name'])
                 ->map(fn(Subject $subject) => [
@@ -1233,22 +1307,30 @@ class AttendanceController
                 ])
                 ->values(),
             'sectionOptions' => Section::query()
+                ->when($isInstructor, fn ($sectionQuery) => $sectionQuery->whereIn('section_id', $handledSectionIds->all()))
                 ->orderBy('section_name')
-                ->get(['section_id', 'section_name'])
+                ->get(['section_id', 'section_name', 'school_year'])
                 ->map(fn(Section $section) => [
                     'value' => $section->section_id,
-                    'label' => $section->section_name,
+                    'label' => trim(implode(' - ', array_filter([$section->section_name, $section->school_year]))),
                 ])
                 ->values(),
-            'instructorOptions' => User::query()
-                ->whereIn('user_id', Subject::query()->whereNotNull('user_id')->pluck('user_id')->unique())
+            'schoolYearOptions' => Section::query()
+                ->when($isInstructor, fn ($sectionQuery) => $sectionQuery->whereIn('section_id', $handledSectionIds->all()))
+                ->whereNotNull('school_year')
+                ->distinct()
+                ->orderByDesc('school_year')
+                ->pluck('school_year')
+                ->values(),
+            'instructorOptions' => $isAdmin ? User::query()
+                ->whereIn('user_id', Instructor::query()->whereNotNull('user_id')->pluck('user_id')->unique())
                 ->orderBy('name')
                 ->get(['user_id', 'name'])
                 ->map(fn(User $user) => [
                     'value' => $user->user_id,
                     'label' => $user->name,
                 ])
-                ->values(),
+                ->values() : [],
         ]);
     }
 

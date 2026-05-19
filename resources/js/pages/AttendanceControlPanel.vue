@@ -28,6 +28,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    emergencyTypes: {
+        type: Array,
+        default: () => [],
+    },
     studentToastSeconds: {
         type: Number,
         default: 15,
@@ -167,6 +171,16 @@ const actionButtonLabel = computed(() => {
     if (!sessionActive.value) return 'Demo Instructor Tap';
     if (currentMode.value === 'borrowing') return 'Demo Borrower Tap';
     return 'Demo Student Tap';
+});
+
+const emergencyGroups = computed(() => {
+    const groups = {};
+    (props.emergencyTypes ?? []).forEach((type) => {
+        const category = String(type?.category ?? 'general');
+        if (!groups[category]) groups[category] = [];
+        groups[category].push(type);
+    });
+    return groups;
 });
 
 const demoBorrowerRfids = computed(() =>
@@ -990,23 +1004,98 @@ const processBorrowerMode = (student) => {
     return swalPromise;
 };
 
-const triggerEmergencyCall = () => {
+const triggerEmergencyCall = async (selectedType = null) => {
+    let emergencyType = selectedType;
+    if (!emergencyType) {
+        const options = {};
+        (props.emergencyTypes ?? []).forEach((type) => {
+            options[type.emergency_type_id] =
+                `${type.name} (${type.category ?? 'general'})`;
+        });
+
+        const result = await Swal.fire({
+            icon: 'warning',
+            title: 'Select Emergency',
+            input: 'select',
+            inputOptions: options,
+            inputPlaceholder: 'Choose emergency type',
+            showCancelButton: true,
+            confirmButtonText: 'Send Emergency Text',
+            confirmButtonColor: '#dc2626',
+        });
+
+        if (!result.isConfirmed || !result.value) return;
+        emergencyType = (props.emergencyTypes ?? []).find(
+            (type) => String(type.emergency_type_id) === String(result.value),
+        );
+    }
+
+    if (!emergencyType) {
+        showToast('warning', 'No emergency type selected');
+        return;
+    }
+
     const professorName = activeProfessor.value?.name ?? 'Instructor';
-    lastAction.value = `${professorName} triggered an emergency call from ${selectedRoom.value}.`;
+    const emergencyMessage =
+        emergencyType.default_message ||
+        `${emergencyType.name} emergency assistance requested.`;
+
+    try {
+        const xsrfRaw = document.cookie
+            .split('; ')
+            .find((row) => row.startsWith('XSRF-TOKEN='))
+            ?.split('=')[1];
+
+        const response = await fetch(
+            '/attendance-control-panel/emergency-alert',
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-XSRF-TOKEN': xsrfRaw ? decodeURIComponent(xsrfRaw) : '',
+                },
+                body: JSON.stringify({
+                    emergency_type_id: emergencyType.emergency_type_id,
+                    room: selectedRoom.value,
+                    subject_code: activeProfessor.value?.subject_code ?? null,
+                    schedule_id: activeProfessor.value?.schedule_id ?? null,
+                    triggered_by_user_id:
+                        activeProfessor.value?.user_id ?? null,
+                    triggered_by_name: professorName,
+                    message: emergencyMessage,
+                    metadata: {
+                        panel: 'attendance-control-panel',
+                        mode: currentMode.value,
+                    },
+                }),
+            },
+        );
+
+        if (!response.ok) {
+            throw new Error('Unable to save emergency alert.');
+        }
+    } catch {
+        showToast('error', 'Emergency alert could not be saved');
+        return;
+    }
+
+    lastAction.value = `${professorName} triggered ${emergencyType.name} from ${selectedRoom.value}.`;
     pushHistory(
-        'Emergency call triggered',
-        `${professorName} requested emergency assistance for ${selectedRoom.value}.`,
+        `${emergencyType.name} triggered`,
+        emergencyMessage,
         'warning',
     );
     setTapHeadline('Emergency Call Triggered', 4000);
     syncPanelSessionState('attendance', {
         emergency_call: true,
+        emergency_type: emergencyType.name,
         emergency_called_at: new Date().toISOString(),
     });
     Swal.fire({
         icon: 'warning',
-        title: 'Emergency Call Triggered',
-        text: `Emergency assistance has been marked for ${selectedRoom.value}.`,
+        title: `${emergencyType.name} Sent`,
+        text: emergencyMessage,
         confirmButtonColor: '#dc2626',
     });
 };
@@ -1794,6 +1883,66 @@ watch(
                                 </button>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <section
+                class="flex min-h-80 flex-col rounded-[22px] bg-white p-5 shadow-sm ring-1 ring-red-200/70"
+            >
+                <div class="flex items-center justify-between gap-3">
+                    <div>
+                        <div
+                            class="text-[11px] font-bold tracking-[0.28em] text-red-400 uppercase"
+                        >
+                            Emergency
+                        </div>
+                        <h2 class="mt-2 text-xl font-extrabold text-slate-900">
+                            Emergency Table
+                        </h2>
+                    </div>
+                    <button
+                        type="button"
+                        class="rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-red-700"
+                        @click="triggerEmergencyCall()"
+                    >
+                        Send Emergency Text
+                    </button>
+                </div>
+
+                <div class="mt-4 space-y-4 overflow-y-auto">
+                    <div
+                        v-for="[category, types] in Object.entries(emergencyGroups)"
+                        :key="category"
+                        class="rounded-2xl border border-slate-200 p-3"
+                    >
+                        <div
+                            class="mb-2 text-[10px] font-bold tracking-[0.2em] text-slate-400 uppercase"
+                        >
+                            {{ category }}
+                        </div>
+                        <div class="grid grid-cols-1 gap-2">
+                            <button
+                                v-for="type in types"
+                                :key="type.emergency_type_id"
+                                type="button"
+                                class="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-left text-xs font-bold text-red-700 transition hover:bg-red-100"
+                                @click="triggerEmergencyCall(type)"
+                            >
+                                <span class="block">{{ type.name }}</span>
+                                <span
+                                    class="mt-1 block line-clamp-2 text-[10px] font-medium text-red-500"
+                                >
+                                    {{ type.default_message }}
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+                    <div
+                        v-if="Object.keys(emergencyGroups).length === 0"
+                        class="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-400"
+                    >
+                        No emergency types configured.
                     </div>
                 </div>
             </section>

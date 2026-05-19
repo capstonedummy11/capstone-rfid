@@ -38,6 +38,19 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('password'),
                 'role' => 'admin',
             ],
+            [
+                'name' => 'Sample Instructor',
+                'email' => 'instructor@sample.com',
+                'password' => Hash::make('sample'),
+                'role' => 'instructor',
+                'rfid_tag' => 'RFID-INSTRUCTOR-SAMPLE',
+            ],
+            [
+                'name' => 'Clinic Staff',
+                'email' => 'clinic@sample.com',
+                'password' => Hash::make('sample'),
+                'role' => 'clinic',
+            ],
         ];
 
         foreach ($users as $user) {

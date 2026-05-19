@@ -3,11 +3,11 @@
     <div class="mx-auto max-w-screen-2xl px-4 py-6">
       <div class="mb-6 rounded-lg bg-white p-6 shadow-lg">
         <h1 class="text-3xl font-bold">Attendance Logs</h1>
-        <p class="text-gray-600">View and filter attendance records from the new attendance log tables.</p>
+        <p class="text-gray-600">{{ canInspectAllAttendance ? 'View and filter all attendance records.' : 'View attendance records for your handled sections.' }}</p>
       </div>
 
       <div class="mb-6 rounded-lg bg-white p-6 shadow-lg">
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-5">
           <div>
             <label for="dateFilter" class="mb-1 block text-sm font-medium text-gray-700">Date</label>
             <input v-model="dateFilter" type="date" id="dateFilter" class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" @change="applyFilters" />
@@ -22,11 +22,18 @@
           <div>
             <label for="sectionFilter" class="mb-1 block text-sm font-medium text-gray-700">Section</label>
             <select v-model="sectionFilter" id="sectionFilter" class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" @change="applyFilters">
-              <option value="">All Sections</option>
+              <option value="">{{ canInspectAllAttendance ? 'All Sections' : 'Select Section' }}</option>
               <option v-for="section in sectionOptions" :key="section.value" :value="String(section.value)">{{ section.label }}</option>
             </select>
           </div>
           <div>
+            <label for="schoolYearFilter" class="mb-1 block text-sm font-medium text-gray-700">School Year</label>
+            <select v-model="schoolYearFilter" id="schoolYearFilter" class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" @change="applyFilters">
+              <option value="">All School Years</option>
+              <option v-for="schoolYear in schoolYearOptions" :key="schoolYear" :value="schoolYear">{{ schoolYear }}</option>
+            </select>
+          </div>
+          <div v-if="canInspectAllAttendance">
             <label for="instructorFilter" class="mb-1 block text-sm font-medium text-gray-700">Instructor</label>
             <select v-model="instructorFilter" id="instructorFilter" class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" @change="applyFilters">
               <option value="">All Instructors</option>
@@ -44,6 +51,7 @@
                 <th class="border border-gray-300 px-4 py-3 text-left font-medium">Student</th>
                 <th class="border border-gray-300 px-4 py-3 text-left font-medium">Subject</th>
                 <th class="border border-gray-300 px-4 py-3 text-left font-medium">Section</th>
+                <th class="border border-gray-300 px-4 py-3 text-left font-medium">School Year</th>
                 <th class="border border-gray-300 px-4 py-3 text-left font-medium">Instructor</th>
                 <th class="border border-gray-300 px-4 py-3 text-left font-medium">Date</th>
                 <th class="border border-gray-300 px-4 py-3 text-left font-medium">Time</th>
@@ -55,6 +63,7 @@
                 <td class="border border-gray-300 px-4 py-3">{{ log.student }}</td>
                 <td class="border border-gray-300 px-4 py-3">{{ log.subject }}</td>
                 <td class="border border-gray-300 px-4 py-3">{{ log.section }}</td>
+                <td class="border border-gray-300 px-4 py-3">{{ log.school_year ?? 'N/A' }}</td>
                 <td class="border border-gray-300 px-4 py-3">{{ log.instructor }}</td>
                 <td class="border border-gray-300 px-4 py-3">{{ log.date }}</td>
                 <td class="border border-gray-300 px-4 py-3">{{ log.time }}</td>
@@ -90,7 +99,7 @@
 </template>
 
 <script setup>
-import { router } from '@inertiajs/vue3'
+import { router, usePage } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 
 const props = defineProps({
@@ -100,7 +109,7 @@ const props = defineProps({
   },
   filters: {
     type: Object,
-    default: () => ({ date: '', subject: '', section: '', instructor: '' }),
+    default: () => ({ date: '', subject: '', section: '', school_year: '', instructor: '' }),
   },
   subjectOptions: {
     type: Array,
@@ -114,11 +123,27 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  schoolYearOptions: {
+    type: Array,
+    default: () => [],
+  },
+  currentUserRole: {
+    type: String,
+    default: '',
+  },
+  canInspectAllAttendance: {
+    type: Boolean,
+    default: false,
+  },
 })
 
+const page = usePage()
+const currentRole = computed(() => String(props.currentUserRole || page.props.auth?.user?.role || '').toLowerCase())
+const canInspectAllAttendance = computed(() => props.canInspectAllAttendance || currentRole.value === 'admin')
 const dateFilter = ref(props.filters.date ?? '')
 const subjectFilter = ref(props.filters.subject ?? '')
 const sectionFilter = ref(props.filters.section ?? '')
+const schoolYearFilter = ref(props.filters.school_year ?? '')
 const instructorFilter = ref(props.filters.instructor ?? '')
 
 const filteredLogs = computed(() => {
@@ -126,9 +151,10 @@ const filteredLogs = computed(() => {
     const matchesDate = !dateFilter.value || log.date === dateFilter.value
     const matchesSubject = !subjectFilter.value || String(log.subject ?? '').length > 0
     const matchesSection = !sectionFilter.value || String(log.section ?? '').length > 0
-    const matchesInstructor = !instructorFilter.value || String(log.instructor ?? '').length > 0
+    const matchesSchoolYear = !schoolYearFilter.value || log.school_year === schoolYearFilter.value
+    const matchesInstructor = !canInspectAllAttendance.value || !instructorFilter.value || String(log.instructor ?? '').length > 0
 
-    return matchesDate && matchesSubject && matchesSection && matchesInstructor
+    return matchesDate && matchesSubject && matchesSection && matchesSchoolYear && matchesInstructor
   })
 })
 
@@ -137,7 +163,8 @@ const applyFilters = () => {
     date: dateFilter.value,
     subject: subjectFilter.value,
     section: sectionFilter.value,
-    instructor: instructorFilter.value,
+    school_year: schoolYearFilter.value,
+    instructor: canInspectAllAttendance.value ? instructorFilter.value : '',
   }, {
     preserveState: true,
     preserveScroll: true,

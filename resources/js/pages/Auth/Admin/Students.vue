@@ -8,11 +8,10 @@
                     <div>
                         <h1 class="text-3xl font-bold">Students Management</h1>
                         <p class="text-sm text-slate-500">
-                            Manage students using strands, sections, and RFID
-                            assignments.
+                            {{ canManageStudents ? 'Manage students using strands, sections, and RFID assignments.' : 'View students from your handled sections.' }}
                         </p>
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div v-if="canManageStudents" class="flex items-center gap-2">
                         <button
                             @click="openAddModal"
                             class="rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
@@ -24,7 +23,7 @@
             </section>
 
             <section class="mb-6 rounded-lg bg-white p-6 shadow-lg">
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-6">
                     <div>
                         <label
                             class="mb-1 block text-xs font-medium text-slate-600"
@@ -61,6 +60,26 @@
                     <div>
                         <label
                             class="mb-1 block text-xs font-medium text-slate-600"
+                            >Section</label
+                        >
+                        <select
+                            v-model="selectedSection"
+                            @change="onFilterChange"
+                            class="w-full rounded-md border border-slate-300 px-3 py-2"
+                        >
+                            <option value="">{{ canManageStudents ? 'All Sections' : 'Select Section' }}</option>
+                            <option
+                                v-for="section in sectionOptions"
+                                :key="section.section_id"
+                                :value="String(section.section_id)"
+                            >
+                                {{ section.label }}
+                            </option>
+                        </select>
+                    </div>
+                    <div>
+                        <label
+                            class="mb-1 block text-xs font-medium text-slate-600"
                             >Grade</label
                         >
                         <select
@@ -71,6 +90,26 @@
                             <option value="">All Grades</option>
                             <option value="11">Grade 11</option>
                             <option value="12">Grade 12</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label
+                            class="mb-1 block text-xs font-medium text-slate-600"
+                            >School Year</label
+                        >
+                        <select
+                            v-model="selectedSchoolYear"
+                            @change="onFilterChange"
+                            class="w-full rounded-md border border-slate-300 px-3 py-2"
+                        >
+                            <option value="">All School Years</option>
+                            <option
+                                v-for="schoolYear in schoolYearOptions"
+                                :key="schoolYear"
+                                :value="schoolYear"
+                            >
+                                {{ schoolYear }}
+                            </option>
                         </select>
                     </div>
                     <div>
@@ -157,6 +196,7 @@
                                     Face Images
                                 </th>
                                 <th
+                                    v-if="canManageStudents"
                                     class="border border-gray-300 px-4 py-3 text-left"
                                 >
                                     Actions
@@ -247,7 +287,7 @@
                                         >None</span
                                     >
                                 </td>
-                                <td class="border border-gray-300 px-4 py-3">
+                                <td v-if="canManageStudents" class="border border-gray-300 px-4 py-3">
                                     <div class="flex items-center gap-2">
                                         <button
                                             @click="openEditModal(student)"
@@ -277,7 +317,7 @@
             </section>
 
             <div
-                v-if="showModal"
+                v-if="showModal && canManageStudents"
                 class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
             >
                 <div
@@ -645,7 +685,7 @@
 </template>
 
 <script setup lang="ts">
-import { router, useForm } from '@inertiajs/vue3';
+import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import CameraCapture from '@/components/CameraCapture.vue';
 
@@ -680,6 +720,7 @@ interface SectionOption {
     section_id: string | number;
     section_name: string;
     strand_id: string | number;
+    school_year: string;
     label: string;
 }
 
@@ -692,7 +733,14 @@ const props = defineProps({
     },
     filters: {
         type: Object,
-        default: () => ({ search: '', strand: '', year: '', status: '' }),
+        default: () => ({
+            search: '',
+            strand: '',
+            section: '',
+            year: '',
+            school_year: '',
+            status: '',
+        }),
     },
     strandOptions: {
         type: Array as () => StrandOption[],
@@ -702,11 +750,32 @@ const props = defineProps({
         type: Array as () => SectionOption[],
         default: () => [],
     },
+    schoolYearOptions: {
+        type: Array as () => string[],
+        default: () => [],
+    },
+    currentUserRole: {
+        type: String,
+        default: '',
+    },
+    canManageStudents: {
+        type: Boolean,
+        default: false,
+    },
 });
 
+const page = usePage();
+const currentRole = computed(() =>
+    String(props.currentUserRole || page.props.auth?.user?.role || '').toLowerCase(),
+);
+const canManageStudents = computed(
+    () => props.canManageStudents || currentRole.value === 'admin',
+);
 const search = ref(props.filters.search ?? '');
 const selectedStrand = ref(props.filters.strand ?? '');
+const selectedSection = ref(props.filters.section ?? '');
 const selectedYear = ref(props.filters.year ?? '');
+const selectedSchoolYear = ref(props.filters.school_year ?? '');
 const selectedStatus = ref(props.filters.status ?? '');
 const showModal = ref(false);
 const isEditing = ref(false);
@@ -756,14 +825,20 @@ const filteredStudents = computed<Student[]>(() => {
         const matchesStrand =
             selectedStrand.value === '' ||
             String(student.strand_id) === selectedStrand.value;
+        const matchesSection =
+            selectedSection.value === '' ||
+            String(student.section_id) === selectedSection.value;
         const matchesYear =
             selectedYear.value === '' ||
             String(student.year_level) === selectedYear.value;
+        const matchesSchoolYear =
+            selectedSchoolYear.value === '' ||
+            String(student.school_year) === selectedSchoolYear.value;
         const matchesStatus =
             selectedStatus.value === '' ||
             student.status === selectedStatus.value;
 
-        return matchesSearch && matchesStrand && matchesYear && matchesStatus;
+        return matchesSearch && matchesStrand && matchesSection && matchesYear && matchesSchoolYear && matchesStatus;
     });
 });
 
@@ -782,7 +857,9 @@ const onFilterChange = () => {
         {
             search: search.value,
             strand: selectedStrand.value,
+            section: selectedSection.value,
             year: selectedYear.value,
+            school_year: selectedSchoolYear.value,
             status: selectedStatus.value,
         },
         {
@@ -796,12 +873,15 @@ const onFilterChange = () => {
 const resetFilters = () => {
     search.value = '';
     selectedStrand.value = '';
+    selectedSection.value = '';
     selectedYear.value = '';
+    selectedSchoolYear.value = '';
     selectedStatus.value = '';
     onFilterChange();
 };
 
 const openAddModal = () => {
+    if (!canManageStudents.value) return;
     isEditing.value = false;
     selectedStudent.value = null;
     form.reset();
@@ -811,6 +891,7 @@ const openAddModal = () => {
 };
 
 const openEditModal = (student: Student) => {
+    if (!canManageStudents.value) return;
     isEditing.value = true;
     selectedStudent.value = student;
     form.reset();
@@ -985,6 +1066,7 @@ const removeFaceImage = async (index: number) => {
 };
 
 const deleteStudent = (student: Student) => {
+    if (!canManageStudents.value) return;
     if (
         !confirm(
             `Are you sure you want to delete ${student.first_name} ${student.last_name}?`,

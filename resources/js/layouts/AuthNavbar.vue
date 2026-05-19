@@ -1,5 +1,6 @@
 <script setup>
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
 import Navlinks from '@/components/Auth/Navlinks.vue';
 import ActivityLogs from '@/components/Icon/ActivityLogs.vue';
 import Attendance from '@/components/Icon/Attendance.vue';
@@ -16,86 +17,156 @@ import Section from '@/components/Icon/Section.vue';
 import Trash from '@/components/Icon/Trash.vue';
 import Inventory from '@/components/Icon/Inventory.vue';
 
-const links = [
+const page = usePage();
+const currentRole = computed(() =>
+    String(page.props.auth?.user?.role ?? '').toLowerCase(),
+);
+const canSee = (roles) => roles.includes(currentRole.value);
+
+const sections = [
     {
-        icon: Dashboard,
-        text: 'Dashboard',
-        route: route('admin.dashboard'),
+        title: 'Dashboard',
+        links: [
+            {
+                icon: Dashboard,
+                text: 'Dashboard',
+                route: route('admin.dashboard'),
+                roles: ['admin', 'instructor'],
+            },
+            {
+                icon: Dashboard,
+                text: 'Clinic Dashboard',
+                route: route('clinic.dashboard'),
+                roles: ['clinic'],
+            },
+            {
+                icon: Graduation,
+                text: 'School Year',
+                roles: ['admin'],
+                //route: route('admin.instructorsManagement'),
+            },
+            {
+                icon: Graduation,
+                text: 'Strands',
+                route: route('admin.strands.index'),
+                roles: ['admin'],
+            },
+            {
+                icon: Laboratory,
+                text: 'Laboratories',
+                route: route('admin.laboratories'),
+                roles: ['admin'],
+            },
+        ],
     },
     {
-        icon: Graduation,
-        text: 'School Year',
-        //route: route('admin.instructorsManagement'),
+        title: 'Management',
+        links: [
+            {
+                icon: Schedule,
+                text: 'Schedule',
+                route: route('admin.schedules.index'),
+                roles: ['admin', 'instructor'],
+            },
+            {
+                icon: Instructor,
+                text: 'Instructor',
+                route: route('admin.instructors.index'),
+                roles: ['admin'],
+            },
+            {
+                icon: Instructor,
+                text: 'Students',
+                route: route('admin.students.index'),
+                roles: ['admin', 'instructor'],
+            },
+            {
+                icon: Section,
+                text: 'Section',
+                route: route('admin.sections.index'),
+                roles: ['admin'],
+            },
+            {
+                icon: Attendance,
+                text: 'Attendance',
+                route: route('admin.attendance.scanner'),
+                roles: ['admin', 'instructor'],
+            },
+        ],
     },
     {
-        icon: Graduation,
-        text: 'Strands',
-        route: route('admin.strands.index'),
-    },
-    {
-        icon: Laboratory,
-        text: 'Laboratories',
-        route: route('admin.laboratories'),
-    },
-    {
-        icon: Schedule,
-        text: 'Schedule',
-        route: route('admin.schedules.index'),
-    },
-    {
-        icon: Instructor,
-        text: 'Instructor',
-        route: route('admin.instructors.index'),
-    },
-    {
-        icon: Instructor,
-        text: 'Students',
-        route: route('admin.students.index'),
-    },
-    {
-        icon: Section,
-        text: 'Section',
-        route: route('admin.sections.index'),
-    },
-    {
-        icon: Attendance,
-        text: 'Attendance',
-        route: route('admin.attendance.scanner'),
-    },
-    {
-        icon: Graduation,
-        text: 'Subjects',
-        route: route('admin.subjects.index'),
-    },
-    {
-        icon: Borrowing,
-        text: 'Borrowing',
-        route: route('admin.borrow'),
-    },
-    {
-        icon: Inventory,
-        text: 'Inventory',
-        route: route('admin.inventory'),
-    },
-    {
-        icon: Reports,
-        text: 'Reports',
-    },
-    {
-        icon: ActivityLogs,
-        text: 'Activity Logs',
-        route: route('admin.activity-logs.index'),
-    },
-    {
-        icon: Trash,
-        text: 'Trash',
-    },
-    {
-        icon: RFID,
-        text: 'RFID',
-        route: route('admin.rfid'),
+        title: 'System',
+        links: [
+            {
+                icon: Graduation,
+                text: 'Subjects',
+                route: route('admin.subjects.index'),
+                roles: ['admin'],
+            },
+            {
+                icon: Borrowing,
+                text: 'Borrowing',
+                route: route('admin.borrow'),
+                roles: ['admin'],
+            },
+            {
+                icon: Inventory,
+                text: 'Inventory',
+                route: route('admin.inventory'),
+                roles: ['admin'],
+            },
+            {
+                icon: Reports,
+                text: 'Reports',
+                roles: ['admin'],
+            },
+            {
+                icon: ActivityLogs,
+                text: 'Activity Logs',
+                route: route('admin.activity-logs.index'),
+                roles: ['admin'],
+            },
+            {
+                icon: ActivityLogs,
+                text: 'Case Logs',
+                route: route('clinic.case-logs'),
+                roles: ['clinic'],
+            },
+            {
+                icon: Instructor,
+                text: 'Patient History',
+                route: route('clinic.patient-history'),
+                roles: ['clinic'],
+            },
+            {
+                icon: Reports,
+                text: 'Reports',
+                route: route('clinic.reports'),
+                roles: ['clinic'],
+            },
+            {
+                icon: Trash,
+                text: 'Trash',
+                roles: ['admin'],
+            },
+            {
+                icon: RFID,
+                text: 'RFID',
+                route: route('admin.rfid'),
+                roles: ['admin'],
+            },
+        ],
     },
 ];
+
+const visibleSections = computed(() =>
+    sections
+        .map((section) => ({
+            ...section,
+            links: section.links.filter((link) => canSee(link.roles)),
+        }))
+        .filter((section) => section.links.length > 0),
+);
 </script>
 
 <template>
@@ -103,47 +174,21 @@ const links = [
         class="flex w-[250px] flex-col justify-between bg-white text-default drop-shadow-xl"
     >
         <div class="flex flex-col">
-            <header class="p-4 text-nav-header">
-                <h1 class="text-[18px]">Dashboard</h1>
-            </header>
+            <template v-for="section in visibleSections" :key="section.title">
+                <header class="p-4 text-nav-header">
+                    <h1 class="text-[18px]">{{ section.title }}</h1>
+                </header>
 
-            <div class="mb-5">
-                <Navlinks
-                    v-for="(item, index) in links.slice(0, 4)"
-                    :key="index"
-                    :icon="item.icon"
-                    :text="item.text"
-                    :route="item.route"
-                />
-            </div>
-
-            <header class="p-4 text-nav-header">
-                <h1 class="text-[18px]">Management</h1>
-            </header>
-
-            <div>
-                <Navlinks
-                    v-for="(item, index) in links.slice(4, 9)"
-                    :key="index"
-                    :icon="item.icon"
-                    :text="item.text"
-                    :route="item.route"
-                />
-            </div>
-
-            <header class="p-4 text-nav-header">
-                <h1 class="text-[18px]">System</h1>
-            </header>
-
-            <div>
-                <Navlinks
-                    v-for="(item, index) in links.slice(9)"
-                    :key="index"
-                    :icon="item.icon"
-                    :text="item.text"
-                    :route="item.route"
-                />
-            </div>
+                <div class="mb-5">
+                    <Navlinks
+                        v-for="item in section.links"
+                        :key="item.text"
+                        :icon="item.icon"
+                        :text="item.text"
+                        :route="item.route"
+                    />
+                </div>
+            </template>
         </div>
 
         <!-- Logout Button -->

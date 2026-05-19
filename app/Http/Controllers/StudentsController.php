@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use App\Models\Instructor;
 use App\Models\Section;
 use App\Models\Strand;
 use App\Models\Students;
@@ -24,11 +25,33 @@ class StudentsController
         $filters = [
             'search' => trim((string) $request->input('search', '')),
             'strand' => trim((string) $request->input('strand', '')),
+            'section' => trim((string) $request->input('section', '')),
             'year' => trim((string) $request->input('year', '')),
+            'school_year' => trim((string) $request->input('school_year', '')),
             'status' => trim((string) $request->input('status', '')),
         ];
 
+        $user = $request->user();
+        $role = strtolower(trim((string) $user?->role));
+        $isAdmin = $role === 'admin';
+        $isInstructor = $role === 'instructor';
+        $handledSectionIds = collect();
+
+        if ($isInstructor) {
+            $instructorId = Instructor::query()
+                ->where('user_id', $user?->user_id)
+                ->value('instructor_id');
+
+            $handledSectionIds = Section::query()
+                ->whereHas('schedules', fn ($scheduleQuery) => $scheduleQuery->where('instructor_id', $instructorId ?: 0))
+                ->pluck('section_id');
+        }
+
         $query = Students::query()->with(['section', 'strand']);
+
+        if ($isInstructor) {
+            $query->whereIn('section_id', $handledSectionIds->all());
+        }
 
         if ($filters['search'] !== '') {
             $term = strtolower($filters['search']);
@@ -46,8 +69,20 @@ class StudentsController
             $query->where('strand_id', $filters['strand']);
         }
 
+        if ($filters['section'] !== '') {
+            if ($isInstructor && ! $handledSectionIds->contains((int) $filters['section'])) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->where('section_id', $filters['section']);
+            }
+        }
+
         if ($filters['year'] !== '') {
             $query->where('year_level', $filters['year']);
+        }
+
+        if ($filters['school_year'] !== '') {
+            $query->where('school_year', $filters['school_year']);
         }
 
         if ($filters['status'] !== '') {
@@ -85,6 +120,8 @@ class StudentsController
         return Inertia::render('Auth/Admin/Students', [
             'students' => $students,
             'filters' => $filters,
+            'currentUserRole' => $role,
+            'canManageStudents' => $isAdmin,
             'strandOptions' => Strand::query()
                 ->orderBy('strand_code')
                 ->get(['strand_id', 'strand_code', 'strand_name'])
@@ -96,17 +133,27 @@ class StudentsController
                 ->values(),
             'sectionOptions' => Section::query()
                 ->with(['strand'])
+                ->when($isInstructor, fn ($sectionQuery) => $sectionQuery->whereIn('section_id', $handledSectionIds->all()))
                 ->orderBy('section_name')
                 ->get()
                 ->map(fn (Section $section) => [
                     'section_id' => $section->section_id,
                     'section_name' => $section->section_name,
                     'strand_id' => $section->strand_id,
+                    'school_year' => $section->school_year,
                     'label' => trim(implode(' - ', array_filter([
                         $section->section_name,
                         $section->strand?->strand_code,
+                        $section->school_year,
                     ]))),
                 ])
+                ->values(),
+            'schoolYearOptions' => Section::query()
+                ->when($isInstructor, fn ($sectionQuery) => $sectionQuery->whereIn('section_id', $handledSectionIds->all()))
+                ->whereNotNull('school_year')
+                ->distinct()
+                ->orderByDesc('school_year')
+                ->pluck('school_year')
                 ->values(),
         ]);
     }
@@ -258,4 +305,3 @@ class StudentsController
         ]);
     }
 }
-
