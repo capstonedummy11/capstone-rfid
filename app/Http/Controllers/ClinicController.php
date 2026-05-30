@@ -6,23 +6,44 @@ use App\Models\ClinicCase;
 use App\Models\EmergencyAlert;
 use App\Models\EmergencyType;
 use App\Models\PatientHistory;
+use App\Models\Section;
+use App\Models\Students;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class ClinicController
 {
-    public function dashboard()
+    public function dashboard(Request $request)
     {
-        $alerts = EmergencyAlert::with('type')->latest('emergency_alert_id')->limit(20)->get();
+        $alerts = EmergencyAlert::with(['type', 'cases'])->latest('emergency_alert_id')->limit(20)->get();
+        $currentUser = $request->user();
+        $openAlerts = EmergencyAlert::where('status', 'open')->count();
+        $todayAlerts = EmergencyAlert::whereDate('created_at', today())->count();
+        $clinicCases = ClinicCase::count();
+        $totalResponds = EmergencyAlert::whereIn('status', ['acknowledged', 'resolved'])->count();
 
         return Inertia::render('Clinic/Dashboard', [
+            'currentUser' => [
+                'name' => $currentUser?->name,
+                'email' => $currentUser?->email,
+                'avatar' => null,
+            ],
             'counts' => [
-                'openAlerts' => EmergencyAlert::where('status', 'open')->count(),
-                'todayAlerts' => EmergencyAlert::whereDate('created_at', today())->count(),
-                'clinicCases' => ClinicCase::count(),
+                'openAlerts' => $openAlerts,
+                'todayAlerts' => $todayAlerts,
+                'clinicCases' => $clinicCases,
                 'patientHistories' => PatientHistory::count(),
+                'totalResponds' => $totalResponds,
+                'casesSubtitle' => $clinicCases . ' CASES RECORDED',
+                'respondsSubtitle' => $totalResponds . ' RESPONSES SENT',
+                'pendingSubtitle' => $openAlerts . ' EMPLOYEES NEEDED',
+                'todaySubtitle' => $todayAlerts . ' TODAY',
+                'yearRange' => $this->yearRange(),
             ],
             'alerts' => $this->formatAlerts($alerts),
+            'emergencyDetails' => $this->formatEmergencyDetails($alerts),
+            'calendarEvents' => $this->calendarEvents(),
             'emergencyTypes' => $this->emergencyTypes(),
         ]);
     }
@@ -93,8 +114,93 @@ class ClinicController
             'room' => $alert->room,
             'message' => $alert->message,
             'triggered_by_name' => $alert->triggered_by_name,
+            'sub_type' => $alert->sub_type,
             'status' => $alert->status,
             'created_at' => optional($alert->created_at)->format('Y-m-d H:i'),
         ])->values();
+    }
+
+    private function formatEmergencyDetails($alerts)
+    {
+        return $alerts->map(function (EmergencyAlert $alert) {
+            $case = $alert->cases->sortByDesc('clinic_case_id')->first();
+            $student = $this->studentForAlert($alert, $case);
+            $patientName = $case?->patient_name
+                ?: ($student ? trim($student->first_name . ' ' . $student->last_name) : ($alert->triggered_by_name ?: 'Unknown Patient'));
+            $severity = strtolower((string) $alert->severity);
+            $status = strtolower((string) $alert->status);
+            $category = match (true) {
+                $severity === 'critical' => 'Critical',
+                $status === 'open' => 'Pending',
+                default => 'Normal',
+            };
+
+            return [
+                'id' => $alert->emergency_alert_id,
+                'patient_name' => $patientName,
+                'patient_avatar' => $this->studentAvatar($student),
+                'location' => $alert->room ?: 'No room assigned',
+                'department' => $alert->type?->category ?: 'General',
+                'category' => $category,
+                'symptoms' => $case?->symptoms ?: $alert->message,
+                'symptoms_color' => $category,
+                'phone' => $student?->phone,
+                'time_sent' => optional($alert->created_at)->format('g:i A'),
+                'email' => $student?->email,
+            ];
+        })->values();
+    }
+
+    private function studentForAlert(EmergencyAlert $alert, ?ClinicCase $case): ?Students
+    {
+        if ($case?->student_id) {
+            return Students::query()->find($case->student_id);
+        }
+
+        $metadata = $alert->metadata ?? [];
+        if (! empty($metadata['student_id'])) {
+            return Students::query()->find($metadata['student_id']);
+        }
+
+        if (! empty($metadata['student_rfid'])) {
+            return Students::query()->where('rfid_tag', $metadata['student_rfid'])->first();
+        }
+
+        return null;
+    }
+
+    private function studentAvatar(?Students $student): ?string
+    {
+        $faceImages = $student?->face_images ?? [];
+        $firstImage = is_array($faceImages) ? ($faceImages[0] ?? null) : null;
+
+        return $firstImage ? Storage::url($firstImage) : null;
+    }
+
+    private function calendarEvents()
+    {
+        return EmergencyAlert::query()
+            ->whereNotNull('created_at')
+            ->selectRaw('DATE(created_at) as event_date')
+            ->distinct()
+            ->orderBy('event_date')
+            ->pluck('event_date')
+            ->values();
+    }
+
+    private function yearRange(): string
+    {
+        $schoolYear = Section::query()
+            ->whereNotNull('school_year')
+            ->orderByDesc('school_year')
+            ->value('school_year');
+
+        if ($schoolYear) {
+            return str_replace('-', ' - ', $schoolYear);
+        }
+
+        $year = now()->year;
+
+        return $year . ' - ' . ($year + 1);
     }
 }

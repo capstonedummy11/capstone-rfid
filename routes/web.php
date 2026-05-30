@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ActiveDeviceController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\BorrowController;
 use App\Http\Controllers\RfidController;
@@ -16,6 +17,8 @@ use App\Http\Controllers\SubjectController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\ClinicController;
 use App\Http\Controllers\EmergencyController;
+use App\Http\Controllers\SystemSettingsController;
+use App\Models\SystemSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -29,6 +32,9 @@ Route::get('/', function (Request $request) {
   if ($role === 'clinic') {
     return redirect()->route('clinic.dashboard');
   }
+  if ($role === 'console') {
+    return redirect()->route('attendanceControlPanel');
+  }
 
   return Inertia::render('LandingPage');
 })->name('landingPage');
@@ -41,6 +47,7 @@ Route::middleware(['auth', 'role:console'])->group(function () {
   Route::get('/attendance-control-panel', [AttendanceController::class, 'controlPanel'])->name('attendanceControlPanel');
   Route::post('/attendance-control-panel/room', [AttendanceController::class, 'selectPanelRoom'])->name('attendanceControlPanel.room');
   Route::post('/attendance-control-panel/logout', [AttendanceController::class, 'panelLogout'])->name('attendanceControlPanel.logout');
+  Route::post('/attendance-control-panel/status', [AttendanceController::class, 'panelStatus'])->name('attendanceControlPanel.status');
   Route::post('/attendance-control-panel/rfid-lookup', [AttendanceController::class, 'lookupRfid'])->name('attendanceControlPanel.lookupRfid');
   Route::post('/attendance-control-panel/session-state', [AttendanceController::class, 'updatePanelSessionState'])->name('attendanceControlPanel.sessionState');
   Route::post('/attendance-control-panel/student-face-check', [AttendanceController::class, 'studentFaceCheck'])->name('attendanceControlPanel.studentFaceCheck');
@@ -61,6 +68,9 @@ Route::get('/dashboard', function (Request $request) {
   }
   if ($role === 'clinic') {
     return redirect()->route('clinic.dashboard');
+  }
+  if ($role === 'console') {
+    return redirect()->route('attendanceControlPanel');
   }
 
   return redirect()->route('landingPage');
@@ -106,6 +116,11 @@ Route::prefix('admin')
       Route::delete('/inventory/{id}', [InventoryController::class, 'destroy'])->name('inventory.destroy');
       Route::get('/activity-logs', [ActivityLogController::class, 'indexAdmin'])->name('activity-logs.index');
       Route::delete('/activity-logs/{id}', [ActivityLogController::class, 'destroy'])->name('activity-logs.destroy');
+      Route::get('/active-devices', [ActiveDeviceController::class, 'index'])->name('active-devices.index');
+      Route::put('/active-devices/panel-access', [ActiveDeviceController::class, 'updatePanelAccess'])->name('active-devices.panel-access.update');
+      Route::post('/active-devices/{panelSessionId}/force-logout', [ActiveDeviceController::class, 'forceLogout'])->name('active-devices.force-logout');
+      Route::get('/settings', [SystemSettingsController::class, 'edit'])->name('settings.edit');
+      Route::put('/settings', [SystemSettingsController::class, 'update'])->name('settings.update');
       Route::get('/strands', [StrandController::class, 'indexAdmin'])->name('strands.index');
       Route::post('/strands', [StrandController::class, 'store'])->name('strands.store');
       Route::put('/strands/{id}', [StrandController::class, 'update'])->name('strands.update');
@@ -124,6 +139,10 @@ Route::prefix('admin')
       Route::post('/borrow/return-items', [BorrowController::class, 'returnItems'])->name('borrow.returnItems');
       // Route::inertia('/inventory', 'Auth/Admin/Inventory', ['title' => 'Inventory', 'items' => fn() => \App\Models\Item::all(),])->name('inventory');
       Route::get('/inventory', function () {
+        if (! SystemSetting::boolean(SystemSetting::INVENTORY_ENABLED, false)) {
+          return redirect()->route('admin.settings.edit')->with('success', 'Inventory is currently disabled.');
+        }
+
         return Inertia::render('Auth/Admin/Inventory', [
           'title' => 'Inventory',
           'items' => \App\Models\Item::all(),
@@ -147,6 +166,7 @@ Route::prefix('clinic')
     Route::put('/emergency-types/{id}', [EmergencyController::class, 'updateType'])->name('emergency-types.update');
     Route::delete('/emergency-types/{id}', [EmergencyController::class, 'destroyType'])->name('emergency-types.destroy');
     Route::put('/emergency-alerts/{id}', [EmergencyController::class, 'updateAlertStatus'])->name('emergency-alerts.update');
+    Route::post('/emergency-alerts/{id}/dispatch', [EmergencyController::class, 'dispatchAlert'])->name('emergency-alerts.dispatch');
   });
 
 

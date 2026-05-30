@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use App\Models\Device;
 use App\Models\Inventory;
+use App\Models\SystemSetting;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,6 +15,10 @@ class InventoryController
 {
     public function indexAdmin(Request $request)
     {
+        if (! SystemSetting::boolean(SystemSetting::INVENTORY_ENABLED, false)) {
+            return redirect()->route('admin.settings.edit')->with('success', 'Inventory is currently disabled.');
+        }
+
         $filters = [
             'search' => trim((string) $request->input('search', '')),
         ];
@@ -51,6 +56,8 @@ class InventoryController
 
     public function store(Request $request)
     {
+        abort_unless(SystemSetting::boolean(SystemSetting::INVENTORY_ENABLED, false), 423, 'Inventory is currently disabled.');
+
         $validated = $request->validate([
             'item_id' => 'required|exists:items,item_id|unique:inventories,item_id',
             'quantity' => 'required|integer|min:0',
@@ -76,6 +83,8 @@ class InventoryController
 
     public function update(Request $request, int $id)
     {
+        abort_unless(SystemSetting::boolean(SystemSetting::INVENTORY_ENABLED, false), 423, 'Inventory is currently disabled.');
+
         $inventory = Inventory::findOrFail($id);
 
         $validated = $request->validate([
@@ -106,6 +115,8 @@ class InventoryController
 
     public function destroy(int $id)
     {
+        abort_unless(SystemSetting::boolean(SystemSetting::INVENTORY_ENABLED, false), 423, 'Inventory is currently disabled.');
+
         $inventory = Inventory::findOrFail($id);
         $inventoryId = $inventory->inventory_id;
         $inventory->delete();

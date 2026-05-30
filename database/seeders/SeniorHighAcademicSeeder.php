@@ -146,7 +146,7 @@ class SeniorHighAcademicSeeder extends Seeder
                     [
                         'laboratory_id' => $laboratory->laboratory_id,
                         'instructor_id' => $instructor->instructor_id,
-                        'weekdays' => $subjectIndex === 0 ? 'Monday, Wednesday' : 'Tuesday, Thursday',
+                        'weekdays' => $subjectIndex === 0 ? 'Mon,Wed' : 'Tue,Thu',
                         'time_start' => sprintf('%02d:00:00', $startHour),
                         'time_end' => sprintf('%02d:00:00', $endHour),
                         'room' => $laboratory->name,

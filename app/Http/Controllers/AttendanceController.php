@@ -13,6 +13,7 @@ use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\Students;
 use App\Models\Subject;
+use App\Models\SystemSetting;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -51,10 +52,17 @@ class AttendanceController
         if (!$session) {
             $session = new RfidPanelSession();
             $session->room = $validated['room'];
-            $session->panel_id = 'attendance-control-panel';
+            $session->panel_id = SystemSetting::string(SystemSetting::PANEL_DEVICE_LABEL, 'Attendance Console');
         }
 
         $status = $validated['status'];
+
+        if ($status === 'borrowing' && ! SystemSetting::boolean(SystemSetting::BORROWING_ENABLED, false)) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Borrowing is currently disabled.',
+            ], 423);
+        }
 
         $session->status = $status;
         $session->subject_code = $validated['subject_code'] ?? null;
@@ -304,6 +312,16 @@ class AttendanceController
             'schedule_id' => ['nullable', 'integer'],
             'image' => ['required', 'string'],
         ]);
+
+        if (! SystemSetting::boolean(SystemSetting::FACE_RECOGNITION_ENABLED, true)) {
+            return response()->json([
+                'ok' => true,
+                'verified' => true,
+                'provider' => 'disabled',
+                'face_recognition_disabled' => true,
+                'message' => 'Face recognition is disabled. Attendance can continue.',
+            ]);
+        }
 
         $rfid = strtolower(trim($validated['rfid']));
         $student = Students::query()
@@ -718,6 +736,16 @@ class AttendanceController
             'student_number' => ['required', 'string', 'max:255'],
         ]);
 
+        if (! SystemSetting::boolean(SystemSetting::FACE_RECOGNITION_ENABLED, true)) {
+            return response()->json([
+                'ok' => true,
+                'verified' => true,
+                'provider' => 'disabled',
+                'face_recognition_disabled' => true,
+                'message' => 'Face recognition is disabled.',
+            ]);
+        }
+
         $result = (new CompreFaceService())->recognizeBase64($validated['image']);
 
         if ($result === null) {
@@ -748,6 +776,16 @@ class AttendanceController
             'image' => ['required', 'string'],
             'student_number' => ['required', 'string', 'max:255'],
         ]);
+
+        if (! SystemSetting::boolean(SystemSetting::FACE_RECOGNITION_ENABLED, true)) {
+            return response()->json([
+                'ok' => true,
+                'verified' => true,
+                'provider' => 'disabled',
+                'face_recognition_disabled' => true,
+                'message' => 'Face recognition is disabled.',
+            ]);
+        }
 
         $student = Students::query()
             ->where('student_number', $validated['student_number'])
@@ -842,9 +880,12 @@ class AttendanceController
             'pin' => ['required', 'string'],
         ]);
 
-        $pin = (string) config('panel.pin', '1234');
+        $pinHash = SystemSetting::string(SystemSetting::PANEL_PIN_HASH, '');
+        $pinMatches = $pinHash !== ''
+            ? Hash::check((string) $validated['pin'], $pinHash)
+            : (string) $validated['pin'] === (string) config('panel.pin', '1234');
 
-        if ((string) $validated['pin'] !== $pin) {
+        if (! $pinMatches) {
             return response()->json([
                 'success' => false,
                 'message' => 'Incorrect PIN. Please try again.',
@@ -854,7 +895,7 @@ class AttendanceController
         $consoleUser = User::withTrashed()->updateOrCreate(
             ['email' => 'console@rfid-panel.local'],
             [
-                'name' => 'Attendance Console',
+                'name' => SystemSetting::string(SystemSetting::PANEL_DEVICE_LABEL, 'Attendance Console'),
                 'password' => Hash::make(Str::random(40)),
                 'role' => 'console',
             ],
@@ -929,10 +970,41 @@ class AttendanceController
         ]);
     }
 
+    public function panelStatus(Request $request): JsonResponse
+    {
+        $room = trim((string) ($request->input('room') ?? session('panel.room')));
+
+        if ($room === '') {
+            return response()->json([
+                'ok' => true,
+                'logout_required' => true,
+                'message' => 'No panel room is assigned.',
+            ]);
+        }
+
+        $session = RfidPanelSession::query()
+            ->where('room', $room)
+            ->orderByDesc('panel_session_id')
+            ->first();
+
+        $logoutRequired = ! $session
+            || $session->ended_at !== null
+            || strtolower((string) $session->status) === 'offline';
+
+        return response()->json([
+            'ok' => true,
+            'logout_required' => $logoutRequired,
+            'status' => $session?->status ?? 'offline',
+            'featureSettings' => SystemSetting::featureFlags(),
+            'message' => $logoutRequired ? 'This panel was logged out by an administrator.' : null,
+        ]);
+    }
+
     private function panelPayload(): array
     {
         return [
             'rooms' => $this->panelRooms(),
+            'panelDeviceLabel' => SystemSetting::string(SystemSetting::PANEL_DEVICE_LABEL, 'Attendance Console'),
             'demoInstructorRfids' => User::query()
                 ->whereRaw('LOWER(role) = ?', ['instructor'])
                 ->whereNotNull('rfid_tag')
@@ -967,6 +1039,7 @@ class AttendanceController
                 ->values()
                 ->all(),
             'borrowItemsByRfid' => $this->buildBorrowItemsByRfid(),
+            'featureSettings' => SystemSetting::featureFlags(),
             'emergencyTypes' => EmergencyType::query()
                 ->where('is_active', true)
                 ->orderBy('sort_order')
@@ -1200,11 +1273,11 @@ class AttendanceController
     public function logs(Request $request)
     {
         $filters = [
+            'attendance_id' => trim((string) $request->input('attendance_id', '')),
             'date' => trim((string) $request->input('date', '')),
             'subject' => trim((string) $request->input('subject', '')),
-            'section' => trim((string) $request->input('section', '')),
-            'school_year' => trim((string) $request->input('school_year', '')),
             'instructor' => trim((string) $request->input('instructor', '')),
+            'instructor_rfid' => trim((string) $request->input('instructor_rfid', '')),
         ];
 
         $user = $request->user();
@@ -1214,121 +1287,219 @@ class AttendanceController
         $instructorId = $isInstructor
             ? Instructor::query()->where('user_id', $user?->user_id)->value('instructor_id')
             : null;
-        $handledSectionIds = $isInstructor
-            ? Schedule::query()
-                ->where('instructor_id', $instructorId ?: 0)
-                ->pluck('section_id')
-                ->unique()
-                ->values()
-            : collect();
 
-        $query = AttendanceLog::query()->with([
-            'student.section.strand',
-            'student.strand',
-            'attendance.schedule.subject.user',
-            'attendance.schedule.instructor.user',
-        ]);
-
-        if ($isInstructor) {
-            $query->whereHas('attendance.schedule', fn ($scheduleQuery) => $scheduleQuery->where('instructor_id', $instructorId ?: 0));
+        if (! $isAdmin) {
+            $filters['instructor'] = '';
+            $filters['instructor_rfid'] = '';
         }
 
-        if ($filters['date'] !== '') {
-            $query->whereHas('attendance', function ($attendanceQuery) use ($filters) {
-                $attendanceQuery->whereDate('date', $filters['date']);
-            });
+        if ($isAdmin && $filters['instructor_rfid'] !== '') {
+            $rfidInstructorUserId = User::query()
+                ->whereRaw('LOWER(rfid_tag) = ?', [strtolower($filters['instructor_rfid'])])
+                ->whereRaw('LOWER(role) = ?', ['instructor'])
+                ->value('user_id');
+
+            $filters['instructor'] = $rfidInstructorUserId ? (string) $rfidInstructorUserId : '__not_found__';
         }
 
-        if ($filters['subject'] !== '') {
-            $query->whereHas('attendance.schedule.subject', function ($subjectQuery) use ($filters) {
-                $subjectQuery->where('subject_id', $filters['subject']);
-            });
-        }
-
-        if ($filters['section'] !== '') {
-            if ($isInstructor && ! $handledSectionIds->contains((int) $filters['section'])) {
-                $query->whereRaw('1 = 0');
-            } else {
-                $query->whereHas('student', function ($studentQuery) use ($filters) {
-                    $studentQuery->where('section_id', $filters['section']);
-                });
+        $applySessionScope = function ($query) use ($isInstructor, $instructorId, $filters) {
+            if ($isInstructor) {
+                $query->where('schedules.instructor_id', $instructorId ?: 0);
             }
-        }
 
-        if ($filters['school_year'] !== '') {
-            $query->whereHas('student', function ($studentQuery) use ($filters) {
-                $studentQuery->where('school_year', $filters['school_year']);
-            });
-        }
+            if ($filters['attendance_id'] !== '') {
+                $query->where('attendance_sessions.attendance_id', $filters['attendance_id']);
+            }
 
-        if ($isAdmin && $filters['instructor'] !== '') {
-            $query->whereHas('attendance.schedule.instructor', function ($instructorQuery) use ($filters) {
-                $instructorQuery->where('user_id', $filters['instructor']);
-            });
-        }
+            if ($filters['date'] !== '') {
+                $query->whereDate('attendance_sessions.date', $filters['date']);
+            }
+
+            if ($filters['subject'] !== '') {
+                $query->where('subjects.subject_id', $filters['subject']);
+            }
+
+            if ($filters['instructor'] !== '') {
+                if ($filters['instructor'] === '__not_found__') {
+                    $query->whereRaw('1 = 0');
+                } else {
+                    $query->where('instructor_users.user_id', $filters['instructor']);
+                }
+            }
+        };
+
+        $sessionJoin = function ($query) {
+            $query
+                ->leftJoin('schedules', 'schedules.scheduled_id', '=', 'attendance_sessions.schedule_id')
+                ->leftJoin('instructors', 'instructors.instructor_id', '=', 'schedules.instructor_id')
+                ->leftJoin('users as instructor_users', 'instructor_users.user_id', '=', 'instructors.user_id')
+                ->leftJoin('sections', 'sections.section_id', '=', 'schedules.section_id')
+                ->leftJoin('subjects', function ($join) {
+                    $join->on('subjects.subject_code', '=', 'attendance_sessions.subject_code')
+                        ->on('subjects.section_id', '=', 'schedules.section_id');
+                });
+        };
+
+        $query = DB::table('attendance_logs')
+            ->join('attendance_sessions', 'attendance_sessions.attendance_id', '=', 'attendance_logs.attendance_id')
+            ->leftJoin('students', 'students.student_id', '=', 'attendance_logs.student_id')
+            ->leftJoin('sections as student_sections', 'student_sections.section_id', '=', 'students.section_id')
+            ->leftJoin('strands', 'strands.strand_id', '=', 'students.strand_id');
+
+        $sessionJoin($query);
+
+        $applySessionScope($query);
 
         $logs = $query
-            ->orderByDesc('id')
+            ->orderByDesc('attendance_sessions.date')
+            ->orderByDesc('attendance_sessions.time_start')
+            ->orderByDesc('attendance_logs.id')
+            ->select([
+                'attendance_logs.id',
+                'attendance_logs.time_in',
+                'attendance_logs.time_out',
+                'attendance_logs.status',
+                'attendance_sessions.attendance_id as session_id',
+                'attendance_sessions.date',
+                'attendance_sessions.room',
+                'attendance_sessions.time_start',
+                'attendance_sessions.time_end',
+                'subjects.subject_name',
+                'subjects.subject_id',
+                'sections.section_name as schedule_section_name',
+                'sections.school_year as schedule_school_year',
+                'instructor_users.user_id as instructor_id',
+                'instructor_users.name as instructor_name',
+                'instructor_users.rfid_tag as instructor_rfid',
+                'students.first_name',
+                'students.last_name',
+                'students.student_number',
+                'students.school_year as student_school_year',
+                'student_sections.section_name as student_section_name',
+                'strands.strand_code',
+            ])
             ->get()
-            ->map(function (AttendanceLog $log) {
-                $student = $log->student;
-                $attendance = $log->attendance;
-                $schedule = $attendance?->schedule;
-                $subject = $schedule?->subject ?? $attendance?->subjectRecord;
-
+            ->map(function ($log) {
                 return [
                     'id' => $log->id,
-                    'student' => trim(($student?->first_name ?? '') . ' ' . ($student?->last_name ?? '')),
-                    'subject' => $subject?->subject_name ?? $attendance?->subject ?? 'N/A',
-                    'section' => $student?->section?->section_name ?? 'N/A',
-                    'school_year' => $student?->school_year,
-                    'instructor' => $schedule?->instructor?->user?->name ?? $subject?->user?->name ?? 'Unassigned Instructor',
-                    'date' => $attendance?->date?->format('Y-m-d') ?? null,
-                    'time' => $this->formatTime($log->time_in) ?? $this->formatTime($attendance?->time_in) ?? 'N/A',
-                    'status' => ucfirst((string) ($log->status ?? $attendance?->status ?? 'pending')),
+                    'session_id' => $log->session_id,
+                    'student' => trim(($log->first_name ?? '') . ' ' . ($log->last_name ?? '')) ?: 'Unknown Student',
+                    'student_number' => $log->student_number,
+                    'subject' => $log->subject_name ?? 'N/A',
+                    'section' => $log->student_section_name ?? $log->schedule_section_name ?? 'N/A',
+                    'school_year' => $log->student_school_year ?? $log->schedule_school_year,
+                    'instructor' => $log->instructor_name ?? 'Unassigned Instructor',
+                    'instructor_id' => $log->instructor_id,
+                    'instructor_rfid' => $log->instructor_rfid,
+                    'room' => $log->room ?? 'N/A',
+                    'date' => $log->date,
+                    'session_time' => trim(($this->formatTime($log->time_start) ?? 'N/A') . ' - ' . ($this->formatTime($log->time_end) ?? 'N/A')),
+                    'time' => $this->formatTime($log->time_in) ?? 'N/A',
+                    'time_out' => $this->formatTime($log->time_out),
+                    'status' => ucfirst((string) ($log->status ?? 'pending')),
                 ];
             })
             ->values();
+
+        $sessionOptionsQuery = DB::table('attendance_sessions');
+        $sessionJoin($sessionOptionsQuery);
+
+        $sessionOptions = $sessionOptionsQuery
+            ->when($isInstructor, fn ($sessionQuery) => $sessionQuery->where('schedules.instructor_id', $instructorId ?: 0))
+            ->when($isAdmin && $filters['instructor'] !== '' && $filters['instructor'] !== '__not_found__', fn ($sessionQuery) => $sessionQuery->where('instructor_users.user_id', $filters['instructor']))
+            ->when($filters['date'] !== '', fn ($sessionQuery) => $sessionQuery->whereDate('attendance_sessions.date', $filters['date']))
+            ->when($filters['subject'] !== '', fn ($sessionQuery) => $sessionQuery->where('subjects.subject_id', $filters['subject']))
+            ->orderByDesc('attendance_sessions.date')
+            ->orderByDesc('attendance_sessions.time_start')
+            ->select([
+                'attendance_sessions.attendance_id',
+                'attendance_sessions.date',
+                'attendance_sessions.room',
+                'attendance_sessions.time_start',
+                'attendance_sessions.time_end',
+                'subjects.subject_name',
+                'subjects.year_level',
+                'sections.section_name',
+                'instructor_users.name as instructor_name',
+            ])
+            ->get()
+            ->map(fn ($session) => [
+                'value' => $session->attendance_id,
+                'label' => trim(implode(' | ', array_filter([
+                    $session->date,
+                    trim(implode(' ', array_filter([
+                        $session->subject_name,
+                        trim(implode('-', array_filter([$session->year_level, $session->section_name]))),
+                    ]))),
+                    $session->instructor_name,
+                    trim(($this->formatTime($session->time_start) ?? '') . ' - ' . ($this->formatTime($session->time_end) ?? '')),
+                ]))),
+            ])
+            ->values();
+
+        $dateOptionsQuery = DB::table('attendance_sessions');
+        $sessionJoin($dateOptionsQuery);
+
+        $dateOptions = $dateOptionsQuery
+            ->when($isInstructor, fn ($dateQuery) => $dateQuery->where('schedules.instructor_id', $instructorId ?: 0))
+            ->when($isAdmin && $filters['instructor'] !== '' && $filters['instructor'] !== '__not_found__', fn ($dateQuery) => $dateQuery->where('instructor_users.user_id', $filters['instructor']))
+            ->when($filters['subject'] !== '', fn ($dateQuery) => $dateQuery->where('subjects.subject_id', $filters['subject']))
+            ->whereNotNull('attendance_sessions.date')
+            ->distinct()
+            ->orderByDesc('attendance_sessions.date')
+            ->pluck('attendance_sessions.date')
+            ->map(fn ($date) => [
+                'value' => (string) $date,
+                'label' => Carbon::parse($date)->format('m/d/Y'),
+            ])
+            ->values();
+
+        $subjectOptionsQuery = DB::table('subjects')
+            ->leftJoin('sections', 'sections.section_id', '=', 'subjects.section_id')
+            ->leftJoin('schedules', function ($join) {
+                $join->on('schedules.section_id', '=', 'subjects.section_id')
+                    ->on('schedules.subject_code', '=', 'subjects.subject_code');
+            })
+            ->leftJoin('instructors', 'instructors.instructor_id', '=', 'schedules.instructor_id')
+            ->leftJoin('users as subject_instructor_users', 'subject_instructor_users.user_id', '=', 'instructors.user_id');
 
         return Inertia::render('AttendanceLogs', [
             'logs' => $logs,
             'filters' => $filters,
             'currentUserRole' => $role,
             'canInspectAllAttendance' => $isAdmin,
-            'subjectOptions' => Subject::query()
-                ->when($isInstructor, function ($subjectQuery) use ($instructorId) {
-                    $subjectQuery->whereHas('schedules', fn ($scheduleQuery) => $scheduleQuery->where('instructor_id', $instructorId ?: 0));
-                })
-                ->orderBy('subject_name')
-                ->get(['subject_id', 'subject_name'])
-                ->map(fn(Subject $subject) => [
-                    'value' => $subject->subject_id,
-                    'label' => $subject->subject_name,
+            'attendanceSessionOptions' => $sessionOptions,
+            'subjectOptions' => $subjectOptionsQuery
+                ->when($isInstructor, fn ($subjectQuery) => $subjectQuery->where('schedules.instructor_id', $instructorId ?: 0))
+                ->when($isAdmin && $filters['instructor'] !== '' && $filters['instructor'] !== '__not_found__', fn ($subjectQuery) => $subjectQuery->where('subject_instructor_users.user_id', $filters['instructor']))
+                ->select([
+                    'subjects.subject_id',
+                    'subjects.subject_name',
+                    'subjects.year_level',
+                    'sections.section_name',
                 ])
-                ->values(),
-            'sectionOptions' => Section::query()
-                ->when($isInstructor, fn ($sectionQuery) => $sectionQuery->whereIn('section_id', $handledSectionIds->all()))
-                ->orderBy('section_name')
-                ->get(['section_id', 'section_name', 'school_year'])
-                ->map(fn(Section $section) => [
-                    'value' => $section->section_id,
-                    'label' => trim(implode(' - ', array_filter([$section->section_name, $section->school_year]))),
-                ])
-                ->values(),
-            'schoolYearOptions' => Section::query()
-                ->when($isInstructor, fn ($sectionQuery) => $sectionQuery->whereIn('section_id', $handledSectionIds->all()))
-                ->whereNotNull('school_year')
                 ->distinct()
-                ->orderByDesc('school_year')
-                ->pluck('school_year')
+                ->orderBy('subjects.subject_name')
+                ->orderBy('subjects.year_level')
+                ->orderBy('sections.section_name')
+                ->get()
+                ->map(fn($subject) => [
+                    'value' => $subject->subject_id,
+                    'label' => trim(implode(' ', array_filter([
+                        $subject->subject_name,
+                        trim(implode('-', array_filter([$subject->year_level, $subject->section_name]))),
+                    ]))),
+                ])
                 ->values(),
+            'dateOptions' => $dateOptions,
             'instructorOptions' => $isAdmin ? User::query()
                 ->whereIn('user_id', Instructor::query()->whereNotNull('user_id')->pluck('user_id')->unique())
                 ->orderBy('name')
-                ->get(['user_id', 'name'])
+                ->get(['user_id', 'name', 'rfid_tag'])
                 ->map(fn(User $user) => [
                     'value' => $user->user_id,
                     'label' => $user->name,
+                    'rfid' => $user->rfid_tag,
                 ])
                 ->values() : [],
         ]);

@@ -1,6 +1,8 @@
 <script setup>
-import { Link, usePage } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import { MonitorCheck, Settings } from 'lucide-vue-next';
+import Swal from 'sweetalert2';
 import Navlinks from '@/components/Auth/Navlinks.vue';
 import ActivityLogs from '@/components/Icon/ActivityLogs.vue';
 import Attendance from '@/components/Icon/Attendance.vue';
@@ -21,7 +23,10 @@ const page = usePage();
 const currentRole = computed(() =>
     String(page.props.auth?.user?.role ?? '').toLowerCase(),
 );
+const featureSettings = computed(() => page.props.featureSettings ?? {});
 const canSee = (roles) => roles.includes(currentRole.value);
+const isFeatureVisible = (featureKey) =>
+    !featureKey || Boolean(featureSettings.value?.[featureKey]);
 
 const sections = [
     {
@@ -39,12 +44,11 @@ const sections = [
                 route: route('clinic.dashboard'),
                 roles: ['clinic'],
             },
-            {
-                icon: Graduation,
-                text: 'School Year',
-                roles: ['admin'],
-                //route: route('admin.instructorsManagement'),
-            },
+            // {
+            //     icon: Graduation,
+            //     text: 'School Year',
+            //     roles: ['admin'],
+            // },
             {
                 icon: Graduation,
                 text: 'Strands',
@@ -89,7 +93,7 @@ const sections = [
             {
                 icon: Attendance,
                 text: 'Attendance',
-                route: route('admin.attendance.scanner'),
+                route: route('admin.attendance.logs'),
                 roles: ['admin', 'instructor'],
             },
         ],
@@ -108,12 +112,14 @@ const sections = [
                 text: 'Borrowing',
                 route: route('admin.borrow'),
                 roles: ['admin'],
+                feature: 'borrowing_enabled',
             },
             {
                 icon: Inventory,
                 text: 'Inventory',
                 route: route('admin.inventory'),
                 roles: ['admin'],
+                feature: 'inventory_enabled',
             },
             {
                 icon: Reports,
@@ -124,6 +130,12 @@ const sections = [
                 icon: ActivityLogs,
                 text: 'Activity Logs',
                 route: route('admin.activity-logs.index'),
+                roles: ['admin'],
+            },
+            {
+                icon: MonitorCheck,
+                text: 'Active Devices',
+                route: route('admin.active-devices.index'),
                 roles: ['admin'],
             },
             {
@@ -155,6 +167,12 @@ const sections = [
                 route: route('admin.rfid'),
                 roles: ['admin'],
             },
+            {
+                icon: Settings,
+                text: 'Settings',
+                route: route('admin.settings.edit'),
+                roles: ['admin'],
+            },
         ],
     },
 ];
@@ -163,17 +181,38 @@ const visibleSections = computed(() =>
     sections
         .map((section) => ({
             ...section,
-            links: section.links.filter((link) => canSee(link.roles)),
+            links: section.links.filter(
+                (link) => canSee(link.roles) && isFeatureVisible(link.feature),
+            ),
         }))
         .filter((section) => section.links.length > 0),
 );
+
+const confirmLogout = async () => {
+    const result = await Swal.fire({
+        title: 'Log out?',
+        text: 'You will be returned to the landing page.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, log out',
+        cancelButtonText: 'Stay signed in',
+        confirmButtonColor: '#2563eb',
+        cancelButtonColor: '#64748b',
+    });
+
+    if (!result.isConfirmed) {
+        return;
+    }
+
+    router.post(route('logout'));
+};
 </script>
 
 <template>
     <nav
-        class="flex w-[250px] flex-col justify-between bg-white text-default drop-shadow-xl"
+        class="flex h-screen w-[250px] shrink-0 flex-col bg-white text-default drop-shadow-xl"
     >
-        <div class="flex flex-col">
+        <div class="min-h-0 flex-1 overflow-y-auto">
             <template v-for="section in visibleSections" :key="section.title">
                 <header class="p-4 text-nav-header">
                     <h1 class="text-[18px]">{{ section.title }}</h1>
@@ -192,15 +231,13 @@ const visibleSections = computed(() =>
         </div>
 
         <!-- Logout Button -->
-        <Link
-            :href="route('logout')"
-            method="post"
-            as="button"
+        <button
             type="button"
-            class="auth-nav-link group w-full border-t-2 text-left"
+            @click="confirmLogout"
+            class="auth-nav-link group w-full shrink-0 border-t-2 text-left"
         >
             <LogoutIcon class="text-[#A3AED0] group-hover:text-brand" />
             <h1>Logout</h1>
-        </Link>
+        </button>
     </nav>
 </template>

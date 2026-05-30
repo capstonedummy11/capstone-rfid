@@ -20,7 +20,7 @@ class ComlabUserSeeder extends Seeder
           'name' => "COMLAB {$i}",
           'email' => "comlab{$i}@example.com",
           'password' => Hash::make('1234'),
-          'role' => 'user',
+          'role' => 'console',
         ]
       );
     }

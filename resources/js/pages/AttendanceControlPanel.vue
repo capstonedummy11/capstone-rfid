@@ -20,6 +20,13 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    featureSettings: {
+        type: Object,
+        default: () => ({
+            borrowing_enabled: false,
+            inventory_enabled: false,
+        }),
+    },
     demoInstructorRfids: {
         type: Array,
         default: () => [],
@@ -93,9 +100,11 @@ let activeStudentTimer = null;
 let tapHeadlineTimer = null;
 let demoStudentCursor = 0;
 let captureResetTimer = null;
+let panelStatusTicker = null;
 
 const cameraRef = ref(null);
 const capturedPhotoUrl = ref(null);
+const panelFeatureSettings = ref({ ...(props.featureSettings ?? {}) });
 
 const PANEL_RUNTIME_KEY = 'panelRuntime';
 
@@ -112,10 +121,17 @@ const STUDENT_INFO_VISIBLE_MS =
     Number.isFinite(studentInfoVisibleSeconds) && studentInfoVisibleSeconds > 0
         ? studentInfoVisibleSeconds * 1000
         : 10000;
+const borrowingEnabled = computed(() =>
+    Boolean(panelFeatureSettings.value?.borrowing_enabled),
+);
+const faceRecognitionEnabled = computed(() =>
+    Boolean(panelFeatureSettings.value?.face_recognition_enabled),
+);
 
 const modeLabel = computed(() => {
     if (currentMode.value === 'attendance') return 'Attendance Mode';
-    if (currentMode.value === 'borrowing') return 'Borrowing Mode';
+    if (currentMode.value === 'borrowing' && borrowingEnabled.value)
+        return 'Borrowing Mode';
     return 'Idle Mode';
 });
 
@@ -155,21 +171,22 @@ const attendancePercentage = computed(() => {
 
 const statusHeadline = computed(() => {
     if (!sessionActive.value) return 'Tap RFID Card';
-    if (currentMode.value === 'borrowing')
+    if (currentMode.value === 'borrowing' && borrowingEnabled.value)
         return 'Borrower verification is active';
     return 'Attendance recording is live';
 });
 
 const statusSubline = computed(() => {
     if (!sessionActive.value) return 'Professor tap starts the session.';
-    if (currentMode.value === 'borrowing')
+    if (currentMode.value === 'borrowing' && borrowingEnabled.value)
         return 'Tap the professor card again to resume attendance or end the session.';
     return 'Students can now tap their RFID cards to be marked present.';
 });
 
 const actionButtonLabel = computed(() => {
     if (!sessionActive.value) return 'Demo Instructor Tap';
-    if (currentMode.value === 'borrowing') return 'Demo Borrower Tap';
+    if (currentMode.value === 'borrowing' && borrowingEnabled.value)
+        return 'Demo Borrower Tap';
     return 'Demo Student Tap';
 });
 
@@ -421,6 +438,7 @@ const loadAttendanceLogsFromServer = async () => {
 
 const syncPanelSessionState = async (status, extra = {}) => {
     if (!selectedRoom.value) return;
+    if (status === 'borrowing' && !borrowingEnabled.value) return;
 
     try {
         const xsrfRaw = document.cookie
@@ -593,7 +611,6 @@ const checkStudentFaceForAttendance = async (student, base64DataUrl) => {
 
 const recordAttendance = async (student) => {
     showStudentTemporarily(student);
-    triggerCameraCapture();
 
     const timestamp = new Date().toLocaleTimeString('en-US', {
         hour: 'numeric',
@@ -601,60 +618,70 @@ const recordAttendance = async (student) => {
         hour12: true,
     });
 
-    if (!capturedPhotoUrl.value) {
-        showStudentToast(
+    if (faceRecognitionEnabled.value) {
+        triggerCameraCapture();
+
+        if (!capturedPhotoUrl.value) {
+            showStudentToast(
+                student,
+                'Camera capture is required before attendance can be recorded.',
+                'warning',
+            );
+            pushHistory(
+                'Camera capture required',
+                `${student.name} must be captured before attendance is saved.`,
+                'warning',
+            );
+            return;
+        }
+
+        const faceResult = await checkStudentFaceForAttendance(
             student,
-            'Camera capture is required before attendance can be recorded.',
-            'warning',
+            capturedPhotoUrl.value,
         );
-        pushHistory(
-            'Camera capture required',
-            `${student.name} must be captured before attendance is saved.`,
-            'warning',
-        );
-        return;
-    }
 
-    const faceResult = await checkStudentFaceForAttendance(
-        student,
-        capturedPhotoUrl.value,
-    );
+        if (!faceResult?.ok || faceResult.verified === false) {
+            showStudentToast(
+                student,
+                faceResult?.message ??
+                    'Face verification failed. Attendance was not recorded.',
+                'warning',
+            );
+            pushHistory(
+                'Face verification blocked',
+                `${student.name}: ${faceResult?.message ?? 'verification failed.'}`,
+                'warning',
+            );
+            setTapHeadline('Face Verification Failed');
+            return;
+        }
 
-    if (!faceResult?.ok || faceResult.verified === false) {
-        showStudentToast(
-            student,
-            faceResult?.message ??
-                'Face verification failed. Attendance was not recorded.',
-            'warning',
-        );
-        pushHistory(
-            'Face verification blocked',
-            `${student.name}: ${faceResult?.message ?? 'verification failed.'}`,
-            'warning',
-        );
-        setTapHeadline('Face Verification Failed');
-        return;
-    }
-
-    if (faceResult.reference_captured) {
-        student.hasFaceImage = true;
-        student.faceImageCount = 1;
-        pushHistory(
-            'Face reference captured',
-            `${student.name} had no saved photo, so this camera capture was saved as the reference.`,
-            'success',
-        );
-        showStudentToast(student, faceResult.message, 'success');
-    } else if (faceResult.provider_unavailable) {
-        pushHistory(
-            'Face provider unavailable',
-            faceResult.message,
-            'warning',
-        );
+        if (faceResult.reference_captured) {
+            student.hasFaceImage = true;
+            student.faceImageCount = 1;
+            pushHistory(
+                'Face reference captured',
+                `${student.name} had no saved photo, so this camera capture was saved as the reference.`,
+                'success',
+            );
+            showStudentToast(student, faceResult.message, 'success');
+        } else if (faceResult.provider_unavailable) {
+            pushHistory(
+                'Face provider unavailable',
+                faceResult.message,
+                'warning',
+            );
+        } else {
+            pushHistory(
+                'Face verified',
+                `${student.name} passed AWS face verification.`,
+                'success',
+            );
+        }
     } else {
         pushHistory(
-            'Face verified',
-            `${student.name} passed AWS face verification.`,
+            'Face verification skipped',
+            'Face Rekognition is disabled by an administrator.',
             'success',
         );
     }
@@ -1101,7 +1128,7 @@ const triggerEmergencyCall = async (selectedType = null) => {
 };
 
 const showInstructorOptions = async () => {
-    if (currentMode.value === 'borrowing') {
+    if (currentMode.value === 'borrowing' && borrowingEnabled.value) {
         const result = await Swal.fire({
             title: 'Instructor RFID detected',
             text: 'Choose the next action for this live class.',
@@ -1157,7 +1184,7 @@ const showInstructorOptions = async () => {
     const result = await Swal.fire({
         title: 'Instructor RFID detected again',
         text: 'Choose the next action for this live session.',
-        showConfirmButton: true,
+        showConfirmButton: borrowingEnabled.value,
         showDenyButton: true,
         showCancelButton: true,
         confirmButtonText: 'Borrowing Mode',
@@ -1171,6 +1198,12 @@ const showInstructorOptions = async () => {
     });
 
     if (result.isConfirmed) {
+        if (!borrowingEnabled.value) {
+            currentMode.value = 'attendance';
+            showToast('info', 'Borrowing is currently disabled');
+            return;
+        }
+
         currentMode.value = 'borrowing';
         lastAction.value = `${activeProfessor.value?.name ?? 'Instructor'} switched the panel to borrow item mode.`;
         pushHistory(
@@ -1248,6 +1281,70 @@ const logoutPanel = async () => {
     }
 };
 
+const performForcedPanelLogout = async (message = 'This panel was logged out by an administrator.') => {
+    const roomToClose = selectedRoom.value;
+    clearPanelRuntime();
+    panelUnlocked.value = false;
+    sessionActive.value = false;
+    currentMode.value = 'idle';
+
+    try {
+        const xsrfRaw = document.cookie
+            .split('; ')
+            .find((row) => row.startsWith('XSRF-TOKEN='))
+            ?.split('=')[1];
+
+        const response = await fetch('/attendance-control-panel/logout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'X-XSRF-TOKEN': xsrfRaw ? decodeURIComponent(xsrfRaw) : '',
+            },
+            body: JSON.stringify({ room: roomToClose }),
+        });
+
+        const payload = await response.json().catch(() => ({}));
+        window.location.href =
+            payload.redirect ?? '/attendance-control-panel/login';
+    } catch {
+        window.location.href = '/attendance-control-panel/login';
+    }
+
+    return message;
+};
+
+const checkPanelStatus = async () => {
+    if (!panelUnlocked.value || !selectedRoom.value) return;
+
+    try {
+        const xsrfRaw = document.cookie
+            .split('; ')
+            .find((row) => row.startsWith('XSRF-TOKEN='))
+            ?.split('=')[1];
+
+        const response = await fetch('/attendance-control-panel/status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'X-XSRF-TOKEN': xsrfRaw ? decodeURIComponent(xsrfRaw) : '',
+            },
+            body: JSON.stringify({ room: selectedRoom.value }),
+        });
+
+        const payload = await response.json().catch(() => null);
+        if (payload?.featureSettings) {
+            panelFeatureSettings.value = payload.featureSettings;
+        }
+        if (response.ok && payload?.logout_required) {
+            await performForcedPanelLogout(payload.message);
+        }
+    } catch {
+        // Keep the panel usable if the short status check fails.
+    }
+};
+
 const handleRfidScan = async (rfid) => {
     if (!rfid) return;
 
@@ -1316,7 +1413,7 @@ const handleRfidScan = async (rfid) => {
             return;
         }
 
-        if (currentMode.value === 'borrowing') {
+        if (currentMode.value === 'borrowing' && borrowingEnabled.value) {
             processBorrowerMode(student);
             return;
         }
@@ -1343,15 +1440,27 @@ const handleRfidScan = async (rfid) => {
             return;
         }
 
-        if (currentMode.value !== 'borrowing') {
+        if (currentMode.value !== 'borrowing' || !borrowingEnabled.value) {
             lastAction.value = `${user.name} scanned while attendance mode is active.`;
             pushHistory(
                 'Borrow mode required',
-                `${user.name} must wait until borrow item mode is enabled.`,
+                borrowingEnabled.value
+                    ? `${user.name} must wait until borrow item mode is enabled.`
+                    : 'Borrowing is currently disabled by an administrator.',
                 'warning',
             );
-            showStudentToast(user, 'Enable Borrow Item mode first.', 'info');
-            setTapHeadline('Borrow Mode Required');
+            showStudentToast(
+                user,
+                borrowingEnabled.value
+                    ? 'Enable Borrow Item mode first.'
+                    : 'Borrowing is currently disabled.',
+                'info',
+            );
+            setTapHeadline(
+                borrowingEnabled.value
+                    ? 'Borrow Mode Required'
+                    : 'Borrowing Disabled',
+            );
             return;
         }
 
@@ -1433,7 +1542,9 @@ const toggleListening = () => {
 
     if (sessionActive.value) {
         syncPanelSessionState(
-            currentMode.value === 'borrowing' ? 'borrowing' : 'attendance',
+            currentMode.value === 'borrowing' && borrowingEnabled.value
+                ? 'borrowing'
+                : 'attendance',
         );
         return;
     }
@@ -1453,7 +1564,7 @@ const runDemoTap = () => {
         return;
     }
 
-    if (currentMode.value === 'borrowing') {
+    if (currentMode.value === 'borrowing' && borrowingEnabled.value) {
         const borrowerRfid =
             demoStudentRfids.value[1] ?? demoStudentRfids.value[0];
         if (!borrowerRfid) {
@@ -1514,6 +1625,11 @@ const runDemoBorrowTap = () => {
         return;
     }
 
+    if (!borrowingEnabled.value) {
+        showToast('info', 'Borrowing is currently disabled');
+        return;
+    }
+
     if (currentMode.value !== 'borrowing') {
         currentMode.value = 'borrowing';
         syncPanelSessionState('borrowing');
@@ -1547,9 +1663,13 @@ onMounted(() => {
         if (panelRuntimeRaw) {
             const panelRuntime = JSON.parse(panelRuntimeRaw);
             sessionActive.value = Boolean(panelRuntime.sessionActive);
-            currentMode.value =
+            const restoredMode =
                 panelRuntime.currentMode ||
                 (panelRuntime.sessionActive ? 'attendance' : 'idle');
+            currentMode.value =
+                restoredMode === 'borrowing' && !borrowingEnabled.value
+                    ? 'attendance'
+                    : restoredMode;
             isListening.value = panelRuntime.isListening ?? true;
             activeProfessor.value = panelRuntime.activeProfessor ?? null;
             if (panelRuntime.lastAction) {
@@ -1558,7 +1678,7 @@ onMounted(() => {
 
             if (
                 panelRuntime.sessionActive &&
-                (panelRuntime.currentMode || 'idle') === 'attendance'
+                currentMode.value === 'attendance'
             ) {
                 loadAttendanceLogsFromServer();
             }
@@ -1574,11 +1694,13 @@ onMounted(() => {
 
     updateClock();
     timeTicker = window.setInterval(updateClock, 1000);
+    panelStatusTicker = window.setInterval(checkPanelStatus, 5000);
     window.addEventListener('keydown', handleKeydown, true);
 });
 
 onUnmounted(() => {
     if (timeTicker) clearInterval(timeTicker);
+    if (panelStatusTicker) clearInterval(panelStatusTicker);
     window.removeEventListener('keydown', handleKeydown, true);
     if (scanFinalizeTimer) clearTimeout(scanFinalizeTimer);
     if (activeStudentTimer) clearTimeout(activeStudentTimer);
@@ -1887,7 +2009,7 @@ watch(
                 </div>
             </section>
 
-            <section
+            <!-- <section
                 class="flex min-h-80 flex-col rounded-[22px] bg-white p-5 shadow-sm ring-1 ring-red-200/70"
             >
                 <div class="flex items-center justify-between gap-3">
@@ -1945,7 +2067,7 @@ watch(
                         No emergency types configured.
                     </div>
                 </div>
-            </section>
+            </section> -->
 
             <section
                 class="flex min-h-165 flex-col rounded-[22px] bg-white p-5 shadow-sm ring-1 ring-slate-200/70 lg:row-span-2"

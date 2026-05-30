@@ -29,6 +29,11 @@ class LoginResponse implements LoginResponseContract
       return redirect()->route('clinic.dashboard');
     }
 
+    if ($role === 'console') {
+      Log::info('LoginResponse redirect', ['target' => 'attendanceControlPanel']);
+      return redirect()->route('attendanceControlPanel');
+    }
+
     Log::info('LoginResponse redirect', ['target' => config('fortify.home', '/')]);
     return redirect()->intended(config('fortify.home', '/'));
   }

@@ -9,17 +9,17 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-        public function up()
-        {
+    public function up(): void
+    {
+        if (Schema::hasTable('inventory_items') && ! Schema::hasColumn('inventory_items', 'deleted_at')) {
             Schema::table('inventory_items', function (Blueprint $table) {
-                $table->softDeletes(); // adds nullable deleted_at timestamp
+                $table->softDeletes();
             });
         }
+    }
 
-        public function down()
-        {
-            Schema::table('inventory_items', function (Blueprint $table) {
-                $table->dropSoftDeletes();
-            });
-        }
+    public function down(): void
+    {
+        // The current inventory_items table definition owns this column.
+    }
 };

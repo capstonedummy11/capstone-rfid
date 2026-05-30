@@ -6,6 +6,7 @@ use App\Models\Borrowing;
 use App\Models\BorrowingItem;
 use App\Models\Item;
 use App\Models\Students;
+use App\Models\SystemSetting;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,6 +21,10 @@ class BorrowController
    */
   public function index(Request $request)
   {
+    if (!SystemSetting::boolean(SystemSetting::BORROWING_ENABLED, false)) {
+      return redirect()->route('admin.settings.edit')->with('success', 'Borrowing is currently disabled.');
+    }
+
     $filters = [
       'search' => trim((string) $request->input('search', '')),
       'status' => trim((string) $request->input('status', '')),
@@ -42,6 +47,13 @@ class BorrowController
 
 public function returnItems(Request $request): JsonResponse
 {
+    if (!SystemSetting::boolean(SystemSetting::BORROWING_ENABLED, false)) {
+      return response()->json([
+        'ok' => false,
+        'message' => 'Borrowing is currently disabled.',
+      ], 423);
+    }
+
     $validated = $request->validate([
       'rfid' => ['required', 'string', 'max:255'],
       'barcodes' => ['required', 'array', 'min:1'],
@@ -286,6 +298,13 @@ public function returnItems(Request $request): JsonResponse
 }
   public function borrowItemsOnly(Request $request): JsonResponse
   {
+    if (!SystemSetting::boolean(SystemSetting::BORROWING_ENABLED, false)) {
+      return response()->json([
+        'ok' => false,
+        'message' => 'Borrowing is currently disabled.',
+      ], 423);
+    }
+
     $validated = $request->validate([
       'rfid' => ['required', 'string', 'max:255'],
       'barcodes' => ['required', 'array', 'min:1'],

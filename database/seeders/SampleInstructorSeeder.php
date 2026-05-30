@@ -94,7 +94,7 @@ class SampleInstructorSeeder extends Seeder
             [
                 'laboratory_id' => $laboratory->laboratory_id,
                 'instructor_id' => $instructor->instructor_id,
-                'weekdays' => 'Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday',
+                'weekdays' => 'Mon,Tue,Wed,Thu,Fri,Sat',
                 'time_start' => '00:00:00',
                 'time_end' => '23:59:59',
                 'room' => $laboratory->name,

@@ -11,7 +11,7 @@ import 'aos/dist/aos.css';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 const guestPages = ['LandingPage'];
-const noLayoutPages = ['Auth/Register'];
+const noLayoutPages = ['Auth/Register', 'Auth/Login'];
 
 createInertiaApp({
     title: (title) => `RFID - Attendance Monitoring, Borrowing, and Inventory`,

@@ -20,6 +20,7 @@ class EmergencyAlert extends Model
         'room',
         'subject_code',
         'triggered_by_name',
+        'sub_type',
         'severity',
         'status',
         'message',
