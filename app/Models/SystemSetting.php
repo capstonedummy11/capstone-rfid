@@ -20,6 +20,19 @@ class SystemSetting extends Model
     public const FACE_RECOGNITION_ENABLED = 'feature.face_recognition_enabled';
     public const PANEL_PIN_HASH = 'panel.pin_hash';
     public const PANEL_DEVICE_LABEL = 'panel.device_label';
+    public const ATTENDANCE_ABSENT_DEFAULT_DAYS = 'attendance.absent_default_days';
+    public const SECURITY_QUESTIONS = 'auth.security_questions';
+
+    public const DEFAULT_SECURITY_QUESTIONS = [
+        'What was the name of your first school?',
+        'What is your mother\'s maiden name?',
+        'What was the name of your first pet?',
+        'In what city were you born?',
+        'What was the model of your first car?',
+        'What is the name of the street where you grew up?',
+        'What was your childhood nickname?',
+        'What is the name of your favorite teacher?',
+    ];
 
     public static function featureFlags(): array
     {
@@ -64,6 +77,52 @@ class SystemSetting extends Model
         return is_string($value) ? $value : $default;
     }
 
+    public static function integer(string $key, int $default = 0): int
+    {
+        if (! Schema::hasTable('system_settings')) {
+            return $default;
+        }
+
+        $setting = static::query()->where('key', $key)->first();
+
+        if (! $setting) {
+            return $default;
+        }
+
+        $value = json_decode((string) $setting->value, true);
+
+        return is_numeric($value) ? (int) $value : $default;
+    }
+
+    public static function array(string $key, array $default = []): array
+    {
+        if (! Schema::hasTable('system_settings')) {
+            return $default;
+        }
+
+        $setting = static::query()->where('key', $key)->first();
+
+        if (! $setting) {
+            return $default;
+        }
+
+        $value = json_decode((string) $setting->value, true);
+
+        return is_array($value) ? $value : $default;
+    }
+
+    public static function securityQuestions(): array
+    {
+        $questions = collect(static::array(static::SECURITY_QUESTIONS, static::DEFAULT_SECURITY_QUESTIONS))
+            ->map(fn ($question) => trim((string) $question))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        return count($questions) >= 3 ? $questions : static::DEFAULT_SECURITY_QUESTIONS;
+    }
+
     public static function setBoolean(string $key, bool $value): void
     {
         static::query()->updateOrCreate(
@@ -82,6 +141,28 @@ class SystemSetting extends Model
             [
                 'value' => json_encode($value),
                 'type' => 'string',
+            ],
+        );
+    }
+
+    public static function setInteger(string $key, int $value): void
+    {
+        static::query()->updateOrCreate(
+            ['key' => $key],
+            [
+                'value' => json_encode($value),
+                'type' => 'integer',
+            ],
+        );
+    }
+
+    public static function setArray(string $key, array $value): void
+    {
+        static::query()->updateOrCreate(
+            ['key' => $key],
+            [
+                'value' => json_encode(array_values($value)),
+                'type' => 'array',
             ],
         );
     }

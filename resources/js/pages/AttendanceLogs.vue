@@ -5,6 +5,7 @@
         <h1 class="text-2xl font-bold text-slate-800">Attendance Logs</h1>
         <p class="text-sm text-slate-500">
           {{ canInspectAllAttendance ? 'Filter by subject, attendance date, and instructor RFID.' : 'View attendance records for your assigned classes only.' }}
+          Default absent status is shown for the latest {{ absentDefaultDays }} day(s).
         </p>
       </div>
 
@@ -60,7 +61,7 @@
         </div>
       </div>
 
-      <div class="mb-4 grid grid-cols-1 gap-3 md:grid-cols-4">
+      <div class="mb-4 grid grid-cols-1 gap-3 md:grid-cols-5">
         <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
           <h3 class="text-sm font-semibold text-emerald-800">Present</h3>
           <p class="text-2xl font-bold text-emerald-600">{{ getStatusCount('Present') }}</p>
@@ -72,6 +73,10 @@
         <div class="rounded-lg border border-sky-200 bg-sky-50 p-4">
           <h3 class="text-sm font-semibold text-sky-800">Completed</h3>
           <p class="text-2xl font-bold text-sky-600">{{ getStatusCount('Completed') }}</p>
+        </div>
+        <div class="rounded-lg border border-red-200 bg-red-50 p-4">
+          <h3 class="text-sm font-semibold text-red-800">Absent</h3>
+          <p class="text-2xl font-bold text-red-600">{{ getStatusCount('Absent') }}</p>
         </div>
         <div class="rounded-lg border border-blue-200 bg-blue-50 p-4">
           <h3 class="text-sm font-semibold text-blue-800">Total Records</h3>
@@ -87,7 +92,7 @@
               <p class="text-xs text-slate-500">{{ group.instructor }} · {{ group.items.length }} record(s)</p>
             </div>
             <div class="text-xs text-slate-500">
-              Present {{ group.counts.Present ?? 0 }} · Late {{ group.counts.Late ?? 0 }} · Completed {{ group.counts.Completed ?? 0 }}
+              Present {{ group.counts.Present ?? 0 }} | Late {{ group.counts.Late ?? 0 }} | Completed {{ group.counts.Completed ?? 0 }} | Absent {{ group.counts.Absent ?? 0 }}
             </div>
           </div>
 
@@ -147,6 +152,7 @@ const props = defineProps({
   instructorOptions: { type: Array, default: () => [] },
   currentUserRole: { type: String, default: '' },
   canInspectAllAttendance: { type: Boolean, default: false },
+  absentDefaultDays: { type: Number, default: 15 },
 })
 
 const page = usePage()

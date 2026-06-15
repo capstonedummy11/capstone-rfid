@@ -12,6 +12,18 @@ const props = defineProps({
             face_recognition_enabled: true,
         }),
     },
+    attendanceSettings: {
+        type: Object,
+        default: () => ({
+            absent_default_days: 15,
+        }),
+    },
+    securitySettings: {
+        type: Object,
+        default: () => ({
+            questions: [],
+        }),
+    },
 });
 
 const page = usePage();
@@ -23,7 +35,25 @@ const form = useForm({
     face_recognition_enabled: Boolean(
         props.featureSettings.face_recognition_enabled,
     ),
+    absent_default_days: Number(props.attendanceSettings.absent_default_days ?? 15),
+    security_questions:
+        props.securitySettings.questions?.length >= 3
+            ? [...props.securitySettings.questions]
+            : [
+                  'What was the name of your first school?',
+                  "What is your mother's maiden name?",
+                  'What was the name of your first pet?',
+              ],
 });
+
+const addQuestion = () => {
+    form.security_questions.push('');
+};
+
+const removeQuestion = (index) => {
+    if (form.security_questions.length <= 3) return;
+    form.security_questions.splice(index, 1);
+};
 
 const saveSettings = () => {
     form.put(route('admin.settings.update'), {
@@ -76,6 +106,73 @@ const saveSettings = () => {
                             v-model="form.borrowing_enabled"
                             type="checkbox"
                             class="h-5 w-5 shrink-0 accent-brand"
+                        />
+                    </label>
+
+                    <div class="rounded-md border border-slate-200 p-4">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <span class="min-w-0">
+                                <span class="block text-sm font-bold text-slate-900">
+                                    Instructor Security Questions
+                                </span>
+                                <span class="block text-sm text-slate-500">
+                                    Preset questions instructors can choose during first-login setup.
+                                </span>
+                            </span>
+                            <button
+                                type="button"
+                                class="rounded-md border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                                @click="addQuestion"
+                            >
+                                Add Question
+                            </button>
+                        </div>
+
+                        <div class="mt-4 flex flex-col gap-3">
+                            <div
+                                v-for="(_, index) in form.security_questions"
+                                :key="index"
+                                class="grid grid-cols-[1fr_auto] gap-2"
+                            >
+                                <input
+                                    v-model="form.security_questions[index]"
+                                    type="text"
+                                    class="min-w-0 rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand"
+                                    :placeholder="`Security question ${index + 1}`"
+                                    required
+                                />
+                                <button
+                                    type="button"
+                                    :disabled="form.security_questions.length <= 3"
+                                    class="rounded-md border border-red-200 px-3 py-2 text-xs font-bold text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
+                                    @click="removeQuestion(index)"
+                                >
+                                    Remove
+                                </button>
+                            </div>
+                        </div>
+                        <p v-if="form.errors.security_questions" class="mt-2 text-xs text-red-600">
+                            {{ form.errors.security_questions }}
+                        </p>
+                    </div>
+
+                    <label
+                        class="flex items-center justify-between gap-4 rounded-md border border-slate-200 p-4"
+                    >
+                        <span class="min-w-0">
+                            <span class="block text-sm font-bold text-slate-900">
+                                Absent Attendance Days
+                            </span>
+                            <span class="block text-sm text-slate-500">
+                                Shows default absent status only within this recent day range.
+                            </span>
+                        </span>
+                        <input
+                            v-model.number="form.absent_default_days"
+                            type="number"
+                            min="1"
+                            max="365"
+                            class="w-24 shrink-0 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand"
                         />
                     </label>
 

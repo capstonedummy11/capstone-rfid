@@ -504,6 +504,9 @@ class AttendanceController
             })
             ->values();
 
+        $absentDefaultDays = SystemSetting::integer(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 15);
+        $logs = $this->appendAbsentAttendanceLogs($logs, $filters, $isAdmin, $isInstructor, $instructorId, $absentDefaultDays);
+
         return response()->json([
             'ok' => true,
             'records' => $records,
@@ -1468,6 +1471,7 @@ class AttendanceController
             'filters' => $filters,
             'currentUserRole' => $role,
             'canInspectAllAttendance' => $isAdmin,
+            'absentDefaultDays' => $absentDefaultDays,
             'attendanceSessionOptions' => $sessionOptions,
             'subjectOptions' => $subjectOptionsQuery
                 ->when($isInstructor, fn ($subjectQuery) => $subjectQuery->where('schedules.instructor_id', $instructorId ?: 0))
@@ -1627,6 +1631,120 @@ class AttendanceController
         $timestamp = strtotime($value);
 
         return $timestamp === false ? $value : date('g:i A', $timestamp);
+    }
+
+    private function appendAbsentAttendanceLogs($logs, array $filters, bool $isAdmin, bool $isInstructor, ?int $instructorId, int $absentDefaultDays)
+    {
+        $absentDefaultDays = max(1, min(365, $absentDefaultDays));
+        $today = now()->toDateString();
+        $startDate = now()->subDays($absentDefaultDays - 1)->toDateString();
+
+        $sessionsQuery = DB::table('attendance_sessions')
+            ->leftJoin('schedules', 'schedules.scheduled_id', '=', 'attendance_sessions.schedule_id')
+            ->leftJoin('instructors', 'instructors.instructor_id', '=', 'schedules.instructor_id')
+            ->leftJoin('users as instructor_users', 'instructor_users.user_id', '=', 'instructors.user_id')
+            ->leftJoin('sections', 'sections.section_id', '=', 'schedules.section_id')
+            ->leftJoin('subjects', function ($join) {
+                $join->on('subjects.subject_code', '=', 'attendance_sessions.subject_code')
+                    ->on('subjects.section_id', '=', 'schedules.section_id');
+            })
+            ->whereNotNull('schedules.section_id')
+            ->where(function ($query) use ($today) {
+                $query->whereDate('attendance_sessions.date', '<', $today)
+                    ->orWhereNotNull('attendance_sessions.time_end');
+            });
+
+        if ($filters['attendance_id'] !== '') {
+            $sessionsQuery->where('attendance_sessions.attendance_id', $filters['attendance_id']);
+        }
+
+        if ($filters['date'] !== '') {
+            $sessionsQuery->whereDate('attendance_sessions.date', $filters['date']);
+        } else {
+            $sessionsQuery->whereBetween('attendance_sessions.date', [$startDate, $today]);
+        }
+
+        if ($filters['subject'] !== '') {
+            $sessionsQuery->where('subjects.subject_id', $filters['subject']);
+        }
+
+        if ($isInstructor) {
+            $sessionsQuery->where('schedules.instructor_id', $instructorId ?: 0);
+        }
+
+        if ($isAdmin && $filters['instructor'] !== '') {
+            if ($filters['instructor'] === '__not_found__') {
+                $sessionsQuery->whereRaw('1 = 0');
+            } else {
+                $sessionsQuery->where('instructor_users.user_id', $filters['instructor']);
+            }
+        }
+
+        $sessions = $sessionsQuery
+            ->orderByDesc('attendance_sessions.date')
+            ->orderByDesc('attendance_sessions.time_start')
+            ->select([
+                'attendance_sessions.attendance_id as session_id',
+                'attendance_sessions.date',
+                'attendance_sessions.room',
+                'attendance_sessions.time_start',
+                'attendance_sessions.time_end',
+                'subjects.subject_name',
+                'sections.section_id',
+                'sections.section_name',
+                'sections.school_year as schedule_school_year',
+                'instructor_users.user_id as instructor_id',
+                'instructor_users.name as instructor_name',
+                'instructor_users.rfid_tag as instructor_rfid',
+            ])
+            ->get();
+
+        if ($sessions->isEmpty()) {
+            return $logs;
+        }
+
+        $absentLogs = collect();
+
+        foreach ($sessions as $session) {
+            $loggedStudentIds = DB::table('attendance_logs')
+                ->where('attendance_id', $session->session_id)
+                ->whereNotNull('student_id')
+                ->pluck('student_id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            $students = Students::query()
+                ->with(['section', 'strand'])
+                ->where('section_id', $session->section_id)
+                ->where('status', 'active')
+                ->when($loggedStudentIds !== [], fn ($query) => $query->whereNotIn('student_id', $loggedStudentIds))
+                ->orderBy('last_name')
+                ->orderBy('first_name')
+                ->get();
+
+            foreach ($students as $student) {
+                $absentLogs->push([
+                    'id' => 'absent-' . $session->session_id . '-' . $student->student_id,
+                    'session_id' => $session->session_id,
+                    'student' => trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? '')) ?: 'Unknown Student',
+                    'student_number' => $student->student_number,
+                    'subject' => $session->subject_name ?? 'N/A',
+                    'section' => $student->section?->section_name ?? $session->section_name ?? 'N/A',
+                    'school_year' => $student->school_year ?? $session->schedule_school_year,
+                    'instructor' => $session->instructor_name ?? 'Unassigned Instructor',
+                    'instructor_id' => $session->instructor_id,
+                    'instructor_rfid' => $session->instructor_rfid,
+                    'room' => $session->room ?? 'N/A',
+                    'date' => $session->date,
+                    'session_time' => trim(($this->formatTime($session->time_start) ?? 'N/A') . ' - ' . ($this->formatTime($session->time_end) ?? 'N/A')),
+                    'time' => 'Absent',
+                    'time_out' => null,
+                    'status' => 'Absent',
+                ]);
+            }
+        }
+
+        return $logs->concat($absentLogs)->values();
     }
 
     private function matchesWeekday(string $weekdays, string $weekdayAbbr, string $weekdayFull): bool

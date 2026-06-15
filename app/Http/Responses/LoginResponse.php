@@ -19,9 +19,20 @@ class LoginResponse implements LoginResponseContract
       'normalized_role' => $role,
     ]);
 
-    if (in_array($role, ['admin', 'instructor'], true)) {
+    if ($role === 'instructor') {
+      $request->session()->forget('instructor_verified');
+      Log::info('LoginResponse redirect', ['target' => 'instructor.verify']);
+      return redirect()->route('instructor.verify');
+    }
+
+    if ($role === 'admin') {
       Log::info('LoginResponse redirect', ['target' => 'admin.dashboard']);
       return redirect()->route('admin.dashboard');
+    }
+
+    if ($role === 'registrar') {
+      Log::info('LoginResponse redirect', ['target' => 'registrar.dashboard']);
+      return redirect()->route('registrar.dashboard');
     }
 
     if ($role === 'clinic') {

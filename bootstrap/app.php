@@ -30,6 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,
+            'instructor.verified' => \App\Http\Middleware\EnsureInstructorVerified::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

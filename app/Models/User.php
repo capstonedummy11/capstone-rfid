@@ -31,6 +31,10 @@ class User extends Authenticatable
         'phone',
         'gender',
         'rfid_tag',
+        'face_images',
+        'security_question',
+        'security_answer_hash',
+        'security_questions',
     ];
 
     /**
@@ -55,6 +59,8 @@ class User extends Authenticatable
         return [
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
+            'face_images' => 'array',
+            'security_questions' => 'array',
         ];
     }
 

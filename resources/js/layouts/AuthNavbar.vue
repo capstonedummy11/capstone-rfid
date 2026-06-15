@@ -1,7 +1,7 @@
 <script setup>
 import { router, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
-import { MonitorCheck, Settings } from 'lucide-vue-next';
+import { MessageSquare, MonitorCheck, Settings } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
 import Navlinks from '@/components/Auth/Navlinks.vue';
 import ActivityLogs from '@/components/Icon/ActivityLogs.vue';
@@ -43,6 +43,12 @@ const sections = [
                 text: 'Clinic Dashboard',
                 route: route('clinic.dashboard'),
                 roles: ['clinic'],
+            },
+            {
+                icon: Dashboard,
+                text: 'Registrar Dashboard',
+                route: route('registrar.dashboard'),
+                roles: ['registrar'],
             },
             // {
             //     icon: Graduation,
@@ -94,6 +100,12 @@ const sections = [
                 icon: Attendance,
                 text: 'Attendance',
                 route: route('admin.attendance.logs'),
+                roles: ['admin', 'instructor'],
+            },
+            {
+                icon: MessageSquare,
+                text: 'Messages',
+                route: route('admin.messages.index'),
                 roles: ['admin', 'instructor'],
             },
         ],
@@ -172,6 +184,12 @@ const sections = [
                 text: 'Settings',
                 route: route('admin.settings.edit'),
                 roles: ['admin'],
+            },
+            {
+                icon: Graduation,
+                text: 'Biometric Enrollment',
+                route: route('registrar.biometric-enrollment'),
+                roles: ['registrar'],
             },
         ],
     },

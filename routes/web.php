@@ -9,6 +9,7 @@ use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\StudentsController;
 use App\Http\Controllers\InstructorsController;
+use App\Http\Controllers\InstructorVerificationController;
 use App\Http\Controllers\SectionController;
 use App\Http\Controllers\StrandController;
 use App\Http\Controllers\LaboratoryController;
@@ -17,6 +18,8 @@ use App\Http\Controllers\SubjectController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\ClinicController;
 use App\Http\Controllers\EmergencyController;
+use App\Http\Controllers\MessageController;
+use App\Http\Controllers\RegistrarController;
 use App\Http\Controllers\SystemSettingsController;
 use App\Models\SystemSetting;
 use Illuminate\Http\Request;
@@ -35,10 +38,15 @@ Route::get('/', function (Request $request) {
   if ($role === 'console') {
     return redirect()->route('attendanceControlPanel');
   }
+  if ($role === 'registrar') {
+    return redirect()->route('registrar.dashboard');
+  }
 
   return Inertia::render('LandingPage');
 })->name('landingPage');
 Route::inertia('/about', 'About')->name('about');
+Route::get('/messages/new', [MessageController::class, 'create'])->name('messages.create');
+Route::post('/messages', [MessageController::class, 'store'])->name('messages.store');
 Route::get('/attendance-control-panel/login', [AttendanceController::class, 'panelLogin'])->name('attendanceControlPanel.login');
 Route::post('/panel-verify', [AttendanceController::class, 'verifyPanelPin'])->name('panelVerify');
 Route::post('/face-recognition/verify-student', [AttendanceController::class, 'verifyStudentFace'])->name('faceRecognition.verifyStudent');
@@ -72,20 +80,49 @@ Route::get('/dashboard', function (Request $request) {
   if ($role === 'console') {
     return redirect()->route('attendanceControlPanel');
   }
+  if ($role === 'registrar') {
+    return redirect()->route('registrar.dashboard');
+  }
 
   return redirect()->route('landingPage');
 })->middleware('auth')->name('dashboard');
+
+Route::prefix('instructor')
+  ->middleware(['auth', 'role:instructor'])
+  ->name('instructor.')
+  ->group(function () {
+    Route::get('/verify', [InstructorVerificationController::class, 'show'])->name('verify');
+    Route::post('/verify/face', [InstructorVerificationController::class, 'verifyFace'])->name('verify.face');
+    Route::post('/verify/otp/send', [InstructorVerificationController::class, 'sendOtp'])->name('verify.otp.send');
+    Route::post('/verify/otp', [InstructorVerificationController::class, 'verifyOtp'])->name('verify.otp');
+    Route::post('/verify/security/setup', [InstructorVerificationController::class, 'setupSecurity'])->name('verify.security.setup');
+    Route::post('/verify/security', [InstructorVerificationController::class, 'verifySecurity'])->name('verify.security');
+  });
+
+Route::prefix('registrar')
+  ->middleware(['auth', 'role:registrar'])
+  ->name('registrar.')
+  ->group(function () {
+    Route::get('/dashboard', [RegistrarController::class, 'dashboard'])->name('dashboard');
+    Route::get('/biometric-enrollment', [RegistrarController::class, 'biometricEnrollment'])->name('biometric-enrollment');
+    Route::put('/students/{student}/rfid', [RegistrarController::class, 'updateStudentRfid'])->name('students.rfid');
+    Route::post('/students/{student}/face', [RegistrarController::class, 'uploadStudentFace'])->name('students.face');
+    Route::put('/faculty/{user}/rfid', [RegistrarController::class, 'updateFacultyRfid'])->name('faculty.rfid');
+    Route::post('/faculty/{user}/face', [RegistrarController::class, 'uploadFacultyFace'])->name('faculty.face');
+  });
 
 Route::prefix('admin')
   ->middleware(['auth'])
   // ->middleware(['auth'])
   ->name('admin.')
   ->group(function () {
-    Route::middleware('role:admin,instructor')->group(function () {
+    Route::middleware(['role:admin,instructor', 'instructor.verified'])->group(function () {
       Route::inertia('/dashboard', 'Auth/Admin/Dashboard', ['title' => 'Dashboard'])->name('dashboard');
       Route::get('/attendance/scanner', [AttendanceController::class, 'scanner'])->name('attendance.scanner');
       Route::get('/attendance/logs', [AttendanceController::class, 'logs'])->name('attendance.logs');
       Route::post('/attendance/scan', [AttendanceController::class, 'scan'])->name('attendance.scan');
+      Route::get('/messages', [MessageController::class, 'index'])->name('messages.index');
+      Route::put('/messages/{message}/read', [MessageController::class, 'markRead'])->name('messages.read');
       Route::get('/students', [StudentsController::class, 'indexAdmin'], ['title' => 'Instructor Management'])->name('students.index');
       Route::get('/schedules', [ScheduleController::class, 'indexAdmin'])->name('schedules.index');
     });
