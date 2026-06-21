@@ -1,7 +1,7 @@
 <script setup>
 import Layout from '@/layouts/Layout.vue';
 import { useForm, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import Swal from 'sweetalert2';
 
 defineOptions({ layout: Layout });
@@ -11,7 +11,9 @@ const props = defineProps({
 });
 
 const page = usePage();
-const flashSuccess = computed(() => page.props.flash?.success);
+const successMessage = ref('');
+const fileInputRef = ref(null);
+const flashSuccess = computed(() => successMessage.value || page.props.flash?.success);
 
 const form = useForm({
     instructor_user_id: props.instructors[0]?.value ?? '',
@@ -29,16 +31,22 @@ const setAttachment = (event) => {
 };
 
 const submit = () => {
+    successMessage.value = '';
+
     form.post(route('messages.store'), {
         forceFormData: true,
         preserveScroll: true,
         onSuccess: () => {
+            successMessage.value = 'Message sent to the instructor.';
             form.reset('sender_name', 'sender_email', 'student_number', 'subject', 'body', 'attachment');
+            if (fileInputRef.value) {
+                fileInputRef.value.value = '';
+            }
             Swal.fire({
                 toast: true,
                 position: 'top-end',
                 icon: 'success',
-                title: 'Message sent',
+                title: successMessage.value,
                 showConfirmButton: false,
                 timer: 1800,
             });
@@ -146,6 +154,7 @@ const submit = () => {
                 <label class="md:col-span-2">
                     <span class="mb-1 block text-xs font-semibold uppercase text-slate-500">Attachment</span>
                     <input
+                        ref="fileInputRef"
                         type="file"
                         accept=".pdf,image/png,image/jpeg,image/webp"
                         class="w-full rounded-md border border-dashed border-slate-300 px-3 py-2 text-sm text-slate-600"

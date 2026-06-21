@@ -23,11 +23,6 @@
                         class="m-5"
                     />
                     <NavButton
-                        :href="route('messages.create')"
-                        :label="'Messages'"
-                        class="m-5"
-                    />
-                    <NavButton
                         :label="'Login'"
                         :is-blue="true"
                         class="m-5"
@@ -58,12 +53,6 @@
                 <NavButton
                     :href="route('attendanceControlPanel.login')"
                     :label="'Attendance Panel'"
-                    class="m-5"
-                    @click="isMenuOpen = false"
-                />
-                <NavButton
-                    :href="route('messages.create')"
-                    :label="'Messages'"
                     class="m-5"
                     @click="isMenuOpen = false"
                 />

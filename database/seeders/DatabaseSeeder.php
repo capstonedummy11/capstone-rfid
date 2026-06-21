@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             ComlabUserSeeder::class,
             DemoSystemSeeder::class,
             ClinicDashboardSeeder::class,
+            MessageSeeder::class,
         ]);
     }
 }

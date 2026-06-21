@@ -35,6 +35,19 @@ const securityForm = useForm({
     security_answer: '',
 });
 
+const availableSetupQuestions = (index) => {
+    const currentQuestion = setupForm.questions[index]?.question;
+    const selectedQuestions = new Set(
+        setupForm.questions
+            .map((question, questionIndex) => (questionIndex === index ? '' : question.question))
+            .filter(Boolean),
+    );
+
+    return props.availableSecurityQuestions.filter((question) => question === currentQuestion || !selectedQuestions.has(question));
+};
+
+const setupQuestionError = (index, field) => setupForm.errors[`questions.${index}.${field}`];
+
 const verifyFace = () => {
     const image = cameraRef.value?.captureFrame();
     if (!image) return;
@@ -51,9 +64,40 @@ const submitOtp = () => {
 };
 
 const setupSecurity = () => {
-    setupForm.post(route('instructor.verify.security.setup'), {
+    setupForm.clearErrors();
+
+    const selectedQuestions = setupForm.questions.map((question) => question.question.trim());
+    const answers = setupForm.questions.map((question) => question.answer.trim());
+
+    if (selectedQuestions.some((question) => !question)) {
+        setupForm.setError('questions', 'Please choose all three security questions.');
+        return;
+    }
+
+    if (new Set(selectedQuestions).size !== selectedQuestions.length) {
+        setupForm.setError('questions', 'Please choose three different security questions.');
+        return;
+    }
+
+    if (answers.some((answer) => !answer)) {
+        setupForm.setError('questions', 'Please answer all three security questions.');
+        return;
+    }
+
+    const firstQuestion = selectedQuestions[0];
+
+    setupForm
+        .transform((data) => ({
+            questions: data.questions.map((question) => ({
+                question: question.question.trim(),
+                answer: question.answer.trim(),
+            })),
+        }))
+        .post(route('instructor.verify.security.setup'), {
         preserveScroll: true,
         onSuccess: () => {
+            securityForm.security_question = firstQuestion;
+            securityForm.security_answer = '';
             mode.value = props.hasFace ? 'face' : 'security';
             setupForm.reset();
         },
@@ -130,19 +174,25 @@ const verifySecurity = () => {
                                 <span class="mb-1 block text-xs font-semibold uppercase text-slate-500">Question {{ index + 1 }}</span>
                                 <select v-model="setupForm.questions[index].question" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" required>
                                     <option value="" disabled>Select a security question</option>
-                                    <option v-for="question in availableSecurityQuestions" :key="question" :value="question">
+                                    <option v-for="question in availableSetupQuestions(index)" :key="question" :value="question">
                                         {{ question }}
                                     </option>
                                 </select>
                             </label>
+                            <p v-if="setupQuestionError(index, 'question')" class="mt-2 text-sm text-red-600">
+                                {{ setupQuestionError(index, 'question') }}
+                            </p>
                             <label class="mt-3 block">
                                 <span class="mb-1 block text-xs font-semibold uppercase text-slate-500">Answer</span>
-                                <input v-model="setupForm.questions[index].answer" type="password" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" required />
+                                <input v-model="setupForm.questions[index].answer" type="text" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" required />
                             </label>
+                            <p v-if="setupQuestionError(index, 'answer')" class="mt-2 text-sm text-red-600">
+                                {{ setupQuestionError(index, 'answer') }}
+                            </p>
                         </div>
                         <p v-if="setupForm.errors.questions" class="text-sm text-red-600">{{ setupForm.errors.questions }}</p>
-                        <button type="submit" class="rounded-md bg-brand px-4 py-2 text-sm font-bold text-white">
-                            Save Security Questions
+                        <button type="submit" :disabled="setupForm.processing" class="rounded-md bg-brand px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60">
+                            {{ setupForm.processing ? 'Saving...' : 'Save Security Questions' }}
                         </button>
                     </form>
 
@@ -193,7 +243,7 @@ const verifySecurity = () => {
                         <p v-else class="rounded-md bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">
                             {{ securityForm.security_question }}
                         </p>
-                        <input v-model="securityForm.security_answer" type="password" class="block w-full max-w-md rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="Answer" />
+                        <input v-model="securityForm.security_answer" type="text" class="block w-full max-w-md rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="Answer" />
                         <p v-if="securityForm.errors.security_question" class="text-sm text-red-600">{{ securityForm.errors.security_question }}</p>
                         <p v-if="securityForm.errors.security_answer" class="text-sm text-red-600">{{ securityForm.errors.security_answer }}</p>
                         <button type="submit" class="rounded-md bg-brand px-4 py-2 text-sm font-bold text-white">

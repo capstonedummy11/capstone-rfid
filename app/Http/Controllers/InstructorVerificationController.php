@@ -115,11 +115,22 @@ class InstructorVerificationController
     {
         $availableSecurityQuestions = SystemSetting::securityQuestions();
 
-        $validated = $request->validate([
-            'questions' => ['required', 'array', 'size:3'],
-            'questions.*.question' => ['required', 'string', 'distinct', Rule::in($availableSecurityQuestions)],
-            'questions.*.answer' => ['required', 'string', 'min:2', 'max:255'],
-        ]);
+        $validated = $request->validate(
+            [
+                'questions' => ['required', 'array', 'size:3'],
+                'questions.*.question' => ['required', 'string', 'distinct', Rule::in($availableSecurityQuestions)],
+                'questions.*.answer' => ['required', 'string', 'min:2', 'max:255'],
+            ],
+            [],
+            [
+                'questions.0.question' => 'Question 1',
+                'questions.0.answer' => 'Answer 1',
+                'questions.1.question' => 'Question 2',
+                'questions.1.answer' => 'Answer 2',
+                'questions.2.question' => 'Question 3',
+                'questions.2.answer' => 'Answer 3',
+            ],
+        );
 
         $questions = collect($validated['questions'])
             ->map(fn (array $question) => [
