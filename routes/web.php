@@ -20,6 +20,7 @@ use App\Http\Controllers\ClinicController;
 use App\Http\Controllers\EmergencyController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\RegistrarController;
+use App\Http\Controllers\StudentParentDashboardController;
 use App\Http\Controllers\SystemSettingsController;
 use App\Models\SystemSetting;
 use Illuminate\Http\Request;
@@ -41,10 +42,17 @@ Route::get('/', function (Request $request) {
   if ($role === 'registrar') {
     return redirect()->route('registrar.dashboard');
   }
+  if (in_array($role, ['student', 'parent', 'student_parent', 'student/parent'], true)) {
+    return redirect()->route('student-parent.dashboard');
+  }
 
   return Inertia::render('LandingPage');
 })->name('landingPage');
 Route::inertia('/about', 'About')->name('about');
+Route::middleware('guest')->get('/secure-login', fn () => Inertia::render('Auth/Login', [
+  'loginType' => 'staff',
+  'title' => 'Secure Staff Login',
+]))->name('staff.login');
 Route::get('/messages/new', [MessageController::class, 'create'])->name('messages.create');
 Route::post('/messages', [MessageController::class, 'store'])->name('messages.store');
 Route::get('/attendance-control-panel/login', [AttendanceController::class, 'panelLogin'])->name('attendanceControlPanel.login');
@@ -83,9 +91,16 @@ Route::get('/dashboard', function (Request $request) {
   if ($role === 'registrar') {
     return redirect()->route('registrar.dashboard');
   }
+  if (in_array($role, ['student', 'parent', 'student_parent', 'student/parent'], true)) {
+    return redirect()->route('student-parent.dashboard');
+  }
 
   return redirect()->route('landingPage');
 })->middleware('auth')->name('dashboard');
+
+Route::middleware(['auth', 'role:student,parent,student_parent,student/parent'])
+  ->get('/student-parent/dashboard', StudentParentDashboardController::class)
+  ->name('student-parent.dashboard');
 
 Route::prefix('instructor')
   ->middleware(['auth', 'role:instructor'])

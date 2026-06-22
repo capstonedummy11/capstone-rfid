@@ -6,6 +6,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -70,6 +71,18 @@ class User extends Authenticatable
     public function instructor(): HasOne
     {
         return $this->hasOne(Instructor::class, 'user_id', 'user_id');
+    }
+
+    public function studentProfile(): HasOne
+    {
+        return $this->hasOne(Students::class, 'user_id', 'user_id');
+    }
+
+    public function parentStudents(): BelongsToMany
+    {
+        return $this->belongsToMany(Students::class, 'parent_student', 'parent_user_id', 'student_id')
+            ->withPivot(['relationship', 'is_primary', 'verified_at'])
+            ->withTimestamps();
     }
 
     public function subjects(): HasMany

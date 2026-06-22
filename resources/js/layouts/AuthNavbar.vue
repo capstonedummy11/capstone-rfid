@@ -50,6 +50,12 @@ const sections = [
                 route: route('registrar.dashboard'),
                 roles: ['registrar'],
             },
+            {
+                icon: Dashboard,
+                text: 'Student Dashboard',
+                route: route('student-parent.dashboard'),
+                roles: ['student', 'parent', 'student_parent', 'student/parent'],
+            },
             // {
             //     icon: Graduation,
             //     text: 'School Year',

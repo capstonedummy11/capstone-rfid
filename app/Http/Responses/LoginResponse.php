@@ -45,6 +45,11 @@ class LoginResponse implements LoginResponseContract
       return redirect()->route('attendanceControlPanel');
     }
 
+    if (in_array($role, ['student', 'parent', 'student_parent', 'student/parent'], true)) {
+      Log::info('LoginResponse redirect', ['target' => 'student-parent.dashboard']);
+      return redirect()->route('student-parent.dashboard');
+    }
+
     Log::info('LoginResponse redirect', ['target' => config('fortify.home', '/')]);
     return redirect()->intended(config('fortify.home', '/'));
   }

@@ -4,7 +4,9 @@ namespace App\Providers;
 
 use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
+use App\Models\User;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -50,6 +52,23 @@ class FortifyServiceProvider extends ServiceProvider
     {
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
         Fortify::createUsersUsing(CreateNewUser::class);
+        Fortify::authenticateUsing(function (Request $request) {
+            $user = User::query()
+                ->where('email', $request->input(Fortify::username()))
+                ->first();
+
+            if (! $user || ! Hash::check((string) $request->input('password'), (string) $user->password)) {
+                return null;
+            }
+
+            $role = strtolower(trim((string) $user->role));
+            $loginType = $request->input('login_type') === 'staff' ? 'staff' : 'student_parent';
+            $allowedRoles = $loginType === 'staff'
+                ? ['admin', 'instructor', 'clinic', 'registrar']
+                : ['student', 'parent', 'student_parent', 'student/parent'];
+
+            return in_array($role, $allowedRoles, true) ? $user : null;
+        });
     }
 
     /**
@@ -60,6 +79,7 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::loginView(fn(Request $request) => Inertia::render('Auth/Login', [
             'canResetPassword' => Features::enabled(Features::resetPasswords()),
             'canRegister' => Features::enabled(Features::registration()),
+            'loginType' => 'student_parent',
             'status' => $request->session()->get('status'),
         ]));
 

@@ -21,6 +21,7 @@ class Students extends Model
 
     protected $fillable = [
         'student_id',
+        'user_id',
         'section_id',
         'strand_id',
         'student_number',
@@ -61,5 +62,10 @@ class Students extends Model
     public function attendanceLogs(): HasMany
     {
         return $this->hasMany(AttendanceLog::class, 'student_id', 'student_id');
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id', 'user_id');
     }
 }
