@@ -123,6 +123,7 @@ Route::prefix('admin')
       Route::post('/attendance/scan', [AttendanceController::class, 'scan'])->name('attendance.scan');
       Route::get('/messages', [MessageController::class, 'index'])->name('messages.index');
       Route::put('/messages/{message}/read', [MessageController::class, 'markRead'])->name('messages.read');
+      Route::post('/messages/{message}/reply', [MessageController::class, 'reply'])->name('messages.reply');
       Route::get('/students', [StudentsController::class, 'indexAdmin'], ['title' => 'Instructor Management'])->name('students.index');
       Route::get('/schedules', [ScheduleController::class, 'indexAdmin'])->name('schedules.index');
     });

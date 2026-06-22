@@ -60,7 +60,7 @@ class MessageController
         $role = strtolower(trim((string) $user?->role));
 
         $messages = Message::query()
-            ->with('instructor:user_id,name,email')
+            ->with(['instructor:user_id,name,email', 'repliedBy:user_id,name,email'])
             ->when($role === 'instructor', fn ($query) => $query->where('instructor_user_id', $user->user_id))
             ->latest('created_at')
             ->get()
@@ -80,6 +80,13 @@ class MessageController
                 'read_at' => $message->read_at?->toDateTimeString(),
                 'created_at' => $message->created_at?->toDateTimeString(),
                 'created_label' => $message->created_at?->diffForHumans(),
+                'reply_body' => $message->reply_body,
+                'reply_author_name' => $message->repliedBy?->name,
+                'reply_attachment_name' => $message->reply_attachment_name,
+                'reply_attachment_url' => $message->reply_attachment_path ? Storage::disk('public')->url($message->reply_attachment_path) : null,
+                'reply_is_image' => $message->reply_attachment_mime ? str_starts_with($message->reply_attachment_mime, 'image/') : false,
+                'replied_at' => $message->replied_at?->toDateTimeString(),
+                'replied_label' => $message->replied_at?->diffForHumans(),
             ])
             ->values();
 
@@ -102,6 +109,38 @@ class MessageController
         }
 
         return back();
+    }
+
+    public function reply(Request $request, Message $message)
+    {
+        $user = $request->user();
+        $role = strtolower(trim((string) $user?->role));
+
+        abort_unless($role === 'instructor' && (int) $message->instructor_user_id === (int) $user->user_id, 403);
+
+        $validated = $request->validate([
+            'reply_body' => ['required', 'string', 'max:5000'],
+            'reply_attachment' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:5120'],
+        ]);
+
+        $attachment = $request->file('reply_attachment');
+        if ($attachment) {
+            $validated['reply_attachment_path'] = $attachment->store('message-reply-attachments', 'public');
+            $validated['reply_attachment_name'] = $attachment->getClientOriginalName();
+            $validated['reply_attachment_mime'] = $attachment->getClientMimeType();
+            $validated['reply_attachment_size'] = $attachment->getSize();
+        }
+
+        unset($validated['reply_attachment']);
+
+        $message->update([
+            ...$validated,
+            'replied_by_user_id' => $user->user_id,
+            'replied_at' => now(),
+            'read_at' => $message->read_at ?? now(),
+        ]);
+
+        return back()->with('success', 'Reply sent.');
     }
 
     private function instructorOptions()

@@ -22,14 +22,27 @@ class Message extends Model
         'attachment_mime',
         'attachment_size',
         'read_at',
+        'replied_by_user_id',
+        'reply_body',
+        'reply_attachment_path',
+        'reply_attachment_name',
+        'reply_attachment_mime',
+        'reply_attachment_size',
+        'replied_at',
     ];
 
     protected $casts = [
         'read_at' => 'datetime',
+        'replied_at' => 'datetime',
     ];
 
     public function instructor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'instructor_user_id', 'user_id');
+    }
+
+    public function repliedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'replied_by_user_id', 'user_id');
     }
 }
