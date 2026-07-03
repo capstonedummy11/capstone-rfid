@@ -8,7 +8,7 @@
 
                 <div class="hidden items-center md:flex">
                     <NavButton
-                        :href="route('landingPage')"
+                        :href="route('studentParentLogin')"
                         :label="'Home'"
                         class="m-5"
                     />
@@ -34,7 +34,7 @@
                 class="absolute top-full right-0 left-0 z-50 flex flex-col items-center bg-white shadow-lg md:hidden"
             >
                 <NavButton
-                    :href="route('landingPage')"
+                    :href="route('studentParentLogin')"
                     :label="'Home'"
                     @click="isMenuOpen = false"
                     class="m-5"
