@@ -546,6 +546,11 @@ tests/                    Pest/PHPUnit tests
     - File: `database/seeders/FeatureSeeder.php`
     - Call from `database/seeders/DatabaseSeeder.php`
 
+9. **Update README Feature Progress (required):**
+    - Add or update the feature row in the Feature Progress Tracker.
+    - Add a new entry in the AI Prompt And Change Log if the work was assisted by AI.
+    - Include current status, files touched, verification done, and any remaining notes.
+
 ### Adding a New Role/User Type
 
 1. **Update User Model:**
@@ -701,12 +706,32 @@ class SomeFeatureTest extends TestCase
     AWS_SECRET_ACCESS_KEY=...
     ```
 
+## Feature Progress Tracker
+
+Every feature change must update this README. Add a new row when a feature starts, and update the same row as it moves from planned to in progress, complete, blocked, or needs testing. Keep newest feature work at the top.
+
+| Date       | Feature / Module          | Status      | Files / Areas                         | Progress Notes                                        | Verification              |
+| ---------- | ------------------------- | ----------- | ------------------------------------- | ----------------------------------------------------- | ------------------------- |
+| 2026-07-03 | README feature tracking   | Complete    | `README.md`                           | Added required README feature progress tracking rule. | Documentation-only change |
+| 2026-07-03 | Student/Parent Portal     | Complete    | `routes/web.php`, `StudentsController`, `StudentParentLayout.vue`, portal pages | Dashboard, profile, attendance, excuse letters, messages, authentication, and role guards documented. | Needs full browser QA     |
+| 2026-06-21 | Public message form       | Complete    | `resources/js/pages/Messages/Create.vue` | Added success feedback and attachment reset after send. | Needs form submission QA  |
+| 2026-06-21 | Instructor verification   | Complete    | `InstructorVerificationController`, `InstructorVerify.vue`, feature test | Improved security-question validation, saved-question flow, and visible answer fields. | Feature test added        |
+
+### Feature Progress Template
+
+Copy this row for future feature work:
+
+```markdown
+| YYYY-MM-DD | Feature name | Planned/In Progress/Complete/Blocked/Needs Testing | `file-a`, `file-b` | Short progress note and remaining work. | Tests, build, manual QA, or not run. |
+```
+
 ## AI Prompt And Change Log
 
 Use this section as a lightweight record of prompts and repository changes made with AI assistance. Add newest entries at the top.
 
 | Date       | Prompt / Request                                                                                                                                  | Files Changed                                                                                                                                         | Summary                                                                                                                                                                                                                                                                                                                                                                         |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-07-03 | Read the README to understand the system and add a requirement that each feature progress must be added to the README.                            | `README.md`                                                                                                                                           | Added a required README update step to the feature workflow plus a Feature Progress Tracker section with status, touched areas, notes, verification, and a reusable template for future feature work.                                                                                                                                                                            |
 | 2026-07-03 | Create complete Student/Parent portal with Dashboard, Profile, Attendance, ExcuseLetters, Messages pages with authentication and role guards.     | `routes/web.php`, `app/Http/Controllers/StudentsController.php`, `app/Models/Students.php`, `resources/js/layouts/AuthNavbar.vue`, `README.md`        | Created StudentsController with 8 portal methods (dashboard, showProfile, updateProfile, updatePassword, attendance, excuseLetters, storeExcuseLetter, messages). Added student-parent route group with middleware auth + role:student,parent. Updated Students model with attendances() relationship. Added Student/Parent navigation section to AuthNavbar with portal links. |
 | 2026-07-03 | Create a new shared login page for Students and Parents with same design as existing login pages, without Attendance Control Panel in navigation. | `resources/js/layouts/StudentParentLayout.vue`, `resources/js/pages/Auth/StudentParentLogin.vue`, `routes/web.php`, `README.md`                       | Created dedicated Student/Parent login page with custom layout that removes "Attendance Control Panel" navigation item. Added route `/student-parent-login` for shared student and parent access. Layout uses same styling and design as main landing page. Updated README routes documentation.                                                                                |
 | 2026-07-03 | Study codebase and expand README with architecture guide and common tasks.                                                                        | `README.md`                                                                                                                                           | Added comprehensive documentation: core modules breakdown with controllers/models/routes, detailed project structure, database relationships, key files guide, common development tasks (adding features, roles, endpoints), testing guide, troubleshooting section. Now AI assistant can understand the system structure and implement features without re-reading code.       |
