@@ -295,6 +295,133 @@ class StudentsController
         return back()->with('success', 'Student deleted successfully.');
     }
 
+    // Student/Parent Portal Methods
+    public function dashboard(Request $request)
+    {
+        $user = $request->user();
+        $attendance = [];
+        $borrowing = [];
+
+        if ($user->role === 'student') {
+            $student = Students::where('email', $user->email)->first();
+            if ($student) {
+                $attendance = $student->attendances()->with('subjectRecord')->orderBy('date', 'desc')->take(5)->get();
+                $borrowing = $student->borrowings()->orderBy('borrowed_at', 'desc')->get();
+            }
+        }
+
+        return Inertia::render('StudentParent/Dashboard', [
+            'title' => 'Dashboard',
+            'attendance' => $attendance,
+            'borrowing' => $borrowing,
+        ]);
+    }
+
+    public function showProfile(Request $request)
+    {
+        $user = $request->user();
+
+        return Inertia::render('StudentParent/Profile', [
+            'title' => 'My Profile',
+            'user' => $user,
+        ]);
+    }
+
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:20'],
+            'gender' => ['nullable', 'in:Male,Female,Other'],
+        ]);
+
+        $user->update($validated);
+
+        return redirect()->route('student-parent.profile.show')->with('success', 'Profile updated successfully.');
+    }
+
+    public function updatePassword(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'current_password' => ['required', 'current_password'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $user->update([
+            'password' => bcrypt($validated['password']),
+        ]);
+
+        return redirect()->route('student-parent.profile.show')->with('success', 'Password updated successfully.');
+    }
+
+    public function attendance(Request $request)
+    {
+        $user = $request->user();
+        $attendance = [];
+
+        if ($user->role === 'student') {
+            $student = Students::where('email', $user->email)->first();
+            if ($student) {
+                $attendance = $student->attendances()->with('subjectRecord')->orderBy('date', 'desc')->get();
+            }
+        }
+
+        return Inertia::render('StudentParent/Attendance', [
+            'title' => 'Attendance',
+            'attendance' => $attendance,
+        ]);
+    }
+
+    public function excuseLetters(Request $request)
+    {
+        $user = $request->user();
+        $excuseLetters = collect();
+
+        // TODO: Implement excuse letters model and retrieval
+        // For now, return empty collection
+
+        return Inertia::render('StudentParent/ExcuseLetters', [
+            'title' => 'Excuse Letters',
+            'excuseLetters' => $excuseLetters,
+        ]);
+    }
+
+    public function storeExcuseLetter(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'subject' => ['required', 'string', 'max:255'],
+            'from_date' => ['required', 'date'],
+            'to_date' => ['required', 'date', 'after_or_equal:from_date'],
+            'reason' => ['required', 'string'],
+            'attachment' => ['nullable', 'file', 'max:5120', 'mimes:pdf,doc,docx,jpg,jpeg,png'],
+        ]);
+
+        // TODO: Store excuse letter in database
+        // For now, just return success
+
+        return redirect()->route('student-parent.excuse-letters.index')->with('success', 'Excuse letter submitted successfully.');
+    }
+
+    public function messages(Request $request)
+    {
+        $user = $request->user();
+        $messages = collect();
+
+        // TODO: Implement messages retrieval for students/parents
+        // For now, return empty collection
+
+        return Inertia::render('StudentParent/Messages', [
+            'title' => 'Messages',
+            'messages' => $messages,
+        ]);
+    }
+
     private function logActivity(string $action, string $tableName, string $description): void
     {
         ActivityLog::create([

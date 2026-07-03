@@ -75,13 +75,31 @@ This system integrates RFID technology with face recognition to create an intell
 **Models:** `ClinicCase`, `EmergencyAlert`, `EmergencyType`, `PatientHistory`
 **Related Routes:** `/clinic/*`, `/emergency/*`
 
-### 7. **Instructor Verification** (`InstructorVerificationController`)
+### 7. **Student/Parent Portal** (`StudentsController`)
+
+- Dedicated role-based dashboard for Students and Parents
+- Shared authentication and unified portal interface
+- Dashboard: Attendance summary, recent records, item borrowings
+- Profile Management: View/edit name, phone, gender; change password
+- Attendance: Full history with subject and status filters
+- Excuse Letters: Submit and track excuse letter requests (with file attachments)
+- Messages: View notifications and system messages
+- Role-based access control via middleware (`auth`, `role:student,parent`)
+- Auto-redirect from home/dashboard routes for student/parent users
+
+**Models:** `Students`, `Attendance`, `Borrowing` (relationships)
+**Controller:** `StudentsController` (8 portal methods)
+**Related Routes:** `/student-parent/*`, `/student-parent-login`
+**Layout:** `StudentParentLayout.vue` (custom layout without panel navigation)
+**Pages:** Dashboard, Profile, Attendance, ExcuseLetters, Messages
+
+### 8. **Instructor Verification** (`InstructorVerificationController`)
 
 - Multi-factor instructor verification (face, OTP, security questions)
 - Required before certain operations
 - Audit logging of verification attempts
 
-### 8. **Activity Logging & System Settings** (`ActivityLogController`, `SystemSettingsController`)
+### 9. **Activity Logging & System Settings** (`ActivityLogController`, `SystemSettingsController`)
 
 - Track all system activities for audit purposes
 - Configurable system-wide settings
@@ -408,15 +426,23 @@ Common seeded demo accounts include:
 ## Important Routes
 
 - `/` - public landing page or role-based redirect after login.
-- `/dashboard` - role-based dashboard redirect.
+- `/login` - main login page for admin, instructor, clinic, and registrar users.
+- `/student-parent-login` - dedicated Student and Parent login page.
+- `/register` - user registration page.
+- `/dashboard` - role-based dashboard redirect after login.
 - `/admin/dashboard` - admin/instructor dashboard.
 - `/admin/attendance/scanner` and `/admin/attendance/logs` - attendance tools.
 - `/admin/inventory` and `/admin/borrow` - inventory and borrowing.
-- `/attendance-control-panel/login` - console panel login.
-- `/attendance-control-panel` - console attendance panel.
+- `/attendance-control-panel/login` - console panel login for RFID staff.
+- `/attendance-control-panel` - console attendance panel (RFID control interface).
 - `/registrar/dashboard` and `/registrar/biometric-enrollment` - registrar workflows.
 - `/clinic/dashboard`, `/clinic/case-logs`, `/clinic/patient-history`, `/clinic/reports` - clinic workflows.
-- `/messages/new` - public message creation.
+- `/student-parent/dashboard` - student/parent portal main dashboard with attendance summary.
+- `/student-parent/profile` - student/parent profile viewing and editing.
+- `/student-parent/attendance` - student/parent full attendance history.
+- `/student-parent/excuse-letters` - student/parent excuse letter management.
+- `/student-parent/messages` - student/parent messages and notifications.
+- `/messages/new` - public message creation form.
 
 ## Project Structure
 
@@ -679,15 +705,17 @@ class SomeFeatureTest extends TestCase
 
 Use this section as a lightweight record of prompts and repository changes made with AI assistance. Add newest entries at the top.
 
-| Date       | Prompt / Request                                                                           | Files Changed                                                                                                                                         | Summary                                                                                                                                                                                                                                                                                                                                                                   |
-| ---------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-07-03 | Study codebase and expand README with architecture guide and common tasks.                 | `README.md`                                                                                                                                           | Added comprehensive documentation: core modules breakdown with controllers/models/routes, detailed project structure, database relationships, key files guide, common development tasks (adding features, roles, endpoints), testing guide, troubleshooting section. Now AI assistant can understand the system structure and implement features without re-reading code. |
-| 2026-06-21 | Fix message sent feedback on the public message form.                                      | `resources/js/pages/Messages/Create.vue`, `README.md`                                                                                                 | Added local success feedback after message submission and reset the attachment picker so the sent confirmation reliably appears.                                                                                                                                                                                                                                          |
-| 2026-06-21 | Fix security question validation labels and seed an example message with a file.           | `app/Http/Controllers/InstructorVerificationController.php`, `database/seeders/MessageSeeder.php`, `database/seeders/DatabaseSeeder.php`, `README.md` | Renamed setup validation fields to Question 1-3 and added an idempotent demo message with a PDF attachment for an existing seeded student.                                                                                                                                                                                                                                |
-| 2026-06-21 | Fix saving instructor security questions.                                                  | `resources/js/pages/Auth/InstructorVerify.vue`, `tests/Feature/InstructorSecurityQuestionTest.php`, `README.md`                                       | Added setup-form validation feedback, prevented duplicate question choices, carried the saved question into verification, and covered the save endpoint with a feature test.                                                                                                                                                                                              |
-| 2026-06-20 | Make instructor security question answers visible instead of hidden.                       | `resources/js/pages/Auth/InstructorVerify.vue`, `README.md`                                                                                           | Changed instructor security question setup and verification answer inputs from password fields to visible text fields.                                                                                                                                                                                                                                                    |
-| 2026-06-20 | Remove the message link from the landing page for now.                                     | `resources/js/layouts/Layout.vue`, `README.md`                                                                                                        | Removed the public `Messages` navigation item from both desktop and mobile landing-page navigation while leaving message routes/pages available for later work.                                                                                                                                                                                                           |
-| 2026-06-20 | Create a README file to use for each prompt and changes; first study the system and files. | `README.md`                                                                                                                                           | Expanded the README after reviewing project structure, routes, setup docs, package manifests, frontend bootstrap, styles, and seeders. Added stack, setup, routes, demo accounts, project structure, and this prompt/change log.                                                                                                                                          |
+| Date       | Prompt / Request                                                                                                                                  | Files Changed                                                                                                                                         | Summary                                                                                                                                                                                                                                                                                                                                                                         |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-07-03 | Create complete Student/Parent portal with Dashboard, Profile, Attendance, ExcuseLetters, Messages pages with authentication and role guards.     | `routes/web.php`, `app/Http/Controllers/StudentsController.php`, `app/Models/Students.php`, `resources/js/layouts/AuthNavbar.vue`, `README.md`        | Created StudentsController with 8 portal methods (dashboard, showProfile, updateProfile, updatePassword, attendance, excuseLetters, storeExcuseLetter, messages). Added student-parent route group with middleware auth + role:student,parent. Updated Students model with attendances() relationship. Added Student/Parent navigation section to AuthNavbar with portal links. |
+| 2026-07-03 | Create a new shared login page for Students and Parents with same design as existing login pages, without Attendance Control Panel in navigation. | `resources/js/layouts/StudentParentLayout.vue`, `resources/js/pages/Auth/StudentParentLogin.vue`, `routes/web.php`, `README.md`                       | Created dedicated Student/Parent login page with custom layout that removes "Attendance Control Panel" navigation item. Added route `/student-parent-login` for shared student and parent access. Layout uses same styling and design as main landing page. Updated README routes documentation.                                                                                |
+| 2026-07-03 | Study codebase and expand README with architecture guide and common tasks.                                                                        | `README.md`                                                                                                                                           | Added comprehensive documentation: core modules breakdown with controllers/models/routes, detailed project structure, database relationships, key files guide, common development tasks (adding features, roles, endpoints), testing guide, troubleshooting section. Now AI assistant can understand the system structure and implement features without re-reading code.       |
+| 2026-06-21 | Fix message sent feedback on the public message form.                                                                                             | `resources/js/pages/Messages/Create.vue`, `README.md`                                                                                                 | Added local success feedback after message submission and reset the attachment picker so the sent confirmation reliably appears.                                                                                                                                                                                                                                                |
+| 2026-06-21 | Fix security question validation labels and seed an example message with a file.                                                                  | `app/Http/Controllers/InstructorVerificationController.php`, `database/seeders/MessageSeeder.php`, `database/seeders/DatabaseSeeder.php`, `README.md` | Renamed setup validation fields to Question 1-3 and added an idempotent demo message with a PDF attachment for an existing seeded student.                                                                                                                                                                                                                                      |
+| 2026-06-21 | Fix saving instructor security questions.                                                                                                         | `resources/js/pages/Auth/InstructorVerify.vue`, `tests/Feature/InstructorSecurityQuestionTest.php`, `README.md`                                       | Added setup-form validation feedback, prevented duplicate question choices, carried the saved question into verification, and covered the save endpoint with a feature test.                                                                                                                                                                                                    |
+| 2026-06-20 | Make instructor security question answers visible instead of hidden.                                                                              | `resources/js/pages/Auth/InstructorVerify.vue`, `README.md`                                                                                           | Changed instructor security question setup and verification answer inputs from password fields to visible text fields.                                                                                                                                                                                                                                                          |
+| 2026-06-20 | Remove the message link from the landing page for now.                                                                                            | `resources/js/layouts/Layout.vue`, `README.md`                                                                                                        | Removed the public `Messages` navigation item from both desktop and mobile landing-page navigation while leaving message routes/pages available for later work.                                                                                                                                                                                                                 |
+| 2026-06-20 | Create a README file to use for each prompt and changes; first study the system and files.                                                        | `README.md`                                                                                                                                           | Expanded the README after reviewing project structure, routes, setup docs, package manifests, frontend bootstrap, styles, and seeders. Added stack, setup, routes, demo accounts, project structure, and this prompt/change log.                                                                                                                                                |
 
 ### Change Log Template
 

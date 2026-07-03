@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Attendance;
 use App\Models\AttendanceLog;
 use App\Models\Borrowing;
 use App\Models\Section;
@@ -61,5 +62,10 @@ class Students extends Model
     public function attendanceLogs(): HasMany
     {
         return $this->hasMany(AttendanceLog::class, 'student_id', 'student_id');
+    }
+
+    public function attendances(): HasMany
+    {
+        return $this->hasMany(Attendance::class, 'student_id', 'student_id');
     }
 }

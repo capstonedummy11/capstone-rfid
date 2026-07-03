@@ -41,6 +41,9 @@ Route::get('/', function (Request $request) {
   if ($role === 'registrar') {
     return redirect()->route('registrar.dashboard');
   }
+  if (in_array($role, ['student', 'parent'], true)) {
+    return redirect()->route('student-parent.dashboard');
+  }
 
   return Inertia::render('LandingPage');
 })->name('landingPage');
@@ -67,6 +70,7 @@ Route::middleware(['auth', 'role:console'])->group(function () {
 });
 
 Route::inertia('/register', 'Auth/Register')->name('register_page');
+Route::inertia('/student-parent-login', 'Auth/StudentParentLogin')->name('studentParentLogin');
 
 Route::get('/dashboard', function (Request $request) {
   $role = strtolower(trim((string) $request->user()?->role));
@@ -82,6 +86,9 @@ Route::get('/dashboard', function (Request $request) {
   }
   if ($role === 'registrar') {
     return redirect()->route('registrar.dashboard');
+  }
+  if (in_array($role, ['student', 'parent'], true)) {
+    return redirect()->route('student-parent.dashboard');
   }
 
   return redirect()->route('landingPage');
@@ -204,6 +211,20 @@ Route::prefix('clinic')
     Route::delete('/emergency-types/{id}', [EmergencyController::class, 'destroyType'])->name('emergency-types.destroy');
     Route::put('/emergency-alerts/{id}', [EmergencyController::class, 'updateAlertStatus'])->name('emergency-alerts.update');
     Route::post('/emergency-alerts/{id}/dispatch', [EmergencyController::class, 'dispatchAlert'])->name('emergency-alerts.dispatch');
+  });
+
+Route::prefix('student-parent')
+  ->middleware(['auth', 'role:student,parent'])
+  ->name('student-parent.')
+  ->group(function () {
+    Route::get('/dashboard', [StudentsController::class, 'dashboard'])->name('dashboard');
+    Route::get('/profile', [StudentsController::class, 'showProfile'])->name('profile.show');
+    Route::put('/profile', [StudentsController::class, 'updateProfile'])->name('profile.update');
+    Route::put('/password', [StudentsController::class, 'updatePassword'])->name('password.update');
+    Route::get('/attendance', [StudentsController::class, 'attendance'])->name('attendance');
+    Route::get('/excuse-letters', [StudentsController::class, 'excuseLetters'])->name('excuse-letters.index');
+    Route::post('/excuse-letters', [StudentsController::class, 'storeExcuseLetter'])->name('excuse-letters.store');
+    Route::get('/messages', [StudentsController::class, 'messages'])->name('messages.index');
   });
 
 

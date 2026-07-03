@@ -193,6 +193,41 @@ const sections = [
             },
         ],
     },
+    {
+        title: 'Portal',
+        links: [
+            {
+                icon: Dashboard,
+                text: 'Dashboard',
+                route: route('student-parent.dashboard'),
+                roles: ['student', 'parent'],
+            },
+            {
+                icon: Instructor,
+                text: 'My Profile',
+                route: route('student-parent.profile.show'),
+                roles: ['student', 'parent'],
+            },
+            {
+                icon: Attendance,
+                text: 'Attendance',
+                route: route('student-parent.attendance'),
+                roles: ['student', 'parent'],
+            },
+            {
+                icon: MessageSquare,
+                text: 'Excuse Letters',
+                route: route('student-parent.excuse-letters.index'),
+                roles: ['student', 'parent'],
+            },
+            {
+                icon: MessageSquare,
+                text: 'Messages',
+                route: route('student-parent.messages.index'),
+                roles: ['student', 'parent'],
+            },
+        ],
+    },
 ];
 
 const visibleSections = computed(() =>
