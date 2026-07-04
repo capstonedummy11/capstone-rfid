@@ -60,10 +60,25 @@ class Students extends Model
         return $this->hasMany(AttendanceLog::class, 'student_id', 'student_id');
     }
 
+    public function attendances(): HasMany
+    {
+        return $this->hasMany(Attendance::class, 'student_id', 'student_id');
+    }
+
     public function parentUsers(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'parent_student_links', 'student_id', 'parent_user_id')
             ->withPivot('relationship')
             ->withTimestamps();
+    }
+
+    public function excuseLetters(): HasMany
+    {
+        return $this->hasMany(StudentExcuseLetter::class, 'student_id', 'student_id');
+    }
+
+    public function portalMessages(): HasMany
+    {
+        return $this->hasMany(StudentPortalMessage::class, 'student_id', 'student_id');
     }
 }

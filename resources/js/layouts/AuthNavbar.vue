@@ -114,11 +114,52 @@ const sections = [
                 route: route('admin.online-classes.index'),
                 roles: ['admin', 'instructor'],
             },
+        ],
+    },
+    {
+        title: 'Student Portal',
+        links: [
+            {
+                icon: Dashboard,
+                text: 'My Dashboard',
+                route: route('student-parent.dashboard'),
+                roles: ['student', 'parent'],
+            },
+            {
+                icon: Instructor,
+                text: 'My Profile',
+                route: route('student-parent.profile.show'),
+                roles: ['student', 'parent'],
+            },
+            {
+                icon: Attendance,
+                text: 'My Attendance',
+                route: route('student-parent.attendance'),
+                roles: ['student', 'parent'],
+            },
             {
                 icon: MonitorCheck,
                 text: 'Online Classes',
                 route: route('student-parent.online-classes.index'),
-                roles: ['student'],
+                roles: ['student', 'parent'],
+            },
+            {
+                icon: MessageSquare,
+                text: 'Excuse Letters',
+                route: route('student-parent.excuse-letters.index'),
+                roles: ['student', 'parent'],
+            },
+            {
+                icon: MessageSquare,
+                text: 'Messages',
+                route: route('student-parent.messages.index'),
+                roles: ['student', 'parent'],
+            },
+            {
+                icon: MessageSquare,
+                text: 'Notifications',
+                route: route('student-parent.notifications.index'),
+                roles: ['student', 'parent'],
             },
         ],
     },

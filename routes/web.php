@@ -42,8 +42,8 @@ Route::get('/', function (Request $request) {
     if ($role === 'registrar') {
         return redirect()->route('registrar.dashboard');
     }
-    if ($role === 'student') {
-        return redirect()->route('student-parent.online-classes.index');
+    if (in_array($role, ['student', 'parent'], true)) {
+        return redirect()->route('student-parent.dashboard');
     }
 
     return Inertia::render('LandingPage');
@@ -87,8 +87,8 @@ Route::get('/dashboard', function (Request $request) {
     if ($role === 'registrar') {
         return redirect()->route('registrar.dashboard');
     }
-    if ($role === 'student') {
-        return redirect()->route('student-parent.online-classes.index');
+    if (in_array($role, ['student', 'parent'], true)) {
+        return redirect()->route('student-parent.dashboard');
     }
 
     return redirect()->route('landingPage');
@@ -221,9 +221,19 @@ Route::prefix('clinic')
     });
 
 Route::prefix('student-parent')
-    ->middleware(['auth', 'role:student'])
+    ->middleware(['auth', 'role:student,parent'])
     ->name('student-parent.')
     ->group(function () {
+        Route::get('/dashboard', [StudentsController::class, 'portalDashboard'])->name('dashboard');
+        Route::get('/profile', [StudentsController::class, 'portalProfile'])->name('profile.show');
+        Route::put('/profile', [StudentsController::class, 'updatePortalProfile'])->name('profile.update');
+        Route::put('/password', [StudentsController::class, 'updatePortalPassword'])->name('password.update');
+        Route::get('/attendance', [StudentsController::class, 'portalAttendance'])->name('attendance');
+        Route::get('/excuse-letters', [StudentsController::class, 'portalExcuseLetters'])->name('excuse-letters.index');
+        Route::post('/excuse-letters', [StudentsController::class, 'storePortalExcuseLetter'])->name('excuse-letters.store');
+        Route::get('/messages', [StudentsController::class, 'portalMessages'])->name('messages.index');
+        Route::post('/messages', [StudentsController::class, 'storePortalMessage'])->name('messages.store');
+        Route::get('/notifications', [StudentsController::class, 'portalNotifications'])->name('notifications.index');
         Route::get('/online-classes', [OnlineClassController::class, 'studentIndex'])->name('online-classes.index');
         Route::post('/online-classes/{onlineClass}/join', [OnlineClassController::class, 'join'])->name('online-classes.join');
     });

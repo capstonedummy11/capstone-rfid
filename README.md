@@ -150,9 +150,13 @@ Implemented instructor/admin capabilities:
 
 Implemented student capabilities:
 
+- Students now land on `/student-parent/dashboard` after login.
+- Student/Parent portal navigation includes My Dashboard, My Profile, My Attendance, Online Classes, Excuse Letters, Messages, and Notifications.
 - Students can view online classes for their section at `/student-parent/online-classes`.
 - Students can open the meeting link and record join attendance.
 - Join attendance records joined time, attendance status, late flag, face-required flag, face verification result, and face verification timestamp when required.
+- Students and linked parents can submit excuse letters with optional attachments.
+- Students and linked parents can send portal messages. Parents can see messages for the linked student, including student-authored messages. Students only see student-authored messages and cannot see parent-authored messages.
 
 Notifications:
 
@@ -180,6 +184,8 @@ Online Class database tables:
 - `online_class_attendances`
 - `online_class_notifications`
 - `online_class_audit_logs`
+- `student_excuse_letters`
+- `student_portal_messages`
 
 Known limitations:
 
@@ -195,7 +201,13 @@ Known limitations:
 - `/admin/online-classes` - instructor/admin online class management.
 - `/admin/online-class-logs` - admin-only online class audit logs.
 - `/admin/online-class-logs/export` - admin-only online class audit log CSV export.
+- `/student-parent/dashboard` - student portal dashboard summary.
+- `/student-parent/profile` - student profile and password page.
+- `/student-parent/attendance` - student attendance history.
 - `/student-parent/online-classes` - student online class list and join page.
+- `/student-parent/excuse-letters` - student/parent excuse letter submission and history.
+- `/student-parent/messages` - student/parent portal messages.
+- `/student-parent/notifications` - student online class notifications.
 - `/admin/attendance/scanner` and `/admin/attendance/logs` - attendance tools.
 - `/admin/inventory` and `/admin/borrow` - inventory and borrowing.
 - `/attendance-control-panel/login` - console panel login.
@@ -229,6 +241,8 @@ tests/                    Pest/PHPUnit tests
 
 ### Completed Work
 
+- Added student/parent portal navigation pages: Dashboard, Profile, Attendance, Excuse Letters, Messages, Notifications, and Online Classes.
+- Added source-backed student portal routes and controller methods in `StudentsController`.
 - Reviewed `README.md`, `docs/RUNNING_THE_SYSTEM.md`, and `docs/INSTALLATION_LINKS.md` before implementation.
 - Added Online Class schema migration: `database/migrations/2026_07_04_000002_create_online_class_tables.php`.
 - Added Online Class models: `OnlineClass`, `OnlineClassAttachment`, `OnlineClassAttendance`, `OnlineClassNotification`, and `OnlineClassAuditLog`.
@@ -289,6 +303,8 @@ Use this section as a lightweight record of prompts and repository changes made 
 
 | Date | Prompt / Request | Files Changed | Summary |
 | --- | --- | --- | --- |
+| 2026-07-04 | Replace student/parent Borrowings with Excuse Letters and add Messages with parent/student visibility rules. | `database/migrations/2026_07_04_000003_create_student_portal_letters_and_messages.php`, `app/Models/StudentExcuseLetter.php`, `app/Models/StudentPortalMessage.php`, `app/Http/Controllers/StudentsController.php`, `app/Models/Students.php`, `app/Http/Controllers/OnlineClassController.php`, `routes/web.php`, `resources/js/layouts/AuthNavbar.vue`, `resources/js/pages/StudentParent/ExcuseLetters.vue`, `resources/js/pages/StudentParent/Messages.vue`, `resources/js/pages/StudentParent/Dashboard.vue`, `resources/js/pages/StudentParent/Borrowings.vue`, `README.md` | Removed the student/parent Borrowings page, added excuse-letter submission with live preview, added portal messages, opened student-parent routes to linked parents, and enforced that parents can see linked student messages while students cannot see parent-authored messages. |
+| 2026-07-04 | Create student portal navigation pages. | `routes/web.php`, `app/Http/Controllers/StudentsController.php`, `app/Models/Students.php`, `resources/js/layouts/AuthNavbar.vue`, `resources/js/pages/StudentParent/Dashboard.vue`, `resources/js/pages/StudentParent/Profile.vue`, `resources/js/pages/StudentParent/Attendance.vue`, `resources/js/pages/StudentParent/Borrowings.vue`, `resources/js/pages/StudentParent/Notifications.vue`, `README.md` | Added source-backed student dashboard, profile, attendance, borrowings, notifications, and navigation entries. Students now redirect to the dashboard. |
 | 2026-07-04 | Implement Online Class module with facial-recognition default setting, notifications, attendance integration, audit logs, admin log page, and README handoff rules. | `database/migrations/2026_07_04_000002_create_online_class_tables.php`, `app/Models/OnlineClass*.php`, `app/Http/Controllers/OnlineClassController.php`, `app/Services/OnlineClassAuditLogger.php`, `app/Services/OnlineClassNotificationService.php`, `app/Models/SystemSetting.php`, `app/Http/Controllers/SystemSettingsController.php`, `routes/web.php`, `resources/js/pages/Auth/Admin/OnlineClasses.vue`, `resources/js/pages/Auth/Admin/OnlineClassLogs.vue`, `resources/js/pages/StudentParent/OnlineClasses.vue`, `resources/js/pages/Auth/Admin/SystemSettings.vue`, `resources/js/layouts/AuthNavbar.vue`, `README.md` | Added a modular Online Class implementation with instructor/admin management, student join attendance, notifications, audit logs, CSV export, system setting, navigation, and AI Development Handoff documentation. |
 | 2026-07-04 | Create dummy student and parent accounts and link the parent to student info. | `database/migrations/2026_07_04_000001_create_parent_student_links_table.php`, `database/seeders/StudentParentAccountSeeder.php`, `database/seeders/DatabaseSeeder.php`, `app/Models/User.php`, `app/Models/Students.php`, `README.md` | Added a parent-student link table, model relationships, a seeded student login, a seeded parent login, and documentation for the accounts plus the README maintenance rule. Discovered this branch has cached StudentParent routes but is missing the matching portal source files/methods. |
 | 2026-06-21 | Fix message sent feedback on the public message form. | `resources/js/pages/Messages/Create.vue`, `README.md` | Added local success feedback after message submission and reset the attachment picker so the sent confirmation reliably appears. |

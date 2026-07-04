@@ -4,12 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
 use App\Models\Instructor;
+use App\Models\OnlineClass;
+use App\Models\OnlineClassNotification;
 use App\Models\Section;
 use App\Models\Strand;
+use App\Models\StudentExcuseLetter;
+use App\Models\StudentPortalMessage;
 use App\Models\Students;
 use App\Services\CompreFaceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
@@ -183,7 +188,7 @@ class StudentsController
         ]);
 
         $student = Students::create($validated);
-        $this->logActivity('create', 'students', 'Created student ' . $student->student_number);
+        $this->logActivity('create', 'students', 'Created student '.$student->student_number);
 
         return back()->with('success', 'Student added successfully.');
     }
@@ -203,11 +208,11 @@ class StudentsController
         $student = Students::findOrFail($id);
 
         $validated = $request->validate([
-            'student_number' => 'required|string|max:255|unique:students,student_number,' . $id . ',student_id',
+            'student_number' => 'required|string|max:255|unique:students,student_number,'.$id.',student_id',
             'first_name' => 'required|string|max:255',
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
-            'email' => 'required|email|max:255|unique:students,email,' . $id . ',student_id',
+            'email' => 'required|email|max:255|unique:students,email,'.$id.',student_id',
             'phone' => 'nullable|string|max:20',
             'gender' => 'nullable|in:male,female',
             'strand_id' => 'required|exists:strands,strand_id',
@@ -215,12 +220,12 @@ class StudentsController
             'year_level' => 'required|integer|in:11,12',
             'semester' => 'required|string|max:50',
             'school_year' => 'required|string|max:20',
-            'rfid_tag' => 'nullable|string|max:255|unique:students,rfid_tag,' . $id . ',student_id',
+            'rfid_tag' => 'nullable|string|max:255|unique:students,rfid_tag,'.$id.',student_id',
             'status' => 'required|in:active,inactive,graduated,dropped',
         ]);
 
         $student->update($validated);
-        $this->logActivity('update', 'students', 'Updated student ' . $student->student_number);
+        $this->logActivity('update', 'students', 'Updated student '.$student->student_number);
 
         return back()->with('success', 'Student updated successfully.');
     }
@@ -244,9 +249,9 @@ class StudentsController
 
         // Enroll this face into CompreFace (student_number is the subject)
         $absolutePath = Storage::disk('public')->path($path);
-        (new CompreFaceService())->enrollFace($student->student_number, $absolutePath);
+        (new CompreFaceService)->enrollFace($student->student_number, $absolutePath);
 
-        $this->logActivity('update', 'students', 'Added face image for student ' . $student->student_number);
+        $this->logActivity('update', 'students', 'Added face image for student '.$student->student_number);
 
         return response()->json([
             'ok' => true,
@@ -260,7 +265,7 @@ class StudentsController
         $student = Students::findOrFail($id);
         $currentImages = $student->face_images ?? [];
 
-        if (!isset($currentImages[(int) $index])) {
+        if (! isset($currentImages[(int) $index])) {
             return response()->json(['ok' => false, 'message' => 'Image not found.'], 404);
         }
 
@@ -268,7 +273,7 @@ class StudentsController
         array_splice($currentImages, (int) $index, 1);
         $student->update(['face_images' => array_values($currentImages)]);
 
-        $this->logActivity('update', 'students', 'Removed face image for student ' . $student->student_number);
+        $this->logActivity('update', 'students', 'Removed face image for student '.$student->student_number);
 
         return response()->json([
             'ok' => true,
@@ -286,13 +291,202 @@ class StudentsController
         foreach ($student->face_images ?? [] as $imagePath) {
             Storage::disk('public')->delete($imagePath);
         }
-        (new CompreFaceService())->deleteSubject($student->student_number);
+        (new CompreFaceService)->deleteSubject($student->student_number);
 
         $student->delete();
 
-        $this->logActivity('delete', 'students', 'Deleted student ' . $studentNumber);
+        $this->logActivity('delete', 'students', 'Deleted student '.$studentNumber);
 
         return back()->with('success', 'Student deleted successfully.');
+    }
+
+    public function portalDashboard(Request $request)
+    {
+        $student = $this->currentStudent($request);
+
+        return Inertia::render('StudentParent/Dashboard', [
+            'title' => 'Student Dashboard',
+            'student' => $this->studentPayload($student),
+            'stats' => [
+                'present' => $student?->attendances()->where('status', 'present')->count() ?? 0,
+                'late' => $student?->attendances()->where('status', 'late')->count() ?? 0,
+                'excuse_letters' => $student?->excuseLetters()->count() ?? 0,
+                'messages' => $student ? $this->messageQuery($request, $student)->count() : 0,
+                'online_classes' => $student
+                    ? OnlineClass::query()->where('section_id', $student->section_id)->where('status', 'scheduled')->count()
+                    : 0,
+            ],
+            'recentAttendance' => $this->attendanceQuery($student)->take(5)->get()->map(fn ($attendance) => $this->attendancePayload($attendance)),
+            'recentMessages' => $student ? $this->messageQuery($request, $student)->take(5)->get()->map(fn ($message) => $this->messagePayload($message)) : [],
+        ]);
+    }
+
+    public function portalProfile(Request $request)
+    {
+        return Inertia::render('StudentParent/Profile', [
+            'title' => 'My Profile',
+            'student' => $this->studentPayload($this->currentStudent($request)),
+            'user' => $request->user(),
+        ]);
+    }
+
+    public function updatePortalProfile(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:20'],
+            'gender' => ['nullable', 'in:male,female'],
+        ]);
+
+        $request->user()->update($validated);
+        $student = $this->currentStudent($request);
+        $student?->update([
+            'phone' => $validated['phone'] ?? $student->phone,
+            'gender' => $validated['gender'] ?? $student->gender,
+        ]);
+
+        return back()->with('success', 'Profile updated.');
+    }
+
+    public function updatePortalPassword(Request $request)
+    {
+        $validated = $request->validate([
+            'current_password' => ['required', 'current_password'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $request->user()->update(['password' => Hash::make($validated['password'])]);
+
+        return back()->with('success', 'Password updated.');
+    }
+
+    public function portalAttendance(Request $request)
+    {
+        $student = $this->currentStudent($request);
+
+        return Inertia::render('StudentParent/Attendance', [
+            'title' => 'My Attendance',
+            'attendance' => $this->attendanceQuery($student)->get()->map(fn ($attendance) => $this->attendancePayload($attendance)),
+        ]);
+    }
+
+    public function portalExcuseLetters(Request $request)
+    {
+        $student = $this->currentStudent($request);
+
+        return Inertia::render('StudentParent/ExcuseLetters', [
+            'title' => 'Excuse Letters',
+            'student' => $this->studentPayload($student),
+            'letters' => $student
+                ? $student->excuseLetters()->with('submittedBy')->latest()->get()->map(fn (StudentExcuseLetter $letter) => $this->letterPayload($letter))
+                : [],
+        ]);
+    }
+
+    public function storePortalExcuseLetter(Request $request)
+    {
+        $student = $this->currentStudent($request);
+        abort_unless($student, 403);
+
+        $validated = $request->validate([
+            'subject' => ['required', 'string', 'max:255'],
+            'from_date' => ['required', 'date'],
+            'to_date' => ['required', 'date', 'after_or_equal:from_date'],
+            'reason' => ['required', 'string', 'max:5000'],
+            'attachment' => ['nullable', 'file', 'max:5120', 'mimes:pdf,doc,docx,jpg,jpeg,png'],
+        ]);
+
+        $attachment = $request->file('attachment');
+        if ($attachment) {
+            $validated['attachment_path'] = $attachment->store('student-excuse-letters', 'public');
+            $validated['attachment_name'] = $attachment->getClientOriginalName();
+        }
+        unset($validated['attachment']);
+
+        StudentExcuseLetter::query()->create([
+            ...$validated,
+            'student_id' => $student->student_id,
+            'submitted_by_user_id' => $request->user()->user_id,
+            'submitted_by_role' => strtolower((string) $request->user()->role),
+        ]);
+
+        return back()->with('success', 'Excuse letter submitted.');
+    }
+
+    public function portalMessages(Request $request)
+    {
+        $student = $this->currentStudent($request);
+
+        return Inertia::render('StudentParent/Messages', [
+            'title' => 'Messages',
+            'student' => $this->studentPayload($student),
+            'messages' => $student ? $this->messageQuery($request, $student)->get()->map(fn ($message) => $this->messagePayload($message)) : [],
+            'instructors' => Instructor::query()
+                ->with('user:user_id,name,email')
+                ->whereHas('user')
+                ->get()
+                ->map(fn (Instructor $instructor) => [
+                    'user_id' => $instructor->user?->user_id,
+                    'name' => $instructor->user?->name,
+                    'email' => $instructor->user?->email,
+                ])
+                ->filter(fn ($instructor) => $instructor['user_id'])
+                ->values(),
+        ]);
+    }
+
+    public function storePortalMessage(Request $request)
+    {
+        $student = $this->currentStudent($request);
+        abort_unless($student, 403);
+
+        $validated = $request->validate([
+            'instructor_user_id' => ['nullable', 'integer', 'exists:users,user_id'],
+            'subject' => ['required', 'string', 'max:255'],
+            'body' => ['required', 'string', 'max:5000'],
+            'attachment' => ['nullable', 'file', 'max:5120', 'mimes:pdf,doc,docx,jpg,jpeg,png'],
+        ]);
+
+        $attachment = $request->file('attachment');
+        if ($attachment) {
+            $validated['attachment_path'] = $attachment->store('student-portal-messages', 'public');
+            $validated['attachment_name'] = $attachment->getClientOriginalName();
+        }
+        unset($validated['attachment']);
+
+        StudentPortalMessage::query()->create([
+            ...$validated,
+            'student_id' => $student->student_id,
+            'sender_user_id' => $request->user()->user_id,
+            'sender_role' => strtolower((string) $request->user()->role),
+        ]);
+
+        return back()->with('success', 'Message sent.');
+    }
+
+    public function portalNotifications(Request $request)
+    {
+        $student = $this->currentStudent($request);
+
+        return Inertia::render('StudentParent/Notifications', [
+            'title' => 'Notifications',
+            'notifications' => $student
+                ? OnlineClassNotification::query()
+                    ->with('onlineClass')
+                    ->where('student_id', $student->student_id)
+                    ->latest()
+                    ->get()
+                    ->map(fn (OnlineClassNotification $notification) => [
+                        'id' => $notification->online_class_notification_id,
+                        'title' => $notification->title,
+                        'body' => $notification->body,
+                        'event' => $notification->event,
+                        'read_at' => $notification->read_at?->toDateTimeString(),
+                        'email_sent_at' => $notification->email_sent_at?->toDateTimeString(),
+                        'created_at' => $notification->created_at?->toDateTimeString(),
+                    ])
+                : [],
+        ]);
     }
 
     private function logActivity(string $action, string $tableName, string $description): void
@@ -303,5 +497,108 @@ class StudentsController
             'table_name' => $tableName,
             'description' => $description,
         ]);
+    }
+
+    private function currentStudent(Request $request): ?Students
+    {
+        $role = strtolower((string) $request->user()?->role);
+
+        if ($role === 'parent') {
+            return $request->user()
+                ?->linkedStudents()
+                ->with(['section', 'strand'])
+                ->orderBy('students.student_id')
+                ->first();
+        }
+
+        return Students::query()
+            ->with(['section', 'strand'])
+            ->where('email', $request->user()?->email)
+            ->first();
+    }
+
+    private function studentPayload(?Students $student): ?array
+    {
+        if (! $student) {
+            return null;
+        }
+
+        return [
+            'student_id' => $student->student_id,
+            'student_number' => $student->student_number,
+            'name' => trim($student->first_name.' '.$student->last_name),
+            'email' => $student->email,
+            'phone' => $student->phone,
+            'gender' => $student->gender,
+            'section' => $student->section?->section_name,
+            'strand' => $student->strand?->strand_code,
+            'year_level' => $student->year_level,
+            'semester' => $student->semester,
+            'school_year' => $student->school_year,
+            'status' => $student->status,
+        ];
+    }
+
+    private function attendanceQuery(?Students $student)
+    {
+        return $student
+            ? $student->attendances()->with(['schedule.subject'])->latest('date')
+            : Students::query()->whereRaw('1 = 0');
+    }
+
+    private function attendancePayload($attendance): array
+    {
+        return [
+            'attendance_id' => $attendance->attendance_id,
+            'date' => $attendance->date?->format('Y-m-d'),
+            'subject' => $attendance->schedule?->subject?->subject_name ?? $attendance->subject_code,
+            'room' => $attendance->room,
+            'time_in' => $attendance->time_in,
+            'time_out' => $attendance->time_out,
+            'status' => $attendance->status,
+        ];
+    }
+
+    private function messageQuery(Request $request, Students $student)
+    {
+        $role = strtolower((string) $request->user()?->role);
+
+        return StudentPortalMessage::query()
+            ->with(['sender', 'instructor'])
+            ->where('student_id', $student->student_id)
+            ->when($role === 'student', fn ($query) => $query->where('sender_role', 'student'))
+            ->latest();
+    }
+
+    private function messagePayload(StudentPortalMessage $message): array
+    {
+        return [
+            'id' => $message->student_portal_message_id,
+            'sender' => $message->sender?->name,
+            'sender_role' => $message->sender_role,
+            'instructor' => $message->instructor?->name,
+            'subject' => $message->subject,
+            'body' => $message->body,
+            'attachment_name' => $message->attachment_name,
+            'attachment_url' => $message->attachment_path ? Storage::disk('public')->url($message->attachment_path) : null,
+            'created_at' => $message->created_at?->toDateTimeString(),
+        ];
+    }
+
+    private function letterPayload(StudentExcuseLetter $letter): array
+    {
+        return [
+            'id' => $letter->student_excuse_letter_id,
+            'subject' => $letter->subject,
+            'from_date' => $letter->from_date?->format('Y-m-d'),
+            'to_date' => $letter->to_date?->format('Y-m-d'),
+            'reason' => $letter->reason,
+            'status' => $letter->status,
+            'submitted_by' => $letter->submittedBy?->name,
+            'submitted_by_role' => $letter->submitted_by_role,
+            'attachment_name' => $letter->attachment_name,
+            'attachment_url' => $letter->attachment_path ? Storage::disk('public')->url($letter->attachment_path) : null,
+            'created_at' => $letter->created_at?->toDateTimeString(),
+        ];
     }
 }

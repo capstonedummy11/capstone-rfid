@@ -316,6 +316,11 @@ class OnlineClassController
 
     private function currentStudent(Request $request): ?Students
     {
+        $role = strtolower((string) $request->user()?->role);
+        if ($role === 'parent') {
+            return $request->user()?->linkedStudents()->orderBy('students.student_id')->first();
+        }
+
         return Students::query()->where('email', $request->user()?->email)->first();
     }
 
