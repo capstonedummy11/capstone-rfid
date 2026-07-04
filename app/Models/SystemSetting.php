@@ -16,11 +16,19 @@ class SystemSetting extends Model
     ];
 
     public const BORROWING_ENABLED = 'feature.borrowing_enabled';
+
     public const INVENTORY_ENABLED = 'feature.inventory_enabled';
+
     public const FACE_RECOGNITION_ENABLED = 'feature.face_recognition_enabled';
+
+    public const ONLINE_CLASS_FACE_RECOGNITION_DEFAULT = 'online_class.face_recognition_enabled_by_default';
+
     public const PANEL_PIN_HASH = 'panel.pin_hash';
+
     public const PANEL_DEVICE_LABEL = 'panel.device_label';
+
     public const ATTENDANCE_ABSENT_DEFAULT_DAYS = 'attendance.absent_default_days';
+
     public const SECURITY_QUESTIONS = 'auth.security_questions';
 
     public const DEFAULT_SECURITY_QUESTIONS = [
@@ -40,6 +48,7 @@ class SystemSetting extends Model
             'borrowing_enabled' => static::boolean(static::BORROWING_ENABLED, false),
             'inventory_enabled' => static::boolean(static::INVENTORY_ENABLED, false),
             'face_recognition_enabled' => static::boolean(static::FACE_RECOGNITION_ENABLED, true),
+            'online_class_face_recognition_default' => static::boolean(static::ONLINE_CLASS_FACE_RECOGNITION_DEFAULT, true),
         ];
     }
 

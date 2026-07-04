@@ -28,6 +28,7 @@ class SystemSettingsController
             'borrowing_enabled' => ['required', 'boolean'],
             'inventory_enabled' => ['required', 'boolean'],
             'face_recognition_enabled' => ['required', 'boolean'],
+            'online_class_face_recognition_default' => ['required', 'boolean'],
             'absent_default_days' => ['nullable', 'integer', 'min:1', 'max:365'],
             'security_questions' => ['nullable', 'array', 'min:3', 'max:20'],
             'security_questions.*' => ['required_with:security_questions', 'string', 'min:8', 'max:255', 'distinct'],
@@ -36,6 +37,7 @@ class SystemSettingsController
         SystemSetting::setBoolean(SystemSetting::BORROWING_ENABLED, (bool) $validated['borrowing_enabled']);
         SystemSetting::setBoolean(SystemSetting::INVENTORY_ENABLED, (bool) $validated['inventory_enabled']);
         SystemSetting::setBoolean(SystemSetting::FACE_RECOGNITION_ENABLED, (bool) $validated['face_recognition_enabled']);
+        SystemSetting::setBoolean(SystemSetting::ONLINE_CLASS_FACE_RECOGNITION_DEFAULT, (bool) $validated['online_class_face_recognition_default']);
         if (array_key_exists('absent_default_days', $validated) && $validated['absent_default_days'] !== null) {
             SystemSetting::setInteger(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, (int) $validated['absent_default_days']);
         }

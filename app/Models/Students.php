@@ -2,14 +2,11 @@
 
 namespace App\Models;
 
-use App\Models\AttendanceLog;
-use App\Models\Borrowing;
-use App\Models\Section;
-use App\Models\Strand;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Students extends Model
@@ -17,6 +14,7 @@ class Students extends Model
     use HasFactory, SoftDeletes;
 
     protected $table = 'students';
+
     protected $primaryKey = 'student_id';
 
     protected $fillable = [
@@ -35,7 +33,7 @@ class Students extends Model
         'school_year',
         'rfid_tag',
         'face_images',
-        'status'
+        'status',
     ];
 
     protected $casts = [
@@ -46,7 +44,6 @@ class Students extends Model
     {
         return $this->belongsTo(Section::class, 'section_id', 'section_id');
     }
-
 
     public function strand(): BelongsTo
     {
@@ -61,5 +58,12 @@ class Students extends Model
     public function attendanceLogs(): HasMany
     {
         return $this->hasMany(AttendanceLog::class, 'student_id', 'student_id');
+    }
+
+    public function parentUsers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'parent_student_links', 'student_id', 'parent_user_id')
+            ->withPivot('relationship')
+            ->withTimestamps();
     }
 }

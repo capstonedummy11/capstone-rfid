@@ -10,6 +10,7 @@ const props = defineProps({
             borrowing_enabled: false,
             inventory_enabled: false,
             face_recognition_enabled: true,
+            online_class_face_recognition_default: true,
         }),
     },
     attendanceSettings: {
@@ -34,6 +35,9 @@ const form = useForm({
     inventory_enabled: Boolean(props.featureSettings.inventory_enabled),
     face_recognition_enabled: Boolean(
         props.featureSettings.face_recognition_enabled,
+    ),
+    online_class_face_recognition_default: Boolean(
+        props.featureSettings.online_class_face_recognition_default ?? true,
     ),
     absent_default_days: Number(props.attendanceSettings.absent_default_days ?? 15),
     security_questions:
@@ -207,6 +211,24 @@ const saveSettings = () => {
                         </span>
                         <input
                             v-model="form.face_recognition_enabled"
+                            type="checkbox"
+                            class="h-5 w-5 shrink-0 accent-brand"
+                        />
+                    </label>
+
+                    <label
+                        class="flex items-center justify-between gap-4 rounded-md border border-slate-200 p-4"
+                    >
+                        <span class="min-w-0">
+                            <span class="block text-sm font-bold text-slate-900">
+                                Online Class Facial Recognition Enabled by Default
+                            </span>
+                            <span class="block text-sm text-slate-500">
+                                Sets the default facial recognition requirement when instructors create online classes.
+                            </span>
+                        </span>
+                        <input
+                            v-model="form.online_class_face_recognition_default"
                             type="checkbox"
                             class="h-5 w-5 shrink-0 accent-brand"
                         />

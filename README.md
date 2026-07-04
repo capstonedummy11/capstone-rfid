@@ -22,6 +22,7 @@ Start with these docs when setting up a new machine:
 - Clinic dashboard, case logs, patient history, reports, emergency types, and emergency alert handling.
 - Instructor verification by face, OTP, or security questions.
 - System settings for panel access, inventory availability, face recognition, security questions, and attendance behavior.
+- Online Class management for instructors, student online-class joining, attendance recording, notifications, and admin audit logs.
 
 ## Tech Stack
 
@@ -111,7 +112,9 @@ The main database seeder calls:
 - `EmergencySeeder`
 - `ComlabUserSeeder`
 - `DemoSystemSeeder`
+- `StudentParentAccountSeeder`
 - `ClinicDashboardSeeder`
+- `MessageSeeder`
 
 Common seeded demo accounts include:
 
@@ -123,12 +126,76 @@ Common seeded demo accounts include:
 | Clinic | `clinic@sample.com` | `sample` |
 | Registrar | `registrar@sample.com` | `sample` |
 | Console | `console@sample.com` | `sample` |
+| Student | `andrea.santos@student.sample.com` | `sample` |
+| Parent | `parent.andrea.santos@sample.com` | `sample` |
+
+`StudentParentAccountSeeder` reuses the demo student `SHS-ICT-1101` when available. If no student exists yet, it creates a fallback ICT strand, section, and Andrea Santos student record. The parent demo account is linked to that student through `parent_student_links` with relationship `mother`.
+
+Discovery: this branch has the student/parent demo accounts and database link, but the source files do not currently include the StudentParent Vue page folder or the matching portal methods in `StudentsController`. `php artisan route:list --path=student-parent` may still show cached StudentParent routes from `bootstrap/cache/routes-v7.php`; clear/regenerate route cache after restoring or changing the portal source files.
+
+## README Maintenance Rule
+
+Whenever a meaningful discovery, limitation, setup step, account, schema change, route change, or implementation update is found while working on this project, update this `README.md` in the same change. Keep the demo accounts, route notes, and AI prompt/change log current so the next work session starts from accurate project knowledge.
+
+## Online Class Module
+
+The Online Class module lets instructors create and manage online class sessions for their assigned schedules. Admin users can also access the management page and have a dedicated immutable audit-log page.
+
+Implemented instructor/admin capabilities:
+
+- Create, edit, cancel, delete, and list online classes.
+- Capture schedule/class, section, subject, title, description/instructions, meeting link, scheduled date, start/end time, file attachments, and facial-recognition requirement.
+- Instructor access is scoped to schedules assigned to their instructor profile.
+- Admins can view/manage all online classes and inspect/export audit logs.
+
+Implemented student capabilities:
+
+- Students can view online classes for their section at `/student-parent/online-classes`.
+- Students can open the meeting link and record join attendance.
+- Join attendance records joined time, attendance status, late flag, face-required flag, face verification result, and face verification timestamp when required.
+
+Notifications:
+
+- Creating, updating, rescheduling, and cancelling online classes creates in-app notification records in `online_class_notifications`.
+- The notification service attempts to send email notifications to enrolled students with class, subject, instructor, schedule, meeting link, and facial-recognition requirement.
+- Email failures are stored on the notification row in `email_error`.
+
+Audit logs:
+
+- `online_class_audit_logs` stores immutable online class events newest-first.
+- Logged events include create, update, reschedule, cancel, delete, facial-recognition requirement changes, student join, face pass/fail, attendance recorded, in-app notifications, and email notifications.
+- Admin log filters support search, date range, instructor id, user id, user role, section id, and action. CSV export is available at `/admin/online-class-logs/export`.
+
+System setting:
+
+- `online_class.face_recognition_enabled_by_default` controls the default Require Facial Recognition toggle for new online classes.
+- The setting is exposed in Admin Settings as "Online Class Facial Recognition Enabled by Default".
+- Default behavior is `true` when no database row exists.
+- Parents have no route or control for this setting.
+
+Online Class database tables:
+
+- `online_classes`
+- `online_class_attachments`
+- `online_class_attendances`
+- `online_class_notifications`
+- `online_class_audit_logs`
+
+Known limitations:
+
+- The student join page currently uses a confirmation flow to submit `face_verified` when facial recognition is required. A camera capture UI should be wired to the existing `/face-recognition/verify-student` endpoint in a later pass.
+- The log export is CSV, which Excel can open. A native `.xlsx` export is not implemented.
+- In-app notifications are stored but do not yet have a dedicated student notification center page.
 
 ## Important Routes
 
 - `/` - public landing page or role-based redirect after login.
 - `/dashboard` - role-based dashboard redirect.
 - `/admin/dashboard` - admin/instructor dashboard.
+- `/admin/online-classes` - instructor/admin online class management.
+- `/admin/online-class-logs` - admin-only online class audit logs.
+- `/admin/online-class-logs/export` - admin-only online class audit log CSV export.
+- `/student-parent/online-classes` - student online class list and join page.
 - `/admin/attendance/scanner` and `/admin/attendance/logs` - attendance tools.
 - `/admin/inventory` and `/admin/borrow` - inventory and borrowing.
 - `/attendance-control-panel/login` - console panel login.
@@ -143,7 +210,7 @@ Common seeded demo accounts include:
 app/
   Http/Controllers/       Laravel controllers for each module
   Models/                 Eloquent models
-  Services/               Face recognition integrations
+  Services/               Face recognition integrations, online class audit/notification services
 database/
   migrations/             Database schema changes
   seeders/                Demo and default data
@@ -158,12 +225,72 @@ routes/
 tests/                    Pest/PHPUnit tests
 ```
 
+## AI Development Handoff
+
+### Completed Work
+
+- Reviewed `README.md`, `docs/RUNNING_THE_SYSTEM.md`, and `docs/INSTALLATION_LINKS.md` before implementation.
+- Added Online Class schema migration: `database/migrations/2026_07_04_000002_create_online_class_tables.php`.
+- Added Online Class models: `OnlineClass`, `OnlineClassAttachment`, `OnlineClassAttendance`, `OnlineClassNotification`, and `OnlineClassAuditLog`.
+- Added `OnlineClassController` with instructor/admin management, student join, admin logs, and CSV export.
+- Added `OnlineClassAuditLogger` and `OnlineClassNotificationService`.
+- Added admin setting `online_class.face_recognition_enabled_by_default`.
+- Added Vue pages for online class management, admin logs, and student online classes.
+- Added sidebar navigation links for Online Classes and Online Class Logs.
+- Cleared stale Laravel route cache with `php artisan optimize:clear`.
+- Verified `npm run build` passes.
+
+### Work In Progress
+
+- Online Class facial recognition currently records the verification result supplied by the student page. The actual camera-based verification UI still needs to be connected to the existing face verification endpoint.
+
+### Remaining Tasks
+
+- Wire student Online Class join flow to a real camera capture/face verification UI.
+- Add a student notification center for `online_class_notifications`.
+- Add automated feature tests for instructor scoping, student section scoping, audit logs, and notification creation.
+- Add optional native Excel export if `.xlsx` output is required instead of CSV.
+- Run migrations and seeders against a live MySQL database.
+
+### Next Steps
+
+- Start MySQL/XAMPP.
+- Run `php artisan migrate`.
+- Log in as `instructor@sample.com` / `sample`, open `/admin/online-classes`, and create a class.
+- Log in as `andrea.santos@student.sample.com` / `sample`, open `/student-parent/online-classes`, and test joining.
+- Confirm `online_class_audit_logs`, `online_class_notifications`, and `online_class_attendances` rows are created.
+
+### Architectural Decisions
+
+- Online Class uses separate purpose-built tables instead of overloading RFID attendance tables.
+- Instructor authorization is based on `schedules.instructor_id`.
+- Student access is based on matching the authenticated student user's email to a `students.email` row and then checking `section_id`.
+- Online Class logs are append-only; no update/delete route is provided.
+- Notifications are dedicated Online Class records because the existing `messages` feature is student/parent-to-instructor communication, not system notifications.
+
+### Known Issues
+
+- Local MySQL was not available earlier in this branch, so migration execution was not verified against a live database.
+- The existing StudentParent portal source was missing in this branch before this change; only the Online Classes student page was added.
+
+### Testing Status
+
+- Passed: PHP syntax checks for new controller, services, models, and migration.
+- Passed: `npm run build`.
+- Not run: full PHP test suite and live database migration.
+
+### Documentation Status
+
+- `README.md` has been updated for the Online Class module, routes, schema, system setting, known limitations, and this handoff.
+
 ## AI Prompt And Change Log
 
 Use this section as a lightweight record of prompts and repository changes made with AI assistance. Add newest entries at the top.
 
 | Date | Prompt / Request | Files Changed | Summary |
 | --- | --- | --- | --- |
+| 2026-07-04 | Implement Online Class module with facial-recognition default setting, notifications, attendance integration, audit logs, admin log page, and README handoff rules. | `database/migrations/2026_07_04_000002_create_online_class_tables.php`, `app/Models/OnlineClass*.php`, `app/Http/Controllers/OnlineClassController.php`, `app/Services/OnlineClassAuditLogger.php`, `app/Services/OnlineClassNotificationService.php`, `app/Models/SystemSetting.php`, `app/Http/Controllers/SystemSettingsController.php`, `routes/web.php`, `resources/js/pages/Auth/Admin/OnlineClasses.vue`, `resources/js/pages/Auth/Admin/OnlineClassLogs.vue`, `resources/js/pages/StudentParent/OnlineClasses.vue`, `resources/js/pages/Auth/Admin/SystemSettings.vue`, `resources/js/layouts/AuthNavbar.vue`, `README.md` | Added a modular Online Class implementation with instructor/admin management, student join attendance, notifications, audit logs, CSV export, system setting, navigation, and AI Development Handoff documentation. |
+| 2026-07-04 | Create dummy student and parent accounts and link the parent to student info. | `database/migrations/2026_07_04_000001_create_parent_student_links_table.php`, `database/seeders/StudentParentAccountSeeder.php`, `database/seeders/DatabaseSeeder.php`, `app/Models/User.php`, `app/Models/Students.php`, `README.md` | Added a parent-student link table, model relationships, a seeded student login, a seeded parent login, and documentation for the accounts plus the README maintenance rule. Discovered this branch has cached StudentParent routes but is missing the matching portal source files/methods. |
 | 2026-06-21 | Fix message sent feedback on the public message form. | `resources/js/pages/Messages/Create.vue`, `README.md` | Added local success feedback after message submission and reset the attachment picker so the sent confirmation reliably appears. |
 | 2026-06-21 | Fix security question validation labels and seed an example message with a file. | `app/Http/Controllers/InstructorVerificationController.php`, `database/seeders/MessageSeeder.php`, `database/seeders/DatabaseSeeder.php`, `README.md` | Renamed setup validation fields to Question 1-3 and added an idempotent demo message with a PDF attachment for an existing seeded student. |
 | 2026-06-21 | Fix saving instructor security questions. | `resources/js/pages/Auth/InstructorVerify.vue`, `tests/Feature/InstructorSecurityQuestionTest.php`, `README.md` | Added setup-form validation feedback, prevented duplicate question choices, carried the saved question into verification, and covered the save endpoint with a feature test. |

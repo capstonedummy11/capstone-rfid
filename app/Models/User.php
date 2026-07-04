@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -21,6 +22,7 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $primaryKey = 'user_id';
+
     protected $fillable = [
         'name',
         'middle_name',
@@ -80,5 +82,12 @@ class User extends Authenticatable
     public function activityLogs(): HasMany
     {
         return $this->hasMany(ActivityLog::class, 'user_id', 'user_id');
+    }
+
+    public function linkedStudents(): BelongsToMany
+    {
+        return $this->belongsToMany(Students::class, 'parent_student_links', 'parent_user_id', 'student_id')
+            ->withPivot('relationship')
+            ->withTimestamps();
     }
 }

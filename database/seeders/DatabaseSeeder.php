@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             EmergencySeeder::class,
             ComlabUserSeeder::class,
             DemoSystemSeeder::class,
+            StudentParentAccountSeeder::class,
             ClinicDashboardSeeder::class,
             MessageSeeder::class,
         ]);

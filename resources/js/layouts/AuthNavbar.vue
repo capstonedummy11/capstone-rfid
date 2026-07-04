@@ -108,6 +108,18 @@ const sections = [
                 route: route('admin.messages.index'),
                 roles: ['admin', 'instructor'],
             },
+            {
+                icon: MonitorCheck,
+                text: 'Online Classes',
+                route: route('admin.online-classes.index'),
+                roles: ['admin', 'instructor'],
+            },
+            {
+                icon: MonitorCheck,
+                text: 'Online Classes',
+                route: route('student-parent.online-classes.index'),
+                roles: ['student'],
+            },
         ],
     },
     {
@@ -142,6 +154,12 @@ const sections = [
                 icon: ActivityLogs,
                 text: 'Activity Logs',
                 route: route('admin.activity-logs.index'),
+                roles: ['admin'],
+            },
+            {
+                icon: ActivityLogs,
+                text: 'Online Class Logs',
+                route: route('admin.online-class-logs.index'),
                 roles: ['admin'],
             },
             {
