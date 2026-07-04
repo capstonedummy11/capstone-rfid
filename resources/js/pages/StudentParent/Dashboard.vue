@@ -1,72 +1,159 @@
 <script setup>
-defineProps({
+import { Link } from '@inertiajs/vue3';
+import StatCard from '@/components/StudentPortal/StatCard.vue';
+import { Bell, Clock3, Search, Users } from 'lucide-vue-next';
+import { computed } from 'vue';
+
+const props = defineProps({
     student: { type: Object, default: null },
     stats: { type: Object, default: () => ({}) },
     recentAttendance: { type: Array, default: () => [] },
+    attendance: { type: Array, default: () => [] },
     recentMessages: { type: Array, default: () => [] },
 });
+
+const calendarDays = computed(() => {
+    const days = [];
+    const monthLength = 31;
+    const firstDayOffset = 0;
+
+    for (let i = 0; i < firstDayOffset; i += 1) days.push(null);
+    for (let day = 1; day <= monthLength; day += 1) days.push(day);
+
+    return days;
+});
+
+const statusClass = (status) => {
+    const value = String(status || '').toLowerCase();
+    if (value.includes('present')) return 'bg-emerald-100 text-emerald-700';
+    if (value.includes('late')) return 'bg-amber-100 text-amber-700';
+    return 'bg-rose-100 text-rose-700';
+};
 </script>
 
 <template>
-    <div class="p-4 sm:p-6">
-        <div class="mx-auto flex max-w-7xl flex-col gap-5">
-            <section class="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-                <p class="text-sm font-semibold text-slate-500">Welcome back</p>
-                <h1 class="mt-1 text-2xl font-bold text-slate-900">
-                    {{ student?.name || 'Student' }}
-                </h1>
-                <p class="mt-1 text-sm text-slate-500">
-                    {{ student?.student_number || 'No student record linked' }}
-                    <span v-if="student"> | {{ student.section }} | {{ student.school_year }}</span>
-                </p>
+    <div class="min-h-full bg-[#f4f6fb] p-4 text-slate-900 sm:p-6">
+        <div class="mx-auto flex max-w-7xl flex-col gap-4">
+            <header class="flex items-start justify-between gap-4">
+                <div>
+                    <h1 class="text-xl font-extrabold text-[#172554]">Student Portal</h1>
+                    <p class="mt-1 text-xs font-semibold text-slate-500">
+                        {{ student?.name || 'Student' }} Â| {{ student?.section || 'No section linked' }}
+                    </p>
+                </div>
+                <div class="flex items-center gap-3 rounded-full bg-white px-4 py-2 shadow-sm">
+                    <div class="h-9 w-9 rounded-full bg-slate-200" />
+                    <div class="text-right">
+                        <p class="text-sm font-bold text-slate-900">{{ student?.name || 'Student' }}</p>
+                        <p class="text-xs text-slate-500">{{ student?.email || 'No email linked' }}</p>
+                    </div>
+                </div>
+            </header>
+
+            <section class="grid gap-3 lg:grid-cols-[repeat(4,minmax(0,1fr))_2fr]">
+                <StatCard :value="stats.present || 0" label="Total Present" helper="This school year" :icon="Users" />
+                <StatCard :value="stats.late || 0" label="Total Late" helper="This school year" :icon="Clock3" />
+                <StatCard :value="stats.excuse_letters || 0" label="Total Absences" helper="Excuse letters filed" :icon="Users" />
+                <StatCard :value="stats.online_classes || 0" label="Online Classes" helper="Currently scheduled" :icon="Users" />
+                <div class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-100">
+                    <p class="text-sm font-bold text-slate-900">Today's Year</p>
+                    <p class="mt-2 text-2xl font-black text-[#172554]">{{ student?.school_year || '2026 - 2027' }}</p>
+                    <p class="mt-1 text-xs text-slate-500">{{ student?.strand || 'Academic Program' }} Â| {{ student?.semester || 'Semester' }}</p>
+                </div>
             </section>
 
-            <section class="grid gap-4 md:grid-cols-4">
-                <div class="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
-                    <p class="text-xs font-bold uppercase text-slate-400">Present</p>
-                    <p class="mt-2 text-3xl font-extrabold text-emerald-600">{{ stats.present || 0 }}</p>
-                </div>
-                <div class="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
-                    <p class="text-xs font-bold uppercase text-slate-400">Late</p>
-                    <p class="mt-2 text-3xl font-extrabold text-amber-600">{{ stats.late || 0 }}</p>
-                </div>
-                <div class="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
-                    <p class="text-xs font-bold uppercase text-slate-400">Excuse Letters</p>
-                    <p class="mt-2 text-3xl font-extrabold text-blue-600">{{ stats.excuse_letters || 0 }}</p>
-                </div>
-                <div class="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
-                    <p class="text-xs font-bold uppercase text-slate-400">Online Classes</p>
-                    <p class="mt-2 text-3xl font-extrabold text-brand">{{ stats.online_classes || 0 }}</p>
-                </div>
-            </section>
-
-            <section class="grid gap-5 lg:grid-cols-2">
-                <div class="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-                    <h2 class="font-bold text-slate-900">Recent Attendance</h2>
-                    <div class="mt-4 divide-y divide-slate-100">
-                        <div v-for="record in recentAttendance" :key="record.attendance_id" class="py-3 text-sm">
-                            <div class="flex justify-between gap-3">
-                                <span class="font-semibold text-slate-800">{{ record.subject || 'Subject' }}</span>
-                                <span class="text-slate-500">{{ record.status }}</span>
-                            </div>
-                            <p class="mt-1 text-xs text-slate-500">{{ record.date }} {{ record.time_in || '' }}</p>
-                        </div>
-                        <p v-if="recentAttendance.length === 0" class="py-6 text-center text-sm text-slate-400">No attendance records yet.</p>
+            <section class="grid gap-4 lg:grid-cols-[330px_1fr]">
+                <div class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-100">
+                    <h2 class="text-sm font-black uppercase text-slate-900">Calendar</h2>
+                    <div class="mt-4 grid grid-cols-7 gap-2 text-center text-[11px] font-bold text-slate-500">
+                        <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+                    </div>
+                    <div class="mt-2 grid grid-cols-7 gap-2 text-center text-xs text-slate-700">
+                        <span
+                            v-for="(day, index) in calendarDays"
+                            :key="index"
+                            class="rounded-full py-1"
+                            :class="{ 'bg-slate-100 font-black text-sky-600': day === 13 }"
+                        >
+                            {{ day || '' }}
+                        </span>
                     </div>
                 </div>
 
-                <div class="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-                    <h2 class="font-bold text-slate-900">Recent Messages</h2>
-                    <div class="mt-4 divide-y divide-slate-100">
-                        <div v-for="message in recentMessages" :key="message.id" class="py-3 text-sm">
-                            <div class="flex justify-between gap-3">
-                                <span class="font-semibold text-slate-800">{{ message.subject }}</span>
-                                <span class="text-slate-500">{{ message.sender_role }}</span>
+                <div class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-100">
+                    <h2 class="text-sm font-black uppercase text-slate-900">Reminder</h2>
+                    <div class="mt-3 divide-y divide-slate-100">
+                        <div v-for="message in recentMessages" :key="message.id" class="flex items-start gap-3 py-3">
+                            <Bell class="mt-0.5 h-4 w-4 shrink-0 text-indigo-400" />
+                            <div>
+                                <p class="text-sm font-semibold text-slate-800">{{ message.subject }}</p>
+                                <p class="mt-1 text-xs text-slate-500">{{ message.created_at }}</p>
                             </div>
-                            <p class="mt-1 text-xs text-slate-500">{{ message.created_at }}</p>
                         </div>
-                        <p v-if="recentMessages.length === 0" class="py-6 text-center text-sm text-slate-400">No messages yet.</p>
+                        <div v-if="recentMessages.length === 0" class="flex items-start gap-3 py-3">
+                            <Bell class="mt-0.5 h-4 w-4 shrink-0 text-indigo-400" />
+                            <p class="text-sm font-semibold text-slate-700">You have no new reminders.</p>
+                        </div>
                     </div>
+                </div>
+            </section>
+
+            <section class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-100">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <h2 class="text-sm font-black uppercase text-slate-900">Attendance History</h2>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div class="flex items-center gap-2 rounded-full border border-slate-200 px-3 py-2 text-xs text-slate-400">
+                            <Search class="h-3.5 w-3.5" />
+                            Quick search...
+                        </div>
+                        <button class="rounded-md border border-slate-200 px-3 py-2 text-xs font-bold text-slate-500">Reset</button>
+                        <Link
+                            :href="route('student-parent.excuse-letters.index')"
+                            class="rounded-md bg-sky-500 px-4 py-2 text-xs font-bold text-white"
+                        >
+                            Submit Excuse Letter
+                        </Link>
+                    </div>
+                </div>
+
+                <div class="mt-4 overflow-x-auto">
+                    <table class="w-full min-w-[920px] text-left text-xs">
+                        <thead class="border-y border-slate-100 text-[10px] uppercase text-slate-500">
+                            <tr>
+                                <th class="px-3 py-3">Subject</th>
+                                <th class="px-3 py-3">Room</th>
+                                <th class="px-3 py-3">Date</th>
+                                <th class="px-3 py-3">Class Time</th>
+                                <th class="px-3 py-3">Time In / Time Out</th>
+                                <th class="px-3 py-3">Duration</th>
+                                <th class="px-3 py-3">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <tr v-for="record in attendance" :key="record.attendance_id">
+                                <td class="px-3 py-4 font-bold text-slate-800">{{ record.subject || 'Subject' }}</td>
+                                <td class="px-3 py-4 text-slate-500">{{ record.room || '-' }}</td>
+                                <td class="px-3 py-4 text-slate-500">{{ record.date || '-' }}</td>
+                                <td class="px-3 py-4 text-slate-500">--</td>
+                                <td class="px-3 py-4 text-sky-600">{{ record.time_in || '--' }} <span class="text-slate-300">...</span> {{ record.time_out || '--' }}</td>
+                                <td class="px-3 py-4 text-slate-500">--</td>
+                                <td class="px-3 py-4">
+                                    <span class="rounded-full px-3 py-1 text-[10px] font-black uppercase" :class="statusClass(record.status)">
+                                        {{ record.status || 'Absent' }}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr v-if="attendance.length === 0">
+                                <td colspan="7" class="px-3 py-10 text-center text-slate-400">No attendance records found.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-4 flex justify-end gap-2 text-xs">
+                    <button class="rounded-md border border-slate-200 px-3 py-2 text-slate-400">Previous</button>
+                    <span class="px-3 py-2 text-slate-500">Page 1 of 100</span>
+                    <button class="rounded-md border border-sky-200 px-3 py-2 font-bold text-sky-500">Next</button>
                 </div>
             </section>
         </div>

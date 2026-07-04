@@ -49,6 +49,7 @@ Route::get('/', function (Request $request) {
     return Inertia::render('LandingPage');
 })->name('landingPage');
 Route::inertia('/about', 'About')->name('about');
+Route::inertia('/student-parent-login', 'Auth/StudentParentLogin')->name('studentParentLogin');
 Route::get('/messages/new', [MessageController::class, 'create'])->name('messages.create');
 Route::post('/messages', [MessageController::class, 'store'])->name('messages.store');
 Route::get('/attendance-control-panel/login', [AttendanceController::class, 'panelLogin'])->name('attendanceControlPanel.login');

@@ -317,6 +317,7 @@ class StudentsController
                     : 0,
             ],
             'recentAttendance' => $this->attendanceQuery($student)->take(5)->get()->map(fn ($attendance) => $this->attendancePayload($attendance)),
+            'attendance' => $this->attendanceQuery($student)->take(12)->get()->map(fn ($attendance) => $this->attendancePayload($attendance)),
             'recentMessages' => $student ? $this->messageQuery($request, $student)->take(5)->get()->map(fn ($message) => $this->messagePayload($message)) : [],
         ]);
     }

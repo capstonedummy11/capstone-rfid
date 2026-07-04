@@ -53,8 +53,29 @@ class StudentParentAccountSeeder extends Seeder
             $student->student_id => ['relationship' => 'mother'],
         ]);
 
+        $secondStudent = $this->resolveSecondStudent($student);
+        $secondStudentEmail = $secondStudent->email ?: 'miguel.reyes@student.sample.com';
+
+        if ($secondStudent->email !== $secondStudentEmail) {
+            $secondStudent->update(['email' => $secondStudentEmail]);
+        }
+
+        $secondStudentUser = User::updateOrCreate(
+            ['email' => $secondStudentEmail],
+            [
+                'name' => trim($secondStudent->first_name.' '.$secondStudent->last_name),
+                'email' => $secondStudentEmail,
+                'password' => Hash::make('sample'),
+                'role' => 'student',
+                'phone' => $secondStudent->phone,
+                'gender' => $secondStudent->gender,
+                'rfid_tag' => null,
+            ],
+        );
+
         $this->command?->info('Seeded student account: '.$studentUser->email.' / sample');
         $this->command?->info('Seeded parent account: '.$parentUser->email.' / sample');
+        $this->command?->info('Seeded student account: '.$secondStudentUser->email.' / sample');
         $this->command?->info('Linked parent account to student: '.$student->student_number);
     }
 
@@ -108,6 +129,37 @@ class StudentParentAccountSeeder extends Seeder
                 'semester' => $section->semester,
                 'school_year' => $section->school_year,
                 'rfid_tag' => 'RFID-STUDENT-1101',
+                'face_images' => [],
+                'status' => 'active',
+            ],
+        );
+    }
+
+    private function resolveSecondStudent(Students $fallbackStudent): Students
+    {
+        $student = Students::query()
+            ->where('student_number', 'SHS-ICT-1102')
+            ->first();
+
+        if ($student) {
+            return $student;
+        }
+
+        return Students::updateOrCreate(
+            ['student_number' => 'SHS-ICT-1102'],
+            [
+                'section_id' => $fallbackStudent->section_id,
+                'strand_id' => $fallbackStudent->strand_id,
+                'first_name' => 'Miguel',
+                'middle_name' => null,
+                'last_name' => 'Reyes',
+                'gender' => 'male',
+                'email' => 'miguel.reyes@student.sample.com',
+                'phone' => '09170001102',
+                'year_level' => $fallbackStudent->year_level,
+                'semester' => $fallbackStudent->semester,
+                'school_year' => $fallbackStudent->school_year,
+                'rfid_tag' => 'RFID-STUDENT-1102',
                 'face_images' => [],
                 'status' => 'active',
             ],

@@ -77,8 +77,8 @@ const sendMessage = () => {
                             <div>
                                 <h3 class="font-bold text-slate-900">{{ message.subject }}</h3>
                                 <p class="text-xs text-slate-500">
-                                    {{ message.sender }} · {{ message.sender_role }}
-                                    <span v-if="message.instructor"> · To {{ message.instructor }}</span>
+                                    {{ message.sender }} Â| {{ message.sender_role }}
+                                    <span v-if="message.instructor"> Â| To {{ message.instructor }}</span>
                                 </p>
                             </div>
                             <span class="text-xs text-slate-400">{{ message.created_at }}</span>

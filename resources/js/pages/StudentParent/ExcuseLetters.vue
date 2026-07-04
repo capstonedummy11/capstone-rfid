@@ -1,5 +1,6 @@
 <script setup>
 import { useForm, usePage } from '@inertiajs/vue3';
+import SuccessModal from '@/components/StudentPortal/SuccessModal.vue';
 import { computed } from 'vue';
 
 const props = defineProps({
@@ -9,6 +10,7 @@ const props = defineProps({
 
 const page = usePage();
 const flashSuccess = computed(() => page.props.flash?.success);
+const showSuccessModal = computed(() => Boolean(flashSuccess.value));
 
 const form = useForm({
     subject: '',
@@ -32,8 +34,6 @@ const submitLetter = () => {
         <div class="mx-auto grid max-w-7xl gap-5 lg:grid-cols-[360px_1fr]">
             <section class="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
                 <h1 class="text-lg font-bold text-slate-900">Excuse Letter</h1>
-                <p v-if="flashSuccess" class="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">{{ flashSuccess }}</p>
-
                 <form class="mt-4 flex flex-col gap-3" @submit.prevent="submitLetter">
                     <label class="text-xs font-bold uppercase text-slate-500">
                         Subject
@@ -67,7 +67,7 @@ const submitLetter = () => {
                     <div class="mt-3 space-y-2">
                         <div v-for="letter in letters" :key="letter.id" class="rounded-md border border-slate-200 p-3 text-sm">
                             <div class="font-semibold text-slate-900">{{ letter.subject }}</div>
-                            <div class="text-xs text-slate-500">{{ letter.from_date }} to {{ letter.to_date }} · {{ letter.status }}</div>
+                            <div class="text-xs text-slate-500">{{ letter.from_date }} to {{ letter.to_date }} Â| {{ letter.status }}</div>
                         </div>
                         <p v-if="letters.length === 0" class="text-sm text-slate-400">No excuse letters yet.</p>
                     </div>
@@ -97,5 +97,15 @@ const submitLetter = () => {
                 </div>
             </section>
         </div>
+
+        <SuccessModal
+            :show="showSuccessModal"
+            title="Success"
+            message="Take Care of yourself."
+            :primary-href="letters[0]?.attachment_url || ''"
+            primary-text="Download Letter"
+            :secondary-href="route('student-parent.attendance')"
+            secondary-text="Back to Attendance Page"
+        />
     </div>
 </template>

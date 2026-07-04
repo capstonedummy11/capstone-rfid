@@ -45,7 +45,7 @@ const joinClass = async (onlineClass) => {
                             <p class="mt-1 text-sm text-slate-600">{{ onlineClass.scheduled_date }} {{ onlineClass.start_time }}-{{ onlineClass.end_time }}</p>
                             <p class="mt-2 text-sm text-slate-600">{{ onlineClass.description }}</p>
                             <p class="mt-2 text-xs font-semibold text-slate-500">
-                                Attendance: {{ onlineClass.attendance_status || 'Not joined' }} · Face: {{ onlineClass.require_face_recognition ? 'Required' : 'Not required' }}
+                                Attendance: {{ onlineClass.attendance_status || 'Not joined' }} Â| Face: {{ onlineClass.require_face_recognition ? 'Required' : 'Not required' }}
                             </p>
                         </div>
                         <div class="flex gap-2">
