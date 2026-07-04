@@ -82,10 +82,11 @@ This system integrates RFID technology with face recognition to create an intell
 - Dashboard: Attendance summary, recent records, item borrowings
 - Profile Management: View/edit name, phone, gender; change password
 - Attendance: Full history with subject and status filters
-- Excuse Letters: Submit and track excuse letter requests (with file attachments)
-- Messages: View notifications and system messages
+- Excuse Letters: Form UI and validation exist, but database persistence/retrieval is still TODO
+- Messages: Page UI exists, but student/parent message retrieval is still TODO
 - Role-based access control via middleware (`auth`, `role:student,parent`)
 - Auto-redirect from home/dashboard routes for student/parent users
+- Current verification: Student/Parent Vue pages compile successfully with `npm run build`
 
 **Models:** `Students`, `Attendance`, `Borrowing` (relationships)
 **Controller:** `StudentsController` (8 portal methods)
