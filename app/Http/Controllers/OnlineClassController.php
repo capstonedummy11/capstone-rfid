@@ -219,9 +219,16 @@ class OnlineClassController
         ]);
         $this->auditLogger->log('attendance_recorded', $onlineClass, $request->user(), $request, null, $attendance->toArray());
         if ($onlineClass->require_face_recognition) {
-            $this->auditLogger->log('student_passed_face_recognition', $onlineClass, $request->user(), $request, null, [
-                'student_id' => $student->student_id,
-            ]);
+            if (($faceVerification['bypassed'] ?? false) === true) {
+                $this->auditLogger->log('face_recognition_bypassed_provider_unavailable', $onlineClass, $request->user(), $request, null, [
+                    'student_id' => $student->student_id,
+                    'reason' => $faceVerification['message'] ?? 'Face recognition provider unavailable.',
+                ]);
+            } else {
+                $this->auditLogger->log('student_passed_face_recognition', $onlineClass, $request->user(), $request, null, [
+                    'student_id' => $student->student_id,
+                ]);
+            }
         }
 
         return back()->with('success', 'Online class attendance recorded.');

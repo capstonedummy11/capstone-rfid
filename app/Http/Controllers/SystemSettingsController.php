@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\SystemSetting;
 use App\Services\AwsFaceRecognitionService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class SystemSettingsController
@@ -67,6 +69,13 @@ class SystemSettingsController
 
             SystemSetting::setArray(SystemSetting::SECURITY_QUESTIONS, $questions);
         }
+
+        ActivityLog::query()->create([
+            'user_id' => Auth::id(),
+            'action' => 'update',
+            'table_name' => 'system_settings',
+            'description' => $warning ?? 'Updated system settings.',
+        ]);
 
         return back()->with('success', $warning ?? 'System settings updated.');
     }

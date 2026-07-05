@@ -192,6 +192,12 @@ test('instructor inbox replies create student portal replies', function () {
         'subject' => 'Re: Need help',
         'body' => 'Please attend the consultation.',
     ]);
+
+    $this->assertDatabaseHas('activity_logs', [
+        'user_id' => $admin->user_id,
+        'action' => 'create',
+        'table_name' => 'student_portal_messages',
+    ]);
 });
 
 test('parent profile update does not change linked student phone or gender', function () {
@@ -210,6 +216,12 @@ test('parent profile update does not change linked student phone or gender', fun
     expect($fixture['parentUser']->fresh()->phone)->toBe('09999999999')
         ->and($fixture['student']->fresh()->phone)->toBe('09170000001')
         ->and($fixture['student']->fresh()->gender)->toBe('female');
+
+    $this->assertDatabaseHas('activity_logs', [
+        'user_id' => $fixture['parentUser']->user_id,
+        'action' => 'update',
+        'table_name' => 'users',
+    ]);
 });
 
 test('student can download a generated excuse letter document', function () {
@@ -232,4 +244,10 @@ test('student can download a generated excuse letter document', function () {
         ->assertHeader('Content-Type', 'application/msword; charset=UTF-8')
         ->assertSee('Excuse Letter')
         ->assertSee('Medical appointment.');
+
+    $this->assertDatabaseHas('activity_logs', [
+        'user_id' => $fixture['studentUser']->user_id,
+        'action' => 'download',
+        'table_name' => 'student_excuse_letters',
+    ]);
 });

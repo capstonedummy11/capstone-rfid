@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\Instructor;
 use App\Models\Message;
 use App\Models\StudentPortalMessage;
 use App\Models\Students;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
@@ -51,7 +53,9 @@ class MessageController
 
         unset($validated['attachment']);
 
-        Message::query()->create($validated);
+        $message = Message::query()->create($validated);
+
+        $this->logActivity('create', 'messages', 'Created instructor inbox message '.$message->message_id.' from '.$validated['sender_type'].' '.$validated['sender_name']);
 
         return back()->with('success', 'Message sent to the instructor.');
     }
@@ -101,6 +105,7 @@ class MessageController
 
         if (! $message->read_at) {
             $message->update(['read_at' => now()]);
+            $this->logActivity('update', 'messages', 'Marked instructor inbox message '.$message->message_id.' as read');
         }
 
         return back();
@@ -123,7 +128,7 @@ class MessageController
 
         abort_unless($student, 422, 'The original message is not linked to a student record.');
 
-        StudentPortalMessage::query()->create([
+        $reply = StudentPortalMessage::query()->create([
             'student_id' => $student->student_id,
             'sender_user_id' => $user->user_id,
             'sender_role' => 'instructor',
@@ -136,7 +141,19 @@ class MessageController
             $message->update(['read_at' => now()]);
         }
 
+        $this->logActivity('create', 'student_portal_messages', 'Replied to student portal message thread via inbox message '.$message->message_id.' with portal message '.$reply->student_portal_message_id);
+
         return back()->with('success', 'Reply sent to the student portal.');
+    }
+
+    private function logActivity(string $action, string $tableName, string $description): void
+    {
+        ActivityLog::query()->create([
+            'user_id' => Auth::id(),
+            'action' => $action,
+            'table_name' => $tableName,
+            'description' => $description,
+        ]);
     }
 
     private function instructorOptions()

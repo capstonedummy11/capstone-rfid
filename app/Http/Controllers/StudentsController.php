@@ -353,6 +353,8 @@ class StudentsController
             ]);
         }
 
+        $this->logActivity('update', 'users', 'Updated student/parent portal profile for '.$request->user()->email);
+
         return back()->with('success', 'Profile updated.');
     }
 
@@ -364,6 +366,8 @@ class StudentsController
         ]);
 
         $request->user()->update(['password' => Hash::make($validated['password'])]);
+
+        $this->logActivity('update', 'users', 'Updated student/parent portal password for '.$request->user()->email);
 
         return back()->with('success', 'Password updated.');
     }
@@ -416,12 +420,14 @@ class StudentsController
         }
         unset($validated['attachment']);
 
-        StudentExcuseLetter::query()->create([
+        $letter = StudentExcuseLetter::query()->create([
             ...$validated,
             'student_id' => $student->student_id,
             'submitted_by_user_id' => $request->user()->user_id,
             'submitted_by_role' => strtolower((string) $request->user()->role),
         ]);
+
+        $this->logActivity('create', 'student_excuse_letters', 'Submitted excuse letter '.$letter->student_excuse_letter_id.' for student '.$student->student_number);
 
         return back()->with('success', 'Excuse letter submitted.');
     }
@@ -442,6 +448,8 @@ class StudentsController
             'section' => $section,
             'submittedBy' => $submittedBy,
         ])->render();
+
+        $this->logActivity('download', 'student_excuse_letters', 'Downloaded generated excuse letter '.$letter->student_excuse_letter_id.' for student '.$student->student_number);
 
         return response($html, 200, [
             'Content-Type' => 'application/msword; charset=UTF-8',
@@ -527,6 +535,9 @@ class StudentsController
             ]);
         }
 
+        $target = ! empty($validated['instructor_user_id']) ? ' to instructor user '.$validated['instructor_user_id'] : ' without instructor recipient';
+        $this->logActivity('create', 'student_portal_messages', 'Sent portal message '.$message->student_portal_message_id.' for student '.$student->student_number.$target);
+
         return back()->with('success', 'Message sent.');
     }
 
@@ -565,6 +576,7 @@ class StudentsController
 
         if (! $notification->read_at) {
             $notification->update(['read_at' => now()]);
+            $this->logActivity('update', 'online_class_notifications', 'Marked online class notification '.$notification->online_class_notification_id.' as read for student '.$student->student_number);
         }
 
         return back();
