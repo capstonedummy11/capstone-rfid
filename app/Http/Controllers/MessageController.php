@@ -67,7 +67,7 @@ class MessageController
 
         $messages = Message::query()
             ->with('instructor:user_id,name,email')
-            ->when($role === 'instructor', fn ($query) => $query->where('instructor_user_id', $user->user_id))
+            ->where('instructor_user_id', $user->user_id)
             ->latest('created_at')
             ->get()
             ->map(fn (Message $message) => [
@@ -101,7 +101,7 @@ class MessageController
         $user = $request->user();
         $role = strtolower(trim((string) $user?->role));
 
-        abort_unless($role === 'admin' || (int) $message->instructor_user_id === (int) $user->user_id, 403);
+        abort_unless((int) $message->instructor_user_id === (int) $user->user_id, 403);
 
         if (! $message->read_at) {
             $message->update(['read_at' => now()]);
@@ -116,7 +116,7 @@ class MessageController
         $user = $request->user();
         $role = strtolower(trim((string) $user?->role));
 
-        abort_unless($role === 'admin' || (int) $message->instructor_user_id === (int) $user->user_id, 403);
+        abort_unless((int) $message->instructor_user_id === (int) $user->user_id, 403);
 
         $validated = $request->validate([
             'body' => ['required', 'string', 'max:5000'],
@@ -128,9 +128,14 @@ class MessageController
 
         abort_unless($student, 422, 'The original message is not linked to a student record.');
 
+        $recipientUserId = User::query()
+            ->where('email', $message->sender_email)
+            ->value('user_id');
+
         $reply = StudentPortalMessage::query()->create([
             'student_id' => $student->student_id,
             'sender_user_id' => $user->user_id,
+            'recipient_user_id' => $recipientUserId,
             'sender_role' => 'instructor',
             'instructor_user_id' => $message->instructor_user_id,
             'subject' => 'Re: '.$message->subject,

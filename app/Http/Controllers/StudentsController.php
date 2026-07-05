@@ -487,19 +487,17 @@ class StudentsController
         abort_unless($student, 403);
 
         $validated = $request->validate([
-            'instructor_user_id' => ['nullable', 'integer', 'exists:users,user_id'],
+            'instructor_user_id' => ['required', 'integer', 'exists:users,user_id'],
             'subject' => ['required', 'string', 'max:255'],
             'body' => ['required', 'string', 'max:5000'],
             'attachment' => ['nullable', 'file', 'max:5120', 'mimes:pdf,doc,docx,jpg,jpeg,png'],
         ]);
 
-        if (! empty($validated['instructor_user_id'])) {
-            abort_unless(
-                Instructor::query()->where('user_id', $validated['instructor_user_id'])->exists(),
-                422,
-                'Selected instructor is not available.',
-            );
-        }
+        abort_unless(
+            Instructor::query()->where('user_id', $validated['instructor_user_id'])->exists(),
+            422,
+            'Selected instructor is not available.',
+        );
 
         $attachment = $request->file('attachment');
         $attachmentMime = null;
@@ -516,27 +514,25 @@ class StudentsController
             ...$validated,
             'student_id' => $student->student_id,
             'sender_user_id' => $request->user()->user_id,
+            'recipient_user_id' => $validated['instructor_user_id'],
             'sender_role' => strtolower((string) $request->user()->role),
         ]);
 
-        if (! empty($validated['instructor_user_id'])) {
-            Message::query()->create([
-                'instructor_user_id' => $validated['instructor_user_id'],
-                'sender_type' => strtolower((string) $request->user()->role),
-                'sender_name' => $request->user()->name,
-                'sender_email' => $request->user()->email,
-                'student_number' => $student->student_number,
-                'subject' => $message->subject,
-                'body' => $message->body,
-                'attachment_path' => $message->attachment_path,
-                'attachment_name' => $message->attachment_name,
-                'attachment_mime' => $attachmentMime,
-                'attachment_size' => $attachmentSize,
-            ]);
-        }
+        Message::query()->create([
+            'instructor_user_id' => $validated['instructor_user_id'],
+            'sender_type' => strtolower((string) $request->user()->role),
+            'sender_name' => $request->user()->name,
+            'sender_email' => $request->user()->email,
+            'student_number' => $student->student_number,
+            'subject' => $message->subject,
+            'body' => $message->body,
+            'attachment_path' => $message->attachment_path,
+            'attachment_name' => $message->attachment_name,
+            'attachment_mime' => $attachmentMime,
+            'attachment_size' => $attachmentSize,
+        ]);
 
-        $target = ! empty($validated['instructor_user_id']) ? ' to instructor user '.$validated['instructor_user_id'] : ' without instructor recipient';
-        $this->logActivity('create', 'student_portal_messages', 'Sent portal message '.$message->student_portal_message_id.' for student '.$student->student_number.$target);
+        $this->logActivity('create', 'student_portal_messages', 'Sent portal message '.$message->student_portal_message_id.' for student '.$student->student_number.' to instructor user '.$validated['instructor_user_id']);
 
         return back()->with('success', 'Message sent.');
     }
@@ -704,12 +700,16 @@ class StudentsController
 
     private function messageQuery(Request $request, Students $student)
     {
-        $role = strtolower((string) $request->user()?->role);
+        $userId = (int) $request->user()?->user_id;
 
         return StudentPortalMessage::query()
-            ->with(['sender', 'instructor'])
+            ->with(['sender', 'recipient', 'instructor'])
             ->where('student_id', $student->student_id)
-            ->when($role === 'student', fn ($query) => $query->whereIn('sender_role', ['student', 'instructor']))
+            ->where(function ($query) use ($userId) {
+                $query
+                    ->where('sender_user_id', $userId)
+                    ->orWhere('recipient_user_id', $userId);
+            })
             ->latest();
     }
 
@@ -717,8 +717,14 @@ class StudentsController
     {
         return [
             'id' => $message->student_portal_message_id,
+            'sender_user_id' => $message->sender_user_id,
+            'recipient_user_id' => $message->recipient_user_id,
+            'instructor_user_id' => $message->instructor_user_id,
             'sender' => $message->sender?->name,
+            'sender_email' => $message->sender?->email,
             'sender_role' => $message->sender_role,
+            'recipient' => $message->recipient?->name,
+            'recipient_email' => $message->recipient?->email,
             'instructor' => $message->instructor?->name,
             'subject' => $message->subject,
             'body' => $message->body,

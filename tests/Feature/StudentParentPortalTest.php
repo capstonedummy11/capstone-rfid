@@ -115,21 +115,23 @@ test('student and parent roles can open their portal pages', function () {
         );
 });
 
-test('student cannot see parent-authored messages but can see instructor replies', function () {
+test('student and parent only see portal messages where they are sender or recipient', function () {
     $fixture = portalFixture();
 
-    StudentPortalMessage::query()->create([
+    $studentMessage = StudentPortalMessage::query()->create([
         'student_id' => $fixture['student']->student_id,
         'sender_user_id' => $fixture['studentUser']->user_id,
+        'recipient_user_id' => $fixture['instructorUser']->user_id,
         'sender_role' => 'student',
         'instructor_user_id' => $fixture['instructorUser']->user_id,
         'subject' => 'Student message',
         'body' => 'Student body',
     ]);
 
-    StudentPortalMessage::query()->create([
+    $parentMessage = StudentPortalMessage::query()->create([
         'student_id' => $fixture['student']->student_id,
         'sender_user_id' => $fixture['parentUser']->user_id,
+        'recipient_user_id' => $fixture['instructorUser']->user_id,
         'sender_role' => 'parent',
         'instructor_user_id' => $fixture['instructorUser']->user_id,
         'subject' => 'Parent private message',
@@ -139,6 +141,7 @@ test('student cannot see parent-authored messages but can see instructor replies
     StudentPortalMessage::query()->create([
         'student_id' => $fixture['student']->student_id,
         'sender_user_id' => $fixture['instructorUser']->user_id,
+        'recipient_user_id' => $fixture['studentUser']->user_id,
         'sender_role' => 'instructor',
         'instructor_user_id' => $fixture['instructorUser']->user_id,
         'subject' => 'Re: Student message',
@@ -160,14 +163,23 @@ test('student cannot see parent-authored messages but can see instructor replies
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('StudentParent/Messages')
-            ->has('messages', 3)
+            ->has('messages', 1)
+            ->where('messages.0.sender_role', 'parent')
         );
+
+    expect($studentMessage->fresh()->subject)->toBe('Student message')
+        ->and($parentMessage->fresh()->body)->toBe('Parent body');
+
+    $this->assertDatabaseHas('student_portal_messages', [
+        'student_portal_message_id' => $studentMessage->student_portal_message_id,
+        'subject' => 'Encrypted message',
+        'body' => 'Encrypted message',
+    ]);
 });
 
 test('instructor inbox replies create student portal replies', function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
     $fixture = portalFixture();
-    $admin = User::factory()->create(['role' => 'admin']);
 
     $message = Message::query()->create([
         'instructor_user_id' => $fixture['instructorUser']->user_id,
@@ -179,24 +191,33 @@ test('instructor inbox replies create student portal replies', function () {
         'body' => 'Please reply.',
     ]);
 
-    $this->actingAs($admin)
+    $this->actingAs($fixture['instructorUser'])
+        ->withSession(['instructor_verified' => true])
         ->post(route('admin.messages.reply', $message), [
             'body' => 'Please attend the consultation.',
         ])
         ->assertRedirect()
         ->assertSessionHas('success', 'Reply sent to the student portal.');
 
-    $this->assertDatabaseHas('student_portal_messages', [
-        'student_id' => $fixture['student']->student_id,
-        'sender_role' => 'instructor',
-        'subject' => 'Re: Need help',
-        'body' => 'Please attend the consultation.',
-    ]);
+    $reply = StudentPortalMessage::query()
+        ->where('student_id', $fixture['student']->student_id)
+        ->where('sender_role', 'instructor')
+        ->firstOrFail();
+
+    expect($reply->recipient_user_id)->toBe($fixture['studentUser']->user_id)
+        ->and($reply->subject)->toBe('Re: Need help')
+        ->and($reply->body)->toBe('Please attend the consultation.');
 
     $this->assertDatabaseHas('activity_logs', [
-        'user_id' => $admin->user_id,
+        'user_id' => $fixture['instructorUser']->user_id,
         'action' => 'create',
         'table_name' => 'student_portal_messages',
+    ]);
+
+    $this->assertDatabaseHas('messages', [
+        'message_id' => $message->message_id,
+        'subject' => 'Encrypted message',
+        'body' => 'Encrypted message',
     ]);
 });
 

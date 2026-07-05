@@ -216,6 +216,10 @@ Route::prefix('clinic')
         Route::get('/case-logs', [ClinicController::class, 'caseLogs'])->name('case-logs');
         Route::get('/patient-history', [ClinicController::class, 'patientHistory'])->name('patient-history');
         Route::get('/reports', [ClinicController::class, 'reports'])->name('reports');
+        Route::get('/emergency-hotlines', [EmergencyController::class, 'hotlines'])->name('emergency-hotlines.index');
+        Route::post('/emergency-hotlines', [EmergencyController::class, 'storeHotline'])->name('emergency-hotlines.store');
+        Route::put('/emergency-hotlines/{id}', [EmergencyController::class, 'updateHotline'])->name('emergency-hotlines.update');
+        Route::delete('/emergency-hotlines/{id}', [EmergencyController::class, 'destroyHotline'])->name('emergency-hotlines.destroy');
         Route::post('/emergency-types', [EmergencyController::class, 'storeType'])->name('emergency-types.store');
         Route::put('/emergency-types/{id}', [EmergencyController::class, 'updateType'])->name('emergency-types.update');
         Route::delete('/emergency-types/{id}', [EmergencyController::class, 'destroyType'])->name('emergency-types.destroy');

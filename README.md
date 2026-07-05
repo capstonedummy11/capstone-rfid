@@ -19,7 +19,7 @@ Start with these docs when setting up a new machine:
 - Inventory and borrowing workflows for laboratory items.
 - Student, instructor, section, strand, subject, schedule, and laboratory management.
 - Registrar biometric enrollment for student and faculty RFID or face records.
-- Clinic dashboard, case logs, patient history, reports, emergency types, and emergency alert handling.
+- Clinic dashboard, case logs, patient history, reports, emergency types, emergency hotline CRUD, and emergency alert handling.
 - Instructor verification by face, OTP, or security questions.
 - System settings for panel access, inventory availability, face recognition, security questions, and attendance behavior.
 - Online Class management for instructors, student online-class joining, attendance recording, notifications, and admin audit logs.
@@ -157,7 +157,7 @@ Implemented student capabilities:
 - Students can open the meeting link and record join attendance.
 - Join attendance records joined time, attendance status, late flag, face-required flag, face verification result, and face verification timestamp when required.
 - Students and linked parents can submit excuse letters with optional attachments.
-- Students and linked parents can send portal messages. Parents can see messages for the linked student, including student-authored messages. Students only see student-authored messages and cannot see parent-authored messages.
+- Students and linked parents can send portal messages after searching/selecting a recipient. Message history is shown as private conversations, and each message is visible only to its sender and recipient.
 
 Notifications:
 
@@ -194,7 +194,7 @@ Known limitations:
 - The Online Class join endpoint also validates the submitted face image server-side before recording attendance, so a plain `face_verified` flag is not accepted for required-face classes.
 - The log export is CSV, which Excel can open. A native `.xlsx` export is not implemented.
 - Student/parent notification center exists at `/student-parent/notifications` and supports marking notifications as read.
-- Student/parent messages are mirrored into the instructor inbox when an instructor is selected. Messages without a selected instructor remain portal-only records.
+- Student/parent messages require an instructor recipient, are mirrored into that instructor inbox, and are stored with encrypted subject/body ciphertext.
 - Parent accounts can switch between linked students on portal pages when more than one child is linked.
 - Online Class facial recognition can only be required when Face Rekognition is enabled and AWS Rekognition appears configured. Settings and Online Class forms warn and keep the toggle off when unavailable.
 - If an older required-face online class is joined while AWS Rekognition is unavailable, the student is allowed to join and the instructor receives one system inbox message per student/class.
@@ -203,8 +203,8 @@ Student portal unfinished items:
 
 - Excuse Letter now generates a Word-compatible `.doc` download from the saved letter record. Native PDF generation is still not implemented.
 - Excuse Letter has no instructor/admin review workflow yet; submitted letters stay in the student portal with their stored status.
-- Portal Messages can receive instructor replies from the instructor inbox; the thread is still simple and does not support nested conversations or attachments on replies.
-- Portal Messages allow "No instructor selected"; those records stay portal-only and are not visible to instructors.
+- Portal Messages now use a conversation-style student/parent UI with the conversation list on the left, an empty-state prompt when there are no conversations, and recipient search before starting a new conversation.
+- Portal Messages can receive instructor replies from the instructor inbox. Replies are written back to the portal conversation for the original sender only.
 - Attendance page now has client-side search, status filtering, reset, class time, duration, and pagination. It remains read-only.
 - Notifications currently cover Online Class events only; excuse-letter status changes and portal message replies do not create student notifications yet.
 - Parent profile updates now save only the parent user profile; student accounts still sync their own phone/gender to their student record.
@@ -227,13 +227,13 @@ Student portal unfinished items:
 - `/student-parent/excuse-letters/{letter}/download` - generated Word-compatible excuse-letter download.
 - `/student-parent/messages` - student/parent portal messages.
 - `/student-parent/notifications` - student online class notifications.
-- `/admin/messages/{message}/reply` - instructor/admin reply back to the linked student portal thread.
+- `/admin/messages/{message}/reply` - assigned instructor reply back to the linked student portal thread.
 - `/admin/attendance/scanner` and `/admin/attendance/logs` - attendance tools.
 - `/admin/inventory` and `/admin/borrow` - inventory and borrowing.
 - `/attendance-control-panel/login` - console panel login.
 - `/attendance-control-panel` - console attendance panel.
 - `/registrar/dashboard`, `/registrar/biometric-enrollment`, and `/registrar/instructor-face-enrollment` - registrar workflows.
-- `/clinic/dashboard`, `/clinic/case-logs`, `/clinic/patient-history`, `/clinic/reports` - clinic workflows.
+- `/clinic/dashboard`, `/clinic/case-logs`, `/clinic/patient-history`, `/clinic/reports`, and `/clinic/emergency-hotlines` - clinic workflows.
 - `/messages/new` - public message creation.
 
 ## Project Structure
@@ -300,8 +300,11 @@ tests/                    Pest/PHPUnit tests
 - Parent portal access uses `parent_student_links`; the selected child is passed as `student_id` and scoped to linked students only.
 - Online Class logs are append-only; no update/delete route is provided.
 - Notifications are dedicated Online Class records because the existing `messages` feature is student/parent-to-instructor communication, not system notifications.
-- Portal messages are stored in `student_portal_messages` for student/parent visibility and mirrored into `messages` only when an instructor recipient is selected.
-- Instructor replies are written back into `student_portal_messages` with `sender_role = instructor`; student users can see student-authored messages and instructor replies, but not parent-authored messages.
+- Portal messages are stored in `student_portal_messages` and mirrored into `messages` for the selected instructor recipient.
+- Message subjects and bodies are encrypted into `subject_ciphertext` and `body_ciphertext` on both `messages` and `student_portal_messages`; legacy `subject` and `body` columns now keep placeholder text so raw database reads do not expose content.
+- `student_portal_messages.recipient_user_id` is the portal privacy boundary. Student/parent message queries return only rows where the authenticated user is the sender or recipient.
+- Instructor inbox messages are scoped to `messages.instructor_user_id`; admin users no longer get broad read/reply access to private instructor inbox messages.
+- Instructor replies are written back into `student_portal_messages` with `sender_role = instructor` and `recipient_user_id` set to the original student/parent sender.
 - Parent profile edits are kept separate from selected student profile data.
 - Student/parent portal actions now write activity logs for profile updates, password changes, excuse-letter submission/download, portal message submission, and notification read status.
 - Instructor inbox replies and public/inbox message reads now write activity logs.
@@ -310,12 +313,19 @@ tests/                    Pest/PHPUnit tests
 - Registrar RFID, face upload, and face removal actions write both `registrar_enrollment_logs` rows for registrar dashboards and shared `activity_logs` rows for admin activity review.
 - Student facial-recognition images are registrar-owned: the student portal has no face-image upload route, and the admin Students modal no longer exposes face-image maintenance. Registrar users upload/remove student face images from Biometric Enrollment.
 - Instructor login already supports facial recognition through `/instructor/verify`; it compares the camera capture against `users.face_images`. Registrar users now maintain instructor face images from the dedicated Instructor Face Enrollment page.
+- Clinic emergency types describe the emergency scenario; emergency hotlines are separate contact records stored in `emergency_hotlines` and selected during the instructor re-tap emergency flow on the attendance panel.
+- Clinic emergency hotline create/update/delete, emergency type create/update/delete, emergency alert status changes, panel emergency alert creation, and clinic dispatch actions write shared `activity_logs` entries visible to admin.
+- Attendance Control Panel emergency alerts can include selected hotline metadata in `emergency_alerts.metadata`; actual SMS sending is not implemented yet.
+- SMS API recommendation: use Semaphore first for Philippines-only school SMS because it is PH-focused, supports local networks, and advertises sender names and low local SMS pricing (`https://semaphore.co/`). Twilio (`https://www.twilio.com/en-us/sms/pricing/ph`) or Vonage (`https://www.vonage.com/communications-apis/sms/pricing/`) are stronger alternatives if the deployment needs broader global CPaaS tooling, dashboards, and multi-channel messaging.
 
 ### Known Issues
 
 - Online Class facial recognition depends on AWS Rekognition configuration and saved student face images. If AWS setup is unavailable, required facial recognition is kept off for new/edited classes and older required-face joins are allowed with a one-time instructor warning.
 - Generated excuse-letter downloads are Word-compatible `.doc` files, not native PDF files.
 - Registrar face enrollment is limited to 5 stored face images per student/instructor. Registrar users can remove an existing face image and upload a replacement.
+- Clinic Case Logs and Patient History are source-backed read-only pages. Dedicated clinic create/edit forms for manual case/history entry are still not implemented.
+- Emergency hotline SMS provider integration is pending; the current implementation stores hotline records, lets the instructor select one during the emergency flow, and records intended hotline metadata in emergency alerts.
+- Legacy portal message rows with no inferable recipient may be hidden by the new sender/recipient privacy filter until a recipient is assigned.
 
 ### Testing Status
 
@@ -327,12 +337,18 @@ tests/                    Pest/PHPUnit tests
 - Passed: `php artisan test tests/Feature/RegistrarPortalTest.php` with 5 tests and 47 assertions covering registrar dashboard/enrollment page access, student RFID assignment logs, duplicate RFID rejection across students/faculty, student face upload logs, and the 5-image face upload limit.
 - Passed: `php artisan test tests/Feature/RegistrarPortalTest.php` with 8 tests and 75 assertions after adding the instructor face-enrollment page, registrar face-image removal, shared activity-log checks, and the removed admin face endpoint check.
 - Passed: Registrar flow retest on 2026-07-05: `php artisan route:list --path=registrar`, `php artisan test tests/Feature/RegistrarPortalTest.php` with 8 tests and 75 assertions, and `npm run build`.
+- Passed: Clinic flow retest on 2026-07-05: PHP syntax checks for `EmergencyController` and `EmergencyHotline`, `php artisan route:list --path=clinic` showing 13 clinic routes, `php artisan test tests/Feature/ClinicFlowTest.php` with 4 tests and 85 assertions, `vendor\bin\pint` for touched PHP files, and `npm run build`.
+- Passed: local database update for clinic hotline work on 2026-07-05: `php artisan migrate` ran `2026_07_05_000004_create_emergency_hotlines_table`, then `php artisan db:seed --class=EmergencySeeder` seeded starter emergency hotline rows.
+- Passed: corrected attendance-panel emergency flow retest on 2026-07-06: `php artisan test tests/Feature/ClinicFlowTest.php` with 4 tests and 85 assertions, `npm run build`, and no remaining `Emergency Table`/`Use Hotline` visible-section references in `AttendanceControlPanel.vue`.
+- Passed: message privacy/encryption retest on 2026-07-06: `php artisan migrate` ran `2026_07_06_000001_encrypt_message_content_and_add_recipients`, `vendor\bin\pint` formatted touched PHP files, `php artisan test tests/Feature/StudentParentPortalTest.php` passed with 5 tests and 80 assertions, and `npm run build` passed.
+- Note: `php artisan optimize:clear` cleared config but failed while clearing the database-backed cache because local MySQL on `127.0.0.1:3306` was unavailable. After config was cleared, the focused clinic test used the SQLite testing configuration and passed.
 - Passed: `php artisan test tests/Feature/StudentParentPortalTest.php tests/Feature/InstructorSecurityQuestionTest.php tests/Feature/Auth/AuthenticationTest.php` for StudentParent and instructor-security tests, but the existing two-factor auth test fails because the SQLite testing `users` table has no `two_factor_secret` column.
 - Not run: full PHP test suite.
 
 ### Documentation Status
 
-- `README.md` has been updated for the Online Class module, route/schema changes, parent child selector, notification read handling, instructor inbox mirroring/replies, searchable message recipients, generated excuse-letter downloads, attendance filters, parent profile separation, face-recognition availability guards, migration status, and this handoff.
+- `README.md` has been updated for the Online Class module, route/schema changes, parent child selector, notification read handling, instructor inbox mirroring/replies, encrypted recipient-only message conversations, searchable message recipients, generated excuse-letter downloads, attendance filters, parent profile separation, face-recognition availability guards, migration status, and this handoff.
+- Continuity instruction: when discovering a missing feature, behavior change, migration status, testing result, blocker, or implementation update, add it to this README and add a row to the AI Prompt And Change Log before handing off.
 
 ## AI Prompt And Change Log
 
@@ -340,6 +356,9 @@ Use this section as a lightweight record of prompts and repository changes made 
 
 | Date | Prompt / Request | Files Changed | Summary |
 | --- | --- | --- | --- |
+| 2026-07-06 | Encrypt messages and make every role's messages visible only to sender/recipient, with student/parent conversations and recipient search. | `database/migrations/2026_07_06_000001_encrypt_message_content_and_add_recipients.php`, `app/Models/Message.php`, `app/Models/StudentPortalMessage.php`, `app/Http/Controllers/StudentsController.php`, `app/Http/Controllers/MessageController.php`, `resources/js/pages/StudentParent/Messages.vue`, `tests/Feature/StudentParentPortalTest.php`, `README.md` | Added encrypted message subject/body storage, added portal `recipient_user_id`, backfilled existing message ciphertext where possible, scoped message visibility to sender/recipient or assigned instructor, required recipient selection before student/parent send, rebuilt the student/parent messages page as a conversation list plus recipient search, updated focused tests, ran the migration locally, and documented the README continuity rule. |
+| 2026-07-06 | Correct Attendance Control Panel emergency flow after clarification. | `resources/js/pages/AttendanceControlPanel.vue`, `README.md` | Removed the always-visible emergency table from the attendance panel. Emergency now follows the intended instructor flow: instructor taps once to start attendance, taps again to open action choices, clicks Emergency Call, selects emergency type, optionally selects a hotline, and then the alert is saved with hotline metadata. |
+| 2026-07-05 | Test the Clinic flow, find unfinished/missing features, add emergency hotline CRUD for attendance panel, suggest text API, and add admin-visible logs. | `database/migrations/2026_07_05_000004_create_emergency_hotlines_table.php`, `app/Models/EmergencyHotline.php`, `app/Http/Controllers/EmergencyController.php`, `app/Http/Controllers/AttendanceController.php`, `database/seeders/EmergencySeeder.php`, `routes/web.php`, `resources/js/layouts/AuthNavbar.vue`, `resources/js/pages/Clinic/EmergencyHotlines.vue`, `resources/js/pages/AttendanceControlPanel.vue`, `tests/Feature/ClinicFlowTest.php`, `README.md` | Added `emergency_hotlines` CRUD with clinic nav, seeded default hotline records, added hotline selection to panel-created emergency alerts, added shared activity logs for hotline CRUD, emergency type CRUD, alert updates, panel alert creation, and clinic dispatch, documented read-only clinic gaps, and recommended Semaphore first for PH-only SMS with Twilio/Vonage as broader CPaaS alternatives. |
 | 2026-07-05 | Test the Registrar flow. | `README.md` | Retested registrar routes, registrar feature flow, and the production frontend build. Registrar routes showed 9 registrar endpoints, `RegistrarPortalTest` passed with 8 tests and 75 assertions, and `npm run build` passed with the new Instructor Face Enrollment page in the Vite manifest. |
 | 2026-07-05 | Add shared admin activity logs, registrar-only face image ownership, instructor login facial recognition check, separate instructor face upload nav, and registrar remove/replace workflow. | `routes/web.php`, `app/Http/Controllers/RegistrarController.php`, `resources/js/layouts/AuthNavbar.vue`, `resources/js/pages/Registrar/Dashboard.vue`, `resources/js/pages/Registrar/BiometricEnrollment.vue`, `resources/js/pages/Registrar/InstructorFaceEnrollment.vue`, `resources/js/pages/Auth/Admin/Students.vue`, `tests/Feature/RegistrarPortalTest.php`, `README.md` | Confirmed instructor login already has facial recognition through `/instructor/verify`; added a registrar Instructor Faces nav/page, added registrar student/instructor face-image removal so images can be replaced, mirrored face-removal events into shared `activity_logs`, removed admin student face-image maintenance routes from the admin Students modal path, and added focused registrar tests. |
 | 2026-07-05 | Test Registrar role, find missing features, and add logs. | `app/Http/Controllers/RegistrarController.php`, `tests/Feature/RegistrarPortalTest.php`, `README.md` | Added shared `activity_logs` mirroring for Registrar RFID/face enrollment actions, added a 5-image cap to Registrar face uploads to match student face image limits, and added focused Registrar feature tests for dashboard/enrollment access, RFID assignment logs, duplicate RFID rejection, face upload logs, and the face image cap. |

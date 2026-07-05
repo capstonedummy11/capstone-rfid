@@ -1,7 +1,7 @@
 <script setup>
 import { router, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
-import { MessageSquare, MonitorCheck, ScanFace, Settings } from 'lucide-vue-next';
+import { MessageSquare, MonitorCheck, PhoneCall, ScanFace, Settings } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
 import Navlinks from '@/components/Auth/Navlinks.vue';
 import ActivityLogs from '@/components/Icon/ActivityLogs.vue';
@@ -225,6 +225,12 @@ const sections = [
                 icon: Reports,
                 text: 'Reports',
                 route: route('clinic.reports'),
+                roles: ['clinic'],
+            },
+            {
+                icon: PhoneCall,
+                text: 'Emergency Hotlines',
+                route: route('clinic.emergency-hotlines.index'),
                 roles: ['clinic'],
             },
             {

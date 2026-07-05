@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
 use App\Models\Attendance;
+use App\Models\AttendanceLog;
 use App\Models\Borrowing;
+use App\Models\EmergencyHotline;
 use App\Models\EmergencyType;
-use App\Models\Item;
 use App\Models\Instructor;
+use App\Models\Item;
 use App\Models\RfidPanelSession;
 use App\Models\Schedule;
 use App\Models\Section;
@@ -15,6 +17,8 @@ use App\Models\Students;
 use App\Models\Subject;
 use App\Models\SystemSetting;
 use App\Models\User;
+use App\Services\AwsFaceRecognitionService;
+use App\Services\CompreFaceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -24,9 +28,6 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use App\Models\AttendanceLog;
-use App\Services\AwsFaceRecognitionService;
-use App\Services\CompreFaceService;
 use Inertia\Inertia;
 
 class AttendanceController
@@ -50,14 +51,14 @@ class AttendanceController
             ->first();
 
         if (!$session) {
-            $session = new RfidPanelSession();
+            $session = new RfidPanelSession;
             $session->room = $validated['room'];
             $session->panel_id = SystemSetting::string(SystemSetting::PANEL_DEVICE_LABEL, 'Attendance Console');
         }
 
         $status = $validated['status'];
 
-        if ($status === 'borrowing' && ! SystemSetting::boolean(SystemSetting::BORROWING_ENABLED, false)) {
+        if ($status === 'borrowing' && !SystemSetting::boolean(SystemSetting::BORROWING_ENABLED, false)) {
             return response()->json([
                 'ok' => false,
                 'message' => 'Borrowing is currently disabled.',
@@ -313,7 +314,7 @@ class AttendanceController
             'image' => ['required', 'string'],
         ]);
 
-        if (! SystemSetting::boolean(SystemSetting::FACE_RECOGNITION_ENABLED, true)) {
+        if (!SystemSetting::boolean(SystemSetting::FACE_RECOGNITION_ENABLED, true)) {
             return response()->json([
                 'ok' => true,
                 'verified' => true,
@@ -329,7 +330,7 @@ class AttendanceController
             ->whereRaw('LOWER(rfid_tag) = ?', [$rfid])
             ->first();
 
-        if (! $student) {
+        if (!$student) {
             return response()->json([
                 'ok' => false,
                 'message' => 'Student not found for this RFID.',
@@ -343,7 +344,7 @@ class AttendanceController
             ->orderByDesc('attendance_id')
             ->first();
 
-        if (! $attendanceSession) {
+        if (!$attendanceSession) {
             return response()->json([
                 'ok' => false,
                 'message' => 'No active attendance session was found for this room.',
@@ -354,7 +355,7 @@ class AttendanceController
         $subjectCode = $validated['subject_code'] ?? $attendanceSession->subject_code;
         $currentSchedule = $scheduleId ? Schedule::query()->find($scheduleId) : null;
 
-        if (! $currentSchedule) {
+        if (!$currentSchedule) {
             return response()->json([
                 'ok' => false,
                 'message' => 'Current class schedule could not be resolved.',
@@ -376,7 +377,7 @@ class AttendanceController
                 ->first();
         }
 
-        if ($currentSubject && ! is_null($currentSubject->year_level) && (int) $student->year_level !== (int) $currentSubject->year_level) {
+        if ($currentSubject && !is_null($currentSubject->year_level) && (int) $student->year_level !== (int) $currentSubject->year_level) {
             return response()->json([
                 'ok' => false,
                 'message' => 'Student year level does not match this class.',
@@ -388,7 +389,7 @@ class AttendanceController
         if (count($faceImages) === 0) {
             $path = $this->storeStudentFaceCapture($validated['image'], $student);
 
-            if (! $path) {
+            if (!$path) {
                 return response()->json([
                     'ok' => false,
                     'message' => 'Unable to capture the first face reference. Please check the camera.',
@@ -406,7 +407,7 @@ class AttendanceController
             ]);
         }
 
-        $faceResult = (new AwsFaceRecognitionService())->compareBase64WithStoredImage(
+        $faceResult = (new AwsFaceRecognitionService)->compareBase64WithStoredImage(
             $validated['image'],
             $faceImages[0],
         );
@@ -421,7 +422,7 @@ class AttendanceController
             ]);
         }
 
-        if (! $faceResult['verified']) {
+        if (!$faceResult['verified']) {
             return response()->json([
                 'ok' => false,
                 'verified' => false,
@@ -735,11 +736,11 @@ class AttendanceController
     public function verifyFace(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'image'          => ['required', 'string'],      // base64 data URL
+            'image' => ['required', 'string'],      // base64 data URL
             'student_number' => ['required', 'string', 'max:255'],
         ]);
 
-        if (! SystemSetting::boolean(SystemSetting::FACE_RECOGNITION_ENABLED, true)) {
+        if (!SystemSetting::boolean(SystemSetting::FACE_RECOGNITION_ENABLED, true)) {
             return response()->json([
                 'ok' => true,
                 'verified' => true,
@@ -749,25 +750,25 @@ class AttendanceController
             ]);
         }
 
-        $result = (new CompreFaceService())->recognizeBase64($validated['image']);
+        $result = (new CompreFaceService)->recognizeBase64($validated['image']);
 
         if ($result === null) {
             return response()->json([
-                'ok'       => false,
+                'ok' => false,
                 'verified' => false,
-                'message'  => 'CompreFace could not detect or match a face.',
+                'message' => 'CompreFace could not detect or match a face.',
             ]);
         }
 
-        $verified  = strtolower(trim($result['subject'])) === strtolower(trim($validated['student_number']));
+        $verified = strtolower(trim($result['subject'])) === strtolower(trim($validated['student_number']));
         $similarity = $result['similarity'];
 
         return response()->json([
-            'ok'         => true,
-            'verified'   => $verified,
+            'ok' => true,
+            'verified' => $verified,
             'similarity' => $similarity,
-            'matched'    => $result['subject'],
-            'message'    => $verified
+            'matched' => $result['subject'],
+            'message' => $verified
                 ? "Face verified ({$similarity})."
                 : "Face does not match the RFID card holder (matched: {$result['subject']}, expected: {$validated['student_number']}).",
         ]);
@@ -780,7 +781,7 @@ class AttendanceController
             'student_number' => ['required', 'string', 'max:255'],
         ]);
 
-        if (! SystemSetting::boolean(SystemSetting::FACE_RECOGNITION_ENABLED, true)) {
+        if (!SystemSetting::boolean(SystemSetting::FACE_RECOGNITION_ENABLED, true)) {
             return response()->json([
                 'ok' => true,
                 'verified' => true,
@@ -794,7 +795,7 @@ class AttendanceController
             ->where('student_number', $validated['student_number'])
             ->first();
 
-        if (! $student) {
+        if (!$student) {
             return response()->json([
                 'ok' => false,
                 'verified' => false,
@@ -812,7 +813,7 @@ class AttendanceController
             ], 422);
         }
 
-        $faceResult = (new AwsFaceRecognitionService())->compareBase64WithStoredImage(
+        $faceResult = (new AwsFaceRecognitionService)->compareBase64WithStoredImage(
             $validated['image'],
             $faceImages[0],
         );
@@ -825,7 +826,7 @@ class AttendanceController
             ], 503);
         }
 
-        if (! $faceResult['verified']) {
+        if (!$faceResult['verified']) {
             return response()->json([
                 'ok' => false,
                 'verified' => false,
@@ -853,7 +854,7 @@ class AttendanceController
     {
         $panelRoom = session('panel.room');
 
-        if (! $panelRoom) {
+        if (!$panelRoom) {
             return redirect()->route('attendanceControlPanel.login');
         }
 
@@ -888,7 +889,7 @@ class AttendanceController
             ? Hash::check((string) $validated['pin'], $pinHash)
             : (string) $validated['pin'] === (string) config('panel.pin', '1234');
 
-        if (! $pinMatches) {
+        if (!$pinMatches) {
             return response()->json([
                 'success' => false,
                 'message' => 'Incorrect PIN. Please try again.',
@@ -955,10 +956,10 @@ class AttendanceController
                 DB::table('attendance_sessions')
                     ->where('attendance_id', $attendanceSession->attendance_id)
                     ->update([
-                    'status' => 'offline',
-                    'time_end' => now()->format('H:i:s'),
-                    'updated_at' => now(),
-                ]);
+                        'status' => 'offline',
+                        'time_end' => now()->format('H:i:s'),
+                        'updated_at' => now(),
+                    ]);
             }
         }
 
@@ -990,7 +991,7 @@ class AttendanceController
             ->orderByDesc('panel_session_id')
             ->first();
 
-        $logoutRequired = ! $session
+        $logoutRequired = !$session
             || $session->ended_at !== null
             || strtolower((string) $session->status) === 'offline';
 
@@ -1012,7 +1013,7 @@ class AttendanceController
                 ->whereRaw('LOWER(role) = ?', ['instructor'])
                 ->whereNotNull('rfid_tag')
                 ->where('rfid_tag', '!=', '')
-                ->orderByRaw("CASE WHEN email = ? THEN 0 ELSE 1 END", ['instructor@sample.com'])
+                ->orderByRaw('CASE WHEN email = ? THEN 0 ELSE 1 END', ['instructor@sample.com'])
                 ->orderBy('name')
                 ->pluck('rfid_tag')
                 ->values()
@@ -1048,11 +1049,27 @@ class AttendanceController
                 ->orderBy('sort_order')
                 ->orderBy('name')
                 ->get(['emergency_type_id', 'name', 'category', 'default_message'])
-                ->map(fn (EmergencyType $type) => [
+                ->map(fn(EmergencyType $type) => [
                     'emergency_type_id' => $type->emergency_type_id,
                     'name' => $type->name,
                     'category' => $type->category,
                     'default_message' => $type->default_message,
+                ])
+                ->values()
+                ->all(),
+            'emergencyHotlines' => EmergencyHotline::query()
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get(['emergency_hotline_id', 'name', 'category', 'phone_number', 'contact_person', 'sms_enabled', 'notes'])
+                ->map(fn(EmergencyHotline $hotline) => [
+                    'emergency_hotline_id' => $hotline->emergency_hotline_id,
+                    'name' => $hotline->name,
+                    'category' => $hotline->category,
+                    'phone_number' => $hotline->phone_number,
+                    'contact_person' => $hotline->contact_person,
+                    'sms_enabled' => $hotline->sms_enabled,
+                    'notes' => $hotline->notes,
                 ])
                 ->values()
                 ->all(),
@@ -1202,14 +1219,14 @@ class AttendanceController
 
         $currentSchedule = Schedule::query()
             ->with(['subject.user', 'section.strand', 'instructor.user'])
-            ->when($isInstructor, fn ($scheduleQuery) => $scheduleQuery->where('instructor_id', $instructorId ?: 0))
+            ->when($isInstructor, fn($scheduleQuery) => $scheduleQuery->where('instructor_id', $instructorId ?: 0))
             ->orderByDesc('scheduled_id')
             ->first();
 
         $recentScans = AttendanceLog::query()
             ->with(['student.section.strand', 'student.strand', 'attendance.schedule.subject.user', 'attendance.schedule.instructor.user'])
             ->when($isInstructor, function ($attendanceLogQuery) use ($instructorId) {
-                $attendanceLogQuery->whereHas('attendance.schedule', fn ($scheduleQuery) => $scheduleQuery->where('instructor_id', $instructorId ?: 0));
+                $attendanceLogQuery->whereHas('attendance.schedule', fn($scheduleQuery) => $scheduleQuery->where('instructor_id', $instructorId ?: 0));
             })
             ->orderByDesc('id')
             ->limit(12)
@@ -1236,7 +1253,7 @@ class AttendanceController
         $registeredStudents = Students::query()
             ->with(['section.strand', 'strand'])
             ->whereNotNull('rfid_tag')
-            ->when($isInstructor, fn ($studentQuery) => $studentQuery->whereIn('section_id', $handledSectionIds->all()))
+            ->when($isInstructor, fn($studentQuery) => $studentQuery->whereIn('section_id', $handledSectionIds->all()))
             ->orderBy('last_name')
             ->orderBy('first_name')
             ->get()
@@ -1291,7 +1308,7 @@ class AttendanceController
             ? Instructor::query()->where('user_id', $user?->user_id)->value('instructor_id')
             : null;
 
-        if (! $isAdmin) {
+        if (!$isAdmin) {
             $filters['instructor'] = '';
             $filters['instructor_rfid'] = '';
         }
@@ -1408,10 +1425,10 @@ class AttendanceController
         $sessionJoin($sessionOptionsQuery);
 
         $sessionOptions = $sessionOptionsQuery
-            ->when($isInstructor, fn ($sessionQuery) => $sessionQuery->where('schedules.instructor_id', $instructorId ?: 0))
-            ->when($isAdmin && $filters['instructor'] !== '' && $filters['instructor'] !== '__not_found__', fn ($sessionQuery) => $sessionQuery->where('instructor_users.user_id', $filters['instructor']))
-            ->when($filters['date'] !== '', fn ($sessionQuery) => $sessionQuery->whereDate('attendance_sessions.date', $filters['date']))
-            ->when($filters['subject'] !== '', fn ($sessionQuery) => $sessionQuery->where('subjects.subject_id', $filters['subject']))
+            ->when($isInstructor, fn($sessionQuery) => $sessionQuery->where('schedules.instructor_id', $instructorId ?: 0))
+            ->when($isAdmin && $filters['instructor'] !== '' && $filters['instructor'] !== '__not_found__', fn($sessionQuery) => $sessionQuery->where('instructor_users.user_id', $filters['instructor']))
+            ->when($filters['date'] !== '', fn($sessionQuery) => $sessionQuery->whereDate('attendance_sessions.date', $filters['date']))
+            ->when($filters['subject'] !== '', fn($sessionQuery) => $sessionQuery->where('subjects.subject_id', $filters['subject']))
             ->orderByDesc('attendance_sessions.date')
             ->orderByDesc('attendance_sessions.time_start')
             ->select([
@@ -1426,7 +1443,7 @@ class AttendanceController
                 'instructor_users.name as instructor_name',
             ])
             ->get()
-            ->map(fn ($session) => [
+            ->map(fn($session) => [
                 'value' => $session->attendance_id,
                 'label' => trim(implode(' | ', array_filter([
                     $session->date,
@@ -1444,14 +1461,14 @@ class AttendanceController
         $sessionJoin($dateOptionsQuery);
 
         $dateOptions = $dateOptionsQuery
-            ->when($isInstructor, fn ($dateQuery) => $dateQuery->where('schedules.instructor_id', $instructorId ?: 0))
-            ->when($isAdmin && $filters['instructor'] !== '' && $filters['instructor'] !== '__not_found__', fn ($dateQuery) => $dateQuery->where('instructor_users.user_id', $filters['instructor']))
-            ->when($filters['subject'] !== '', fn ($dateQuery) => $dateQuery->where('subjects.subject_id', $filters['subject']))
+            ->when($isInstructor, fn($dateQuery) => $dateQuery->where('schedules.instructor_id', $instructorId ?: 0))
+            ->when($isAdmin && $filters['instructor'] !== '' && $filters['instructor'] !== '__not_found__', fn($dateQuery) => $dateQuery->where('instructor_users.user_id', $filters['instructor']))
+            ->when($filters['subject'] !== '', fn($dateQuery) => $dateQuery->where('subjects.subject_id', $filters['subject']))
             ->whereNotNull('attendance_sessions.date')
             ->distinct()
             ->orderByDesc('attendance_sessions.date')
             ->pluck('attendance_sessions.date')
-            ->map(fn ($date) => [
+            ->map(fn($date) => [
                 'value' => (string) $date,
                 'label' => Carbon::parse($date)->format('m/d/Y'),
             ])
@@ -1471,11 +1488,11 @@ class AttendanceController
             'filters' => $filters,
             'currentUserRole' => $role,
             'canInspectAllAttendance' => $isAdmin,
-            'absentDefaultDays' => $absentDefaultDays,
+            'absentDefaultDays' => $absentDefaultDays ?? 0,
             'attendanceSessionOptions' => $sessionOptions,
             'subjectOptions' => $subjectOptionsQuery
-                ->when($isInstructor, fn ($subjectQuery) => $subjectQuery->where('schedules.instructor_id', $instructorId ?: 0))
-                ->when($isAdmin && $filters['instructor'] !== '' && $filters['instructor'] !== '__not_found__', fn ($subjectQuery) => $subjectQuery->where('subject_instructor_users.user_id', $filters['instructor']))
+                ->when($isInstructor, fn($subjectQuery) => $subjectQuery->where('schedules.instructor_id', $instructorId ?: 0))
+                ->when($isAdmin && $filters['instructor'] !== '' && $filters['instructor'] !== '__not_found__', fn($subjectQuery) => $subjectQuery->where('subject_instructor_users.user_id', $filters['instructor']))
                 ->select([
                     'subjects.subject_id',
                     'subjects.subject_name',
@@ -1710,14 +1727,14 @@ class AttendanceController
                 ->where('attendance_id', $session->session_id)
                 ->whereNotNull('student_id')
                 ->pluck('student_id')
-                ->map(fn ($id) => (int) $id)
+                ->map(fn($id) => (int) $id)
                 ->all();
 
             $students = Students::query()
                 ->with(['section', 'strand'])
                 ->where('section_id', $session->section_id)
                 ->where('status', 'active')
-                ->when($loggedStudentIds !== [], fn ($query) => $query->whereNotIn('student_id', $loggedStudentIds))
+                ->when($loggedStudentIds !== [], fn($query) => $query->whereNotIn('student_id', $loggedStudentIds))
                 ->orderBy('last_name')
                 ->orderBy('first_name')
                 ->get();

@@ -2,10 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\EmergencyAlert;
+use App\Models\EmergencyHotline;
 use App\Models\EmergencyType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class EmergencyController
 {
@@ -38,10 +42,75 @@ class EmergencyController
             'metadata' => $validated['metadata'] ?? [],
         ]);
 
+        $this->logActivity(
+            $request,
+            'create',
+            'emergency_alerts',
+            'Emergency alert '.$alert->emergency_alert_id.' triggered from attendance panel for '.$type->name.'.',
+        );
+
         return response()->json([
             'ok' => true,
             'alert' => $alert->load('type'),
         ]);
+    }
+
+    public function hotlines()
+    {
+        return Inertia::render('Clinic/EmergencyHotlines', [
+            'hotlines' => EmergencyHotline::query()
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get()
+                ->map(fn (EmergencyHotline $hotline) => $this->hotlinePayload($hotline))
+                ->values(),
+        ]);
+    }
+
+    public function storeHotline(Request $request)
+    {
+        $validated = $this->validateHotline($request);
+
+        $hotline = EmergencyHotline::query()->create([
+            ...$validated,
+            'sms_enabled' => $validated['sms_enabled'] ?? false,
+            'is_active' => $validated['is_active'] ?? true,
+            'sort_order' => $validated['sort_order'] ?? ((EmergencyHotline::query()->max('sort_order') ?? 0) + 1),
+        ]);
+
+        $this->logActivity($request, 'create', 'emergency_hotlines', 'Created emergency hotline '.$hotline->name.' ('.$hotline->phone_number.').');
+
+        return back()->with('success', 'Emergency hotline added.');
+    }
+
+    public function updateHotline(Request $request, int $id)
+    {
+        $hotline = EmergencyHotline::query()->findOrFail($id);
+        $validated = $this->validateHotline($request);
+
+        $hotline->update([
+            ...$validated,
+            'sms_enabled' => $validated['sms_enabled'] ?? false,
+            'is_active' => $validated['is_active'] ?? false,
+            'sort_order' => $validated['sort_order'] ?? $hotline->sort_order,
+        ]);
+
+        $this->logActivity($request, 'update', 'emergency_hotlines', 'Updated emergency hotline '.$hotline->name.' ('.$hotline->phone_number.').');
+
+        return back()->with('success', 'Emergency hotline updated.');
+    }
+
+    public function destroyHotline(Request $request, int $id)
+    {
+        $hotline = EmergencyHotline::query()->findOrFail($id);
+        $name = $hotline->name;
+        $phone = $hotline->phone_number;
+
+        $hotline->delete();
+
+        $this->logActivity($request, 'delete', 'emergency_hotlines', 'Deleted emergency hotline '.$name.' ('.$phone.').');
+
+        return back()->with('success', 'Emergency hotline deleted.');
     }
 
     public function storeType(Request $request)
@@ -53,11 +122,13 @@ class EmergencyController
             'is_active' => ['nullable', 'boolean'],
         ]);
 
-        EmergencyType::create([
+        $type = EmergencyType::create([
             ...$validated,
             'is_active' => $validated['is_active'] ?? true,
             'sort_order' => (EmergencyType::max('sort_order') ?? 0) + 1,
         ]);
+
+        $this->logActivity($request, 'create', 'emergency_types', 'Created emergency type '.$type->name.'.');
 
         return back()->with('success', 'Emergency type added.');
     }
@@ -77,12 +148,19 @@ class EmergencyController
             'is_active' => $validated['is_active'] ?? false,
         ]);
 
+        $this->logActivity($request, 'update', 'emergency_types', 'Updated emergency type '.$type->name.'.');
+
         return back()->with('success', 'Emergency type updated.');
     }
 
-    public function destroyType(int $id)
+    public function destroyType(Request $request, int $id)
     {
-        EmergencyType::findOrFail($id)->delete();
+        $type = EmergencyType::findOrFail($id);
+        $name = $type->name;
+
+        $type->delete();
+
+        $this->logActivity($request, 'delete', 'emergency_types', 'Deleted emergency type '.$name.'.');
 
         return back()->with('success', 'Emergency type deleted.');
     }
@@ -98,6 +176,8 @@ class EmergencyController
             'status' => $validated['status'],
             'resolved_at' => $validated['status'] === 'resolved' ? now() : $alert->resolved_at,
         ]);
+
+        $this->logActivity($request, 'update', 'emergency_alerts', 'Updated emergency alert '.$alert->emergency_alert_id.' status to '.$validated['status'].'.');
 
         return back()->with('success', 'Emergency alert updated.');
     }
@@ -119,7 +199,7 @@ class EmergencyController
         }
 
         $patientName = $student
-            ? trim($student->first_name . ' ' . $student->last_name)
+            ? trim($student->first_name.' '.$student->last_name)
             : ($alert->triggered_by_name ?: 'Unknown Patient');
 
         $alert->update(['status' => 'acknowledged']);
@@ -142,6 +222,47 @@ class EmergencyController
             ],
         );
 
+        $this->logActivity($request, 'create', 'clinic_cases', 'Dispatched clinic response for emergency alert '.$alert->emergency_alert_id.'.');
+
         return back()->with('success', 'Emergency response dispatched.');
+    }
+
+    private function validateHotline(Request $request): array
+    {
+        return $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'category' => ['required', 'string', 'max:255'],
+            'phone_number' => ['required', 'string', 'max:40'],
+            'contact_person' => ['nullable', 'string', 'max:255'],
+            'sms_enabled' => ['nullable', 'boolean'],
+            'is_active' => ['nullable', 'boolean'],
+            'sort_order' => ['nullable', 'integer', 'min:0'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+    }
+
+    private function hotlinePayload(EmergencyHotline $hotline): array
+    {
+        return [
+            'emergency_hotline_id' => $hotline->emergency_hotline_id,
+            'name' => $hotline->name,
+            'category' => $hotline->category,
+            'phone_number' => $hotline->phone_number,
+            'contact_person' => $hotline->contact_person,
+            'sms_enabled' => $hotline->sms_enabled,
+            'is_active' => $hotline->is_active,
+            'sort_order' => $hotline->sort_order,
+            'notes' => $hotline->notes,
+        ];
+    }
+
+    private function logActivity(Request $request, string $action, string $tableName, string $description): void
+    {
+        ActivityLog::query()->create([
+            'user_id' => $request->user()?->user_id ?? Auth::id(),
+            'action' => $action,
+            'table_name' => $tableName,
+            'description' => $description,
+        ]);
     }
 }
