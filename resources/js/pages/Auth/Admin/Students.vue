@@ -559,7 +559,7 @@
                         </div>
 
                         <!-- Face Images Management (edit mode only) -->
-                        <div v-if="isEditing" class="border-t pt-4">
+                        <div v-if="false && isEditing" class="border-t pt-4">
                             <div class="mb-2 flex items-center justify-between">
                                 <label
                                     class="text-sm font-medium text-slate-700"

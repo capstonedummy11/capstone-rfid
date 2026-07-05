@@ -1,7 +1,7 @@
 <script setup>
 import { router, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
-import { MessageSquare, MonitorCheck, Settings } from 'lucide-vue-next';
+import { MessageSquare, MonitorCheck, ScanFace, Settings } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
 import Navlinks from '@/components/Auth/Navlinks.vue';
 import ActivityLogs from '@/components/Icon/ActivityLogs.vue';
@@ -248,6 +248,12 @@ const sections = [
                 icon: Graduation,
                 text: 'Biometric Enrollment',
                 route: route('registrar.biometric-enrollment'),
+                roles: ['registrar'],
+            },
+            {
+                icon: ScanFace,
+                text: 'Instructor Faces',
+                route: route('registrar.instructor-face-enrollment'),
                 roles: ['registrar'],
             },
         ],

@@ -1,5 +1,5 @@
 <script setup>
-import { useForm, usePage } from '@inertiajs/vue3';
+import { Link, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import { Camera, CreditCard, Users } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
@@ -27,6 +27,7 @@ const statusFilter = ref('missing');
 
 const rfidForm = useForm({ rfid_tag: '' });
 const faceForm = useForm({ image: null });
+const deleteFaceForm = useForm({});
 
 const flashSuccess = computed(() => page.props.flash?.success);
 
@@ -64,9 +65,7 @@ const rfidRoute = computed(() => {
 
 const faceRoute = computed(() => {
     if (!selectedPerson.value) return '';
-    return selectedPerson.value.type === 'student'
-        ? route('registrar.students.face', { student: selectedPerson.value.id })
-        : route('registrar.faculty.face', { user: selectedPerson.value.id });
+    return route('registrar.students.face', { student: selectedPerson.value.id });
 });
 
 const saveRfid = () => {
@@ -77,6 +76,8 @@ const saveRfid = () => {
 };
 
 const uploadFace = () => {
+    if (selectedPerson.value?.type !== 'student') return;
+
     faceForm.post(faceRoute.value, {
         forceFormData: true,
         preserveScroll: true,
@@ -89,6 +90,18 @@ const uploadFace = () => {
 
 const setFaceFile = (event) => {
     faceForm.image = event.target.files?.[0] ?? null;
+};
+
+const removeFace = (index) => {
+    if (selectedPerson.value?.type !== 'student') return;
+
+    deleteFaceForm.delete(route('registrar.students.face.delete', {
+        student: selectedPerson.value.id,
+        index,
+    }), {
+        preserveScroll: true,
+        onSuccess: () => toast('Face image removed'),
+    });
 };
 
 const toast = (title) => {
@@ -218,17 +231,46 @@ const toast = (title) => {
                         </button>
                     </form>
 
-                    <form class="rounded-md border border-slate-200 p-4" @submit.prevent="uploadFace">
+                    <form v-if="selectedPerson.type === 'student'" class="rounded-md border border-slate-200 p-4" @submit.prevent="uploadFace">
                         <div class="flex items-center gap-2 text-sm font-bold text-slate-800">
                             <Camera class="h-4 w-4 text-brand" />
                             Face Image
                         </div>
+                        <div v-if="selectedPerson.face_images?.length" class="mt-3 grid grid-cols-3 gap-2">
+                            <div v-for="(image, index) in selectedPerson.face_images" :key="image" class="relative">
+                                <img :src="`/storage/${image}`" class="aspect-square w-full rounded-md border border-slate-200 object-cover" alt="Student face image" />
+                                <button
+                                    type="button"
+                                    class="absolute right-1 top-1 rounded bg-rose-600 px-2 py-1 text-xs font-bold text-white"
+                                    :disabled="deleteFaceForm.processing"
+                                    @click="removeFace(index)"
+                                >
+                                    Remove
+                                </button>
+                            </div>
+                        </div>
+                        <p v-if="selectedPerson.face_count >= 5" class="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700">
+                            Maximum 5 face images enrolled. Remove one before uploading a replacement.
+                        </p>
                         <input type="file" accept="image/png,image/jpeg,image/webp" class="mt-3 w-full rounded-md border border-dashed border-slate-300 px-3 py-2 text-sm" required @change="setFaceFile" />
                         <p v-if="faceForm.errors.image" class="mt-2 text-xs text-red-600">{{ faceForm.errors.image }}</p>
-                        <button type="submit" class="mt-3 w-full rounded-md bg-slate-800 px-4 py-2 text-sm font-bold text-white">
+                        <button type="submit" class="mt-3 w-full rounded-md bg-slate-800 px-4 py-2 text-sm font-bold text-white" :disabled="selectedPerson.face_count >= 5">
                             Upload Face
                         </button>
                     </form>
+
+                    <div v-else class="rounded-md border border-slate-200 p-4">
+                        <div class="flex items-center gap-2 text-sm font-bold text-slate-800">
+                            <Camera class="h-4 w-4 text-brand" />
+                            Instructor Face Image
+                        </div>
+                        <p class="mt-2 text-sm text-slate-500">
+                            Instructor face images are managed from the dedicated enrollment page.
+                        </p>
+                        <Link :href="route('registrar.instructor-face-enrollment')" class="mt-3 block rounded-md bg-slate-800 px-4 py-2 text-center text-sm font-bold text-white">
+                            Open Instructor Face Enrollment
+                        </Link>
+                    </div>
                 </div>
 
                 <div v-else class="flex min-h-[320px] flex-col items-center justify-center text-center text-slate-500">

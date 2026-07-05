@@ -232,7 +232,7 @@ Student portal unfinished items:
 - `/admin/inventory` and `/admin/borrow` - inventory and borrowing.
 - `/attendance-control-panel/login` - console panel login.
 - `/attendance-control-panel` - console attendance panel.
-- `/registrar/dashboard` and `/registrar/biometric-enrollment` - registrar workflows.
+- `/registrar/dashboard`, `/registrar/biometric-enrollment`, and `/registrar/instructor-face-enrollment` - registrar workflows.
 - `/clinic/dashboard`, `/clinic/case-logs`, `/clinic/patient-history`, `/clinic/reports` - clinic workflows.
 - `/messages/new` - public message creation.
 
@@ -307,11 +307,15 @@ tests/                    Pest/PHPUnit tests
 - Instructor inbox replies and public/inbox message reads now write activity logs.
 - System settings updates write activity logs, including face-recognition forced-off warnings.
 - Online Class audit logs now distinguish provider-unavailable face-recognition bypasses from normal face verification passes.
+- Registrar RFID, face upload, and face removal actions write both `registrar_enrollment_logs` rows for registrar dashboards and shared `activity_logs` rows for admin activity review.
+- Student facial-recognition images are registrar-owned: the student portal has no face-image upload route, and the admin Students modal no longer exposes face-image maintenance. Registrar users upload/remove student face images from Biometric Enrollment.
+- Instructor login already supports facial recognition through `/instructor/verify`; it compares the camera capture against `users.face_images`. Registrar users now maintain instructor face images from the dedicated Instructor Face Enrollment page.
 
 ### Known Issues
 
 - Online Class facial recognition depends on AWS Rekognition configuration and saved student face images. If AWS setup is unavailable, required facial recognition is kept off for new/edited classes and older required-face joins are allowed with a one-time instructor warning.
 - Generated excuse-letter downloads are Word-compatible `.doc` files, not native PDF files.
+- Registrar face enrollment is limited to 5 stored face images per student/instructor. Registrar users can remove an existing face image and upload a replacement.
 
 ### Testing Status
 
@@ -320,6 +324,8 @@ tests/                    Pest/PHPUnit tests
 - Passed: `php artisan migrate`; all student/parent portal migrations are now marked `Ran`.
 - Passed: `php artisan test tests/Feature/StudentParentPortalTest.php` with 5 tests and 69 assertions covering student/parent portal access, parent-linked attendance access, student/parent message visibility, instructor replies back into the portal, parent profile separation, and generated excuse-letter downloads.
 - Passed: `php artisan test tests/Feature/StudentParentPortalTest.php` again with 5 tests and 72 assertions after adding activity-log assertions.
+- Passed: `php artisan test tests/Feature/RegistrarPortalTest.php` with 5 tests and 47 assertions covering registrar dashboard/enrollment page access, student RFID assignment logs, duplicate RFID rejection across students/faculty, student face upload logs, and the 5-image face upload limit.
+- Passed: `php artisan test tests/Feature/RegistrarPortalTest.php` with 8 tests and 75 assertions after adding the instructor face-enrollment page, registrar face-image removal, shared activity-log checks, and the removed admin face endpoint check.
 - Passed: `php artisan test tests/Feature/StudentParentPortalTest.php tests/Feature/InstructorSecurityQuestionTest.php tests/Feature/Auth/AuthenticationTest.php` for StudentParent and instructor-security tests, but the existing two-factor auth test fails because the SQLite testing `users` table has no `two_factor_secret` column.
 - Not run: full PHP test suite.
 
@@ -333,6 +339,8 @@ Use this section as a lightweight record of prompts and repository changes made 
 
 | Date | Prompt / Request | Files Changed | Summary |
 | --- | --- | --- | --- |
+| 2026-07-05 | Add shared admin activity logs, registrar-only face image ownership, instructor login facial recognition check, separate instructor face upload nav, and registrar remove/replace workflow. | `routes/web.php`, `app/Http/Controllers/RegistrarController.php`, `resources/js/layouts/AuthNavbar.vue`, `resources/js/pages/Registrar/Dashboard.vue`, `resources/js/pages/Registrar/BiometricEnrollment.vue`, `resources/js/pages/Registrar/InstructorFaceEnrollment.vue`, `resources/js/pages/Auth/Admin/Students.vue`, `tests/Feature/RegistrarPortalTest.php`, `README.md` | Confirmed instructor login already has facial recognition through `/instructor/verify`; added a registrar Instructor Faces nav/page, added registrar student/instructor face-image removal so images can be replaced, mirrored face-removal events into shared `activity_logs`, removed admin student face-image maintenance routes from the admin Students modal path, and added focused registrar tests. |
+| 2026-07-05 | Test Registrar role, find missing features, and add logs. | `app/Http/Controllers/RegistrarController.php`, `tests/Feature/RegistrarPortalTest.php`, `README.md` | Added shared `activity_logs` mirroring for Registrar RFID/face enrollment actions, added a 5-image cap to Registrar face uploads to match student face image limits, and added focused Registrar feature tests for dashboard/enrollment access, RFID assignment logs, duplicate RFID rejection, face upload logs, and the face image cap. |
 | 2026-07-05 | Check for missing student/parent feature coverage and add logs. | `app/Http/Controllers/StudentsController.php`, `app/Http/Controllers/MessageController.php`, `app/Http/Controllers/SystemSettingsController.php`, `app/Http/Controllers/OnlineClassController.php`, `tests/Feature/StudentParentPortalTest.php`, `README.md` | Added activity logs for portal profile/password changes, excuse-letter submit/download, portal messages, notification reads, inbox replies/message reads, system settings updates, and explicit Online Class face-recognition bypass audit events. Updated student/parent tests to assert new logs. |
 | 2026-07-05 | Test student and parent role behavior. | `tests/Feature/StudentParentPortalTest.php`, `README.md` | Added and ran focused student/parent portal feature tests for access, parent linked-student attendance, student/parent message visibility, instructor replies, parent profile separation, and generated excuse-letter downloads. Targeted StudentParent tests passed; an adjacent existing two-factor auth test still fails because the testing users table lacks two-factor columns. |
 | 2026-07-05 | Finish selected student portal gaps: generated excuse letters, instructor replies, searchable message recipients, attendance filters, parent profile separation, and facial-recognition availability guards. | `app/Http/Controllers/StudentsController.php`, `app/Http/Controllers/MessageController.php`, `app/Http/Controllers/OnlineClassController.php`, `app/Http/Controllers/SystemSettingsController.php`, `app/Services/AwsFaceRecognitionService.php`, `routes/web.php`, `resources/views/documents/excuse-letter.blade.php`, `resources/js/pages/StudentParent/Attendance.vue`, `resources/js/pages/StudentParent/ExcuseLetters.vue`, `resources/js/pages/StudentParent/Messages.vue`, `resources/js/pages/StudentParent/OnlineClasses.vue`, `resources/js/pages/Auth/Admin/OnlineClasses.vue`, `resources/js/pages/Auth/Admin/SystemSettings.vue`, `resources/js/pages/Messages/Index.vue`, `README.md` | Added generated Word-compatible excuse-letter downloads, instructor replies back to the student portal, searchable instructor selection, full attendance search/filter/pagination, parent-only profile updates, AWS Rekognition availability checks, settings warnings/forced-off toggles, Online Class require-face safeguards, and one-time instructor warnings when old required-face joins bypass unavailable AWS. |

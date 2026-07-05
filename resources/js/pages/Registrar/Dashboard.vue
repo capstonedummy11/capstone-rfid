@@ -33,6 +33,8 @@ const maxDaily = computed(() =>
         1,
     ),
 );
+
+const isFaceLog = (action) => ['face', 'face_removed'].includes(action);
 </script>
 
 <template>
@@ -136,9 +138,9 @@ const maxDaily = computed(() =>
                             <div class="flex items-center justify-between gap-2">
                                 <span
                                     class="rounded-md px-2 py-1 text-xs font-bold uppercase"
-                                    :class="log.action === 'face' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'"
+                                    :class="isFaceLog(log.action) ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'"
                                 >
-                                    {{ log.action === 'face' ? 'Face' : 'RFID' }}
+                                    {{ isFaceLog(log.action) ? 'Face' : 'RFID' }}
                                 </span>
                                 <span class="text-xs text-slate-400">{{ log.time }}</span>
                             </div>

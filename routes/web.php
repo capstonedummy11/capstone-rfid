@@ -113,10 +113,13 @@ Route::prefix('registrar')
     ->group(function () {
         Route::get('/dashboard', [RegistrarController::class, 'dashboard'])->name('dashboard');
         Route::get('/biometric-enrollment', [RegistrarController::class, 'biometricEnrollment'])->name('biometric-enrollment');
+        Route::get('/instructor-face-enrollment', [RegistrarController::class, 'instructorFaceEnrollment'])->name('instructor-face-enrollment');
         Route::put('/students/{student}/rfid', [RegistrarController::class, 'updateStudentRfid'])->name('students.rfid');
         Route::post('/students/{student}/face', [RegistrarController::class, 'uploadStudentFace'])->name('students.face');
+        Route::delete('/students/{student}/face/{index}', [RegistrarController::class, 'deleteStudentFace'])->name('students.face.delete');
         Route::put('/faculty/{user}/rfid', [RegistrarController::class, 'updateFacultyRfid'])->name('faculty.rfid');
         Route::post('/faculty/{user}/face', [RegistrarController::class, 'uploadFacultyFace'])->name('faculty.face');
+        Route::delete('/faculty/{user}/face/{index}', [RegistrarController::class, 'deleteFacultyFace'])->name('faculty.face.delete');
     });
 
 Route::prefix('admin')
@@ -181,8 +184,6 @@ Route::prefix('admin')
             Route::post('/students', [StudentsController::class, 'store'])->name('students.store');
             Route::put('/students/{id}', [StudentsController::class, 'update'])->name('students.update');
             Route::delete('/students/{id}', [StudentsController::class, 'destroy'])->name('students.destroy');
-            Route::post('/students/{id}/face-images', [StudentsController::class, 'uploadFaceImage'])->name('students.face-images.upload');
-            Route::delete('/students/{id}/face-images/{index}', [StudentsController::class, 'deleteFaceImage'])->name('students.face-images.delete');
             Route::get('/instructors', [InstructorsController::class, 'indexAdmin'])->name('instructors.index');
             Route::post('/instructors', [InstructorsController::class, 'store'])->name('instructors.store');
             Route::put('/instructors/{id}', [InstructorsController::class, 'update'])->name('instructors.update');
