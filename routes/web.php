@@ -131,6 +131,7 @@ Route::prefix('admin')
             Route::post('/attendance/scan', [AttendanceController::class, 'scan'])->name('attendance.scan');
             Route::get('/messages', [MessageController::class, 'index'])->name('messages.index');
             Route::put('/messages/{message}/read', [MessageController::class, 'markRead'])->name('messages.read');
+            Route::post('/messages/{message}/reply', [MessageController::class, 'reply'])->name('messages.reply');
             Route::get('/online-classes', [OnlineClassController::class, 'index'])->name('online-classes.index');
             Route::post('/online-classes', [OnlineClassController::class, 'store'])->name('online-classes.store');
             Route::put('/online-classes/{onlineClass}', [OnlineClassController::class, 'update'])->name('online-classes.update');
@@ -232,9 +233,11 @@ Route::prefix('student-parent')
         Route::get('/attendance', [StudentsController::class, 'portalAttendance'])->name('attendance');
         Route::get('/excuse-letters', [StudentsController::class, 'portalExcuseLetters'])->name('excuse-letters.index');
         Route::post('/excuse-letters', [StudentsController::class, 'storePortalExcuseLetter'])->name('excuse-letters.store');
+        Route::get('/excuse-letters/{letter}/download', [StudentsController::class, 'downloadPortalExcuseLetter'])->name('excuse-letters.download');
         Route::get('/messages', [StudentsController::class, 'portalMessages'])->name('messages.index');
         Route::post('/messages', [StudentsController::class, 'storePortalMessage'])->name('messages.store');
         Route::get('/notifications', [StudentsController::class, 'portalNotifications'])->name('notifications.index');
+        Route::put('/notifications/{notification}/read', [StudentsController::class, 'markPortalNotificationRead'])->name('notifications.read');
         Route::get('/online-classes', [OnlineClassController::class, 'studentIndex'])->name('online-classes.index');
         Route::post('/online-classes/{onlineClass}/join', [OnlineClassController::class, 'join'])->name('online-classes.join');
     });

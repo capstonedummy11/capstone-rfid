@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\SystemSetting;
+use App\Services\AwsFaceRecognitionService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -10,8 +11,11 @@ class SystemSettingsController
 {
     public function edit()
     {
+        $faceAvailability = (new AwsFaceRecognitionService)->availability();
+
         return Inertia::render('Auth/Admin/SystemSettings', [
             'featureSettings' => SystemSetting::featureFlags(),
+            'faceRecognitionAvailability' => $faceAvailability,
             'attendanceSettings' => [
                 'absent_default_days' => SystemSetting::integer(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 15),
             ],
@@ -34,6 +38,18 @@ class SystemSettingsController
             'security_questions.*' => ['required_with:security_questions', 'string', 'min:8', 'max:255', 'distinct'],
         ]);
 
+        $faceAvailability = (new AwsFaceRecognitionService)->availability();
+        if (! $faceAvailability['available'] && ((bool) $validated['face_recognition_enabled'] || (bool) $validated['online_class_face_recognition_default'])) {
+            $validated['face_recognition_enabled'] = false;
+            $validated['online_class_face_recognition_default'] = false;
+            $warning = 'Face recognition was kept off: '.$faceAvailability['message'];
+        }
+
+        if (! (bool) $validated['face_recognition_enabled'] && (bool) $validated['online_class_face_recognition_default']) {
+            $validated['online_class_face_recognition_default'] = false;
+            $warning = 'Online Class facial recognition was kept off because Face Rekognition is off.';
+        }
+
         SystemSetting::setBoolean(SystemSetting::BORROWING_ENABLED, (bool) $validated['borrowing_enabled']);
         SystemSetting::setBoolean(SystemSetting::INVENTORY_ENABLED, (bool) $validated['inventory_enabled']);
         SystemSetting::setBoolean(SystemSetting::FACE_RECOGNITION_ENABLED, (bool) $validated['face_recognition_enabled']);
@@ -52,6 +68,6 @@ class SystemSettingsController
             SystemSetting::setArray(SystemSetting::SECURITY_QUESTIONS, $questions);
         }
 
-        return back()->with('success', 'System settings updated.');
+        return back()->with('success', $warning ?? 'System settings updated.');
     }
 }

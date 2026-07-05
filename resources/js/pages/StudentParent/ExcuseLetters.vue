@@ -1,10 +1,13 @@
 <script setup>
 import { useForm, usePage } from '@inertiajs/vue3';
 import SuccessModal from '@/components/StudentPortal/SuccessModal.vue';
+import LinkedStudentSelector from '@/components/StudentPortal/LinkedStudentSelector.vue';
 import { computed } from 'vue';
 
 const props = defineProps({
     student: { type: Object, default: null },
+    linkedStudents: { type: Array, default: () => [] },
+    selectedStudentId: { type: [Number, String, null], default: null },
     letters: { type: Array, default: () => [] },
 });
 
@@ -33,7 +36,10 @@ const submitLetter = () => {
     <div class="p-4 sm:p-6">
         <div class="mx-auto grid max-w-7xl gap-5 lg:grid-cols-[360px_1fr]">
             <section class="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-                <h1 class="text-lg font-bold text-slate-900">Excuse Letter</h1>
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <h1 class="text-lg font-bold text-slate-900">Excuse Letter</h1>
+                    <LinkedStudentSelector :students="linkedStudents" :selected-student-id="selectedStudentId" />
+                </div>
                 <form class="mt-4 flex flex-col gap-3" @submit.prevent="submitLetter">
                     <label class="text-xs font-bold uppercase text-slate-500">
                         Subject
@@ -67,7 +73,10 @@ const submitLetter = () => {
                     <div class="mt-3 space-y-2">
                         <div v-for="letter in letters" :key="letter.id" class="rounded-md border border-slate-200 p-3 text-sm">
                             <div class="font-semibold text-slate-900">{{ letter.subject }}</div>
-                            <div class="text-xs text-slate-500">{{ letter.from_date }} to {{ letter.to_date }} Â| {{ letter.status }}</div>
+                            <div class="text-xs text-slate-500">{{ letter.from_date }} to {{ letter.to_date }} | {{ letter.status }}</div>
+                            <a :href="letter.download_url" class="mt-2 inline-block text-xs font-bold text-brand">
+                                Download generated letter
+                            </a>
                         </div>
                         <p v-if="letters.length === 0" class="text-sm text-slate-400">No excuse letters yet.</p>
                     </div>
@@ -102,7 +111,7 @@ const submitLetter = () => {
             :show="showSuccessModal"
             title="Success"
             message="Take Care of yourself."
-            :primary-href="letters[0]?.attachment_url || ''"
+            :primary-href="letters[0]?.download_url || ''"
             primary-text="Download Letter"
             :secondary-href="route('student-parent.attendance')"
             secondary-text="Back to Attendance Page"

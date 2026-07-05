@@ -13,6 +13,13 @@ const props = defineProps({
             online_class_face_recognition_default: true,
         }),
     },
+    faceRecognitionAvailability: {
+        type: Object,
+        default: () => ({
+            available: true,
+            message: 'AWS Rekognition is configured.',
+        }),
+    },
     attendanceSettings: {
         type: Object,
         default: () => ({
@@ -29,16 +36,17 @@ const props = defineProps({
 
 const page = usePage();
 const flashSuccess = computed(() => page.props.flash?.success);
+const faceAvailable = computed(() => Boolean(props.faceRecognitionAvailability?.available));
+const faceUnavailableMessage = computed(() => props.faceRecognitionAvailability?.message || 'Face recognition is unavailable.');
 
 const form = useForm({
     borrowing_enabled: Boolean(props.featureSettings.borrowing_enabled),
     inventory_enabled: Boolean(props.featureSettings.inventory_enabled),
-    face_recognition_enabled: Boolean(
-        props.featureSettings.face_recognition_enabled,
-    ),
-    online_class_face_recognition_default: Boolean(
-        props.featureSettings.online_class_face_recognition_default ?? true,
-    ),
+    face_recognition_enabled: faceAvailable.value && Boolean(props.featureSettings.face_recognition_enabled),
+    online_class_face_recognition_default:
+        faceAvailable.value &&
+        Boolean(props.featureSettings.face_recognition_enabled) &&
+        Boolean(props.featureSettings.online_class_face_recognition_default ?? true),
     absent_default_days: Number(props.attendanceSettings.absent_default_days ?? 15),
     security_questions:
         props.securitySettings.questions?.length >= 3
@@ -75,6 +83,31 @@ const saveSettings = () => {
         },
     });
 };
+
+const toggleFaceSetting = (field) => {
+    if (!faceAvailable.value) {
+        form[field] = false;
+        Swal.fire({
+            icon: 'warning',
+            title: 'Face recognition unavailable',
+            text: faceUnavailableMessage.value,
+        });
+        return;
+    }
+
+    if (field === 'face_recognition_enabled' && !form.face_recognition_enabled) {
+        form.online_class_face_recognition_default = false;
+    }
+
+    if (field === 'online_class_face_recognition_default' && form.online_class_face_recognition_default && !form.face_recognition_enabled) {
+        form.online_class_face_recognition_default = false;
+        Swal.fire({
+            icon: 'warning',
+            title: 'Face Rekognition is off',
+            text: 'Turn on Face Rekognition before enabling it for online classes.',
+        });
+    }
+};
 </script>
 
 <template>
@@ -91,6 +124,12 @@ const saveSettings = () => {
                         class="rounded-md bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700"
                     >
                         {{ flashSuccess }}
+                    </p>
+                    <p
+                        v-if="!faceAvailable"
+                        class="rounded-md bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800"
+                    >
+                        Face recognition settings are locked off: {{ faceUnavailableMessage }}
                     </p>
                 </div>
 
@@ -213,6 +252,7 @@ const saveSettings = () => {
                             v-model="form.face_recognition_enabled"
                             type="checkbox"
                             class="h-5 w-5 shrink-0 accent-brand"
+                            @change="toggleFaceSetting('face_recognition_enabled')"
                         />
                     </label>
 
@@ -231,6 +271,7 @@ const saveSettings = () => {
                             v-model="form.online_class_face_recognition_default"
                             type="checkbox"
                             class="h-5 w-5 shrink-0 accent-brand"
+                            @change="toggleFaceSetting('online_class_face_recognition_default')"
                         />
                     </label>
 

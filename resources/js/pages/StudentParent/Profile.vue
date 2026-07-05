@@ -1,9 +1,12 @@
 <script setup>
 import { useForm, usePage } from '@inertiajs/vue3';
+import LinkedStudentSelector from '@/components/StudentPortal/LinkedStudentSelector.vue';
 import { computed } from 'vue';
 
 const props = defineProps({
     student: { type: Object, default: null },
+    linkedStudents: { type: Array, default: () => [] },
+    selectedStudentId: { type: [Number, String, null], default: null },
     user: { type: Object, required: true },
 });
 
@@ -65,7 +68,10 @@ const savePassword = () => {
             </section>
 
             <aside class="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 class="font-bold text-slate-900">Student Record</h2>
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <h2 class="font-bold text-slate-900">Student Record</h2>
+                    <LinkedStudentSelector :students="linkedStudents" :selected-student-id="selectedStudentId" />
+                </div>
                 <dl class="mt-4 space-y-3 text-sm">
                     <div><dt class="font-semibold text-slate-500">Student No.</dt><dd>{{ student?.student_number || '-' }}</dd></div>
                     <div><dt class="font-semibold text-slate-500">Section</dt><dd>{{ student?.section || '-' }}</dd></div>

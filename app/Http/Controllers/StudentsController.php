@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
 use App\Models\Instructor;
+use App\Models\Message;
 use App\Models\OnlineClass;
 use App\Models\OnlineClassNotification;
 use App\Models\Section;
@@ -307,6 +308,8 @@ class StudentsController
         return Inertia::render('StudentParent/Dashboard', [
             'title' => 'Student Dashboard',
             'student' => $this->studentPayload($student),
+            'linkedStudents' => $this->linkedStudentsPayload($request),
+            'selectedStudentId' => $student?->student_id,
             'stats' => [
                 'present' => $student?->attendances()->where('status', 'present')->count() ?? 0,
                 'late' => $student?->attendances()->where('status', 'late')->count() ?? 0,
@@ -317,7 +320,7 @@ class StudentsController
                     : 0,
             ],
             'recentAttendance' => $this->attendanceQuery($student)->take(5)->get()->map(fn ($attendance) => $this->attendancePayload($attendance)),
-            'attendance' => $this->attendanceQuery($student)->take(12)->get()->map(fn ($attendance) => $this->attendancePayload($attendance)),
+            'attendance' => $this->attendanceQuery($student)->take(100)->get()->map(fn ($attendance) => $this->attendancePayload($attendance)),
             'recentMessages' => $student ? $this->messageQuery($request, $student)->take(5)->get()->map(fn ($message) => $this->messagePayload($message)) : [],
         ]);
     }
@@ -327,6 +330,8 @@ class StudentsController
         return Inertia::render('StudentParent/Profile', [
             'title' => 'My Profile',
             'student' => $this->studentPayload($this->currentStudent($request)),
+            'linkedStudents' => $this->linkedStudentsPayload($request),
+            'selectedStudentId' => $this->currentStudent($request)?->student_id,
             'user' => $request->user(),
         ]);
     }
@@ -340,11 +345,13 @@ class StudentsController
         ]);
 
         $request->user()->update($validated);
-        $student = $this->currentStudent($request);
-        $student?->update([
-            'phone' => $validated['phone'] ?? $student->phone,
-            'gender' => $validated['gender'] ?? $student->gender,
-        ]);
+        if (strtolower((string) $request->user()?->role) === 'student') {
+            $student = $this->currentStudent($request);
+            $student?->update([
+                'phone' => $validated['phone'] ?? $student->phone,
+                'gender' => $validated['gender'] ?? $student->gender,
+            ]);
+        }
 
         return back()->with('success', 'Profile updated.');
     }
@@ -367,6 +374,9 @@ class StudentsController
 
         return Inertia::render('StudentParent/Attendance', [
             'title' => 'My Attendance',
+            'student' => $this->studentPayload($student),
+            'linkedStudents' => $this->linkedStudentsPayload($request),
+            'selectedStudentId' => $student?->student_id,
             'attendance' => $this->attendanceQuery($student)->get()->map(fn ($attendance) => $this->attendancePayload($attendance)),
         ]);
     }
@@ -378,6 +388,8 @@ class StudentsController
         return Inertia::render('StudentParent/ExcuseLetters', [
             'title' => 'Excuse Letters',
             'student' => $this->studentPayload($student),
+            'linkedStudents' => $this->linkedStudentsPayload($request),
+            'selectedStudentId' => $student?->student_id,
             'letters' => $student
                 ? $student->excuseLetters()->with('submittedBy')->latest()->get()->map(fn (StudentExcuseLetter $letter) => $this->letterPayload($letter))
                 : [],
@@ -414,6 +426,29 @@ class StudentsController
         return back()->with('success', 'Excuse letter submitted.');
     }
 
+    public function downloadPortalExcuseLetter(Request $request, StudentExcuseLetter $letter)
+    {
+        $student = $this->currentStudent($request);
+        abort_unless($student && (int) $letter->student_id === (int) $student->student_id, 403);
+
+        $letter->loadMissing(['student.section', 'submittedBy']);
+        $studentName = trim($letter->student->first_name.' '.$letter->student->last_name);
+        $section = $letter->student->section?->section_name ?: 'Section';
+        $submittedBy = $letter->submittedBy?->name ?: $studentName;
+        $filename = 'excuse-letter-'.$letter->student_excuse_letter_id.'.doc';
+        $html = view('documents.excuse-letter', [
+            'letter' => $letter,
+            'studentName' => $studentName,
+            'section' => $section,
+            'submittedBy' => $submittedBy,
+        ])->render();
+
+        return response($html, 200, [
+            'Content-Type' => 'application/msword; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        ]);
+    }
+
     public function portalMessages(Request $request)
     {
         $student = $this->currentStudent($request);
@@ -421,6 +456,8 @@ class StudentsController
         return Inertia::render('StudentParent/Messages', [
             'title' => 'Messages',
             'student' => $this->studentPayload($student),
+            'linkedStudents' => $this->linkedStudentsPayload($request),
+            'selectedStudentId' => $student?->student_id,
             'messages' => $student ? $this->messageQuery($request, $student)->get()->map(fn ($message) => $this->messagePayload($message)) : [],
             'instructors' => Instructor::query()
                 ->with('user:user_id,name,email')
@@ -448,19 +485,47 @@ class StudentsController
             'attachment' => ['nullable', 'file', 'max:5120', 'mimes:pdf,doc,docx,jpg,jpeg,png'],
         ]);
 
+        if (! empty($validated['instructor_user_id'])) {
+            abort_unless(
+                Instructor::query()->where('user_id', $validated['instructor_user_id'])->exists(),
+                422,
+                'Selected instructor is not available.',
+            );
+        }
+
         $attachment = $request->file('attachment');
+        $attachmentMime = null;
+        $attachmentSize = null;
         if ($attachment) {
             $validated['attachment_path'] = $attachment->store('student-portal-messages', 'public');
             $validated['attachment_name'] = $attachment->getClientOriginalName();
+            $attachmentMime = $attachment->getClientMimeType();
+            $attachmentSize = $attachment->getSize();
         }
         unset($validated['attachment']);
 
-        StudentPortalMessage::query()->create([
+        $message = StudentPortalMessage::query()->create([
             ...$validated,
             'student_id' => $student->student_id,
             'sender_user_id' => $request->user()->user_id,
             'sender_role' => strtolower((string) $request->user()->role),
         ]);
+
+        if (! empty($validated['instructor_user_id'])) {
+            Message::query()->create([
+                'instructor_user_id' => $validated['instructor_user_id'],
+                'sender_type' => strtolower((string) $request->user()->role),
+                'sender_name' => $request->user()->name,
+                'sender_email' => $request->user()->email,
+                'student_number' => $student->student_number,
+                'subject' => $message->subject,
+                'body' => $message->body,
+                'attachment_path' => $message->attachment_path,
+                'attachment_name' => $message->attachment_name,
+                'attachment_mime' => $attachmentMime,
+                'attachment_size' => $attachmentSize,
+            ]);
+        }
 
         return back()->with('success', 'Message sent.');
     }
@@ -471,6 +536,9 @@ class StudentsController
 
         return Inertia::render('StudentParent/Notifications', [
             'title' => 'Notifications',
+            'student' => $this->studentPayload($student),
+            'linkedStudents' => $this->linkedStudentsPayload($request),
+            'selectedStudentId' => $student?->student_id,
             'notifications' => $student
                 ? OnlineClassNotification::query()
                     ->with('onlineClass')
@@ -490,6 +558,18 @@ class StudentsController
         ]);
     }
 
+    public function markPortalNotificationRead(Request $request, OnlineClassNotification $notification)
+    {
+        $student = $this->currentStudent($request);
+        abort_unless($student && (int) $notification->student_id === (int) $student->student_id, 403);
+
+        if (! $notification->read_at) {
+            $notification->update(['read_at' => now()]);
+        }
+
+        return back();
+    }
+
     private function logActivity(string $action, string $tableName, string $description): void
     {
         ActivityLog::create([
@@ -505,17 +585,40 @@ class StudentsController
         $role = strtolower((string) $request->user()?->role);
 
         if ($role === 'parent') {
-            return $request->user()
+            $query = $request->user()
                 ?->linkedStudents()
                 ->with(['section', 'strand'])
-                ->orderBy('students.student_id')
-                ->first();
+                ->orderBy('students.student_id');
+
+            if ($request->filled('student_id')) {
+                $selected = (clone $query)->where('students.student_id', (int) $request->input('student_id'))->first();
+                if ($selected) {
+                    return $selected;
+                }
+            }
+
+            return $query?->first();
         }
 
         return Students::query()
             ->with(['section', 'strand'])
             ->where('email', $request->user()?->email)
             ->first();
+    }
+
+    private function linkedStudentsPayload(Request $request)
+    {
+        if (strtolower((string) $request->user()?->role) !== 'parent') {
+            return [];
+        }
+
+        return $request->user()
+            ?->linkedStudents()
+            ->with(['section', 'strand'])
+            ->orderBy('students.student_id')
+            ->get()
+            ->map(fn (Students $student) => $this->studentPayload($student))
+            ->values() ?? [];
     }
 
     private function studentPayload(?Students $student): ?array
@@ -556,8 +659,35 @@ class StudentsController
             'room' => $attendance->room,
             'time_in' => $attendance->time_in,
             'time_out' => $attendance->time_out,
+            'class_time' => trim(implode(' - ', array_filter([
+                $this->shortTime($attendance->time_start ?? $attendance->schedule?->time_start),
+                $this->shortTime($attendance->time_end ?? $attendance->schedule?->time_end),
+            ]))),
+            'duration' => $this->durationLabel($attendance->time_in, $attendance->time_out),
             'status' => $attendance->status,
         ];
+    }
+
+    private function shortTime($value): ?string
+    {
+        if (! $value) {
+            return null;
+        }
+
+        return date('g:i A', strtotime((string) $value));
+    }
+
+    private function durationLabel($start, $end): ?string
+    {
+        if (! $start || ! $end) {
+            return null;
+        }
+
+        $seconds = max(0, strtotime((string) $end) - strtotime((string) $start));
+        $hours = intdiv($seconds, 3600);
+        $minutes = intdiv($seconds % 3600, 60);
+
+        return trim(($hours ? "{$hours}h " : '').($minutes ? "{$minutes}m" : '')) ?: '0m';
     }
 
     private function messageQuery(Request $request, Students $student)
@@ -567,7 +697,7 @@ class StudentsController
         return StudentPortalMessage::query()
             ->with(['sender', 'instructor'])
             ->where('student_id', $student->student_id)
-            ->when($role === 'student', fn ($query) => $query->where('sender_role', 'student'))
+            ->when($role === 'student', fn ($query) => $query->whereIn('sender_role', ['student', 'instructor']))
             ->latest();
     }
 
@@ -599,6 +729,7 @@ class StudentsController
             'submitted_by_role' => $letter->submitted_by_role,
             'attachment_name' => $letter->attachment_name,
             'attachment_url' => $letter->attachment_path ? Storage::disk('public')->url($letter->attachment_path) : null,
+            'download_url' => route('student-parent.excuse-letters.download', $letter),
             'created_at' => $letter->created_at?->toDateTimeString(),
         ];
     }

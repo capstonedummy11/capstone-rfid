@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\Instructor;
+use App\Models\Message;
 use App\Models\OnlineClass;
 use App\Models\OnlineClassAttendance;
 use App\Models\OnlineClassAuditLog;
 use App\Models\Schedule;
 use App\Models\Students;
 use App\Models\SystemSetting;
+use App\Services\AwsFaceRecognitionService;
 use App\Services\OnlineClassAuditLogger;
 use App\Services\OnlineClassNotificationService;
 use Illuminate\Http\Request;
@@ -30,6 +32,7 @@ class OnlineClassController
         $role = strtolower(trim((string) $user?->role));
         $instructorId = $this->instructorId($user?->user_id);
 
+        $faceAvailability = $this->onlineClassFaceAvailability();
         $classes = OnlineClass::query()
             ->with(['section', 'subject', 'instructor.user', 'attachments'])
             ->when($role === 'instructor', fn ($query) => $query->where('instructor_id', $instructorId ?: 0))
@@ -46,7 +49,8 @@ class OnlineClassController
             'defaultRequireFaceRecognition' => SystemSetting::boolean(
                 SystemSetting::ONLINE_CLASS_FACE_RECOGNITION_DEFAULT,
                 true,
-            ),
+            ) && $faceAvailability['available'],
+            'faceRecognitionAvailability' => $faceAvailability,
             'currentUserRole' => $role,
         ]);
     }
@@ -56,6 +60,8 @@ class OnlineClassController
         $schedule = $this->authorizedSchedule($request, (int) $request->input('schedule_id'));
 
         $validated = $this->validatedClassData($request);
+        $faceWarning = $this->faceRequirementWarning($validated);
+        $validated = $this->normalizeFaceRequirement($validated);
         unset($validated['schedule_id'], $validated['attachments']);
         $onlineClass = OnlineClass::query()->create([
             ...$validated,
@@ -71,7 +77,7 @@ class OnlineClassController
         $this->auditLogger->log('online_class_created', $onlineClass, $request->user(), $request, null, $onlineClass->fresh()->toArray());
         $this->notificationService->notifyStudents($onlineClass->fresh(['section', 'subject', 'instructor.user']), 'created');
 
-        return back()->with('success', 'Online class created.');
+        return back()->with('success', $faceWarning ?: 'Online class created.');
     }
 
     public function update(Request $request, OnlineClass $onlineClass)
@@ -81,6 +87,8 @@ class OnlineClassController
         $schedule = $this->authorizedSchedule($request, (int) $request->input('schedule_id'));
 
         $validated = $this->validatedClassData($request);
+        $faceWarning = $this->faceRequirementWarning($validated);
+        $validated = $this->normalizeFaceRequirement($validated);
         unset($validated['schedule_id'], $validated['attachments']);
         $onlineClass->update([
             ...$validated,
@@ -106,7 +114,7 @@ class OnlineClassController
         }
         $this->notificationService->notifyStudents($onlineClass->fresh(['section', 'subject', 'instructor.user']), $action === 'online_class_rescheduled' ? 'rescheduled' : 'updated');
 
-        return back()->with('success', 'Online class updated.');
+        return back()->with('success', $faceWarning ?: 'Online class updated.');
     }
 
     public function cancel(Request $request, OnlineClass $onlineClass)
@@ -151,6 +159,10 @@ class OnlineClassController
 
         return Inertia::render('StudentParent/OnlineClasses', [
             'title' => 'Online Classes',
+            'student' => $this->studentPayload($student),
+            'linkedStudents' => $this->linkedStudentsPayload($request),
+            'selectedStudentId' => $student?->student_id,
+            'faceRecognitionAvailability' => $this->onlineClassFaceAvailability(),
             'onlineClasses' => $classes,
         ]);
     }
@@ -163,13 +175,25 @@ class OnlineClassController
 
         $validated = $request->validate([
             'face_verified' => ['nullable', 'boolean'],
+            'face_image' => ['nullable', 'string'],
         ]);
 
-        if ($onlineClass->require_face_recognition && ! (bool) ($validated['face_verified'] ?? false)) {
+        $faceVerified = (bool) ($validated['face_verified'] ?? false);
+        $faceVerification = null;
+        if ($onlineClass->require_face_recognition) {
+            $faceVerification = $this->verifyStudentFaceCapture($student, (string) ($validated['face_image'] ?? ''));
+            $faceVerified = $faceVerification['verified'];
+            if (($faceVerification['bypassed'] ?? false) === true) {
+                $this->notifyInstructorFaceBypassOnce($onlineClass, $student, $faceVerification['message']);
+            }
+        }
+
+        if ($onlineClass->require_face_recognition && ! $faceVerified) {
             $this->auditLogger->log('student_failed_face_recognition', $onlineClass, $request->user(), $request, null, [
                 'student_id' => $student->student_id,
+                'reason' => $faceVerification['message'] ?? 'Face verification failed.',
             ]);
-            abort(422, 'Facial recognition is required before joining this class.');
+            abort(422, $faceVerification['message'] ?? 'Facial recognition is required before joining this class.');
         }
 
         $joinedAt = now();
@@ -184,8 +208,8 @@ class OnlineClassController
                 'status' => $isLate ? 'late' : 'present',
                 'is_late' => $isLate,
                 'face_required' => $onlineClass->require_face_recognition,
-                'face_verified' => $onlineClass->require_face_recognition ? true : ($validated['face_verified'] ?? null),
-                'face_verified_at' => $onlineClass->require_face_recognition ? $joinedAt : null,
+                'face_verified' => $onlineClass->require_face_recognition ? $faceVerified : ($validated['face_verified'] ?? null),
+                'face_verified_at' => $onlineClass->require_face_recognition && $faceVerified ? $joinedAt : null,
             ],
         );
 
@@ -318,15 +342,195 @@ class OnlineClassController
     {
         $role = strtolower((string) $request->user()?->role);
         if ($role === 'parent') {
-            return $request->user()?->linkedStudents()->orderBy('students.student_id')->first();
+            $query = $request->user()
+                ?->linkedStudents()
+                ->with(['section', 'strand'])
+                ->orderBy('students.student_id');
+
+            if ($request->filled('student_id')) {
+                $selected = (clone $query)->where('students.student_id', (int) $request->input('student_id'))->first();
+                if ($selected) {
+                    return $selected;
+                }
+            }
+
+            return $query?->first();
         }
 
-        return Students::query()->where('email', $request->user()?->email)->first();
+        return Students::query()->with(['section', 'strand'])->where('email', $request->user()?->email)->first();
+    }
+
+    private function linkedStudentsPayload(Request $request)
+    {
+        if (strtolower((string) $request->user()?->role) !== 'parent') {
+            return [];
+        }
+
+        return $request->user()
+            ?->linkedStudents()
+            ->with(['section', 'strand'])
+            ->orderBy('students.student_id')
+            ->get()
+            ->map(fn (Students $student) => $this->studentPayload($student))
+            ->values() ?? [];
+    }
+
+    private function studentPayload(?Students $student): ?array
+    {
+        if (! $student) {
+            return null;
+        }
+
+        return [
+            'student_id' => $student->student_id,
+            'student_number' => $student->student_number,
+            'name' => trim($student->first_name.' '.$student->last_name),
+            'email' => $student->email,
+            'section' => $student->section?->section_name,
+            'strand' => $student->strand?->strand_code,
+            'school_year' => $student->school_year,
+        ];
     }
 
     private function instructorId(?int $userId): ?int
     {
         return Instructor::query()->where('user_id', $userId)->value('instructor_id');
+    }
+
+    private function verifyStudentFaceCapture(Students $student, string $image): array
+    {
+        if (! SystemSetting::boolean(SystemSetting::FACE_RECOGNITION_ENABLED, true)) {
+            return [
+                'verified' => true,
+                'provider' => 'disabled',
+                'message' => 'Face recognition is disabled.',
+            ];
+        }
+
+        $availability = (new AwsFaceRecognitionService)->availability();
+        if (! $availability['available']) {
+            return [
+                'verified' => true,
+                'provider' => 'unavailable',
+                'bypassed' => true,
+                'message' => 'Face recognition is unavailable. Attendance was allowed without facial verification.',
+            ];
+        }
+
+        if ($image === '') {
+            return [
+                'verified' => false,
+                'message' => 'Camera capture is required before joining this class.',
+            ];
+        }
+
+        $faceImages = array_values(array_filter($student->face_images ?? []));
+        if ($faceImages === []) {
+            return [
+                'verified' => false,
+                'message' => 'Student has no saved face image.',
+            ];
+        }
+
+        $faceResult = (new AwsFaceRecognitionService)->compareBase64WithStoredImage($image, $faceImages[0]);
+        if ($faceResult === null) {
+            return [
+                'verified' => true,
+                'provider' => 'unavailable',
+                'bypassed' => true,
+                'message' => 'AWS face recognition is unavailable or could not compare the images.',
+            ];
+        }
+
+        if (! $faceResult['verified']) {
+            return [
+                ...$faceResult,
+                'message' => 'Face mismatch.',
+            ];
+        }
+
+        return [
+            ...$faceResult,
+            'message' => 'Face verified.',
+        ];
+    }
+
+    private function normalizeFaceRequirement(array $validated): array
+    {
+        $availability = (new AwsFaceRecognitionService)->availability();
+        if (! SystemSetting::boolean(SystemSetting::FACE_RECOGNITION_ENABLED, true)) {
+            $availability = [
+                'available' => false,
+                'message' => 'Face Rekognition is disabled in system settings.',
+            ];
+        }
+        if ((bool) ($validated['require_face_recognition'] ?? false) && ! $availability['available']) {
+            $validated['require_face_recognition'] = false;
+        }
+
+        return $validated;
+    }
+
+    private function faceRequirementWarning(array $validated): ?string
+    {
+        if (! (bool) ($validated['require_face_recognition'] ?? false)) {
+            return null;
+        }
+
+        $availability = $this->onlineClassFaceAvailability();
+        if ($availability['available']) {
+            return null;
+        }
+
+        return 'Face recognition is unavailable, so the class was saved with facial recognition off. '.$availability['message'];
+    }
+
+    private function onlineClassFaceAvailability(): array
+    {
+        if (! SystemSetting::boolean(SystemSetting::FACE_RECOGNITION_ENABLED, true)) {
+            return [
+                'available' => false,
+                'message' => 'Face Rekognition is disabled in system settings.',
+            ];
+        }
+
+        return (new AwsFaceRecognitionService)->availability();
+    }
+
+    private function notifyInstructorFaceBypassOnce(OnlineClass $onlineClass, Students $student, string $reason): void
+    {
+        $onlineClass->loadMissing(['instructor.user', 'subject']);
+        $instructorUser = $onlineClass->instructor?->user;
+        if (! $instructorUser) {
+            return;
+        }
+
+        $subject = 'Face recognition bypassed: '.$onlineClass->title;
+        $exists = Message::query()
+            ->where('instructor_user_id', $instructorUser->user_id)
+            ->where('student_number', $student->student_number)
+            ->where('subject', $subject)
+            ->exists();
+
+        if ($exists) {
+            return;
+        }
+
+        Message::query()->create([
+            'instructor_user_id' => $instructorUser->user_id,
+            'sender_type' => 'system',
+            'sender_name' => 'System',
+            'sender_email' => null,
+            'student_number' => $student->student_number,
+            'subject' => $subject,
+            'body' => implode("\n", [
+                'A student was allowed to join an online class without facial verification because the face recognition provider was unavailable.',
+                'Student: '.trim($student->first_name.' '.$student->last_name),
+                'Class: '.$onlineClass->title,
+                'Subject: '.($onlineClass->subject?->subject_name ?? $onlineClass->subject_code),
+                'Reason: '.$reason,
+            ]),
+        ]);
     }
 
     private function storeAttachments(Request $request, OnlineClass $onlineClass): void

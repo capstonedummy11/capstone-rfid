@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Instructor;
 use App\Models\Message;
+use App\Models\StudentPortalMessage;
+use App\Models\Students;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -102,6 +104,39 @@ class MessageController
         }
 
         return back();
+    }
+
+    public function reply(Request $request, Message $message)
+    {
+        $user = $request->user();
+        $role = strtolower(trim((string) $user?->role));
+
+        abort_unless($role === 'admin' || (int) $message->instructor_user_id === (int) $user->user_id, 403);
+
+        $validated = $request->validate([
+            'body' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $student = Students::query()
+            ->where('student_number', $message->student_number)
+            ->first();
+
+        abort_unless($student, 422, 'The original message is not linked to a student record.');
+
+        StudentPortalMessage::query()->create([
+            'student_id' => $student->student_id,
+            'sender_user_id' => $user->user_id,
+            'sender_role' => 'instructor',
+            'instructor_user_id' => $message->instructor_user_id,
+            'subject' => 'Re: '.$message->subject,
+            'body' => $validated['body'],
+        ]);
+
+        if (! $message->read_at) {
+            $message->update(['read_at' => now()]);
+        }
+
+        return back()->with('success', 'Reply sent to the student portal.');
     }
 
     private function instructorOptions()

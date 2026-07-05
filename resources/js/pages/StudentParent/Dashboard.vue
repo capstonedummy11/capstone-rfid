@@ -1,27 +1,73 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
 import StatCard from '@/components/StudentPortal/StatCard.vue';
+import LinkedStudentSelector from '@/components/StudentPortal/LinkedStudentSelector.vue';
 import { Bell, Clock3, Search, Users } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 const props = defineProps({
     student: { type: Object, default: null },
+    linkedStudents: { type: Array, default: () => [] },
+    selectedStudentId: { type: [Number, String, null], default: null },
     stats: { type: Object, default: () => ({}) },
     recentAttendance: { type: Array, default: () => [] },
     attendance: { type: Array, default: () => [] },
     recentMessages: { type: Array, default: () => [] },
 });
 
+const search = ref('');
+const statusFilter = ref('');
+const currentPage = ref(1);
+const pageSize = 8;
+const today = new Date();
+
 const calendarDays = computed(() => {
     const days = [];
-    const monthLength = 31;
-    const firstDayOffset = 0;
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const monthLength = new Date(year, month + 1, 0).getDate();
+    const firstDayOffset = new Date(year, month, 1).getDay();
 
     for (let i = 0; i < firstDayOffset; i += 1) days.push(null);
     for (let day = 1; day <= monthLength; day += 1) days.push(day);
 
     return days;
 });
+
+const monthLabel = computed(() =>
+    today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+);
+
+const filteredAttendance = computed(() => {
+    const term = search.value.trim().toLowerCase();
+    return props.attendance.filter((record) => {
+        const matchesSearch = !term || [
+            record.subject,
+            record.room,
+            record.date,
+            record.status,
+        ].some((value) => String(value || '').toLowerCase().includes(term));
+        const matchesStatus = !statusFilter.value || String(record.status || '').toLowerCase() === statusFilter.value;
+
+        return matchesSearch && matchesStatus;
+    });
+});
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredAttendance.value.length / pageSize)));
+const paginatedAttendance = computed(() => {
+    const start = (currentPage.value - 1) * pageSize;
+    return filteredAttendance.value.slice(start, start + pageSize);
+});
+
+watch([search, statusFilter], () => {
+    currentPage.value = 1;
+});
+
+const resetFilters = () => {
+    search.value = '';
+    statusFilter.value = '';
+    currentPage.value = 1;
+};
 
 const statusClass = (status) => {
     const value = String(status || '').toLowerCase();
@@ -41,11 +87,14 @@ const statusClass = (status) => {
                         {{ student?.name || 'Student' }} Â| {{ student?.section || 'No section linked' }}
                     </p>
                 </div>
-                <div class="flex items-center gap-3 rounded-full bg-white px-4 py-2 shadow-sm">
-                    <div class="h-9 w-9 rounded-full bg-slate-200" />
-                    <div class="text-right">
-                        <p class="text-sm font-bold text-slate-900">{{ student?.name || 'Student' }}</p>
-                        <p class="text-xs text-slate-500">{{ student?.email || 'No email linked' }}</p>
+                <div class="flex flex-wrap items-center justify-end gap-3">
+                    <LinkedStudentSelector :students="linkedStudents" :selected-student-id="selectedStudentId" />
+                    <div class="flex items-center gap-3 rounded-full bg-white px-4 py-2 shadow-sm">
+                        <div class="h-9 w-9 rounded-full bg-slate-200" />
+                        <div class="text-right">
+                            <p class="text-sm font-bold text-slate-900">{{ student?.name || 'Student' }}</p>
+                            <p class="text-xs text-slate-500">{{ student?.email || 'No email linked' }}</p>
+                        </div>
                     </div>
                 </div>
             </header>
@@ -65,6 +114,7 @@ const statusClass = (status) => {
             <section class="grid gap-4 lg:grid-cols-[330px_1fr]">
                 <div class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-100">
                     <h2 class="text-sm font-black uppercase text-slate-900">Calendar</h2>
+                    <p class="mt-1 text-xs font-semibold text-slate-500">{{ monthLabel }}</p>
                     <div class="mt-4 grid grid-cols-7 gap-2 text-center text-[11px] font-bold text-slate-500">
                         <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
                     </div>
@@ -73,7 +123,7 @@ const statusClass = (status) => {
                             v-for="(day, index) in calendarDays"
                             :key="index"
                             class="rounded-full py-1"
-                            :class="{ 'bg-slate-100 font-black text-sky-600': day === 13 }"
+                            :class="{ 'bg-slate-100 font-black text-sky-600': day === today.getDate() }"
                         >
                             {{ day || '' }}
                         </span>
@@ -102,11 +152,22 @@ const statusClass = (status) => {
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <h2 class="text-sm font-black uppercase text-slate-900">Attendance History</h2>
                     <div class="flex flex-wrap items-center gap-2">
-                        <div class="flex items-center gap-2 rounded-full border border-slate-200 px-3 py-2 text-xs text-slate-400">
+                        <div class="flex items-center gap-2 rounded-full border border-slate-200 px-3 py-2 text-xs text-slate-500">
                             <Search class="h-3.5 w-3.5" />
-                            Quick search...
+                            <input
+                                v-model="search"
+                                type="search"
+                                class="w-36 bg-transparent outline-none placeholder:text-slate-400"
+                                placeholder="Quick search..."
+                            />
                         </div>
-                        <button class="rounded-md border border-slate-200 px-3 py-2 text-xs font-bold text-slate-500">Reset</button>
+                        <select v-model="statusFilter" class="rounded-md border border-slate-200 px-3 py-2 text-xs font-bold text-slate-500">
+                            <option value="">All status</option>
+                            <option value="present">Present</option>
+                            <option value="late">Late</option>
+                            <option value="absent">Absent</option>
+                        </select>
+                        <button class="rounded-md border border-slate-200 px-3 py-2 text-xs font-bold text-slate-500" @click="resetFilters">Reset</button>
                         <Link
                             :href="route('student-parent.excuse-letters.index')"
                             class="rounded-md bg-sky-500 px-4 py-2 text-xs font-bold text-white"
@@ -130,20 +191,20 @@ const statusClass = (status) => {
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
-                            <tr v-for="record in attendance" :key="record.attendance_id">
+                            <tr v-for="record in paginatedAttendance" :key="record.attendance_id">
                                 <td class="px-3 py-4 font-bold text-slate-800">{{ record.subject || 'Subject' }}</td>
                                 <td class="px-3 py-4 text-slate-500">{{ record.room || '-' }}</td>
                                 <td class="px-3 py-4 text-slate-500">{{ record.date || '-' }}</td>
-                                <td class="px-3 py-4 text-slate-500">--</td>
+                                <td class="px-3 py-4 text-slate-500">{{ record.class_time || '-' }}</td>
                                 <td class="px-3 py-4 text-sky-600">{{ record.time_in || '--' }} <span class="text-slate-300">...</span> {{ record.time_out || '--' }}</td>
-                                <td class="px-3 py-4 text-slate-500">--</td>
+                                <td class="px-3 py-4 text-slate-500">{{ record.duration || '-' }}</td>
                                 <td class="px-3 py-4">
                                     <span class="rounded-full px-3 py-1 text-[10px] font-black uppercase" :class="statusClass(record.status)">
                                         {{ record.status || 'Absent' }}
                                     </span>
                                 </td>
                             </tr>
-                            <tr v-if="attendance.length === 0">
+                            <tr v-if="paginatedAttendance.length === 0">
                                 <td colspan="7" class="px-3 py-10 text-center text-slate-400">No attendance records found.</td>
                             </tr>
                         </tbody>
@@ -151,9 +212,21 @@ const statusClass = (status) => {
                 </div>
 
                 <div class="mt-4 flex justify-end gap-2 text-xs">
-                    <button class="rounded-md border border-slate-200 px-3 py-2 text-slate-400">Previous</button>
-                    <span class="px-3 py-2 text-slate-500">Page 1 of 100</span>
-                    <button class="rounded-md border border-sky-200 px-3 py-2 font-bold text-sky-500">Next</button>
+                    <button
+                        class="rounded-md border border-slate-200 px-3 py-2 text-slate-500 disabled:text-slate-300"
+                        :disabled="currentPage === 1"
+                        @click="currentPage = Math.max(1, currentPage - 1)"
+                    >
+                        Previous
+                    </button>
+                    <span class="px-3 py-2 text-slate-500">Page {{ currentPage }} of {{ totalPages }}</span>
+                    <button
+                        class="rounded-md border border-sky-200 px-3 py-2 font-bold text-sky-500 disabled:text-slate-300"
+                        :disabled="currentPage === totalPages"
+                        @click="currentPage = Math.min(totalPages, currentPage + 1)"
+                    >
+                        Next
+                    </button>
                 </div>
             </section>
         </div>

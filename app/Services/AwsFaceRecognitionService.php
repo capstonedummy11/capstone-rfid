@@ -7,6 +7,37 @@ use Illuminate\Support\Facades\Storage;
 
 class AwsFaceRecognitionService
 {
+    public function availability(): array
+    {
+        if (! class_exists(\Aws\Rekognition\RekognitionClient::class)) {
+            return [
+                'available' => false,
+                'message' => 'AWS Rekognition SDK is not installed.',
+            ];
+        }
+
+        $key = config('services.aws_rekognition.key', env('AWS_ACCESS_KEY_ID'));
+        $secret = config('services.aws_rekognition.secret', env('AWS_SECRET_ACCESS_KEY'));
+        $region = config('services.aws_rekognition.region', config('services.ses.region', 'us-east-1'));
+
+        if (! $key || ! $secret || ! $region) {
+            return [
+                'available' => false,
+                'message' => 'AWS Rekognition credentials or region are missing.',
+            ];
+        }
+
+        return [
+            'available' => true,
+            'message' => 'AWS Rekognition is configured.',
+        ];
+    }
+
+    public function isAvailable(): bool
+    {
+        return (bool) $this->availability()['available'];
+    }
+
     public function compareBase64WithStoredImage(string $capturedDataUrl, string $storedPath): ?array
     {
         if (! class_exists(\Aws\Rekognition\RekognitionClient::class)) {

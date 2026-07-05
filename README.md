@@ -132,7 +132,7 @@ Common seeded demo accounts include:
 
 `StudentParentAccountSeeder` reuses demo students `SHS-ICT-1101` and `SHS-ICT-1102` when available. If no student exists yet, it creates fallback ICT student records. The parent demo account is linked to Andrea Santos through `parent_student_links` with relationship `mother`.
 
-Discovery: this branch has the student/parent demo accounts and database link, but the source files do not currently include the StudentParent Vue page folder or the matching portal methods in `StudentsController`. `php artisan route:list --path=student-parent` may still show cached StudentParent routes from `bootstrap/cache/routes-v7.php`; clear/regenerate route cache after restoring or changing the portal source files.
+Current state: this branch now includes the StudentParent Vue pages, portal controller methods, demo student/parent accounts, and the parent-student database link.
 
 ## README Maintenance Rule
 
@@ -190,9 +190,25 @@ Online Class database tables:
 
 Known limitations:
 
-- The student join page currently uses a confirmation flow to submit `face_verified` when facial recognition is required. A camera capture UI should be wired to the existing `/face-recognition/verify-student` endpoint in a later pass.
+- Online Class join now uses the shared camera capture component and verifies the captured image through the existing student face-verification flow before recording required-face attendance.
+- The Online Class join endpoint also validates the submitted face image server-side before recording attendance, so a plain `face_verified` flag is not accepted for required-face classes.
 - The log export is CSV, which Excel can open. A native `.xlsx` export is not implemented.
-- In-app notifications are stored but do not yet have a dedicated student notification center page.
+- Student/parent notification center exists at `/student-parent/notifications` and supports marking notifications as read.
+- Student/parent messages are mirrored into the instructor inbox when an instructor is selected. Messages without a selected instructor remain portal-only records.
+- Parent accounts can switch between linked students on portal pages when more than one child is linked.
+- Online Class facial recognition can only be required when Face Rekognition is enabled and AWS Rekognition appears configured. Settings and Online Class forms warn and keep the toggle off when unavailable.
+- If an older required-face online class is joined while AWS Rekognition is unavailable, the student is allowed to join and the instructor receives one system inbox message per student/class.
+
+Student portal unfinished items:
+
+- Excuse Letter now generates a Word-compatible `.doc` download from the saved letter record. Native PDF generation is still not implemented.
+- Excuse Letter has no instructor/admin review workflow yet; submitted letters stay in the student portal with their stored status.
+- Portal Messages can receive instructor replies from the instructor inbox; the thread is still simple and does not support nested conversations or attachments on replies.
+- Portal Messages allow "No instructor selected"; those records stay portal-only and are not visible to instructors.
+- Attendance page now has client-side search, status filtering, reset, class time, duration, and pagination. It remains read-only.
+- Notifications currently cover Online Class events only; excuse-letter status changes and portal message replies do not create student notifications yet.
+- Parent profile updates now save only the parent user profile; student accounts still sync their own phone/gender to their student record.
+- Online Class face verification depends on existing AWS Rekognition credentials and saved student face images. Missing AWS setup prevents enabling required face recognition; missing student face images can still block required-face verification when the provider is available.
 
 ## Important Routes
 
@@ -208,8 +224,10 @@ Known limitations:
 - `/student-parent/attendance` - student attendance history.
 - `/student-parent/online-classes` - student online class list and join page.
 - `/student-parent/excuse-letters` - student/parent excuse letter submission and history.
+- `/student-parent/excuse-letters/{letter}/download` - generated Word-compatible excuse-letter download.
 - `/student-parent/messages` - student/parent portal messages.
 - `/student-parent/notifications` - student online class notifications.
+- `/admin/messages/{message}/reply` - instructor/admin reply back to the linked student portal thread.
 - `/admin/attendance/scanner` and `/admin/attendance/logs` - attendance tools.
 - `/admin/inventory` and `/admin/borrow` - inventory and borrowing.
 - `/attendance-control-panel/login` - console panel login.
@@ -258,20 +276,18 @@ tests/                    Pest/PHPUnit tests
 
 ### Work In Progress
 
-- Online Class facial recognition currently records the verification result supplied by the student page. The actual camera-based verification UI still needs to be connected to the existing face verification endpoint.
+- No active Online Class implementation work is pending from the latest pass.
 
 ### Remaining Tasks
 
-- Wire student Online Class join flow to a real camera capture/face verification UI.
-- Add a student notification center for `online_class_notifications`.
 - Add automated feature tests for instructor scoping, student section scoping, audit logs, and notification creation.
 - Add optional native Excel export if `.xlsx` output is required instead of CSV.
-- Run migrations and seeders against a live MySQL database.
+- Add native PDF output for submitted excuse letters if `.pdf` is required instead of the current Word-compatible `.doc`.
 
 ### Next Steps
 
 - Start MySQL/XAMPP.
-- Run `php artisan migrate`.
+- Run `php artisan migrate` if a fresh database is used. On this branch, all migrations through `2026_07_04_000003_create_student_portal_letters_and_messages` were verified as `Ran`.
 - Log in as `instructor@sample.com` / `sample`, open `/admin/online-classes`, and create a class.
 - Log in as `andrea.santos@student.sample.com` / `sample`, open `/student-parent/online-classes`, and test joining.
 - Confirm `online_class_audit_logs`, `online_class_notifications`, and `online_class_attendances` rows are created.
@@ -281,23 +297,28 @@ tests/                    Pest/PHPUnit tests
 - Online Class uses separate purpose-built tables instead of overloading RFID attendance tables.
 - Instructor authorization is based on `schedules.instructor_id`.
 - Student access is based on matching the authenticated student user's email to a `students.email` row and then checking `section_id`.
+- Parent portal access uses `parent_student_links`; the selected child is passed as `student_id` and scoped to linked students only.
 - Online Class logs are append-only; no update/delete route is provided.
 - Notifications are dedicated Online Class records because the existing `messages` feature is student/parent-to-instructor communication, not system notifications.
+- Portal messages are stored in `student_portal_messages` for student/parent visibility and mirrored into `messages` only when an instructor recipient is selected.
+- Instructor replies are written back into `student_portal_messages` with `sender_role = instructor`; student users can see student-authored messages and instructor replies, but not parent-authored messages.
+- Parent profile edits are kept separate from selected student profile data.
 
 ### Known Issues
 
-- Local MySQL was not available earlier in this branch, so migration execution was not verified against a live database.
-- The existing StudentParent portal source was missing in this branch before this change; only the Online Classes student page was added.
+- Online Class facial recognition depends on AWS Rekognition configuration and saved student face images. If AWS setup is unavailable, required facial recognition is kept off for new/edited classes and older required-face joins are allowed with a one-time instructor warning.
+- Generated excuse-letter downloads are Word-compatible `.doc` files, not native PDF files.
 
 ### Testing Status
 
 - Passed: PHP syntax checks for new controller, services, models, and migration.
 - Passed: `npm run build`.
-- Not run: full PHP test suite and live database migration.
+- Passed: `php artisan migrate`; all student/parent portal migrations are now marked `Ran`.
+- Not run: full PHP test suite.
 
 ### Documentation Status
 
-- `README.md` has been updated for the Online Class module, routes, schema, system setting, known limitations, and this handoff.
+- `README.md` has been updated for the Online Class module, route/schema changes, parent child selector, notification read handling, instructor inbox mirroring/replies, searchable message recipients, generated excuse-letter downloads, attendance filters, parent profile separation, face-recognition availability guards, migration status, and this handoff.
 
 ## AI Prompt And Change Log
 
@@ -305,6 +326,9 @@ Use this section as a lightweight record of prompts and repository changes made 
 
 | Date | Prompt / Request | Files Changed | Summary |
 | --- | --- | --- | --- |
+| 2026-07-05 | Finish selected student portal gaps: generated excuse letters, instructor replies, searchable message recipients, attendance filters, parent profile separation, and facial-recognition availability guards. | `app/Http/Controllers/StudentsController.php`, `app/Http/Controllers/MessageController.php`, `app/Http/Controllers/OnlineClassController.php`, `app/Http/Controllers/SystemSettingsController.php`, `app/Services/AwsFaceRecognitionService.php`, `routes/web.php`, `resources/views/documents/excuse-letter.blade.php`, `resources/js/pages/StudentParent/Attendance.vue`, `resources/js/pages/StudentParent/ExcuseLetters.vue`, `resources/js/pages/StudentParent/Messages.vue`, `resources/js/pages/StudentParent/OnlineClasses.vue`, `resources/js/pages/Auth/Admin/OnlineClasses.vue`, `resources/js/pages/Auth/Admin/SystemSettings.vue`, `resources/js/pages/Messages/Index.vue`, `README.md` | Added generated Word-compatible excuse-letter downloads, instructor replies back to the student portal, searchable instructor selection, full attendance search/filter/pagination, parent-only profile updates, AWS Rekognition availability checks, settings warnings/forced-off toggles, Online Class require-face safeguards, and one-time instructor warnings when old required-face joins bypass unavailable AWS. |
+| 2026-07-05 | Implement audit findings 3-6: dashboard controls, instructor message connection, real online-class face verification, and parent child selector. | `app/Http/Controllers/StudentsController.php`, `app/Http/Controllers/OnlineClassController.php`, `routes/web.php`, `resources/js/components/StudentPortal/LinkedStudentSelector.vue`, `resources/js/pages/StudentParent/*.vue`, `README.md` | Replaced dummy dashboard search/reset/pagination/class-time fields with working controls, mirrored portal messages into the instructor inbox when an instructor is selected, added notification mark-read support, added parent linked-student switching, connected Online Class join to camera capture and existing face verification, and verified the pending student portal migration ran. |
+| 2026-07-04 | Check student-side Online Class and add it if missing. | `resources/js/pages/StudentParent/OnlineClasses.vue`, `README.md` | Confirmed the student-side Online Class route/page/navigation already exist and cleaned a visible encoding artifact in the Online Classes page. |
 | 2026-07-04 | Add Account Ready 3 behavior to Student/Parent login. | `resources/js/pages/Auth/StudentParentLogin.vue`, `database/seeders/StudentParentAccountSeeder.php`, `README.md` | Updated the separate Student/Parent login page to show one ready profile at a time with three selectable account dots and seeded a third ready demo account for Miguel Reyes. |
 | 2026-07-04 | Change only the Student/Parent login page. | `routes/web.php`, `resources/js/app.js`, `app/Http/Responses/LoginResponse.php`, `resources/js/pages/Auth/StudentParentLogin.vue`, `README.md` | Added a separate `/student-parent-login` page with a split school-photo layout and saved Student/Parent demo profiles while leaving the normal admin/instructor login unchanged. Student and parent users now redirect to the Student Portal after login. |
 | 2026-07-04 | Replace student/parent Borrowings with Excuse Letters and add Messages with parent/student visibility rules. | `database/migrations/2026_07_04_000003_create_student_portal_letters_and_messages.php`, `app/Models/StudentExcuseLetter.php`, `app/Models/StudentPortalMessage.php`, `app/Http/Controllers/StudentsController.php`, `app/Models/Students.php`, `app/Http/Controllers/OnlineClassController.php`, `routes/web.php`, `resources/js/layouts/AuthNavbar.vue`, `resources/js/pages/StudentParent/ExcuseLetters.vue`, `resources/js/pages/StudentParent/Messages.vue`, `resources/js/pages/StudentParent/Dashboard.vue`, `resources/js/pages/StudentParent/Borrowings.vue`, `README.md` | Removed the student/parent Borrowings page, added excuse-letter submission with live preview, added portal messages, opened student-parent routes to linked parents, and enforced that parents can see linked student messages while students cannot see parent-authored messages. |

@@ -1,5 +1,5 @@
 <script setup>
-import { router } from '@inertiajs/vue3';
+import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import { FileText, Image, Inbox, MailOpen } from 'lucide-vue-next';
 
@@ -9,6 +9,9 @@ const props = defineProps({
 });
 
 const selectedId = ref(props.messages[0]?.id ?? null);
+const page = usePage();
+const flashSuccess = computed(() => page.props.flash?.success);
+const replyForm = useForm({ body: '' });
 
 const selectedMessage = computed(
     () => props.messages.find((message) => message.id === selectedId.value) ?? props.messages[0] ?? null,
@@ -28,6 +31,15 @@ watch(
     },
     { immediate: true },
 );
+
+const sendReply = () => {
+    if (!selectedMessage.value) return;
+
+    replyForm.post(route('admin.messages.reply', selectedMessage.value.id), {
+        preserveScroll: true,
+        onSuccess: () => replyForm.reset(),
+    });
+};
 </script>
 
 <template>
@@ -42,6 +54,9 @@ watch(
                 </div>
 
                 <div v-if="selectedMessage" class="flex-1 overflow-y-auto bg-slate-50 p-5 space-y-4">
+                    <p v-if="flashSuccess" class="rounded-md bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">
+                        {{ flashSuccess }}
+                    </p>
                     <!-- Bubble 1: subject / notice -->
                     <div class="flex items-start gap-3">
                         <div class="mt-1 h-9 w-9 shrink-0 rounded-full bg-slate-200"></div>
@@ -108,19 +123,21 @@ watch(
 
                 <!-- Bottom quick search bar, matching reference -->
                 <div class="border-t border-slate-100 bg-white px-4 py-3">
-                    <div class="flex items-center gap-3 rounded-full border border-slate-200 bg-slate-50 px-4 py-2.5">
+                    <form v-if="selectedMessage" class="flex items-center gap-3 rounded-full border border-slate-200 bg-slate-50 px-4 py-2.5" @submit.prevent="sendReply">
                         <input
+                            v-model="replyForm.body"
                             type="text"
-                            placeholder="Quick search..."
+                            placeholder="Reply to student portal..."
                             class="w-full bg-transparent text-sm text-slate-500 placeholder:text-slate-400 focus:outline-none"
+                            required
                         />
-                        <button type="button" class="shrink-0 text-slate-400 hover:text-slate-600">
+                        <button type="submit" class="shrink-0 text-slate-400 hover:text-slate-600" :disabled="replyForm.processing">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <line x1="22" y1="2" x2="11" y2="13"></line>
                                 <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                             </svg>
                         </button>
-                    </div>
+                    </form>
                 </div>
             </section>
 

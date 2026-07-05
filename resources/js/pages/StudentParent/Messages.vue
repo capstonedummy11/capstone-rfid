@@ -1,9 +1,12 @@
 <script setup>
 import { useForm, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import LinkedStudentSelector from '@/components/StudentPortal/LinkedStudentSelector.vue';
+import { computed, ref } from 'vue';
 
-defineProps({
+const props = defineProps({
     student: { type: Object, default: null },
+    linkedStudents: { type: Array, default: () => [] },
+    selectedStudentId: { type: [Number, String, null], default: null },
     messages: { type: Array, default: () => [] },
     instructors: { type: Array, default: () => [] },
 });
@@ -11,6 +14,15 @@ defineProps({
 const page = usePage();
 const flashSuccess = computed(() => page.props.flash?.success);
 const currentRole = computed(() => String(page.props.auth?.user?.role || '').toLowerCase());
+const instructorSearch = ref('');
+const filteredInstructors = computed(() => {
+    const term = instructorSearch.value.trim().toLowerCase();
+    if (!term) return props.instructors;
+
+    return props.instructors.filter((instructor) =>
+        [instructor.name, instructor.email].some((value) => String(value || '').toLowerCase().includes(term)),
+    );
+});
 
 const form = useForm({
     instructor_user_id: '',
@@ -32,19 +44,28 @@ const sendMessage = () => {
     <div class="p-4 sm:p-6">
         <div class="mx-auto grid max-w-7xl gap-5 lg:grid-cols-[380px_1fr]">
             <section class="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-                <h1 class="text-lg font-bold text-slate-900">New Message</h1>
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <h1 class="text-lg font-bold text-slate-900">New Message</h1>
+                    <LinkedStudentSelector :students="linkedStudents" :selected-student-id="selectedStudentId" />
+                </div>
                 <p class="mt-1 text-sm text-slate-500">
-                    Parents can view linked student messages. Students only see student-authored messages.
+                    Parents can view linked student messages. Students can see student-authored messages and instructor replies.
                 </p>
                 <p v-if="flashSuccess" class="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">{{ flashSuccess }}</p>
 
                 <form class="mt-4 flex flex-col gap-3" @submit.prevent="sendMessage">
                     <label class="text-sm font-semibold text-slate-700">
                         Instructor
+                        <input
+                            v-model="instructorSearch"
+                            type="search"
+                            placeholder="Search instructor..."
+                            class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                        />
                         <select v-model="form.instructor_user_id" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
                             <option value="">No instructor selected</option>
-                            <option v-for="instructor in instructors" :key="instructor.user_id" :value="instructor.user_id">
-                                {{ instructor.name }}
+                            <option v-for="instructor in filteredInstructors" :key="instructor.user_id" :value="instructor.user_id">
+                                {{ instructor.name }} - {{ instructor.email }}
                             </option>
                         </select>
                     </label>
@@ -77,8 +98,8 @@ const sendMessage = () => {
                             <div>
                                 <h3 class="font-bold text-slate-900">{{ message.subject }}</h3>
                                 <p class="text-xs text-slate-500">
-                                    {{ message.sender }} Â| {{ message.sender_role }}
-                                    <span v-if="message.instructor"> Â| To {{ message.instructor }}</span>
+                                    {{ message.sender }} | {{ message.sender_role }}
+                                    <span v-if="message.instructor"> | To {{ message.instructor }}</span>
                                 </p>
                             </div>
                             <span class="text-xs text-slate-400">{{ message.created_at }}</span>
