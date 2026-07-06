@@ -121,11 +121,19 @@ Common seeded demo accounts include:
 | Role | Email | Password |
 | --- | --- | --- |
 | Admin | `admin@gmail.com` | `password` |
+| Test admin | `test@example.com` | `password` |
 | Demo admin | `admin@sample.com` | `sample` |
+| Dev admin | `jeromebernante@gmail.com` | `1234` |
+| Dev admin | `vallecera@gmail.com` | `sample` |
 | Instructor | `instructor@sample.com` | `sample` |
 | Clinic | `clinic@sample.com` | `sample` |
 | Registrar | `registrar@sample.com` | `sample` |
 | Console | `console@sample.com` | `sample` |
+| Console | `comlab1@example.com` | `1234` |
+| Console | `comlab2@example.com` | `1234` |
+| Console | `comlab3@example.com` | `1234` |
+| Console | `comlab4@example.com` | `1234` |
+| Console | `comlab5@example.com` | `1234` |
 | Student | `andrea.santos@student.sample.com` | `sample` |
 | Student | `miguel.reyes@student.sample.com` | `sample` |
 | Parent | `parent.andrea.santos@sample.com` | `sample` |
