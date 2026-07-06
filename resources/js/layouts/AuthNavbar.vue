@@ -1,7 +1,16 @@
 <script setup>
 import { router, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
-import { MessageSquare, MonitorCheck, PhoneCall, ScanFace, Settings } from 'lucide-vue-next';
+import {
+    Bell,
+    FileText,
+    MessageSquare,
+    MonitorCheck,
+    PhoneCall,
+    ScanFace,
+    Settings,
+    UserRound,
+} from 'lucide-vue-next';
 import Swal from 'sweetalert2';
 import Navlinks from '@/components/Auth/Navlinks.vue';
 import ActivityLogs from '@/components/Icon/ActivityLogs.vue';
@@ -126,7 +135,7 @@ const sections = [
                 roles: ['student', 'parent'],
             },
             {
-                icon: Instructor,
+                icon: UserRound,
                 text: 'My Profile',
                 route: route('student-parent.profile.show'),
                 roles: ['student', 'parent'],
@@ -144,7 +153,7 @@ const sections = [
                 roles: ['student', 'parent'],
             },
             {
-                icon: MessageSquare,
+                icon: FileText,
                 text: 'Excuse Letters',
                 route: route('student-parent.excuse-letters.index'),
                 roles: ['student', 'parent'],
@@ -156,7 +165,7 @@ const sections = [
                 roles: ['student', 'parent'],
             },
             {
-                icon: MessageSquare,
+                icon: Bell,
                 text: 'Notifications',
                 route: route('student-parent.notifications.index'),
                 roles: ['student', 'parent'],

@@ -33,71 +33,146 @@ const submitLetter = () => {
 </script>
 
 <template>
-    <div class="p-4 sm:p-6">
-        <div class="mx-auto grid max-w-7xl gap-5 lg:grid-cols-[360px_1fr]">
-            <section class="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+    <div class="student-portal-page">
+        <div class="student-portal-shell grid gap-5 lg:grid-cols-[360px_1fr]">
+            <section
+                class="rounded-md border border-slate-200 bg-white p-5 shadow-sm"
+            >
                 <div class="flex flex-wrap items-center justify-between gap-3">
-                    <h1 class="text-lg font-bold text-slate-900">Excuse Letter</h1>
-                    <LinkedStudentSelector :students="linkedStudents" :selected-student-id="selectedStudentId" />
+                    <h1 class="text-lg font-bold text-slate-900">
+                        Excuse Letter
+                    </h1>
+                    <LinkedStudentSelector
+                        :students="linkedStudents"
+                        :selected-student-id="selectedStudentId"
+                    />
                 </div>
-                <form class="mt-4 flex flex-col gap-3" @submit.prevent="submitLetter">
-                    <label class="text-xs font-bold uppercase text-slate-500">
+                <form
+                    class="mt-4 flex flex-col gap-3"
+                    @submit.prevent="submitLetter"
+                >
+                    <label class="text-xs font-bold text-slate-500 uppercase">
                         Subject
-                        <input v-model="form.subject" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm normal-case" required />
+                        <input
+                            v-model="form.subject"
+                            class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm normal-case"
+                            required
+                        />
                     </label>
                     <div class="grid grid-cols-2 gap-2">
-                        <label class="text-xs font-bold uppercase text-slate-500">
+                        <label
+                            class="text-xs font-bold text-slate-500 uppercase"
+                        >
                             From
-                            <input v-model="form.from_date" type="date" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" required />
+                            <input
+                                v-model="form.from_date"
+                                type="date"
+                                class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                                required
+                            />
                         </label>
-                        <label class="text-xs font-bold uppercase text-slate-500">
+                        <label
+                            class="text-xs font-bold text-slate-500 uppercase"
+                        >
                             To
-                            <input v-model="form.to_date" type="date" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" required />
+                            <input
+                                v-model="form.to_date"
+                                type="date"
+                                class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                                required
+                            />
                         </label>
                     </div>
-                    <label class="text-xs font-bold uppercase text-slate-500">
+                    <label class="text-xs font-bold text-slate-500 uppercase">
                         Reason
-                        <textarea v-model="form.reason" class="mt-1 h-36 w-full rounded-md border border-slate-300 px-3 py-2 text-sm normal-case" required />
+                        <textarea
+                            v-model="form.reason"
+                            class="mt-1 h-36 w-full rounded-md border border-slate-300 px-3 py-2 text-sm normal-case"
+                            required
+                        />
                     </label>
-                    <label class="text-xs font-bold uppercase text-slate-500">
+                    <label class="text-xs font-bold text-slate-500 uppercase">
                         Attachment
-                        <input type="file" class="mt-1 w-full text-sm normal-case" @change="form.attachment = $event.target.files?.[0] || null" />
+                        <input
+                            type="file"
+                            class="mt-1 w-full text-sm normal-case"
+                            @change="
+                                form.attachment =
+                                    $event.target.files?.[0] || null
+                            "
+                        />
                     </label>
-                    <button class="rounded-md bg-brand px-4 py-2 text-sm font-bold text-white" :disabled="form.processing">
-                        {{ form.processing ? 'Submitting...' : 'Submit Letter' }}
+                    <button
+                        class="rounded-md bg-brand px-4 py-2 text-sm font-bold text-white"
+                        :disabled="form.processing"
+                    >
+                        {{
+                            form.processing ? 'Submitting...' : 'Submit Letter'
+                        }}
                     </button>
                 </form>
 
                 <div class="mt-6">
-                    <h2 class="text-sm font-bold text-slate-900">Submitted Letters</h2>
+                    <h2 class="text-sm font-bold text-slate-900">
+                        Submitted Letters
+                    </h2>
                     <div class="mt-3 space-y-2">
-                        <div v-for="letter in letters" :key="letter.id" class="rounded-md border border-slate-200 p-3 text-sm">
-                            <div class="font-semibold text-slate-900">{{ letter.subject }}</div>
-                            <div class="text-xs text-slate-500">{{ letter.from_date }} to {{ letter.to_date }} | {{ letter.status }}</div>
-                            <a :href="letter.download_url" class="mt-2 inline-block text-xs font-bold text-brand">
+                        <div
+                            v-for="letter in letters"
+                            :key="letter.id"
+                            class="rounded-md border border-slate-200 p-3 text-sm"
+                        >
+                            <div class="font-semibold text-slate-900">
+                                {{ letter.subject }}
+                            </div>
+                            <div class="text-xs text-slate-500">
+                                {{ letter.from_date }} to {{ letter.to_date }} |
+                                {{ letter.status }}
+                            </div>
+                            <a
+                                :href="letter.download_url"
+                                class="mt-2 inline-block text-xs font-bold text-brand"
+                            >
                                 Download generated letter
                             </a>
                         </div>
-                        <p v-if="letters.length === 0" class="text-sm text-slate-400">No excuse letters yet.</p>
+                        <p
+                            v-if="letters.length === 0"
+                            class="text-sm text-slate-400"
+                        >
+                            No excuse letters yet.
+                        </p>
                     </div>
                 </div>
             </section>
 
-            <section class="min-h-[720px] rounded-md border border-slate-200 bg-white p-10 shadow-sm">
+            <section
+                class="min-h-[720px] rounded-md border border-slate-200 bg-white p-10 shadow-sm"
+            >
                 <div class="mx-auto max-w-3xl text-sm leading-6 text-slate-800">
-                    <h2 class="text-center text-xl font-bold text-slate-950">Excuse Letter</h2>
+                    <h2 class="text-center text-xl font-bold text-slate-950">
+                        Excuse Letter
+                    </h2>
                     <div class="mt-14">
                         <p>Date: {{ form.from_date || '[Date Submitted]' }}</p>
                         <p>Dear Instructor,</p>
                     </div>
                     <p class="mt-12">
-                        Good day. I am {{ student?.name || '[Student Name]' }} from {{ student?.section || '[Section]' }}.
-                        I would like to request consideration for my absence or late attendance for
-                        {{ form.subject || '[Subject]' }} from {{ form.from_date || '[Start Date]' }} to {{ form.to_date || '[End Date]' }}.
+                        Good day. I am
+                        {{ student?.name || '[Student Name]' }} from
+                        {{ student?.section || '[Section]' }}. I would like to
+                        request consideration for my absence or late attendance
+                        for {{ form.subject || '[Subject]' }} from
+                        {{ form.from_date || '[Start Date]' }} to
+                        {{ form.to_date || '[End Date]' }}.
                     </p>
-                    <p class="mt-5 whitespace-pre-line">{{ form.reason || '[Reason]' }}</p>
+                    <p class="mt-5 whitespace-pre-line">
+                        {{ form.reason || '[Reason]' }}
+                    </p>
                     <p class="mt-8">
-                        I respectfully ask for your consideration regarding this matter. I will make sure to catch up on any missed requirements.
+                        I respectfully ask for your consideration regarding this
+                        matter. I will make sure to catch up on any missed
+                        requirements.
                     </p>
                     <div class="mt-16">
                         <p>Sincerely,</p>

@@ -18,21 +18,31 @@ const filteredAttendance = computed(() => {
     const term = search.value.trim().toLowerCase();
 
     return props.attendance.filter((record) => {
-        const matchesSearch = !term || [
-            record.date,
-            record.subject,
-            record.room,
-            record.time_in,
-            record.time_out,
-            record.status,
-        ].some((value) => String(value || '').toLowerCase().includes(term));
-        const matchesStatus = !statusFilter.value || String(record.status || '').toLowerCase() === statusFilter.value;
+        const matchesSearch =
+            !term ||
+            [
+                record.date,
+                record.subject,
+                record.room,
+                record.time_in,
+                record.time_out,
+                record.status,
+            ].some((value) =>
+                String(value || '')
+                    .toLowerCase()
+                    .includes(term),
+            );
+        const matchesStatus =
+            !statusFilter.value ||
+            String(record.status || '').toLowerCase() === statusFilter.value;
 
         return matchesSearch && matchesStatus;
     });
 });
 
-const totalPages = computed(() => Math.max(1, Math.ceil(filteredAttendance.value.length / pageSize)));
+const totalPages = computed(() =>
+    Math.max(1, Math.ceil(filteredAttendance.value.length / pageSize)),
+);
 const paginatedAttendance = computed(() => {
     const start = (currentPage.value - 1) * pageSize;
     return filteredAttendance.value.slice(start, start + pageSize);
@@ -50,14 +60,23 @@ const resetFilters = () => {
 </script>
 
 <template>
-    <div class="p-4 sm:p-6">
-        <section class="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+    <div class="student-portal-page">
+        <section
+            class="student-portal-shell rounded-md border border-slate-200 bg-white p-5 shadow-sm"
+        >
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h1 class="text-xl font-bold text-slate-900">My Attendance</h1>
-                    <p class="mt-1 text-sm text-slate-500">{{ student?.name || 'Student' }}</p>
+                    <h1 class="text-xl font-bold text-slate-900">
+                        My Attendance
+                    </h1>
+                    <p class="mt-1 text-sm text-slate-500">
+                        {{ student?.name || 'Student' }}
+                    </p>
                 </div>
-                <LinkedStudentSelector :students="linkedStudents" :selected-student-id="selectedStudentId" />
+                <LinkedStudentSelector
+                    :students="linkedStudents"
+                    :selected-student-id="selectedStudentId"
+                />
             </div>
 
             <div class="mt-4 flex flex-wrap items-center gap-2">
@@ -67,20 +86,26 @@ const resetFilters = () => {
                     placeholder="Search attendance..."
                     class="rounded-md border border-slate-300 px-3 py-2 text-sm"
                 />
-                <select v-model="statusFilter" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
+                <select
+                    v-model="statusFilter"
+                    class="rounded-md border border-slate-300 px-3 py-2 text-sm"
+                >
                     <option value="">All status</option>
                     <option value="present">Present</option>
                     <option value="late">Late</option>
                     <option value="absent">Absent</option>
                 </select>
-                <button class="rounded-md border border-slate-300 px-3 py-2 text-sm font-bold text-slate-600" @click="resetFilters">
+                <button
+                    class="rounded-md border border-slate-300 px-3 py-2 text-sm font-bold text-slate-600"
+                    @click="resetFilters"
+                >
                     Reset
                 </button>
             </div>
 
             <div class="mt-4 overflow-x-auto">
                 <table class="w-full min-w-[720px] text-left text-sm">
-                    <thead class="bg-slate-50 text-xs uppercase text-slate-500">
+                    <thead class="bg-slate-50 text-xs text-slate-500 uppercase">
                         <tr>
                             <th class="px-3 py-2">Date</th>
                             <th class="px-3 py-2">Subject</th>
@@ -93,18 +118,36 @@ const resetFilters = () => {
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
-                        <tr v-for="record in paginatedAttendance" :key="record.attendance_id">
+                        <tr
+                            v-for="record in paginatedAttendance"
+                            :key="record.attendance_id"
+                        >
                             <td class="px-3 py-3">{{ record.date }}</td>
                             <td class="px-3 py-3">{{ record.subject }}</td>
                             <td class="px-3 py-3">{{ record.room || '-' }}</td>
-                            <td class="px-3 py-3">{{ record.class_time || '-' }}</td>
-                            <td class="px-3 py-3">{{ record.time_in || '-' }}</td>
-                            <td class="px-3 py-3">{{ record.time_out || '-' }}</td>
-                            <td class="px-3 py-3">{{ record.duration || '-' }}</td>
-                            <td class="px-3 py-3 font-semibold text-slate-800">{{ record.status }}</td>
+                            <td class="px-3 py-3">
+                                {{ record.class_time || '-' }}
+                            </td>
+                            <td class="px-3 py-3">
+                                {{ record.time_in || '-' }}
+                            </td>
+                            <td class="px-3 py-3">
+                                {{ record.time_out || '-' }}
+                            </td>
+                            <td class="px-3 py-3">
+                                {{ record.duration || '-' }}
+                            </td>
+                            <td class="px-3 py-3 font-semibold text-slate-800">
+                                {{ record.status }}
+                            </td>
                         </tr>
                         <tr v-if="paginatedAttendance.length === 0">
-                            <td colspan="8" class="px-3 py-8 text-center text-slate-400">No attendance records found.</td>
+                            <td
+                                colspan="8"
+                                class="px-3 py-8 text-center text-slate-400"
+                            >
+                                No attendance records found.
+                            </td>
                         </tr>
                     </tbody>
                 </table>
@@ -118,7 +161,9 @@ const resetFilters = () => {
                 >
                     Previous
                 </button>
-                <span class="px-3 py-2 text-slate-500">Page {{ currentPage }} of {{ totalPages }}</span>
+                <span class="px-3 py-2 text-slate-500"
+                    >Page {{ currentPage }} of {{ totalPages }}</span
+                >
                 <button
                     class="rounded-md border border-sky-200 px-3 py-2 font-bold text-sky-500 disabled:text-slate-300"
                     :disabled="currentPage === totalPages"

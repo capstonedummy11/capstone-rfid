@@ -25,9 +25,9 @@ const verifyingClass = ref(null);
 const verificationError = ref('');
 const verificationMessage = ref('');
 const verificationBusy = ref(false);
-const faceAvailable = computed(() => Boolean(props.faceRecognitionAvailability?.available));
-const faceUnavailableMessage = computed(() => props.faceRecognitionAvailability?.message || 'Face recognition is unavailable.');
-
+const faceAvailable = computed(() =>
+    Boolean(props.faceRecognitionAvailability?.available),
+);
 const xsrfToken = () =>
     document.cookie
         .split('; ')
@@ -36,7 +36,10 @@ const xsrfToken = () =>
 
 const postJoin = (onlineClass, faceVerified = false, faceImage = null) => {
     router.post(
-        route('student-parent.online-classes.join', onlineClass.online_class_id),
+        route(
+            'student-parent.online-classes.join',
+            onlineClass.online_class_id,
+        ),
         {
             face_verified: faceVerified,
             face_image: faceImage,
@@ -59,7 +62,8 @@ const joinClass = (onlineClass) => {
 
         verifyingClass.value = onlineClass;
         verificationError.value = '';
-        verificationMessage.value = 'Position your face in the camera, then verify to join.';
+        verificationMessage.value =
+            'Position your face in the camera, then verify to join.';
         return;
     }
 
@@ -93,7 +97,9 @@ const verifyFaceAndJoin = async () => {
             headers: {
                 'Content-Type': 'application/json',
                 Accept: 'application/json',
-                'X-XSRF-TOKEN': xsrfToken() ? decodeURIComponent(xsrfToken()) : '',
+                'X-XSRF-TOKEN': xsrfToken()
+                    ? decodeURIComponent(xsrfToken())
+                    : '',
             },
             body: JSON.stringify({
                 image,
@@ -104,7 +110,8 @@ const verifyFaceAndJoin = async () => {
 
         if (!response.ok || !payload?.verified) {
             verificationBusy.value = false;
-            verificationError.value = payload?.message || 'Face verification failed.';
+            verificationError.value =
+                payload?.message || 'Face verification failed.';
             cameraRef.value?.resetCapture();
             return;
         }
@@ -120,14 +127,23 @@ const verifyFaceAndJoin = async () => {
 </script>
 
 <template>
-    <div class="p-4 sm:p-6">
-        <section class="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+    <div class="student-portal-page">
+        <section
+            class="student-portal-shell rounded-md border border-slate-200 bg-white p-5 shadow-sm"
+        >
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h1 class="text-xl font-bold text-slate-900">Online Classes</h1>
-                    <p class="mt-1 text-sm text-slate-500">{{ student?.name || 'Student' }}</p>
+                    <h1 class="text-xl font-bold text-slate-900">
+                        Online Classes
+                    </h1>
+                    <p class="mt-1 text-sm text-slate-500">
+                        {{ student?.name || 'Student' }}
+                    </p>
                 </div>
-                <LinkedStudentSelector :students="linkedStudents" :selected-student-id="selectedStudentId" />
+                <LinkedStudentSelector
+                    :students="linkedStudents"
+                    :selected-student-id="selectedStudentId"
+                />
             </div>
             <p
                 v-if="flashSuccess"
@@ -135,30 +151,46 @@ const verifyFaceAndJoin = async () => {
             >
                 {{ flashSuccess }}
             </p>
-            <p v-if="!faceAvailable" class="mt-3 rounded-md bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
-                Face recognition is unavailable. Required-face online classes will allow joining and notify the instructor once.
-                {{ faceUnavailableMessage }}
-            </p>
-
             <div class="mt-4 grid gap-3">
                 <article
                     v-for="onlineClass in onlineClasses"
                     :key="onlineClass.online_class_id"
                     class="rounded-md border border-slate-200 p-4"
                 >
-                    <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div
+                        class="flex flex-wrap items-start justify-between gap-3"
+                    >
                         <div>
-                            <h2 class="font-bold text-slate-900">{{ onlineClass.title }}</h2>
+                            <h2 class="font-bold text-slate-900">
+                                {{ onlineClass.title }}
+                            </h2>
                             <p class="text-sm text-slate-500">
-                                {{ onlineClass.subject_name }} / {{ onlineClass.instructor_name }}
+                                {{ onlineClass.subject_name }} /
+                                {{ onlineClass.instructor_name }}
                             </p>
                             <p class="mt-1 text-sm text-slate-600">
-                                {{ onlineClass.scheduled_date }} {{ onlineClass.start_time }}-{{ onlineClass.end_time }}
+                                {{ onlineClass.scheduled_date }}
+                                {{ onlineClass.start_time }}-{{
+                                    onlineClass.end_time
+                                }}
                             </p>
-                            <p class="mt-2 text-sm text-slate-600">{{ onlineClass.description }}</p>
-                            <p class="mt-2 text-xs font-semibold text-slate-500">
-                                Attendance: {{ onlineClass.attendance_status || 'Not joined' }} | Face:
-                                {{ onlineClass.require_face_recognition ? 'Required' : 'Not required' }}
+                            <p class="mt-2 text-sm text-slate-600">
+                                {{ onlineClass.description }}
+                            </p>
+                            <p
+                                class="mt-2 text-xs font-semibold text-slate-500"
+                            >
+                                Attendance:
+                                {{
+                                    onlineClass.attendance_status ||
+                                    'Not joined'
+                                }}
+                                | Face:
+                                {{
+                                    onlineClass.require_face_recognition
+                                        ? 'Required'
+                                        : 'Not required'
+                                }}
                             </p>
                         </div>
                         <div class="flex gap-2">
@@ -187,22 +219,37 @@ const verifyFaceAndJoin = async () => {
             </div>
         </section>
 
-        <div v-if="verifyingClass" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+        <div
+            v-if="verifyingClass"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4"
+        >
             <section class="w-full max-w-md rounded-md bg-white p-5 shadow-xl">
                 <div class="flex items-start justify-between gap-3">
                     <div>
-                        <h2 class="text-lg font-bold text-slate-900">Face Verification</h2>
-                        <p class="mt-1 text-sm text-slate-500">{{ verifyingClass.title }}</p>
+                        <h2 class="text-lg font-bold text-slate-900">
+                            Face Verification
+                        </h2>
+                        <p class="mt-1 text-sm text-slate-500">
+                            {{ verifyingClass.title }}
+                        </p>
                     </div>
-                    <button class="rounded-md border border-slate-200 px-3 py-1 text-sm font-bold text-slate-500" @click="closeVerification">
+                    <button
+                        class="rounded-md border border-slate-200 px-3 py-1 text-sm font-bold text-slate-500"
+                        @click="closeVerification"
+                    >
                         Close
                     </button>
                 </div>
 
                 <div class="mt-5 flex flex-col items-center gap-4">
                     <CameraCapture ref="cameraRef" />
-                    <p class="text-center text-sm text-slate-600">{{ verificationMessage }}</p>
-                    <p v-if="verificationError" class="rounded-md bg-red-50 px-3 py-2 text-center text-sm font-semibold text-red-600">
+                    <p class="text-center text-sm text-slate-600">
+                        {{ verificationMessage }}
+                    </p>
+                    <p
+                        v-if="verificationError"
+                        class="rounded-md bg-red-50 px-3 py-2 text-center text-sm font-semibold text-red-600"
+                    >
                         {{ verificationError }}
                     </p>
                     <button
@@ -210,7 +257,11 @@ const verifyFaceAndJoin = async () => {
                         :disabled="verificationBusy"
                         @click="verifyFaceAndJoin"
                     >
-                        {{ verificationBusy ? 'Verifying...' : 'Verify Face and Join' }}
+                        {{
+                            verificationBusy
+                                ? 'Verifying...'
+                                : 'Verify Face and Join'
+                        }}
                     </button>
                 </div>
             </section>
