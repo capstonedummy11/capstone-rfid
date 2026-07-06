@@ -38,6 +38,11 @@ class FortifyServiceProvider extends ServiceProvider
             \App\Http\Responses\LogoutResponse::class,
         );
 
+        $this->app->singleton(
+            \Laravel\Fortify\Contracts\EmailVerificationNotificationSentResponse::class,
+            \App\Http\Responses\EmailVerificationNotificationSentResponse::class,
+        );
+
         $this->configureActions();
         $this->configureViews();
         $this->configureRateLimiting();

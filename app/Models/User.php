@@ -10,11 +10,12 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Fortify\TwoFactorAuthenticatable;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, SoftDeletes;
+    use HasFactory, Notifiable, SoftDeletes, TwoFactorAuthenticatable;
 
     /**
      * The attributes that are mass assignable.
@@ -23,11 +24,17 @@ class User extends Authenticatable
      */
     protected $primaryKey = 'user_id';
 
+    public function getIdAttribute(): ?int
+    {
+        return $this->getKey();
+    }
+
     protected $fillable = [
         'name',
         'middle_name',
         'last_name',
         'email',
+        'email_verified_at',
         'password',
         'role',
         'is_root_admin',
@@ -38,6 +45,9 @@ class User extends Authenticatable
         'security_question',
         'security_answer_hash',
         'security_questions',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+        'two_factor_confirmed_at',
     ];
 
     /**
@@ -47,8 +57,8 @@ class User extends Authenticatable
      */
     protected $hidden = [
         'password',
-        /* 'two_factor_secret',
-        'two_factor_recovery_codes', */
+        'two_factor_secret',
+        'two_factor_recovery_codes',
         'remember_token',
     ];
 
@@ -61,6 +71,7 @@ class User extends Authenticatable
     {
         return [
             'password' => 'hashed',
+            'email_verified_at' => 'datetime',
             'two_factor_confirmed_at' => 'datetime',
             'is_root_admin' => 'boolean',
             'face_images' => 'array',

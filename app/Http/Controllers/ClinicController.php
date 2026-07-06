@@ -418,9 +418,9 @@ class ClinicController
     private function filteredAlerts(array $filters)
     {
         return EmergencyAlert::query()
-            ->when($filters['date_from'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '>=', $date))
-            ->when($filters['date_to'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '<=', $date))
-            ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status));
+            ->when($filters['date_from'] ?? null, fn ($query, $date) => $query->whereDate('emergency_alerts.created_at', '>=', $date))
+            ->when($filters['date_to'] ?? null, fn ($query, $date) => $query->whereDate('emergency_alerts.created_at', '<=', $date))
+            ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('emergency_alerts.status', $status));
     }
 
     private function filteredCases(array $filters)

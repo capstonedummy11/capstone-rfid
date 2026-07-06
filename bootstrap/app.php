@@ -9,7 +9,10 @@ use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
-        web: __DIR__ . '/../routes/web.php',
+        web: [
+            __DIR__ . '/../routes/web.php',
+            __DIR__ . '/../routes/settings.php',
+        ],
         commands: __DIR__ . '/../routes/console.php',
         health: '/up',
     )
@@ -22,6 +25,10 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             if ($request->is('admin*', 'clinic*', 'registrar*', 'instructor*')) {
+                return route('login');
+            }
+
+            if ($request->is('user/*', 'email/*', 'two-factor-challenge')) {
                 return route('login');
             }
 

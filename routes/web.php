@@ -51,6 +51,7 @@ Route::get('/', function (Request $request) {
 
     return Inertia::render('Auth/StudentParentLogin');
 })->name('landingPage');
+Route::redirect('/home', '/')->name('home');
 Route::inertia('/about', 'About')->name('about');
 Route::redirect('/student-parent-login', '/')->name('studentParentLogin');
 Route::get('/login', fn () => redirect()->route('landingPage'));
@@ -81,7 +82,7 @@ Route::middleware(['auth', 'role:console'])->group(function () {
     Route::post('/attendance-control-panel/emergency-alert', [EmergencyController::class, 'storeAlert'])->name('attendanceControlPanel.emergencyAlert');
 });
 
-Route::inertia('/register', 'Auth/Register')->name('register_page');
+Route::inertia('/register', 'Auth/Register')->name('register');
 
 Route::get('/dashboard', function (Request $request) {
     $role = strtolower(trim((string) $request->user()?->role));
@@ -270,4 +271,4 @@ Route::prefix('student-parent')
 
 // Admin routes
 
-Route::post('/register', [AuthController::class, 'register'])->name('register');
+Route::post('/register', [AuthController::class, 'register'])->name('register.store');
