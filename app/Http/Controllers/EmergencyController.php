@@ -120,12 +120,13 @@ class EmergencyController
             'category' => ['required', 'string', 'max:255'],
             'default_message' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
+            'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
 
         $type = EmergencyType::create([
             ...$validated,
             'is_active' => $validated['is_active'] ?? true,
-            'sort_order' => (EmergencyType::max('sort_order') ?? 0) + 1,
+            'sort_order' => $validated['sort_order'] ?? (EmergencyType::max('sort_order') ?? 0) + 1,
         ]);
 
         $this->logActivity($request, 'create', 'emergency_types', 'Created emergency type '.$type->name.'.');
@@ -141,11 +142,13 @@ class EmergencyController
             'category' => ['required', 'string', 'max:255'],
             'default_message' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
+            'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
 
         $type->update([
             ...$validated,
             'is_active' => $validated['is_active'] ?? false,
+            'sort_order' => $validated['sort_order'] ?? $type->sort_order,
         ]);
 
         $this->logActivity($request, 'update', 'emergency_types', 'Updated emergency type '.$type->name.'.');

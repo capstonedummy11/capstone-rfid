@@ -215,8 +215,15 @@ Route::prefix('clinic')
     ->group(function () {
         Route::get('/dashboard', [ClinicController::class, 'dashboard'])->name('dashboard');
         Route::get('/case-logs', [ClinicController::class, 'caseLogs'])->name('case-logs');
+        Route::post('/case-logs', [ClinicController::class, 'storeCase'])->name('case-logs.store');
+        Route::put('/case-logs/{id}', [ClinicController::class, 'updateCase'])->name('case-logs.update');
+        Route::post('/case-logs/{id}/history', [ClinicController::class, 'createHistoryFromCase'])->name('case-logs.history');
         Route::get('/patient-history', [ClinicController::class, 'patientHistory'])->name('patient-history');
+        Route::post('/patient-history', [ClinicController::class, 'storeHistory'])->name('patient-history.store');
+        Route::put('/patient-history/{id}', [ClinicController::class, 'updateHistory'])->name('patient-history.update');
+        Route::delete('/patient-history/{id}', [ClinicController::class, 'destroyHistory'])->name('patient-history.destroy');
         Route::get('/reports', [ClinicController::class, 'reports'])->name('reports');
+        Route::get('/reports/export', [ClinicController::class, 'exportReports'])->name('reports.export');
         Route::get('/emergency-hotlines', [EmergencyController::class, 'hotlines'])->name('emergency-hotlines.index');
         Route::post('/emergency-hotlines', [EmergencyController::class, 'storeHotline'])->name('emergency-hotlines.store');
         Route::put('/emergency-hotlines/{id}', [EmergencyController::class, 'updateHotline'])->name('emergency-hotlines.update');

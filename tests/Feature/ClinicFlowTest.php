@@ -1,8 +1,10 @@
 <?php
 
+use App\Models\ClinicCase;
 use App\Models\EmergencyAlert;
 use App\Models\EmergencyHotline;
 use App\Models\EmergencyType;
+use App\Models\PatientHistory;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -60,17 +62,31 @@ test('clinic can view dashboard reports case logs patient history and hotline ma
     $this->actingAs($fixture['clinic'])
         ->get(route('clinic.case-logs'))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->component('Clinic/CaseLogs'));
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Clinic/CaseLogs')
+            ->has('cases')
+            ->has('emergencyTypes', 1)
+        );
 
     $this->actingAs($fixture['clinic'])
         ->get(route('clinic.patient-history'))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->component('Clinic/PatientHistory'));
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Clinic/PatientHistory')
+            ->has('histories')
+            ->has('recentCases')
+        );
 
     $this->actingAs($fixture['clinic'])
         ->get(route('clinic.reports'))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->component('Clinic/Reports'));
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Clinic/Reports')
+            ->has('summary')
+            ->has('caseBreakdown')
+            ->has('caseTrends')
+            ->has('recentCases')
+        );
 
     $this->actingAs($fixture['clinic'])
         ->get(route('clinic.emergency-hotlines.index'))
@@ -79,6 +95,55 @@ test('clinic can view dashboard reports case logs patient history and hotline ma
             ->component('Clinic/EmergencyHotlines')
             ->has('hotlines', 1)
         );
+});
+
+test('clinic can manage emergency types from dashboard tools', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    $fixture = clinicFixture();
+
+    $this->actingAs($fixture['clinic'])
+        ->post(route('clinic.emergency-types.store'), [
+            'name' => 'High Fever',
+            'category' => 'clinic',
+            'default_message' => 'Clinic emergency: high fever reported.',
+            'is_active' => true,
+            'sort_order' => 2,
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Emergency type added.');
+
+    $type = EmergencyType::query()->where('name', 'High Fever')->firstOrFail();
+
+    $this->actingAs($fixture['clinic'])
+        ->put(route('clinic.emergency-types.update', $type->emergency_type_id), [
+            'name' => 'Severe Fever',
+            'category' => 'clinic',
+            'default_message' => 'Clinic emergency: severe fever reported.',
+            'is_active' => false,
+            'sort_order' => 4,
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Emergency type updated.');
+
+    $this->assertDatabaseHas('emergency_types', [
+        'emergency_type_id' => $type->emergency_type_id,
+        'name' => 'Severe Fever',
+        'is_active' => false,
+        'sort_order' => 4,
+    ]);
+
+    $this->actingAs($fixture['clinic'])
+        ->delete(route('clinic.emergency-types.destroy', $type->emergency_type_id))
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Emergency type deleted.');
+
+    expect(EmergencyType::withTrashed()->find($type->emergency_type_id)?->trashed())->toBeTrue();
+
+    $this->assertDatabaseHas('activity_logs', [
+        'user_id' => $fixture['clinic']->user_id,
+        'action' => 'create',
+        'table_name' => 'emergency_types',
+    ]);
 });
 
 test('clinic emergency hotline crud writes admin-visible activity logs', function () {
@@ -208,4 +273,145 @@ test('clinic dispatch creates case record and writes activity log', function () 
         'action' => 'create',
         'table_name' => 'clinic_cases',
     ]);
+});
+
+test('clinic can create update and convert case logs into patient history', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    $fixture = clinicFixture();
+
+    $this->actingAs($fixture['clinic'])
+        ->post(route('clinic.case-logs.store'), [
+            'patient_name' => 'Juan Dela Cruz',
+            'patient_type' => 'student',
+            'case_type' => 'Fainting',
+            'symptoms' => 'Dizziness during class',
+            'action_taken' => 'Given water and monitored in clinic.',
+            'status' => 'open',
+            'occurred_at' => '2026-07-06 09:30:00',
+            'notes' => 'Parent was notified.',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Clinic case created.');
+
+    $case = ClinicCase::query()->where('patient_name', 'Juan Dela Cruz')->firstOrFail();
+
+    $this->actingAs($fixture['clinic'])
+        ->put(route('clinic.case-logs.update', $case->clinic_case_id), [
+            'patient_name' => 'Juan Dela Cruz',
+            'patient_type' => 'student',
+            'case_type' => 'Fainting',
+            'symptoms' => 'Dizziness during class',
+            'action_taken' => 'Observed for 20 minutes and released.',
+            'status' => 'resolved',
+            'occurred_at' => '2026-07-06 09:30:00',
+            'notes' => 'Stable before leaving clinic.',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Clinic case updated.');
+
+    $this->assertDatabaseHas('clinic_cases', [
+        'clinic_case_id' => $case->clinic_case_id,
+        'status' => 'resolved',
+        'action_taken' => 'Observed for 20 minutes and released.',
+    ]);
+
+    $this->actingAs($fixture['clinic'])
+        ->post(route('clinic.case-logs.history', $case->clinic_case_id))
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Patient history created from case.');
+
+    $this->assertDatabaseHas('patient_histories', [
+        'recorded_by_user_id' => $fixture['clinic']->user_id,
+        'patient_name' => 'Juan Dela Cruz',
+        'summary' => 'Fainting: Dizziness during class',
+    ]);
+
+    $this->assertDatabaseHas('activity_logs', [
+        'user_id' => $fixture['clinic']->user_id,
+        'action' => 'update',
+        'table_name' => 'clinic_cases',
+    ]);
+});
+
+test('clinic can create update and delete patient history entries', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    $fixture = clinicFixture();
+
+    $this->actingAs($fixture['clinic'])
+        ->post(route('clinic.patient-history.store'), [
+            'patient_name' => 'Maria Santos',
+            'patient_type' => 'student',
+            'summary' => 'Headache',
+            'notes' => 'Rested in clinic for one period.',
+            'occurred_at' => '2026-07-06 10:15:00',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Patient history saved.');
+
+    $history = PatientHistory::query()->where('patient_name', 'Maria Santos')->firstOrFail();
+
+    $this->actingAs($fixture['clinic'])
+        ->put(route('clinic.patient-history.update', $history->patient_history_id), [
+            'patient_name' => 'Maria Santos',
+            'patient_type' => 'student',
+            'summary' => 'Mild headache',
+            'notes' => 'Returned to class after observation.',
+            'occurred_at' => '2026-07-06 10:15:00',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Patient history updated.');
+
+    $this->assertDatabaseHas('patient_histories', [
+        'patient_history_id' => $history->patient_history_id,
+        'summary' => 'Mild headache',
+        'notes' => 'Returned to class after observation.',
+    ]);
+
+    $this->actingAs($fixture['clinic'])
+        ->delete(route('clinic.patient-history.destroy', $history->patient_history_id))
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Patient history deleted.');
+
+    $this->assertDatabaseMissing('patient_histories', [
+        'patient_history_id' => $history->patient_history_id,
+    ]);
+});
+
+test('clinic reports can be filtered and exported as csv', function () {
+    $fixture = clinicFixture();
+
+    ClinicCase::query()->create([
+        'handled_by_user_id' => $fixture['clinic']->user_id,
+        'patient_type' => 'student',
+        'patient_name' => 'Export Patient',
+        'case_type' => 'Fainting',
+        'symptoms' => 'Weakness',
+        'action_taken' => 'Observed',
+        'status' => 'resolved',
+        'occurred_at' => '2026-07-06 08:00:00',
+    ]);
+
+    $this->actingAs($fixture['clinic'])
+        ->get(route('clinic.reports', [
+            'date_from' => '2026-07-01',
+            'date_to' => '2026-07-31',
+            'case_type' => 'Fainting',
+            'status' => 'resolved',
+        ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Clinic/Reports')
+            ->where('summary.cases', 1)
+            ->has('recentCases', 1)
+        );
+
+    $this->actingAs($fixture['clinic'])
+        ->get(route('clinic.reports.export', [
+            'date_from' => '2026-07-01',
+            'date_to' => '2026-07-31',
+            'case_type' => 'Fainting',
+            'status' => 'resolved',
+        ]))
+        ->assertOk()
+        ->assertDownload();
 });

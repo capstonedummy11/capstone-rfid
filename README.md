@@ -241,7 +241,11 @@ Student portal unfinished items:
 - `/attendance-control-panel/login` - console panel login.
 - `/attendance-control-panel` - console attendance panel.
 - `/registrar/dashboard`, `/registrar/biometric-enrollment`, and `/registrar/instructor-face-enrollment` - registrar workflows.
-- `/clinic/dashboard`, `/clinic/case-logs`, `/clinic/patient-history`, `/clinic/reports`, and `/clinic/emergency-hotlines` - clinic workflows.
+- `/clinic/dashboard` - clinic dashboard with alert response tools, emergency type management, and real clinic calendar events.
+- `/clinic/case-logs` - clinic case creation, follow-up updates, status tracking, and patient-history creation from a case.
+- `/clinic/patient-history` - patient history creation, editing, deletion, and prefill from recent clinic cases.
+- `/clinic/reports` and `/clinic/reports/export` - clinic report filters, summaries, trends, recent case breakdowns, and CSV export.
+- `/clinic/emergency-hotlines` - clinic emergency hotline CRUD.
 - `/messages/new` - public message creation.
 
 ## Project Structure
@@ -270,6 +274,5 @@ tests/                    Pest/PHPUnit tests
 - Online Class facial recognition depends on AWS Rekognition configuration and saved face images.
 - Generated excuse-letter downloads are Word-compatible `.doc` files, not native PDF files.
 - Registrar face enrollment is limited to 5 stored face images per student/instructor.
-- Clinic Case Logs and Patient History are source-backed read-only pages; dedicated clinic create/edit forms are not implemented yet.
 - Emergency hotline SMS provider integration is pending; hotline records and intended contact metadata are stored, but no live SMS is sent.
 - Legacy portal message rows with no inferable recipient may be hidden by the sender/recipient privacy filter until a recipient is assigned.
