@@ -6,6 +6,7 @@ use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BorrowController;
 use App\Http\Controllers\ClinicController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmergencyController;
 use App\Http\Controllers\InstructorsController;
 use App\Http\Controllers\InstructorVerificationController;
@@ -128,7 +129,7 @@ Route::prefix('admin')
     ->name('admin.')
     ->group(function () {
         Route::middleware(['role:admin,instructor', 'instructor.verified'])->group(function () {
-            Route::inertia('/dashboard', 'Auth/Admin/Dashboard', ['title' => 'Dashboard'])->name('dashboard');
+            Route::get('/dashboard', [DashboardController::class, 'admin'])->name('dashboard');
             Route::get('/attendance/scanner', [AttendanceController::class, 'scanner'])->name('attendance.scanner');
             Route::get('/attendance/logs', [AttendanceController::class, 'logs'])->name('attendance.logs');
             Route::post('/attendance/scan', [AttendanceController::class, 'scan'])->name('attendance.scan');
