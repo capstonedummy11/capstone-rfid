@@ -47,4 +47,11 @@ return [
         'similarity_threshold' => env('AWS_REKOGNITION_SIMILARITY_THRESHOLD', 90),
     ],
 
+    'semaphore' => [
+        'key' => env('SEMAPHORE_API_KEY'),
+        'sender_name' => env('SEMAPHORE_SENDER_NAME'),
+        'endpoint' => env('SEMAPHORE_ENDPOINT', 'https://api.semaphore.co/api/v4/messages'),
+        'enabled' => env('SEMAPHORE_ENABLED', true),
+    ],
+
 ];

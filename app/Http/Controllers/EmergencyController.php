@@ -6,6 +6,7 @@ use App\Models\ActivityLog;
 use App\Models\EmergencyAlert;
 use App\Models\EmergencyHotline;
 use App\Models\EmergencyType;
+use App\Services\SemaphoreSmsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,7 +14,7 @@ use Inertia\Inertia;
 
 class EmergencyController
 {
-    public function storeAlert(Request $request): JsonResponse
+    public function storeAlert(Request $request, SemaphoreSmsService $sms): JsonResponse
     {
         $validated = $request->validate([
             'emergency_type_id' => ['required', 'exists:emergency_types,emergency_type_id'],
@@ -49,9 +50,12 @@ class EmergencyController
             'Emergency alert '.$alert->emergency_alert_id.' triggered from attendance panel for '.$type->name.'.',
         );
 
+        $smsResult = $this->sendHotlineSms($validated['metadata'] ?? [], $alert, $sms);
+
         return response()->json([
             'ok' => true,
             'alert' => $alert->load('type'),
+            'sms' => $smsResult,
         ]);
     }
 
@@ -257,6 +261,24 @@ class EmergencyController
             'sort_order' => $hotline->sort_order,
             'notes' => $hotline->notes,
         ];
+    }
+
+    private function sendHotlineSms(array $metadata, EmergencyAlert $alert, SemaphoreSmsService $sms): array
+    {
+        $hotlineId = $metadata['emergency_hotline_id'] ?? null;
+        if (! $hotlineId) {
+            return ['sent' => false, 'reason' => 'no_hotline_selected'];
+        }
+
+        $hotline = EmergencyHotline::query()
+            ->where('is_active', true)
+            ->find($hotlineId);
+
+        if (! $hotline) {
+            return ['sent' => false, 'reason' => 'hotline_not_found'];
+        }
+
+        return $sms->sendEmergencyAlert($hotline, $alert->loadMissing('type'));
     }
 
     private function logActivity(Request $request, string $action, string $tableName, string $description): void

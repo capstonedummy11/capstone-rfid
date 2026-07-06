@@ -8,6 +8,7 @@ use App\Models\PatientHistory;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
@@ -243,6 +244,46 @@ test('attendance panel receives emergency hotlines and emergency alert calls wri
         'action' => 'create',
         'table_name' => 'emergency_alerts',
     ]);
+});
+
+test('attendance panel sends semaphore sms for sms enabled hotline', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    config([
+        'services.semaphore.enabled' => true,
+        'services.semaphore.key' => 'test-semaphore-key',
+        'services.semaphore.sender_name' => 'CAPSTONE',
+        'services.semaphore.endpoint' => 'https://api.semaphore.co/api/v4/messages',
+    ]);
+    Http::fake([
+        'api.semaphore.co/*' => Http::response([['status' => 'Queued']], 200),
+    ]);
+
+    $fixture = clinicFixture();
+    $fixture['hotline']->update(['phone_number' => '09171234567']);
+
+    $this->actingAs($fixture['console'])
+        ->postJson(route('attendanceControlPanel.emergencyAlert'), [
+            'emergency_type_id' => $fixture['type']->emergency_type_id,
+            'room' => 'B202',
+            'triggered_by_name' => 'Sample Instructor',
+            'message' => 'Clinic emergency: student/person fainted.',
+            'metadata' => [
+                'panel' => 'attendance-control-panel',
+                'emergency_hotline_id' => $fixture['hotline']->emergency_hotline_id,
+                'emergency_hotline_name' => 'School Clinic',
+                'emergency_hotline_phone' => '09171234567',
+                'emergency_hotline_sms_enabled' => true,
+            ],
+        ])
+        ->assertOk()
+        ->assertJsonPath('ok', true)
+        ->assertJsonPath('sms.sent', true);
+
+    Http::assertSent(fn ($request) => $request->url() === 'https://api.semaphore.co/api/v4/messages'
+        && $request['apikey'] === 'test-semaphore-key'
+        && $request['number'] === '09171234567'
+        && $request['sendername'] === 'CAPSTONE'
+        && str_contains($request['message'], 'Clinic emergency: student/person fainted.'));
 });
 
 test('clinic dispatch creates case record and writes activity log', function () {
