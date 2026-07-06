@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ActiveDeviceController;
 use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BorrowController;
@@ -171,6 +172,10 @@ Route::prefix('admin')
             Route::delete('/inventory/{id}', [InventoryController::class, 'destroy'])->name('inventory.destroy');
             Route::get('/activity-logs', [ActivityLogController::class, 'indexAdmin'])->name('activity-logs.index');
             Route::delete('/activity-logs/{id}', [ActivityLogController::class, 'destroy'])->name('activity-logs.destroy');
+            Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
+            Route::post('/users', [AdminUserController::class, 'store'])->name('users.store');
+            Route::put('/users/{id}', [AdminUserController::class, 'update'])->name('users.update');
+            Route::delete('/users/{id}', [AdminUserController::class, 'destroy'])->name('users.destroy');
             Route::get('/online-class-logs', [OnlineClassController::class, 'logs'])->name('online-class-logs.index');
             Route::get('/online-class-logs/export', [OnlineClassController::class, 'exportLogs'])->name('online-class-logs.export');
             Route::get('/active-devices', [ActiveDeviceController::class, 'index'])->name('active-devices.index');

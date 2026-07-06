@@ -18,6 +18,7 @@ Start with these docs when setting up a new machine:
 - RFID attendance control panel with room selection, RFID lookup, student tap recording, attendance logs, and optional face verification.
 - Inventory and borrowing workflows for laboratory items.
 - Student, instructor, section, strand, subject, schedule, and laboratory management.
+- Admin user management for clinic, registrar, and admin accounts, with root-admin-only admin creation/deletion.
 - Registrar biometric enrollment for student and faculty RFID or face records.
 - Clinic dashboard, case logs, patient history, reports, emergency types, emergency hotline CRUD, and emergency alert handling.
 - Instructor verification by face, OTP, or security questions.
@@ -120,6 +121,7 @@ Common seeded demo accounts include:
 
 | Role | Email | Password |
 | --- | --- | --- |
+| Root admin | `root.admin@sample.com` | `sample` |
 | Admin | `admin@gmail.com` | `password` |
 | Test admin | `test@example.com` | `password` |
 | Demo admin | `admin@sample.com` | `sample` |
@@ -224,6 +226,7 @@ Student portal unfinished items:
 - `/student-parent-login` - separate Student/Parent login page with saved demo profiles.
 - `/dashboard` - role-based dashboard redirect.
 - `/admin/dashboard` - admin/instructor dashboard.
+- `/admin/users` - admin user management for clinic, registrar, and admin accounts. Only root admins can create or delete admin accounts.
 - `/admin/online-classes` - instructor/admin online class management.
 - `/admin/online-class-logs` - admin-only online class audit logs.
 - `/admin/online-class-logs/export` - admin-only online class audit log CSV export.

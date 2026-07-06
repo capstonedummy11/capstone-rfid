@@ -9,6 +9,7 @@ import {
     PhoneCall,
     ScanFace,
     Settings,
+    ShieldCheck,
     UserRound,
 } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
@@ -91,6 +92,12 @@ const sections = [
                 icon: Instructor,
                 text: 'Instructor',
                 route: route('admin.instructors.index'),
+                roles: ['admin'],
+            },
+            {
+                icon: ShieldCheck,
+                text: 'User Management',
+                route: route('admin.users.index'),
                 roles: ['admin'],
             },
             {

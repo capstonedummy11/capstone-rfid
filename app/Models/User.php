@@ -30,6 +30,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'is_root_admin',
         'phone',
         'gender',
         'rfid_tag',
@@ -61,6 +62,7 @@ class User extends Authenticatable
         return [
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
+            'is_root_admin' => 'boolean',
             'face_images' => 'array',
             'security_questions' => 'array',
         ];
