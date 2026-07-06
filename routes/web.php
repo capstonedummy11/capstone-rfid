@@ -28,6 +28,7 @@ use App\Models\SystemSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use Laravel\Fortify\Http\Controllers\AuthenticatedSessionController;
 
 Route::get('/', function (Request $request) {
     $role = strtolower(trim((string) $request->user()?->role));
@@ -48,10 +49,17 @@ Route::get('/', function (Request $request) {
         return redirect()->route('student-parent.dashboard');
     }
 
-    return Inertia::render('LandingPage');
+    return Inertia::render('Auth/StudentParentLogin');
 })->name('landingPage');
 Route::inertia('/about', 'About')->name('about');
-Route::inertia('/student-parent-login', 'Auth/StudentParentLogin')->name('studentParentLogin');
+Route::redirect('/student-parent-login', '/')->name('studentParentLogin');
+Route::get('/login', fn () => redirect()->route('landingPage'));
+Route::post('/login', [AuthenticatedSessionController::class, 'store'])
+    ->middleware(array_filter([
+        'guest:'.config('fortify.guard'),
+        config('fortify.limiters.login') ? 'throttle:'.config('fortify.limiters.login') : null,
+    ]))
+    ->name('student-parent.login.store');
 Route::get('/messages/new', [MessageController::class, 'create'])->name('messages.create');
 Route::post('/messages', [MessageController::class, 'store'])->name('messages.store');
 Route::get('/attendance-control-panel/login', [AttendanceController::class, 'panelLogin'])->name('attendanceControlPanel.login');

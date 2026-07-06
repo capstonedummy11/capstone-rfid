@@ -16,11 +16,17 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
-        $middleware->redirectGuestsTo(
-            fn($request) => $request->is('attendance-control-panel*')
-                ? route('attendanceControlPanel.login')
-                : route('landingPage'),
-        );
+        $middleware->redirectGuestsTo(function ($request) {
+            if ($request->is('attendance-control-panel*')) {
+                return route('attendanceControlPanel.login');
+            }
+
+            if ($request->is('admin*', 'clinic*', 'registrar*', 'instructor*')) {
+                return route('login');
+            }
+
+            return route('landingPage');
+        });
 
         $middleware->web(append: [
             HandleAppearance::class,
