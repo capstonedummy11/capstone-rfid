@@ -13,13 +13,14 @@ class StaffLoginController
 
     public function create(Request $request)
     {
-        $role = strtolower(trim((string) $request->user()?->role));
+        $user = $request->user();
+        $role = strtolower(trim((string) ($user ? $user->role : '')));
 
         if (in_array($role, self::ALLOWED_ROLES, true)) {
             return $this->redirectForRole($role);
         }
 
-        if ($request->user()) {
+        if ($user) {
             return redirect()->route('dashboard');
         }
 
@@ -41,7 +42,8 @@ class StaffLoginController
 
         $request->session()->regenerate();
 
-        $role = strtolower(trim((string) $request->user()?->role));
+        $user = $request->user();
+        $role = strtolower(trim((string) ($user ? $user->role : '')));
 
         if (! in_array($role, self::ALLOWED_ROLES, true)) {
             Auth::logout();

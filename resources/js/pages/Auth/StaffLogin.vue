@@ -51,7 +51,7 @@ const features = [
                     alt="Pasay City South High School logo"
                     class="h-12 w-12 object-contain"
                 />
-                <div class="text-xs font-black leading-tight text-[#07136b]">
+                <div class="text-xs leading-tight font-black text-[#07136b]">
                     PASAY CITY SOUTH<br />
                     HIGH SCHOOL
                 </div>
@@ -96,7 +96,9 @@ const features = [
                             RFID and Facial Recognition Attendance Monitoring
                             System
                         </h1>
-                        <p class="mt-5 max-w-xl text-sm leading-6 text-white/85">
+                        <p
+                            class="mt-5 max-w-xl text-sm leading-6 text-white/85"
+                        >
                             A smart automated system designed to improve
                             efficiency, accuracy, and real-time tracking using
                             RFID technology and facial recognition.
@@ -205,7 +207,9 @@ const features = [
                 </aside>
             </section>
 
-            <section class="mx-auto grid max-w-5xl gap-8 px-6 py-12 md:grid-cols-3">
+            <section
+                class="mx-auto grid max-w-5xl gap-8 px-6 py-12 md:grid-cols-3"
+            >
                 <article v-for="feature in features" :key="feature.title">
                     <img
                         :src="feature.image"
@@ -228,7 +232,7 @@ const features = [
                 class="mx-auto grid max-w-5xl gap-10 px-6 py-12 md:grid-cols-2 md:items-center"
             >
                 <div>
-                    <p class="text-xs font-semibold italic text-slate-500">
+                    <p class="text-xs font-semibold text-slate-500 italic">
                         We are
                     </p>
                     <h2
