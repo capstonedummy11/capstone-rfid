@@ -223,7 +223,7 @@ Student portal unfinished items:
 ## Important Routes
 
 - `/` - public landing page or role-based redirect after login.
-- `/student-parent-login` - separate Student/Parent login page with saved demo profiles.
+- `/student-parent-login` - separate Student/Parent login page. Saved profile tiles are stored per browser after a successful student or parent login, expire after 30 days without another authenticated visit, and never store passwords in the tile data.
 - `/dashboard` - role-based dashboard redirect.
 - `/admin/dashboard` - admin/instructor dashboard.
 - `/admin/users` - admin user management for clinic, registrar, and admin accounts. Only root admins can create or delete admin accounts.

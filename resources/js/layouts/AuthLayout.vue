@@ -1,11 +1,22 @@
 <script setup>
 import AuthNavbar from './AuthNavbar.vue';
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import { usePage } from '@inertiajs/vue3';
+import { saveStudentParentProfile } from '@/composables/useSavedStudentParentProfiles';
 
 const page = usePage();
 const currentUser = computed(() => page.props.auth?.user ?? {});
-const userInitial = computed(() => currentUser.value?.name?.charAt(0)?.toUpperCase() || '?');
+const userInitial = computed(
+    () => currentUser.value?.name?.charAt(0)?.toUpperCase() || '?',
+);
+
+watch(
+    currentUser,
+    (user) => {
+        saveStudentParentProfile(user);
+    },
+    { immediate: true },
+);
 </script>
 
 <template>
@@ -22,7 +33,9 @@ const userInitial = computed(() => currentUser.value?.name?.charAt(0)?.toUpperCa
                     class="flex min-w-0 items-center gap-3 rounded-md border border-slate-100 bg-white px-3 py-2"
                 >
                     <div class="min-w-0 text-right">
-                        <div class="truncate text-sm font-semibold text-slate-800">
+                        <div
+                            class="truncate text-sm font-semibold text-slate-800"
+                        >
                             {{ currentUser.name }}
                         </div>
                         <div class="truncate text-xs text-slate-500">
