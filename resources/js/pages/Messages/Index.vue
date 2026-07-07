@@ -1,7 +1,7 @@
 <script setup>
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
-import { FileText, Image, Inbox, MailOpen } from 'lucide-vue-next';
+import { FileText, Image, Inbox, MailOpen, Send } from 'lucide-vue-next';
 
 const props = defineProps({
     messages: { type: Array, default: () => [] },
@@ -14,7 +14,10 @@ const flashSuccess = computed(() => page.props.flash?.success);
 const replyForm = useForm({ body: '' });
 
 const selectedMessage = computed(
-    () => props.messages.find((message) => message.id === selectedId.value) ?? props.messages[0] ?? null,
+    () =>
+        props.messages.find((message) => message.id === selectedId.value) ??
+        props.messages[0] ??
+        null,
 );
 
 watch(
@@ -23,11 +26,15 @@ watch(
         const message = selectedMessage.value;
         if (!id || !message || message.read_at) return;
 
-        router.put(route('admin.messages.read', { message: id }), {}, {
-            preserveScroll: true,
-            preserveState: true,
-            replace: true,
-        });
+        router.put(
+            route('admin.messages.read', { message: id }),
+            {},
+            {
+                preserveScroll: true,
+                preserveState: true,
+                replace: true,
+            },
+        );
     },
     { immediate: true },
 );
@@ -43,31 +50,53 @@ const sendReply = () => {
 </script>
 
 <template>
-    <div class="h-full bg-slate-50 p-4">
-        <div class="grid h-full min-h-[620px] grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-            <!-- Message content area, redesigned as chat bubbles to match reference -->
-            <section class="flex min-h-0 flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
+    <div class="h-full bg-slate-50">
+        <div
+            class="grid h-full min-h-[620px] grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]"
+        >
+            <section
+                class="flex min-h-0 flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm"
+            >
                 <div class="border-b border-slate-100 px-5 py-4">
                     <h1 class="text-xl font-bold text-slate-900">
                         {{ selectedMessage?.sender_name || 'Messages' }}
                     </h1>
                 </div>
 
-                <div v-if="selectedMessage" class="flex-1 overflow-y-auto bg-slate-50 p-5 space-y-4">
-                    <p v-if="flashSuccess" class="rounded-md bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">
+                <div
+                    v-if="selectedMessage"
+                    class="flex-1 space-y-4 overflow-y-auto bg-slate-50 p-5"
+                >
+                    <p
+                        v-if="flashSuccess"
+                        class="rounded-md bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700"
+                    >
                         {{ flashSuccess }}
                     </p>
-                    <!-- Bubble 1: subject / notice -->
                     <div class="flex items-start gap-3">
-                        <div class="mt-1 h-9 w-9 shrink-0 rounded-full bg-slate-200"></div>
+                        <div
+                            class="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-bold text-white"
+                        >
+                            {{
+                                selectedMessage.sender_name
+                                    ?.charAt(0)
+                                    ?.toUpperCase() || '?'
+                            }}
+                        </div>
 
                         <div class="max-w-md space-y-1.5">
-                            <div class="rounded-2xl rounded-tl-sm bg-white p-4 shadow-sm">
-                                <p class="text-xs font-bold uppercase tracking-wide text-slate-900">
+                            <div
+                                class="rounded-2xl rounded-tl-sm bg-white p-4 shadow-sm"
+                            >
+                                <p
+                                    class="text-xs font-bold tracking-wide text-slate-900"
+                                >
                                     {{ selectedMessage.sender_name }}
                                 </p>
-                                <p class="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-700">
-                                    {{ selectedMessage.subject }}
+                                <p
+                                    class="mt-2 text-sm leading-6 whitespace-pre-wrap text-slate-700"
+                                >
+                                    {{ selectedMessage.body }}
                                 </p>
 
                                 <a
@@ -76,9 +105,17 @@ const sendReply = () => {
                                     target="_blank"
                                     class="mt-3 flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-medium text-slate-500 hover:bg-slate-50"
                                 >
-                                    <Image v-if="selectedMessage.is_image" class="h-4 w-4 shrink-0 text-slate-400" />
-                                    <FileText v-else class="h-4 w-4 shrink-0 text-slate-400" />
-                                    <span class="truncate">{{ selectedMessage.attachment_name }}</span>
+                                    <Image
+                                        v-if="selectedMessage.is_image"
+                                        class="h-4 w-4 shrink-0 text-slate-400"
+                                    />
+                                    <FileText
+                                        v-else
+                                        class="h-4 w-4 shrink-0 text-slate-400"
+                                    />
+                                    <span class="truncate">{{
+                                        selectedMessage.attachment_name
+                                    }}</span>
                                 </a>
 
                                 <a
@@ -87,7 +124,10 @@ const sendReply = () => {
                                     target="_blank"
                                     class="mt-3 inline-block text-sm font-medium text-sky-600 underline hover:text-sky-700"
                                 >
-                                    {{ selectedMessage.link_label || 'Click here to go to the Site' }}
+                                    {{
+                                        selectedMessage.link_label ||
+                                        'Click here to go to the Site'
+                                    }}
                                 </a>
                             </div>
 
@@ -96,34 +136,22 @@ const sendReply = () => {
                             </p>
                         </div>
                     </div>
-
-                    <!-- Bubble 2: body / follow-up message -->
-                    <div v-if="selectedMessage.body" class="flex items-start gap-3">
-                        <div class="mt-1 h-9 w-9 shrink-0 rounded-full bg-slate-200"></div>
-                        <div class="max-w-md space-y-1.5">
-                            <div class="rounded-2xl rounded-tl-sm bg-white p-4 shadow-sm">
-                                <p class="text-xs font-bold uppercase tracking-wide text-slate-900">
-                                    {{ selectedMessage.sender_name }}
-                                </p>
-                                <p class="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-700">
-                                    {{ selectedMessage.body }}
-                                </p>
-                            </div>
-                            <p class="px-1 text-xs text-slate-400">
-                                {{ selectedMessage.created_label }}
-                            </p>
-                        </div>
-                    </div>
                 </div>
 
-                <div v-else class="flex flex-1 flex-col items-center justify-center bg-slate-50 p-8 text-center text-slate-500">
+                <div
+                    v-else
+                    class="flex flex-1 flex-col items-center justify-center bg-slate-50 p-8 text-center text-slate-500"
+                >
                     <Inbox class="mb-3 h-10 w-10 text-slate-300" />
                     <p class="font-semibold">No messages yet.</p>
                 </div>
 
-                <!-- Bottom quick search bar, matching reference -->
                 <div class="border-t border-slate-100 bg-white px-4 py-3">
-                    <form v-if="selectedMessage" class="flex items-center gap-3 rounded-full border border-slate-200 bg-slate-50 px-4 py-2.5" @submit.prevent="sendReply">
+                    <form
+                        v-if="selectedMessage"
+                        class="flex items-center gap-3 rounded-full border border-slate-200 bg-slate-50 px-4 py-2.5"
+                        @submit.prevent="sendReply"
+                    >
                         <input
                             v-model="replyForm.body"
                             type="text"
@@ -131,18 +159,21 @@ const sendReply = () => {
                             class="w-full bg-transparent text-sm text-slate-500 placeholder:text-slate-400 focus:outline-none"
                             required
                         />
-                        <button type="submit" class="shrink-0 text-slate-400 hover:text-slate-600" :disabled="replyForm.processing">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <line x1="22" y1="2" x2="11" y2="13"></line>
-                                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                            </svg>
+                        <button
+                            type="submit"
+                            class="shrink-0 text-slate-400 hover:text-slate-600 disabled:opacity-60"
+                            :disabled="replyForm.processing"
+                            aria-label="Send reply"
+                        >
+                            <Send class="h-4 w-4" />
                         </button>
                     </form>
                 </div>
             </section>
 
-            <!-- People list panel, unchanged -->
-            <aside class="min-h-0 overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
+            <aside
+                class="min-h-0 overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm"
+            >
                 <div class="border-b border-slate-100 px-4 py-3">
                     <h2 class="text-sm font-bold text-slate-900">People</h2>
                 </div>
@@ -152,21 +183,47 @@ const sendReply = () => {
                         :key="message.id"
                         type="button"
                         class="flex w-full gap-3 border-b border-slate-100 px-4 py-3 text-left hover:bg-slate-50"
-                        :class="selectedMessage?.id === message.id ? 'bg-sky-50' : 'bg-white'"
+                        :class="
+                            selectedMessage?.id === message.id
+                                ? 'bg-sky-50'
+                                : 'bg-white'
+                        "
                         @click="selectedId = message.id"
                     >
-                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-bold text-white">
-                            {{ message.sender_name?.charAt(0)?.toUpperCase() || '?' }}
+                        <div
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-bold text-white"
+                        >
+                            {{
+                                message.sender_name?.charAt(0)?.toUpperCase() ||
+                                '?'
+                            }}
                         </div>
                         <div class="min-w-0 flex-1">
-                            <div class="flex items-center justify-between gap-2">
-                                <p class="truncate text-sm font-bold text-slate-800">{{ message.sender_name }}</p>
-                                <MailOpen v-if="message.read_at" class="h-4 w-4 shrink-0 text-slate-300" />
-                                <span v-else class="h-2 w-2 shrink-0 rounded-full bg-brand"></span>
+                            <div
+                                class="flex items-center justify-between gap-2"
+                            >
+                                <p
+                                    class="truncate text-sm font-bold text-slate-800"
+                                >
+                                    {{ message.sender_name }}
+                                </p>
+                                <MailOpen
+                                    v-if="message.read_at"
+                                    class="h-4 w-4 shrink-0 text-slate-300"
+                                />
+                                <span
+                                    v-else
+                                    class="h-2 w-2 shrink-0 rounded-full bg-brand"
+                                ></span>
                             </div>
-                            <p class="truncate text-xs font-semibold text-slate-500">{{ message.subject }}</p>
-                            <p class="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{{ message.preview }}</p>
-                            <p class="mt-1 text-xs text-slate-400">{{ message.created_label }}</p>
+                            <p
+                                class="mt-1 line-clamp-2 text-xs leading-5 text-slate-500"
+                            >
+                                {{ message.preview }}
+                            </p>
+                            <p class="mt-1 text-xs text-slate-400">
+                                {{ message.created_label }}
+                            </p>
                         </div>
                     </button>
                 </div>

@@ -25,7 +25,6 @@ const selectedRecipient = ref(null);
 
 const form = useForm({
     instructor_user_id: '',
-    subject: '',
     body: '',
     attachment: null,
 });
@@ -110,7 +109,6 @@ const selectRecipient = (instructor) => {
     selectedRecipient.value = instructor;
     selectedConversationKey.value = '';
     form.instructor_user_id = instructor.user_id;
-    form.subject = '';
     form.body = '';
     form.attachment = null;
 };
@@ -126,7 +124,7 @@ const sendMessage = () => {
         forceFormData: true,
         preserveScroll: true,
         onSuccess: () => {
-            form.reset('subject', 'body', 'attachment');
+            form.reset('body', 'attachment');
             selectedRecipient.value = null;
         },
     });
@@ -217,9 +215,6 @@ const sendMessage = () => {
                         <p
                             class="mt-1 truncate text-xs font-semibold text-slate-500"
                         >
-                            {{ conversation.latest.subject }}
-                        </p>
-                        <p class="mt-1 line-clamp-2 text-xs text-slate-500">
                             {{ conversation.latest.body }}
                         </p>
                     </button>
@@ -256,19 +251,16 @@ const sendMessage = () => {
                         <article
                             v-for="message in selectedConversation.messages"
                             :key="message.id"
-                            class="max-w-[78%] rounded-md p-3 shadow-sm"
+                            class="max-w-[78%] rounded-2xl p-3 shadow-sm"
                             :class="
                                 Number(message.sender_user_id) === currentUserId
-                                    ? 'ml-auto bg-brand text-white'
-                                    : 'bg-white text-slate-700'
+                                    ? 'ml-auto rounded-br-sm bg-brand text-white'
+                                    : 'rounded-bl-sm bg-white text-slate-700'
                             "
                         >
                             <p class="text-xs font-bold opacity-80">
                                 {{ message.sender }}
                             </p>
-                            <h3 class="mt-1 font-bold">
-                                {{ message.subject }}
-                            </h3>
                             <p class="mt-2 text-sm whitespace-pre-line">
                                 {{ message.body }}
                             </p>
@@ -311,42 +303,39 @@ const sendMessage = () => {
 
                 <form
                     v-if="selectedRecipient || selectedConversation"
-                    class="mt-4 grid gap-3 border-t border-slate-100 pt-4"
+                    class="mt-4 border-t border-slate-100 pt-4"
                     @submit.prevent="sendMessage"
                 >
-                    <label class="text-sm font-semibold text-slate-700">
-                        Subject
-                        <input
-                            v-model="form.subject"
-                            class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                            required
-                        />
-                    </label>
-                    <label class="text-sm font-semibold text-slate-700">
-                        Message
+                    <div
+                        class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3"
+                    >
                         <textarea
                             v-model="form.body"
-                            class="mt-1 h-28 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                            class="min-h-20 w-full resize-none bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                            placeholder="Type a message..."
                             required
                         />
-                    </label>
-                    <label class="text-sm font-semibold text-slate-700">
-                        Attachment
-                        <input
-                            type="file"
-                            class="mt-1 w-full text-sm"
-                            @change="
-                                form.attachment =
-                                    $event.target.files?.[0] || null
-                            "
-                        />
-                    </label>
-                    <button
-                        class="rounded-md bg-brand px-4 py-2 text-sm font-bold text-white"
-                        :disabled="form.processing || !form.instructor_user_id"
-                    >
-                        {{ form.processing ? 'Sending...' : 'Send Message' }}
-                    </button>
+                        <div
+                            class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+                        >
+                            <input
+                                type="file"
+                                class="text-sm text-slate-500"
+                                @change="
+                                    form.attachment =
+                                        $event.target.files?.[0] || null
+                                "
+                            />
+                            <button
+                                class="rounded-md bg-brand px-5 py-2 text-sm font-bold text-white disabled:opacity-60"
+                                :disabled="
+                                    form.processing || !form.instructor_user_id
+                                "
+                            >
+                                {{ form.processing ? 'Sending...' : 'Send' }}
+                            </button>
+                        </div>
+                    </div>
                 </form>
             </section>
         </div>

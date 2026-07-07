@@ -119,26 +119,26 @@ The main database seeder calls:
 
 Common seeded demo accounts include:
 
-| Role | Email | Password |
-| --- | --- | --- |
-| Root admin | `root.admin@sample.com` | `sample` |
-| Admin | `admin@gmail.com` | `password` |
-| Test admin | `test@example.com` | `password` |
-| Demo admin | `admin@sample.com` | `sample` |
-| Dev admin | `jeromebernante@gmail.com` | `1234` |
-| Dev admin | `vallecera@gmail.com` | `sample` |
-| Instructor | `instructor@sample.com` | `sample` |
-| Clinic | `clinic@sample.com` | `sample` |
-| Registrar | `registrar@sample.com` | `sample` |
-| Console | `console@sample.com` | `sample` |
-| Console | `comlab1@example.com` | `1234` |
-| Console | `comlab2@example.com` | `1234` |
-| Console | `comlab3@example.com` | `1234` |
-| Console | `comlab4@example.com` | `1234` |
-| Console | `comlab5@example.com` | `1234` |
-| Student | `andrea.santos@student.sample.com` | `sample` |
-| Student | `miguel.reyes@student.sample.com` | `sample` |
-| Parent | `parent.andrea.santos@sample.com` | `sample` |
+| Role       | Email                              | Password   |
+| ---------- | ---------------------------------- | ---------- |
+| Root admin | `root.admin@sample.com`            | `sample`   |
+| Admin      | `admin@gmail.com`                  | `password` |
+| Test admin | `test@example.com`                 | `password` |
+| Demo admin | `admin@sample.com`                 | `sample`   |
+| Dev admin  | `jeromebernante@gmail.com`         | `1234`     |
+| Dev admin  | `vallecera@gmail.com`              | `sample`   |
+| Instructor | `instructor@sample.com`            | `sample`   |
+| Clinic     | `clinic@sample.com`                | `sample`   |
+| Registrar  | `registrar@sample.com`             | `sample`   |
+| Console    | `console@sample.com`               | `sample`   |
+| Console    | `comlab1@example.com`              | `1234`     |
+| Console    | `comlab2@example.com`              | `1234`     |
+| Console    | `comlab3@example.com`              | `1234`     |
+| Console    | `comlab4@example.com`              | `1234`     |
+| Console    | `comlab5@example.com`              | `1234`     |
+| Student    | `andrea.santos@student.sample.com` | `sample`   |
+| Student    | `miguel.reyes@student.sample.com`  | `sample`   |
+| Parent     | `parent.andrea.santos@sample.com`  | `sample`   |
 
 `StudentParentAccountSeeder` reuses demo students `SHS-ICT-1101` and `SHS-ICT-1102` when available. If no student exists yet, it creates fallback ICT student records. The parent demo account is linked to Andrea Santos through `parent_student_links` with relationship `mother`.
 
@@ -204,7 +204,7 @@ Known limitations:
 - The Online Class join endpoint also validates the submitted face image server-side before recording attendance, so a plain `face_verified` flag is not accepted for required-face classes.
 - The log export is CSV, which Excel can open. A native `.xlsx` export is not implemented.
 - Student/parent notification center exists at `/student-parent/notifications` and supports marking notifications as read.
-- Student/parent messages require an instructor recipient, are mirrored into that instructor inbox, and are stored with encrypted subject/body ciphertext.
+- Student/parent and instructor inbox messages work as chat-style conversations with no visible subject field. Stored message subjects are generated internally for compatibility, student portal messages remain encrypted, and public/student messages are mirrored into the instructor inbox.
 - Parent accounts can switch between linked students on portal pages when more than one child is linked.
 - Online Class facial recognition can only be required when Face Rekognition is enabled and AWS Rekognition appears configured. Settings and Online Class forms warn and keep the toggle off when unavailable.
 - If an older required-face online class is joined while AWS Rekognition is unavailable, the student is allowed to join and the instructor receives one system inbox message per student/class.
@@ -222,9 +222,10 @@ Student portal unfinished items:
 
 ## Important Routes
 
-- `/` - public landing page or role-based redirect after login.
-- `/student-parent-login` - separate Student/Parent login page. Saved profile tiles are stored per browser only when the user checks "Save this account on this device", expire after 30 days without another authenticated saved-login visit, and never store passwords in the tile data.
-- `/secure-login` - secured staff login page for admin, instructor, registrar, and clinic accounts only.
+- `/` - Student/Parent login page or role-based redirect after login. Saved profile tiles are stored per browser only when the user checks "Save this account on this device", expire after 30 days without another authenticated saved-login visit, and never store passwords in the tile data. The staff login link is intentionally hidden from public Student/Parent navigation.
+- `/student-parent-login` - redirects to `/`.
+- `/secure-route` - default env-configured secured staff login page for admin, instructor, registrar, and clinic accounts only (`SECURE_LOGIN_ROUTE`). Staff accounts use the same 30-day saved profile tile behavior as the Student/Parent login, with password-only re-entry for saved accounts and no stored passwords. Student and parent accounts are rejected here. This page includes a direct Attendance Panel button.
+- `/secure-login` - legacy compatibility redirect to the configured `SECURE_LOGIN_ROUTE` when that env value is different.
 - `/dashboard` - role-based dashboard redirect.
 - `/admin/dashboard` - admin/instructor dashboard.
 - `/admin/users` - admin user management for clinic, registrar, and admin accounts. Only root admins can create or delete admin accounts.
@@ -242,7 +243,7 @@ Student portal unfinished items:
 - `/admin/messages/{message}/reply` - assigned instructor reply back to the linked student portal thread.
 - `/admin/attendance/scanner` and `/admin/attendance/logs` - attendance tools.
 - `/admin/inventory` and `/admin/borrow` - inventory and borrowing.
-- `/attendance-control-panel/login` - console panel login.
+- `/attendance-control-panel/login` - console panel login. Public Student/Parent navigation should not show this link; authenticated staff/admin navigation exposes Panel Login for staff roles.
 - `/attendance-control-panel` - console attendance panel.
 - `/registrar/dashboard`, `/registrar/biometric-enrollment`, and `/registrar/instructor-face-enrollment` - registrar workflows.
 - `/clinic/dashboard` - clinic dashboard with alert response tools, emergency type management, and real clinic calendar events.

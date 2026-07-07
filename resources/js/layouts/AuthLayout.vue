@@ -3,8 +3,11 @@ import AuthNavbar from './AuthNavbar.vue';
 import { computed, watch } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import {
+    consumeStaffSavePreference,
     consumeStudentParentSavePreference,
+    removeSavedStaffProfile,
     removeSavedStudentParentProfile,
+    saveStaffProfile,
     saveStudentParentProfile,
 } from '@/composables/useSavedStudentParentProfiles';
 
@@ -19,14 +22,24 @@ watch(
     (user) => {
         const role = String(user?.role || '').toLowerCase();
 
-        if (!['student', 'parent'].includes(role)) return;
+        if (['student', 'parent'].includes(role)) {
+            const shouldSave = consumeStudentParentSavePreference(user?.email);
 
-        const shouldSave = consumeStudentParentSavePreference(user?.email);
+            if (shouldSave === true) {
+                saveStudentParentProfile(user);
+            } else if (shouldSave === false) {
+                removeSavedStudentParentProfile(user?.email);
+            }
+        }
 
-        if (shouldSave === true) {
-            saveStudentParentProfile(user);
-        } else if (shouldSave === false) {
-            removeSavedStudentParentProfile(user?.email);
+        if (['admin', 'instructor', 'registrar', 'clinic'].includes(role)) {
+            const shouldSave = consumeStaffSavePreference(user?.email);
+
+            if (shouldSave === true) {
+                saveStaffProfile(user);
+            } else if (shouldSave === false) {
+                removeSavedStaffProfile(user?.email);
+            }
         }
     },
     { immediate: true },
@@ -65,7 +78,11 @@ watch(
             </header>
             <!-- Page Content -->
             <main class="flex-1 overflow-y-auto bg-gray-100">
-                <slot />
+                <div
+                    class="mx-auto min-h-full w-full max-w-[1180px] p-4 sm:p-6"
+                >
+                    <slot />
+                </div>
             </main>
         </div>
     </div>

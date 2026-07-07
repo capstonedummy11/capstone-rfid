@@ -15,10 +15,10 @@
         @apply flex items-center gap-5 p-4 hover:bg-black/20 hover:text-brand;
     }
     .student-portal-page {
-        @apply min-h-full bg-[#f4f6fb] p-4 text-slate-900 sm:p-6;
+        @apply min-h-full bg-[#f4f6fb] text-slate-900;
     }
     .student-portal-shell {
-        @apply mx-auto w-full max-w-7xl;
+        @apply mx-auto w-full max-w-[1180px];
     }
 }
 

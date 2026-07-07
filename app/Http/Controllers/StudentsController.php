@@ -488,7 +488,7 @@ class StudentsController
 
         $validated = $request->validate([
             'instructor_user_id' => ['required', 'integer', 'exists:users,user_id'],
-            'subject' => ['required', 'string', 'max:255'],
+            'subject' => ['nullable', 'string', 'max:255'],
             'body' => ['required', 'string', 'max:5000'],
             'attachment' => ['nullable', 'file', 'max:5120', 'mimes:pdf,doc,docx,jpg,jpeg,png'],
         ]);
@@ -509,6 +509,10 @@ class StudentsController
             $attachmentSize = $attachment->getSize();
         }
         unset($validated['attachment']);
+
+        $validated['subject'] = filled($validated['subject'] ?? null)
+            ? $validated['subject']
+            : 'Student portal conversation';
 
         $message = StudentPortalMessage::query()->create([
             ...$validated,

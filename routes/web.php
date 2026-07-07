@@ -21,6 +21,7 @@ use App\Http\Controllers\RfidController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\SectionController;
 use App\Http\Controllers\StaffLoginController;
+use App\Http\Controllers\StudentParentLoginController;
 use App\Http\Controllers\StrandController;
 use App\Http\Controllers\StudentsController;
 use App\Http\Controllers\SubjectController;
@@ -29,7 +30,8 @@ use App\Models\SystemSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use Laravel\Fortify\Http\Controllers\AuthenticatedSessionController;
+
+$staffLoginPath = '/'.(trim(config('fortify.paths.login', 'secure-route'), '/') ?: 'secure-route');
 
 Route::get('/', function (Request $request) {
     $role = strtolower(trim((string) $request->user()?->role));
@@ -56,15 +58,18 @@ Route::redirect('/home', '/')->name('home');
 Route::inertia('/about', 'About')->name('about');
 Route::redirect('/student-parent-login', '/')->name('studentParentLogin');
 Route::get('/login', fn () => redirect()->route('landingPage'));
-Route::get('/secure-login', [StaffLoginController::class, 'create'])
+Route::get($staffLoginPath, [StaffLoginController::class, 'create'])
     ->name('staff.login');
-Route::post('/login', [AuthenticatedSessionController::class, 'store'])
+if ($staffLoginPath !== '/secure-login') {
+    Route::redirect('/secure-login', $staffLoginPath)->name('staff.login.legacy');
+}
+Route::post('/login', [StudentParentLoginController::class, 'store'])
     ->middleware(array_filter([
         'guest:'.config('fortify.guard'),
         config('fortify.limiters.login') ? 'throttle:'.config('fortify.limiters.login') : null,
     ]))
     ->name('student-parent.login.store');
-Route::post('/secure-login', [StaffLoginController::class, 'store'])
+Route::post($staffLoginPath, [StaffLoginController::class, 'store'])
     ->middleware(array_filter([
         'guest:'.config('fortify.guard'),
         config('fortify.limiters.login') ? 'throttle:'.config('fortify.limiters.login') : null,

@@ -53,6 +53,10 @@ class MessageController
 
         unset($validated['attachment']);
 
+        $validated['subject'] = filled($validated['subject'] ?? null)
+            ? $validated['subject']
+            : 'Instructor conversation';
+
         $message = Message::query()->create($validated);
 
         $this->logActivity('create', 'messages', 'Created instructor inbox message '.$message->message_id.' from '.$validated['sender_type'].' '.$validated['sender_name']);
@@ -76,7 +80,7 @@ class MessageController
                 'sender_name' => $message->sender_name,
                 'sender_email' => $message->sender_email,
                 'student_number' => $message->student_number,
-                'subject' => $message->subject ?: 'No subject',
+                'subject' => $message->subject ?: 'Instructor conversation',
                 'body' => $message->body,
                 'preview' => str($message->body)->squish()->limit(82)->toString(),
                 'instructor_name' => $message->instructor?->name,
@@ -138,7 +142,7 @@ class MessageController
             'recipient_user_id' => $recipientUserId,
             'sender_role' => 'instructor',
             'instructor_user_id' => $message->instructor_user_id,
-            'subject' => 'Re: '.$message->subject,
+            'subject' => 'Instructor conversation',
             'body' => $validated['body'],
         ]);
 
