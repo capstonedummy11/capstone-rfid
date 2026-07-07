@@ -2,7 +2,11 @@
 import AuthNavbar from './AuthNavbar.vue';
 import { computed, watch } from 'vue';
 import { usePage } from '@inertiajs/vue3';
-import { saveStudentParentProfile } from '@/composables/useSavedStudentParentProfiles';
+import {
+    consumeStudentParentSavePreference,
+    removeSavedStudentParentProfile,
+    saveStudentParentProfile,
+} from '@/composables/useSavedStudentParentProfiles';
 
 const page = usePage();
 const currentUser = computed(() => page.props.auth?.user ?? {});
@@ -13,7 +17,17 @@ const userInitial = computed(
 watch(
     currentUser,
     (user) => {
-        saveStudentParentProfile(user);
+        const role = String(user?.role || '').toLowerCase();
+
+        if (!['student', 'parent'].includes(role)) return;
+
+        const shouldSave = consumeStudentParentSavePreference(user?.email);
+
+        if (shouldSave === true) {
+            saveStudentParentProfile(user);
+        } else if (shouldSave === false) {
+            removeSavedStudentParentProfile(user?.email);
+        }
     },
     { immediate: true },
 );

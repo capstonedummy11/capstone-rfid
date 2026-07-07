@@ -5,12 +5,14 @@ import { useForm } from '@inertiajs/vue3';
 import {
     getSavedStudentParentProfiles,
     removeSavedStudentParentProfile,
+    setStudentParentSavePreference,
 } from '@/composables/useSavedStudentParentProfiles';
 import { computed, onMounted, ref } from 'vue';
 
 const profiles = ref([]);
 const selectedIndex = ref(0);
 const useDifferentAccount = ref(true);
+const saveOnDevice = ref(false);
 const selectedProfile = computed(
     () => profiles.value[selectedIndex.value] ?? null,
 );
@@ -39,6 +41,7 @@ const showDifferentAccount = () => {
     useDifferentAccount.value = true;
     form.email = '';
     form.password = '';
+    saveOnDevice.value = false;
     form.clearErrors();
 };
 
@@ -62,10 +65,13 @@ const removeProfile = (index) => {
 };
 
 const login = () => {
+    const shouldSave = !useDifferentAccount.value ? true : saveOnDevice.value;
+
     if (!useDifferentAccount.value && selectedProfile.value) {
         form.email = selectedProfile.value.email;
     }
 
+    setStudentParentSavePreference(form.email, shouldSave);
     form.post('/login');
 };
 
@@ -217,6 +223,16 @@ onMounted(() => {
                                 required
                                 autocomplete="current-password"
                             />
+                        </label>
+                        <label
+                            class="flex items-center gap-2 text-sm font-semibold text-slate-600"
+                        >
+                            <input
+                                v-model="saveOnDevice"
+                                type="checkbox"
+                                class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            Save this account on this device
                         </label>
                     </form>
 
