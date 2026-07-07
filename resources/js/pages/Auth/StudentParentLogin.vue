@@ -478,6 +478,7 @@ onMounted(() => {
                                 class="mt-8 flex items-center justify-between gap-4"
                             >
                                 <button
+                                    v-if="profiles.length > 0"
                                     type="button"
                                     class="text-left text-sm font-semibold text-slate-500 hover:text-sky-600"
                                     @click="
