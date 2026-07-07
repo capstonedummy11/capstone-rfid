@@ -20,6 +20,7 @@ use App\Http\Controllers\RegistrarController;
 use App\Http\Controllers\RfidController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\SectionController;
+use App\Http\Controllers\StaffLoginController;
 use App\Http\Controllers\StrandController;
 use App\Http\Controllers\StudentsController;
 use App\Http\Controllers\SubjectController;
@@ -55,12 +56,20 @@ Route::redirect('/home', '/')->name('home');
 Route::inertia('/about', 'About')->name('about');
 Route::redirect('/student-parent-login', '/')->name('studentParentLogin');
 Route::get('/login', fn () => redirect()->route('landingPage'));
+Route::get('/secure-login', [StaffLoginController::class, 'create'])
+    ->name('staff.login');
 Route::post('/login', [AuthenticatedSessionController::class, 'store'])
     ->middleware(array_filter([
         'guest:'.config('fortify.guard'),
         config('fortify.limiters.login') ? 'throttle:'.config('fortify.limiters.login') : null,
     ]))
     ->name('student-parent.login.store');
+Route::post('/secure-login', [StaffLoginController::class, 'store'])
+    ->middleware(array_filter([
+        'guest:'.config('fortify.guard'),
+        config('fortify.limiters.login') ? 'throttle:'.config('fortify.limiters.login') : null,
+    ]))
+    ->name('staff.login.store');
 Route::get('/messages/new', [MessageController::class, 'create'])->name('messages.create');
 Route::post('/messages', [MessageController::class, 'store'])->name('messages.store');
 Route::get('/attendance-control-panel/login', [AttendanceController::class, 'panelLogin'])->name('attendanceControlPanel.login');
