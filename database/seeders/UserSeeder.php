@@ -29,14 +29,14 @@ class UserSeeder extends Seeder
                 'is_root_admin' => false,
             ],
             [
-                'name' => 'Dev Jerome',
+                'name' => 'admin3',
                 'email' => 'jeromebernante@gmail.com',
                 'password' => Hash::make('1234'),
                 'role' => 'admin',
                 'is_root_admin' => false,
             ],
             [
-                'name' => 'Ronie',
+                'name' => 'admin2',
                 'email' => 'vallecera@gmail.com',
                 'password' => Hash::make('sample'),
                 'role' => 'admin',
