@@ -194,7 +194,7 @@ Route::prefix('admin')
             Route::put('/inventory/{id}', [InventoryController::class, 'update'])->name('inventory.update');
             Route::delete('/inventory/{id}', [InventoryController::class, 'destroy'])->name('inventory.destroy');
             Route::get('/activity-logs', [ActivityLogController::class, 'indexAdmin'])->name('activity-logs.index');
-            Route::delete('/activity-logs/{id}', [ActivityLogController::class, 'destroy'])->name('activity-logs.destroy');
+            Route::get('/activity-logs/export', [ActivityLogController::class, 'export'])->name('activity-logs.export');
             Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
             Route::post('/users', [AdminUserController::class, 'store'])->name('users.store');
             Route::put('/users/{id}', [AdminUserController::class, 'update'])->name('users.update');

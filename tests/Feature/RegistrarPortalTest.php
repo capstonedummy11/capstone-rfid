@@ -125,6 +125,34 @@ test('registrar assigns student rfid and writes enrollment plus activity logs', 
     ]);
 });
 
+test('registrar assigns instructor rfid from the instructor enrollment workflow', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    $fixture = registrarFixture();
+
+    $this->actingAs($fixture['registrar'])
+        ->from(route('registrar.instructor-face-enrollment'))
+        ->put(route('registrar.faculty.rfid', $fixture['facultyUser']), [
+            'rfid_tag' => 'RFID-INSTRUCTOR-REG-001',
+        ])
+        ->assertRedirect(route('registrar.instructor-face-enrollment'))
+        ->assertSessionHas('success', 'Faculty RFID card assigned.');
+
+    expect($fixture['facultyUser']->fresh()->rfid_tag)->toBe('RFID-INSTRUCTOR-REG-001');
+
+    $this->assertDatabaseHas('registrar_enrollment_logs', [
+        'registrar_user_id' => $fixture['registrar']->user_id,
+        'action' => 'rfid',
+        'person_type' => 'faculty',
+        'person_id' => $fixture['facultyUser']->user_id,
+    ]);
+
+    $this->assertDatabaseHas('activity_logs', [
+        'user_id' => $fixture['registrar']->user_id,
+        'action' => 'update',
+        'table_name' => 'users',
+    ]);
+});
+
 test('registrar cannot assign duplicate rfid across students and faculty', function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
     $fixture = registrarFixture();

@@ -56,12 +56,13 @@ class RegistrarController
         $people = $this->facultyPeople();
 
         return Inertia::render('Registrar/InstructorFaceEnrollment', [
-            'title' => 'Instructor Face Enrollment',
+            'title' => 'Instructor Biometric Enrollment',
             'people' => $people,
             'stats' => [
                 'total' => $people->count(),
                 'missing_face' => $people->where('has_face', false)->count(),
-                'complete' => $people->where('has_face', true)->count(),
+                'missing_rfid' => $people->where('has_rfid', false)->count(),
+                'complete' => $people->filter(fn ($person) => $person['has_face'] && $person['has_rfid'])->count(),
             ],
         ]);
     }

@@ -20,6 +20,7 @@ Start with these docs when setting up a new machine:
 - Student, instructor, section, strand, subject, schedule, and laboratory management.
 - Admin user management for clinic, registrar, and admin accounts, with root-admin-only admin creation/deletion.
 - Registrar biometric enrollment for student and faculty RFID or face records.
+- Registrar student and instructor biometric enrollment supports RFID assignment plus either image-file upload or direct webcam capture, with capture preview/retake controls and the existing five-image limit.
 - Clinic dashboard, case logs, patient history, reports, emergency types, emergency hotline CRUD, and emergency alert handling.
 - Instructor verification by face, OTP, or security questions.
 - System settings for panel access, inventory availability, face recognition, security questions, and attendance behavior.
@@ -148,6 +149,8 @@ Current state: this branch now includes the StudentParent Vue pages, portal cont
 
 Whenever a meaningful project-facing discovery, limitation, setup step, account, schema change, route change, or implementation update is found while working on this project, update this `README.md` in the same change. Keep demo accounts, route notes, and public feature documentation current so the next work session starts from accurate project knowledge.
 
+When adding a new feature, review its audit requirements as part of the implementation. Record security-relevant and state-changing actions in the system activity log, including the actor, module, action, outcome, affected record, and request context where applicable. Add or reuse meaningful admin filters when the feature introduces a new module, action, role, or affected record type. Never place passwords, tokens, face images, request bodies, or other sensitive payloads in audit records. Add automated tests confirming that the feature's important actions create the expected logs.
+
 ## Online Class Module
 
 The Online Class module lets instructors create and manage online class sessions for their assigned schedules. Admin users can also access the management page and have a dedicated immutable audit-log page.
@@ -180,6 +183,35 @@ Audit logs:
 - `online_class_audit_logs` stores immutable online class events newest-first.
 - Logged events include create, update, reschedule, cancel, delete, facial-recognition requirement changes, student join, face pass/fail, attendance recorded, in-app notifications, and email notifications.
 - Admin log filters support search, date range, instructor id, user id, user role, section id, and action. CSV export is available at `/admin/online-class-logs/export`.
+
+System-wide audit logs:
+
+- Admins can review the immutable system activity trail at `/admin/activity-logs` and export the current filtered result as CSV from `/admin/activity-logs/export`.
+- Successful and failed state-changing web requests are recorded across all roles and modules with timestamp, actor snapshot, role, module, action, outcome, severity, affected record, route, HTTP method/status, IP address, and user agent. Viewing the audit log and using export endpoints are also audited.
+- Filters include free-text search, date range, module, action, actor user ID, role, outcome, severity, affected record type/ID, and IP address. Request bodies, passwords, tokens, face images, and other sensitive payloads are not stored.
+
+Each system activity log can contain:
+
+- Timestamp and a unique event ID for identifying and tracing the event.
+- Actor name, user ID, and role. Events without an authenticated actor are identified as System or Guest events.
+- Module and action, such as users, inventory, attendance, settings, messages, or online classes together with create, update, delete, export, cancel, or join actions.
+- Outcome (`success` or `failure`) and severity (`info`, `warning`, or `error`).
+- Affected record type and record ID when one can be determined from the request route.
+- A short event description and the Laravel route that handled the request.
+- HTTP method and response status code.
+- Originating IP address and browser/device user-agent information.
+
+Available system activity-log filters:
+
+- Free-text search across descriptions, actions, modules, actors, emails, event IDs, and routes.
+- From/to date range.
+- Module and action.
+- Actor user ID and role.
+- Outcome and severity.
+- Affected record type and record ID.
+- Exact IP address.
+
+For privacy and security, the system activity log does not store request bodies, passwords, access tokens, face images, or other sensitive payloads. Older activity-log records created before the expanded audit schema may contain fewer details than newly recorded events.
 
 System setting:
 
@@ -232,6 +264,8 @@ Student portal unfinished items:
 - `/admin/online-classes` - instructor/admin online class management.
 - `/admin/online-class-logs` - admin-only online class audit logs.
 - `/admin/online-class-logs/export` - admin-only online class audit log CSV export.
+- `/admin/activity-logs` - admin-only system-wide activity log with advanced filters.
+- `/admin/activity-logs/export` - CSV export of the current filtered system activity log.
 - `/student-parent/dashboard` - student portal dashboard summary.
 - `/student-parent/profile` - student profile and password page.
 - `/student-parent/attendance` - student attendance history.
