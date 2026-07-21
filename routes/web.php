@@ -80,6 +80,9 @@ Route::post('/messages', [MessageController::class, 'store'])->name('messages.st
 Route::get('/attendance-control-panel/login', [AttendanceController::class, 'panelLogin'])->name('attendanceControlPanel.login');
 Route::post('/panel-verify', [AttendanceController::class, 'verifyPanelPin'])->name('panelVerify');
 Route::post('/face-recognition/verify-student', [AttendanceController::class, 'verifyStudentFace'])->name('faceRecognition.verifyStudent');
+Route::get('/attendance-evidence/{attendanceLog}/{moment}', [AttendanceController::class, 'evidence'])
+    ->middleware(['auth', 'role:admin,instructor,student,parent'])
+    ->name('attendance.evidence');
 
 Route::middleware(['auth', 'role:console'])->group(function () {
     Route::get('/attendance-control-panel', [AttendanceController::class, 'controlPanel'])->name('attendanceControlPanel');

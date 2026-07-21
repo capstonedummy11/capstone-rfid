@@ -16,6 +16,12 @@ Start with these docs when setting up a new machine:
 - Public landing page and message form.
 - Role-based dashboards for admin, instructor, clinic, registrar, and attendance console users.
 - RFID attendance control panel with room selection, RFID lookup, student tap recording, attendance logs, and optional face verification.
+- Attendance-panel student taps require active-class enrollment plus AWS face verification against the student's registered face images. The exact successful camera capture is stored as attendance evidence for both time-in and time-out without changing registrar-enrolled reference images. Students without a registered face require the active instructor's RFID approval. Verification creates a short-lived, one-use server-side grant required by the final attendance-write endpoint.
+- If the camera is unavailable, the active instructor can scan their RFID once to enable a camera bypass for the current scheduled class. The bypass is stored server-side, applies only to that attendance session, and ends when the class or panel session ends.
+- If the camera works but AWS Rekognition is unavailable, each time-in/time-out capture is stored as attendance evidence and the console shows a warning for that attendance event.
+- Admin and instructor attendance logs and the student/linked-parent attendance table show authorized time-in and time-out evidence thumbnails. Selecting a thumbnail opens a larger preview; RFID-only overrides display `Not captured`.
+- A first student tap creates a checked-in record. The second verified tap records time-out and finalizes the student as `present`, or preserves `late` when applicable. Ending the class with no student time-out marks the open record `absent` with completion reason `cutting`.
+- `attendance.late_threshold_minutes` controls how many minutes after scheduled start count as late. Admin Settings exposes this value and defaults it to 15 minutes.
 - Inventory and borrowing workflows for laboratory items.
 - Student, instructor, section, strand, subject, schedule, and laboratory management.
 - Admin user management for clinic, registrar, and admin accounts, with root-admin-only admin creation/deletion.

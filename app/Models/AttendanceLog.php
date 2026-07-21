@@ -20,6 +20,15 @@ class AttendanceLog extends Model
         'time_in',
         'time_out',
         'status',
+        'verification_method',
+        'time_in_face_path',
+        'time_out_face_path',
+        'is_late',
+        'completion_reason',
+    ];
+
+    protected $casts = [
+        'is_late' => 'boolean',
     ];
 
     public function attendance(): BelongsTo

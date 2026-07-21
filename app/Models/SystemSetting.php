@@ -29,6 +29,8 @@ class SystemSetting extends Model
 
     public const ATTENDANCE_ABSENT_DEFAULT_DAYS = 'attendance.absent_default_days';
 
+    public const ATTENDANCE_LATE_THRESHOLD_MINUTES = 'attendance.late_threshold_minutes';
+
     public const SECURITY_QUESTIONS = 'auth.security_questions';
 
     public const DEFAULT_SECURITY_QUESTIONS = [
