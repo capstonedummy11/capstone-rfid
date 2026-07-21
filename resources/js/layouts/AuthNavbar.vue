@@ -226,12 +226,6 @@ const sections = [
                 roles: ['admin'],
             },
             {
-                icon: MonitorCheck,
-                text: 'Panel Login',
-                route: route('attendanceControlPanel.login'),
-                roles: ['admin', 'instructor', 'registrar', 'clinic'],
-            },
-            {
                 icon: ActivityLogs,
                 text: 'Case Logs',
                 route: route('clinic.case-logs'),
