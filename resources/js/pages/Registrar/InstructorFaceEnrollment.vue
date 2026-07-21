@@ -1,7 +1,7 @@
 <script setup>
 import { useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
-import { Camera, Users } from 'lucide-vue-next';
+import { Camera, CreditCard, Users } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
 import CameraCapture from '@/components/CameraCapture.vue';
 
@@ -12,6 +12,7 @@ const props = defineProps({
         default: () => ({
             total: 0,
             missing_face: 0,
+            missing_rfid: 0,
             complete: 0,
         }),
     },
@@ -21,6 +22,7 @@ const page = usePage();
 const selectedPerson = ref(null);
 const search = ref('');
 const statusFilter = ref('missing');
+const rfidForm = useForm({ rfid_tag: '' });
 const faceForm = useForm({ image: null });
 const deleteFaceForm = useForm({});
 const showCamera = ref(false);
@@ -35,8 +37,11 @@ const filteredPeople = computed(() => {
     return props.people.filter((person) => {
         const matchesStatus =
             statusFilter.value === 'all' ||
-            (statusFilter.value === 'missing' && !person.has_face) ||
-            (statusFilter.value === 'complete' && person.has_face);
+            (statusFilter.value === 'missing' &&
+                (!person.has_face || !person.has_rfid)) ||
+            (statusFilter.value === 'complete' &&
+                person.has_face &&
+                person.has_rfid);
         const matchesSearch =
             !term ||
             [
@@ -55,8 +60,21 @@ const filteredPeople = computed(() => {
 
 const openPerson = (person) => {
     selectedPerson.value = person;
+    rfidForm.rfid_tag = person.rfid_tag || '';
     faceForm.image = null;
     showCamera.value = false;
+};
+
+const saveRfid = () => {
+    if (!selectedPerson.value) return;
+
+    rfidForm.put(
+        route('registrar.faculty.rfid', { user: selectedPerson.value.id }),
+        {
+            preserveScroll: true,
+            onSuccess: () => toast('Instructor RFID card assigned'),
+        },
+    );
 };
 
 const setFaceFile = (event) => {
@@ -155,11 +173,11 @@ const toast = (title) => {
                     >
                         <div>
                             <h1 class="text-2xl font-bold text-slate-900">
-                                Instructor Face Enrollment
+                                Instructor Biometric Enrollment
                             </h1>
                             <p class="text-sm text-slate-500">
-                                Upload, remove, and replace instructor
-                                facial-recognition images.
+                                Assign instructor RFID cards and capture or
+                                upload facial-recognition images.
                             </p>
                         </div>
                         <p
@@ -171,7 +189,9 @@ const toast = (title) => {
                     </div>
                 </section>
 
-                <section class="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <section
+                    class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4"
+                >
                     <div
                         class="rounded-md border border-slate-200 bg-white p-4 shadow-sm"
                     >
@@ -190,6 +210,18 @@ const toast = (title) => {
                         </p>
                         <p class="mt-1 text-2xl font-bold text-red-700">
                             {{ stats.missing_face }}
+                        </p>
+                    </div>
+                    <div
+                        class="rounded-md border border-amber-200 bg-amber-50 p-4"
+                    >
+                        <p
+                            class="text-xs font-semibold text-amber-600 uppercase"
+                        >
+                            Missing RFID
+                        </p>
+                        <p class="mt-1 text-2xl font-bold text-amber-700">
+                            {{ stats.missing_rfid }}
                         </p>
                     </div>
                     <div
@@ -222,7 +254,7 @@ const toast = (title) => {
                             v-model="statusFilter"
                             class="rounded-md border border-slate-300 px-3 py-2 text-sm"
                         >
-                            <option value="missing">Needs Face</option>
+                            <option value="missing">Needs Enrollment</option>
                             <option value="complete">Complete</option>
                             <option value="all">All Status</option>
                         </select>
@@ -238,6 +270,7 @@ const toast = (title) => {
                                     <th class="px-4 py-3">Number</th>
                                     <th class="px-4 py-3">Email</th>
                                     <th class="px-4 py-3">Face</th>
+                                    <th class="px-4 py-3">RFID</th>
                                     <th class="px-4 py-3"></th>
                                 </tr>
                             </thead>
@@ -274,6 +307,18 @@ const toast = (title) => {
                                             }}
                                         </span>
                                     </td>
+                                    <td class="px-4 py-3">
+                                        <span
+                                            :class="
+                                                person.has_rfid
+                                                    ? 'bg-emerald-50 text-emerald-700'
+                                                    : 'bg-amber-50 text-amber-700'
+                                            "
+                                            class="rounded-md px-2 py-1 text-xs font-bold"
+                                        >
+                                            {{ person.rfid_tag || 'Missing' }}
+                                        </span>
+                                    </td>
                                     <td class="px-4 py-3 text-right">
                                         <button
                                             type="button"
@@ -307,6 +352,38 @@ const toast = (title) => {
                             {{ selectedPerson.email || selectedPerson.number }}
                         </p>
                     </div>
+
+                    <form
+                        class="rounded-md border border-slate-200 p-4"
+                        @submit.prevent="saveRfid"
+                    >
+                        <div
+                            class="flex items-center gap-2 text-sm font-bold text-slate-800"
+                        >
+                            <CreditCard class="h-4 w-4 text-brand" />
+                            RFID Card
+                        </div>
+                        <input
+                            v-model="rfidForm.rfid_tag"
+                            type="text"
+                            class="mt-3 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                            placeholder="Scan or enter instructor RFID"
+                            required
+                        />
+                        <p
+                            v-if="rfidForm.errors.rfid_tag"
+                            class="mt-2 text-xs text-red-600"
+                        >
+                            {{ rfidForm.errors.rfid_tag }}
+                        </p>
+                        <button
+                            type="submit"
+                            class="mt-3 w-full rounded-md bg-brand px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+                            :disabled="rfidForm.processing"
+                        >
+                            Save Instructor RFID
+                        </button>
+                    </form>
 
                     <form
                         class="rounded-md border border-slate-200 p-4"
@@ -468,7 +545,7 @@ const toast = (title) => {
                 >
                     <Users class="mb-3 h-10 w-10 text-slate-300" />
                     <p class="font-semibold">
-                        Select an instructor to manage face images.
+                        Select an instructor to manage RFID and face images.
                     </p>
                 </div>
             </aside>
