@@ -181,6 +181,12 @@ Audit logs:
 - Logged events include create, update, reschedule, cancel, delete, facial-recognition requirement changes, student join, face pass/fail, attendance recorded, in-app notifications, and email notifications.
 - Admin log filters support search, date range, instructor id, user id, user role, section id, and action. CSV export is available at `/admin/online-class-logs/export`.
 
+System-wide audit logs:
+
+- Admins can review the immutable system activity trail at `/admin/activity-logs` and export the current filtered result as CSV from `/admin/activity-logs/export`.
+- Successful and failed state-changing web requests are recorded across all roles and modules with timestamp, actor snapshot, role, module, action, outcome, severity, affected record, route, HTTP method/status, IP address, and user agent. Viewing the audit log and using export endpoints are also audited.
+- Filters include free-text search, date range, module, action, actor user ID, role, outcome, severity, affected record type/ID, and IP address. Request bodies, passwords, tokens, face images, and other sensitive payloads are not stored.
+
 System setting:
 
 - `online_class.face_recognition_enabled_by_default` controls the default Require Facial Recognition toggle for new online classes.
@@ -232,6 +238,8 @@ Student portal unfinished items:
 - `/admin/online-classes` - instructor/admin online class management.
 - `/admin/online-class-logs` - admin-only online class audit logs.
 - `/admin/online-class-logs/export` - admin-only online class audit log CSV export.
+- `/admin/activity-logs` - admin-only system-wide activity log with advanced filters.
+- `/admin/activity-logs/export` - CSV export of the current filtered system activity log.
 - `/student-parent/dashboard` - student portal dashboard summary.
 - `/student-parent/profile` - student profile and password page.
 - `/student-parent/attendance` - student attendance history.
