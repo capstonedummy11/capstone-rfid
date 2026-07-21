@@ -242,7 +242,7 @@ Known limitations:
 - The Online Class join endpoint also validates the submitted face image server-side before recording attendance, so a plain `face_verified` flag is not accepted for required-face classes.
 - The log export is CSV, which Excel can open. A native `.xlsx` export is not implemented.
 - Student/parent notification center exists at `/student-parent/notifications` and supports marking notifications as read.
-- Student/parent and instructor inbox messages work as chat-style conversations with no visible subject field. Stored message subjects are generated internally for compatibility, student portal messages remain encrypted, and public/student messages are mirrored into the instructor inbox.
+- Student/parent and instructor inbox messages work as private Messenger-style conversations with a searchable conversation list, complete chronological incoming/outgoing reply history, unread indicators, attachment links, and a reply composer. Stored message subjects are generated internally for compatibility, student portal messages remain encrypted, and public/student messages are mirrored into the instructor inbox.
 - Parent accounts can switch between linked students on portal pages when more than one child is linked.
 - Online Class facial recognition can only be required when Face Rekognition is enabled and AWS Rekognition appears configured. Settings and Online Class forms warn and keep the toggle off when unavailable.
 - If an older required-face online class is joined while AWS Rekognition is unavailable, the student is allowed to join and the instructor receives one system inbox message per student/class.
