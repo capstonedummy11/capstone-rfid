@@ -20,6 +20,7 @@ Start with these docs when setting up a new machine:
 - Student, instructor, section, strand, subject, schedule, and laboratory management.
 - Admin user management for clinic, registrar, and admin accounts, with root-admin-only admin creation/deletion.
 - Registrar biometric enrollment for student and faculty RFID or face records.
+- Registrar student and instructor face enrollment supports either image-file upload or direct webcam capture, with capture preview/retake controls and the existing five-image limit.
 - Clinic dashboard, case logs, patient history, reports, emergency types, emergency hotline CRUD, and emergency alert handling.
 - Instructor verification by face, OTP, or security questions.
 - System settings for panel access, inventory availability, face recognition, security questions, and attendance behavior.
