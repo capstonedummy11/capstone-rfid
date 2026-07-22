@@ -112,6 +112,88 @@ npm run lint
 
 Formats and lints frontend resources.
 
+## Updating the Production Server
+
+SSH into the server, then pull the latest `development` branch from the project directory:
+
+```bash
+cd /var/www/capstone-rfid
+git pull origin development
+```
+
+After a normal code update, run the production update steps:
+
+```bash
+cd /var/www/capstone-rfid
+git pull origin development
+composer install --no-dev --optimize-autoloader
+php artisan migrate --force
+php artisan optimize:clear
+php artisan config:cache
+php artisan view:cache
+NODE_OPTIONS=--max-old-space-size=2048 npm install
+NODE_OPTIONS=--max-old-space-size=2048 npm run build
+sudo chown -R ubuntu:www-data storage bootstrap/cache public/build
+sudo find storage bootstrap/cache -type d -exec chmod 775 {} \;
+sudo find storage bootstrap/cache -type f -exec chmod 664 {} \;
+sudo chmod -R g+s storage bootstrap/cache
+sudo systemctl restart php8.4-fpm
+sudo systemctl restart nginx
+```
+
+Use `php artisan migrate --force` for production schema updates. Do **not** run `php artisan migrate:fresh --seed` on the production server because it drops all existing database tables and data.
+
+### Deleting Saved Face Images
+
+For one student or instructor, use the Registrar Biometric Enrollment page at `/registrar/biometric-enrollment` and select the delete/remove action beside the image. This is the preferred method because it deletes the file and removes its database reference together.
+
+Face images are stored on the `public` Laravel disk under:
+
+- `storage/app/public/student_faces` - student enrollment images.
+- `storage/app/public/instructor_faces` - instructor enrollment images.
+- `storage/app/public/attendance_face_captures` - time-in/time-out evidence images.
+
+To remove **all student and instructor enrollment images** from the server, first back up the database and `storage/app/public`. Then run:
+
+```bash
+cd /var/www/capstone-rfid
+php artisan tinker
+```
+
+Paste these commands into Tinker one at a time:
+
+```php
+use Illuminate\Support\Facades\Storage;
+
+App\Models\Students::whereNotNull('face_images')->get()->each(function ($student) { collect($student->face_images ?? [])->each(fn ($path) => Storage::disk('public')->delete($path)); $student->update(['face_images' => []]); });
+
+App\Models\User::whereNotNull('face_images')->get()->each(function ($user) { collect($user->face_images ?? [])->each(fn ($path) => Storage::disk('public')->delete($path)); $user->update(['face_images' => []]); });
+
+exit
+```
+
+This keeps the database synchronized with the deleted enrollment files. It does not delete attendance evidence. Removing enrollment images means those users must enroll again before face verification can work.
+
+Attendance evidence is part of the attendance record and should normally be retained. If an authorized administrator must permanently remove **all attendance evidence images**, use Tinker separately:
+
+```bash
+cd /var/www/capstone-rfid
+php artisan tinker
+```
+
+```php
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+
+DB::table('attendance_logs')->select('time_in_face_path', 'time_out_face_path')->get()->each(function ($log) { collect([$log->time_in_face_path, $log->time_out_face_path])->filter()->each(fn ($path) => Storage::disk('public')->delete($path)); });
+
+DB::table('attendance_logs')->update(['time_in_face_path' => null, 'time_out_face_path' => null]);
+
+exit
+```
+
+This evidence deletion is permanent. Back up first and perform it only when required by the system's privacy or data-retention policy.
+
 ## Demo Seed Data
 
 The main database seeder calls:
