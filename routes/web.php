@@ -214,6 +214,9 @@ Route::prefix('admin')
             Route::post('/students', [StudentsController::class, 'store'])->name('students.store');
             Route::put('/students/{id}', [StudentsController::class, 'update'])->name('students.update');
             Route::delete('/students/{id}', [StudentsController::class, 'destroy'])->name('students.destroy');
+            Route::post('/students/{id}/parents', [StudentsController::class, 'storeParent'])->name('students.parents.store');
+            Route::put('/students/{id}/parents/{parent}', [StudentsController::class, 'updateParent'])->name('students.parents.update');
+            Route::delete('/students/{id}/parents/{parent}', [StudentsController::class, 'destroyParent'])->name('students.parents.destroy');
             Route::get('/instructors', [InstructorsController::class, 'indexAdmin'])->name('instructors.index');
             Route::post('/instructors', [InstructorsController::class, 'store'])->name('instructors.store');
             Route::put('/instructors/{id}', [InstructorsController::class, 'update'])->name('instructors.update');

@@ -12,11 +12,13 @@ use App\Models\Strand;
 use App\Models\StudentExcuseLetter;
 use App\Models\StudentPortalMessage;
 use App\Models\Students;
+use App\Models\User;
 use App\Services\CompreFaceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class StudentsController
@@ -53,7 +55,7 @@ class StudentsController
                 ->pluck('section_id');
         }
 
-        $query = Students::query()->with(['section', 'strand']);
+        $query = Students::query()->with(['section', 'strand', 'parentUsers']);
 
         if ($isInstructor) {
             $query->whereIn('section_id', $handledSectionIds->all());
@@ -119,6 +121,9 @@ class StudentsController
                     'rfid_tag' => $student->rfid_tag,
                     'face_images' => $student->face_images ?? [],
                     'status' => $student->status ?? 'active',
+                    'parents' => $student->parentUsers
+                        ->map(fn (User $parent) => $this->parentPayload($parent))
+                        ->values(),
                 ];
             })
             ->values();
@@ -229,6 +234,121 @@ class StudentsController
         $this->logActivity('update', 'students', 'Updated student '.$student->student_number);
 
         return back()->with('success', 'Student updated successfully.');
+    }
+
+    public function storeParent(Request $request, int $id)
+    {
+        $student = Students::query()->findOrFail($id);
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'gender' => ['nullable', 'in:male,female'],
+            'relationship' => ['required', 'string', 'max:100'],
+            'password' => ['nullable', 'string', 'min:8', 'max:255'],
+        ]);
+
+        $parent = User::query()
+            ->whereRaw('LOWER(email) = ?', [strtolower($validated['email'])])
+            ->first();
+
+        if ($parent && strtolower((string) $parent->role) !== 'parent') {
+            return back()->withErrors([
+                'email' => 'This email already belongs to a non-parent account.',
+            ]);
+        }
+
+        if (! $parent && blank($validated['password'] ?? null)) {
+            return back()->withErrors([
+                'password' => 'Password is required when creating a new parent account.',
+            ]);
+        }
+
+        if (! $parent) {
+            $parent = User::query()->create([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => Hash::make($validated['password']),
+                'role' => 'parent',
+                'phone' => $validated['phone'] ?? null,
+                'gender' => $validated['gender'] ?? null,
+            ]);
+
+            $this->logActivity('create', 'users', 'Created parent account '.$parent->email.' for student '.$student->student_number);
+        } else {
+            $payload = [
+                'name' => $validated['name'],
+                'phone' => $validated['phone'] ?? null,
+                'gender' => $validated['gender'] ?? null,
+            ];
+
+            if (! blank($validated['password'] ?? null)) {
+                $payload['password'] = Hash::make($validated['password']);
+            }
+
+            $parent->update($payload);
+        }
+
+        $student->parentUsers()->syncWithoutDetaching([
+            $parent->user_id => ['relationship' => $validated['relationship']],
+        ]);
+
+        $this->logActivity('update', 'parent_student_links', 'Linked parent '.$parent->email.' to student '.$student->student_number);
+
+        return back()->with('success', 'Parent account linked to student.');
+    }
+
+    public function updateParent(Request $request, int $id, int $parent)
+    {
+        $student = Students::query()->findOrFail($id);
+        $parentUser = $student->parentUsers()
+            ->where('users.user_id', $parent)
+            ->whereRaw('LOWER(role) = ?', ['parent'])
+            ->firstOrFail();
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($parentUser->user_id, 'user_id')],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'gender' => ['nullable', 'in:male,female'],
+            'relationship' => ['required', 'string', 'max:100'],
+            'password' => ['nullable', 'string', 'min:8', 'max:255'],
+        ]);
+
+        $payload = [
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'phone' => $validated['phone'] ?? null,
+            'gender' => $validated['gender'] ?? null,
+        ];
+
+        if (! blank($validated['password'] ?? null)) {
+            $payload['password'] = Hash::make($validated['password']);
+        }
+
+        $parentUser->update($payload);
+        $student->parentUsers()->updateExistingPivot($parentUser->user_id, [
+            'relationship' => $validated['relationship'],
+        ]);
+
+        $this->logActivity('update', 'parent_student_links', 'Updated parent '.$parentUser->email.' for student '.$student->student_number);
+
+        return back()->with('success', 'Parent account updated.');
+    }
+
+    public function destroyParent(Request $request, int $id, int $parent)
+    {
+        $student = Students::query()->findOrFail($id);
+        $parentUser = $student->parentUsers()
+            ->where('users.user_id', $parent)
+            ->whereRaw('LOWER(role) = ?', ['parent'])
+            ->firstOrFail();
+
+        $student->parentUsers()->detach($parentUser->user_id);
+
+        $this->logActivity('delete', 'parent_student_links', 'Unlinked parent '.$parentUser->email.' from student '.$student->student_number);
+
+        return back()->with('success', 'Parent account unlinked from student.');
     }
 
     public function uploadFaceImage(Request $request, $id)
@@ -652,6 +772,18 @@ class StudentsController
             'semester' => $student->semester,
             'school_year' => $student->school_year,
             'status' => $student->status,
+        ];
+    }
+
+    private function parentPayload(User $parent): array
+    {
+        return [
+            'id' => $parent->user_id,
+            'name' => $parent->name,
+            'email' => $parent->email,
+            'phone' => $parent->phone,
+            'gender' => $parent->gender,
+            'relationship' => $parent->pivot?->relationship ?? 'parent',
         ];
     }
 

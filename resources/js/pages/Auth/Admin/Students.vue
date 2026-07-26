@@ -196,6 +196,11 @@
                                     Face Images
                                 </th>
                                 <th
+                                    class="border border-gray-300 px-4 py-3 text-left"
+                                >
+                                    Parents
+                                </th>
+                                <th
                                     v-if="canManageStudents"
                                     class="border border-gray-300 px-4 py-3 text-left"
                                 >
@@ -287,13 +292,43 @@
                                         >None</span
                                     >
                                 </td>
+                                <td class="border border-gray-300 px-4 py-3">
+                                    <div
+                                        v-if="student.parents?.length"
+                                        class="space-y-1"
+                                    >
+                                        <div
+                                            v-for="parent in student.parents"
+                                            :key="parent.id"
+                                            class="text-sm"
+                                        >
+                                            <div class="font-medium text-slate-800">
+                                                {{ parent.name }}
+                                            </div>
+                                            <div class="text-xs text-slate-500">
+                                                {{ parent.relationship }} - {{ parent.email }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <span
+                                        v-else
+                                        class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-400"
+                                        >None</span
+                                    >
+                                </td>
                                 <td v-if="canManageStudents" class="border border-gray-300 px-4 py-3">
-                                    <div class="flex items-center gap-2">
+                                    <div class="flex flex-wrap items-center gap-2">
                                         <button
                                             @click="openEditModal(student)"
                                             class="rounded-md bg-indigo-600 px-3 py-1 text-sm text-white hover:bg-indigo-700"
                                         >
                                             Edit
+                                        </button>
+                                        <button
+                                            @click="openParentModal(student)"
+                                            class="rounded-md bg-emerald-600 px-3 py-1 text-sm text-white hover:bg-emerald-700"
+                                        >
+                                            Parents
                                         </button>
                                         <button
                                             @click="deleteStudent(student)"
@@ -680,6 +715,203 @@
                     </form>
                 </div>
             </div>
+
+            <div
+                v-if="showParentModal && canManageStudents && selectedStudent"
+                class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            >
+                <div
+                    class="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-white p-6"
+                >
+                    <div
+                        class="mb-5 flex flex-col gap-2 md:flex-row md:items-start md:justify-between"
+                    >
+                        <div>
+                            <h2 class="text-xl font-semibold">
+                                Parent Accounts
+                            </h2>
+                            <p class="text-sm text-slate-500">
+                                {{ selectedStudent.first_name }}
+                                {{ selectedStudent.last_name }} -
+                                {{ selectedStudent.student_number }}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            @click="closeParentModal"
+                            class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+                        >
+                            Close
+                        </button>
+                    </div>
+
+                    <div class="mb-6 rounded-md border border-slate-200">
+                        <div
+                            v-if="selectedStudent.parents?.length"
+                            class="divide-y divide-slate-200"
+                        >
+                            <div
+                                v-for="parent in selectedStudent.parents"
+                                :key="parent.id"
+                                class="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between"
+                            >
+                                <div>
+                                    <div class="font-medium text-slate-900">
+                                        {{ parent.name }}
+                                    </div>
+                                    <div class="text-sm text-slate-500">
+                                        {{ parent.email }}
+                                    </div>
+                                    <div class="text-xs text-slate-500">
+                                        {{ parent.relationship }}
+                                        <span v-if="parent.phone">
+                                            - {{ parent.phone }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        @click="editParent(parent)"
+                                        class="rounded-md bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-700"
+                                    >
+                                        Edit
+                                    </button>
+                                    <button
+                                        type="button"
+                                        @click="unlinkParent(parent)"
+                                        class="rounded-md bg-rose-500 px-3 py-1.5 text-sm text-white hover:bg-rose-600"
+                                    >
+                                        Unlink
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-else class="p-4 text-sm text-slate-500">
+                            No parent account is linked to this student yet.
+                        </div>
+                    </div>
+
+                    <form @submit.prevent="submitParentForm" class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-semibold text-slate-900">
+                                {{ selectedParent ? 'Edit Parent' : 'Create or Link Parent' }}
+                            </h3>
+                            <button
+                                v-if="selectedParent"
+                                type="button"
+                                @click="resetParentForm"
+                                class="text-sm text-blue-600 hover:text-blue-700"
+                            >
+                                New Parent
+                            </button>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div>
+                                <label class="mb-1 block text-sm font-medium text-slate-700">
+                                    Parent Name *
+                                </label>
+                                <input
+                                    v-model="parentForm.name"
+                                    type="text"
+                                    class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                    required
+                                />
+                                <p v-if="parentForm.errors.name" class="mt-1 text-xs text-rose-600">
+                                    {{ parentForm.errors.name }}
+                                </p>
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-sm font-medium text-slate-700">
+                                    Email *
+                                </label>
+                                <input
+                                    v-model="parentForm.email"
+                                    type="email"
+                                    class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                    required
+                                />
+                                <p v-if="parentForm.errors.email" class="mt-1 text-xs text-rose-600">
+                                    {{ parentForm.errors.email }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+                            <div>
+                                <label class="mb-1 block text-sm font-medium text-slate-700">
+                                    Relationship *
+                                </label>
+                                <input
+                                    v-model="parentForm.relationship"
+                                    type="text"
+                                    placeholder="mother, father, guardian"
+                                    class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                    required
+                                />
+                                <p v-if="parentForm.errors.relationship" class="mt-1 text-xs text-rose-600">
+                                    {{ parentForm.errors.relationship }}
+                                </p>
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-sm font-medium text-slate-700">
+                                    Phone
+                                </label>
+                                <input
+                                    v-model="parentForm.phone"
+                                    type="tel"
+                                    class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                />
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-sm font-medium text-slate-700">
+                                    Gender
+                                </label>
+                                <select
+                                    v-model="parentForm.gender"
+                                    class="w-full rounded-md border border-slate-300 px-3 py-2"
+                                >
+                                    <option value="">Select Gender</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-sm font-medium text-slate-700">
+                                    Password
+                                </label>
+                                <input
+                                    v-model="parentForm.password"
+                                    type="password"
+                                    placeholder="Required for new"
+                                    class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                />
+                                <p v-if="parentForm.errors.password" class="mt-1 text-xs text-rose-600">
+                                    {{ parentForm.errors.password }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end gap-2 border-t pt-4">
+                            <button
+                                type="button"
+                                @click="resetParentForm"
+                                class="rounded-md border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+                            >
+                                Reset
+                            </button>
+                            <button
+                                type="submit"
+                                class="rounded-md bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-700 disabled:opacity-50"
+                                :disabled="parentForm.processing"
+                            >
+                                {{ selectedParent ? 'Update Parent' : 'Save Parent' }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 </template>
@@ -708,6 +940,16 @@ interface Student {
     rfid_tag: string;
     face_images?: string[];
     status: 'active' | 'inactive' | 'graduated' | 'dropped';
+    parents?: ParentAccount[];
+}
+
+interface ParentAccount {
+    id: string | number;
+    name: string;
+    email: string;
+    phone?: string;
+    gender?: string;
+    relationship: string;
 }
 
 interface StrandOption {
@@ -780,6 +1022,8 @@ const selectedStatus = ref(props.filters.status ?? '');
 const showModal = ref(false);
 const isEditing = ref(false);
 const selectedStudent = ref<Student | null>(null);
+const showParentModal = ref(false);
+const selectedParent = ref<ParentAccount | null>(null);
 
 // Face image management state
 const faceImages = ref<string[]>([]);
@@ -804,6 +1048,15 @@ const form = useForm({
     school_year: '',
     rfid_tag: '',
     status: 'active',
+});
+
+const parentForm = useForm({
+    name: '',
+    email: '',
+    phone: '',
+    gender: '',
+    relationship: 'parent',
+    password: '',
 });
 
 const filteredStudents = computed<Student[]>(() => {
@@ -924,6 +1177,117 @@ const closeModal = () => {
     faceImageError.value = '';
     showFaceCamera.value = false;
     form.reset();
+};
+
+const resetParentForm = () => {
+    selectedParent.value = null;
+    parentForm.reset();
+    parentForm.clearErrors();
+    parentForm.relationship = 'parent';
+};
+
+const openParentModal = (student: Student) => {
+    if (!canManageStudents.value) return;
+    selectedStudent.value = student;
+    showParentModal.value = true;
+    resetParentForm();
+};
+
+const closeParentModal = () => {
+    showParentModal.value = false;
+    selectedStudent.value = null;
+    resetParentForm();
+};
+
+const editParent = (parent: ParentAccount) => {
+    selectedParent.value = parent;
+    parentForm.clearErrors();
+    parentForm.name = parent.name;
+    parentForm.email = parent.email;
+    parentForm.phone = parent.phone ?? '';
+    parentForm.gender = parent.gender ?? '';
+    parentForm.relationship = parent.relationship || 'parent';
+    parentForm.password = '';
+};
+
+const submitParentForm = () => {
+    if (!selectedStudent.value) return;
+
+    const options = {
+        preserveState: true,
+        preserveScroll: true,
+        onSuccess: () => {
+            router.reload({
+                only: ['students'],
+                onSuccess: () => {
+                    const refreshed = (props.students as Student[]).find(
+                        (student) =>
+                            String(student.student_id) ===
+                            String(selectedStudent.value?.student_id),
+                    );
+                    if (refreshed) selectedStudent.value = refreshed;
+                    resetParentForm();
+                },
+            });
+        },
+    };
+
+    if (selectedParent.value) {
+        parentForm.put(
+            route('admin.students.parents.update', {
+                id: selectedStudent.value.student_id,
+                parent: selectedParent.value.id,
+            }),
+            options,
+        );
+        return;
+    }
+
+    parentForm.post(
+        route('admin.students.parents.store', {
+            id: selectedStudent.value.student_id,
+        }),
+        options,
+    );
+};
+
+const unlinkParent = (parent: ParentAccount) => {
+    if (!selectedStudent.value) return;
+    if (
+        !confirm(
+            `Unlink ${parent.name} from ${selectedStudent.value.first_name} ${selectedStudent.value.last_name}?`,
+        )
+    ) {
+        return;
+    }
+
+    const unlinkForm = useForm({});
+    unlinkForm.delete(
+        route('admin.students.parents.destroy', {
+            id: selectedStudent.value.student_id,
+            parent: parent.id,
+        }),
+        {
+            preserveState: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                router.reload({
+                    only: ['students'],
+                    onSuccess: () => {
+                        const refreshed = (props.students as Student[]).find(
+                            (student) =>
+                                String(student.student_id) ===
+                                String(selectedStudent.value?.student_id),
+                        );
+                        if (refreshed) selectedStudent.value = refreshed;
+                        if (String(selectedParent.value?.id) === String(parent.id)) {
+                            resetParentForm();
+                        }
+                    },
+                });
+            },
+        },
+    );
 };
 
 const submitForm = () => {

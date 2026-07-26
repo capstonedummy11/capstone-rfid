@@ -20,6 +20,7 @@ Start with these docs when setting up a new machine:
 - Attendance panel taps are classified by the active class schedule: first valid tap is check-in, taps before the final 15-minute checkout window alternate between Temporary Exit and Temporary Return, the first tap inside the checkout window becomes the official check-out, and later taps are ignored.
 - Inventory and borrowing workflows for laboratory items.
 - Student, instructor, section, strand, subject, schedule, and laboratory management.
+- Admin Student Management now includes parent account management for creating or linking parent portal accounts, editing parent details, setting the relationship label, and associating or unlinking parents from student records.
 - Admin user management for clinic, registrar, and admin accounts, with root-admin-only admin creation, updates, deletion, and promotion.
 - Registrar biometric enrollment for student and faculty RFID or face records.
 - Clinic dashboard, case logs, patient history, reports, emergency types, emergency hotline CRUD, and emergency alert handling.
@@ -150,6 +151,8 @@ Current state: this branch now includes the StudentParent Vue pages, portal cont
 
 Whenever a meaningful project-facing discovery, limitation, setup step, account, schema change, route change, or implementation update is found while working on this project, update this `README.md` in the same change. Keep demo accounts, route notes, and public feature documentation current so the next work session starts from accurate project knowledge.
 
+When creating a new feature or fixing a bug, also update `system flow.md` in the same change so the documented system behavior stays aligned with the implementation.
+
 ## Attendance Panel Flow
 
 The Attendance Control Panel is used by a console account in a selected laboratory or room. An instructor starts the live attendance session by tapping their RFID card. The active room, schedule, subject, instructor, and section are resolved from the current class schedule.
@@ -267,6 +270,7 @@ Student portal unfinished items:
 - `/dashboard` - role-based dashboard redirect.
 - `/admin/dashboard` - admin/instructor dashboard.
 - `/admin/users` - admin user management for clinic, registrar, and admin accounts. Only root admins can create, update, delete, or promote admin accounts; standard admins can manage clinic and registrar accounts only.
+- `/admin/students` - student management for admins and scoped student viewing for instructors. Admins can add/edit/delete students and manage linked parent portal accounts from the Parents action in the student row.
 - `/admin/online-classes` - instructor/admin online class management.
 - `/admin/online-class-logs` - admin-only online class audit logs.
 - `/admin/online-class-logs/export` - admin-only online class audit log CSV export.

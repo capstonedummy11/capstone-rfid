@@ -116,6 +116,7 @@ System and audit tables:
 - `emergency_alerts.emergency_type_id` links alerts to emergency types.
 - `clinic_cases.emergency_alert_id` can link clinic cases to alerts.
 - `parent_student_links.parent_user_id` links parent users to students.
+- Parent portal accounts are stored in `users` with `role = parent`; Admin Student Management creates or links these accounts and stores the relationship label on `parent_student_links.relationship`.
 - `online_classes.schedule_id`, `instructor_id`, and `section_id` connect online classes to the academic setup.
 
 ## Attendance Data Model

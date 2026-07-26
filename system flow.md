@@ -1,5 +1,35 @@
 # System Flow
 
+## Admin Student And Parent Account Flow
+
+Page names:
+
+- `Auth/Admin/Students.vue` - admin and instructor student management page.
+
+Routes:
+
+- `/admin/students` - opens Student Management.
+- `POST /admin/students/{id}/parents` - creates or links a parent portal account to a student.
+- `PUT /admin/students/{id}/parents/{parent}` - updates a linked parent account and relationship label.
+- `DELETE /admin/students/{id}/parents/{parent}` - unlinks a parent account from the student.
+
+### 1. Student List
+
+1. Admins open `/admin/students`.
+2. The page loads each student with section, strand, RFID, face image count, status, and linked parent accounts.
+3. Instructors can view scoped student records only for handled sections.
+4. Only admins can create, update, delete, or manage parent links.
+
+### 2. Parent Account Management
+
+1. An admin selects the `Parents` action on a student row.
+2. The modal lists linked parent portal accounts with name, email, relationship, and phone.
+3. When the submitted email is new, the system creates a `users` row with role `parent` and requires a password.
+4. When the submitted email already belongs to a parent account, the system links that existing account to the selected student and can update the parent profile fields.
+5. Emails that belong to non-parent users cannot be linked as parent accounts.
+6. The parent-student relationship label is saved on `parent_student_links.relationship`.
+7. Unlink removes only the student association. The parent user account remains available for other linked students.
+
 ## Attendance Panel Flow
 
 Page names:
