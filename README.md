@@ -15,10 +15,10 @@ Start with these docs when setting up a new machine:
 
 - Public landing page and message form.
 - Role-based dashboards for admin, instructor, clinic, registrar, and attendance console users.
-- RFID attendance control panel with room selection, RFID lookup, student tap recording, attendance logs, and optional face verification.
+- RFID attendance control panel with room selection, RFID lookup, student tap recording, attendance logs, required student face verification, and instructor RFID/face override when student face verification cannot run.
 - Inventory and borrowing workflows for laboratory items.
 - Student, instructor, section, strand, subject, schedule, and laboratory management.
-- Admin user management for clinic, registrar, and admin accounts, with root-admin-only admin creation/deletion.
+- Admin user management for clinic, registrar, and admin accounts, with root-admin-only admin creation, updates, deletion, and promotion.
 - Registrar biometric enrollment for student and faculty RFID or face records.
 - Clinic dashboard, case logs, patient history, reports, emergency types, emergency hotline CRUD, and emergency alert handling.
 - Instructor verification by face, OTP, or security questions.
@@ -219,6 +219,7 @@ Student portal unfinished items:
 - Notifications currently cover Online Class events only; excuse-letter status changes and portal message replies do not create student notifications yet.
 - Parent profile updates now save only the parent user profile; student accounts still sync their own phone/gender to their student record.
 - Online Class face verification depends on existing AWS Rekognition credentials and saved student face images. Missing AWS setup prevents enabling required face recognition; missing student face images can still block required-face verification when the provider is available.
+- Attendance panel student taps require direct student face verification when Face Rekognition is enabled. If the student has no saved face image, Face Rekognition is disabled, or AWS comparison is unavailable, the panel requires the active instructor RFID before recording attendance; when the instructor has a saved face image, the instructor face must also verify.
 
 ## Important Routes
 
@@ -228,7 +229,7 @@ Student portal unfinished items:
 - `/secure-login` - legacy compatibility redirect to the configured `SECURE_LOGIN_ROUTE` when that env value is different.
 - `/dashboard` - role-based dashboard redirect.
 - `/admin/dashboard` - admin/instructor dashboard.
-- `/admin/users` - admin user management for clinic, registrar, and admin accounts. Only root admins can create or delete admin accounts.
+- `/admin/users` - admin user management for clinic, registrar, and admin accounts. Only root admins can create, update, delete, or promote admin accounts; standard admins can manage clinic and registrar accounts only.
 - `/admin/online-classes` - instructor/admin online class management.
 - `/admin/online-class-logs` - admin-only online class audit logs.
 - `/admin/online-class-logs/export` - admin-only online class audit log CSV export.

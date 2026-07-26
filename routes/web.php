@@ -21,8 +21,8 @@ use App\Http\Controllers\RfidController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\SectionController;
 use App\Http\Controllers\StaffLoginController;
-use App\Http\Controllers\StudentParentLoginController;
 use App\Http\Controllers\StrandController;
+use App\Http\Controllers\StudentParentLoginController;
 use App\Http\Controllers\StudentsController;
 use App\Http\Controllers\SubjectController;
 use App\Http\Controllers\SystemSettingsController;
@@ -89,6 +89,7 @@ Route::middleware(['auth', 'role:console'])->group(function () {
     Route::post('/attendance-control-panel/rfid-lookup', [AttendanceController::class, 'lookupRfid'])->name('attendanceControlPanel.lookupRfid');
     Route::post('/attendance-control-panel/session-state', [AttendanceController::class, 'updatePanelSessionState'])->name('attendanceControlPanel.sessionState');
     Route::post('/attendance-control-panel/student-face-check', [AttendanceController::class, 'studentFaceCheck'])->name('attendanceControlPanel.studentFaceCheck');
+    Route::post('/attendance-control-panel/instructor-face-check', [AttendanceController::class, 'instructorFaceCheck'])->name('attendanceControlPanel.instructorFaceCheck');
     Route::post('/attendance-control-panel/student-tap', [AttendanceController::class, 'recordStudentTap'])->name('attendanceControlPanel.studentTap');
     Route::post('/attendance-control-panel/attendance-logs', [AttendanceController::class, 'attendanceLogSnapshot'])->name('attendanceControlPanel.attendanceLogs');
     Route::post('/attendance-control-panel/borrow-items-only', [BorrowController::class, 'borrowItemsOnly'])->name('attendanceControlPanel.borrowItemsOnly');

@@ -75,6 +75,13 @@ test('standard admin can create clinic and registrar users but cannot manage adm
         'is_root_admin' => false,
     ]);
 
+    $clinic = User::factory()->create([
+        'name' => 'Clinic Target',
+        'email' => 'clinic.target@example.com',
+        'role' => 'clinic',
+        'is_root_admin' => false,
+    ]);
+
     $this->actingAs($standardAdmin)
         ->get(route('admin.users.index'))
         ->assertOk()
@@ -126,11 +133,53 @@ test('standard admin can create clinic and registrar users but cannot manage adm
         ->assertForbidden();
 
     $this->actingAs($standardAdmin)
+        ->put(route('admin.users.update', $targetAdmin->user_id), [
+            'name' => 'Renamed Admin',
+            'email' => 'target.admin@example.com',
+            'password' => '',
+            'role' => 'admin',
+            'is_root_admin' => false,
+        ])
+        ->assertForbidden();
+
+    $this->actingAs($standardAdmin)
+        ->put(route('admin.users.update', $clinic->user_id), [
+            'name' => 'Promoted Clinic',
+            'email' => 'clinic.target@example.com',
+            'password' => '',
+            'role' => 'admin',
+            'is_root_admin' => false,
+        ])
+        ->assertForbidden();
+
+    $this->actingAs($standardAdmin)
+        ->put(route('admin.users.update', $clinic->user_id), [
+            'name' => 'Updated Clinic',
+            'email' => 'updated.clinic@example.com',
+            'password' => '',
+            'role' => 'clinic',
+            'is_root_admin' => false,
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'User account updated.');
+
+    $this->actingAs($standardAdmin)
         ->delete(route('admin.users.destroy', $targetAdmin->user_id))
         ->assertForbidden();
 
     $this->assertDatabaseHas('users', [
         'email' => 'target.admin@example.com',
+        'name' => $targetAdmin->name,
+        'role' => 'admin',
+        'is_root_admin' => false,
+        'deleted_at' => null,
+    ]);
+
+    $this->assertDatabaseHas('users', [
+        'email' => 'updated.clinic@example.com',
+        'name' => 'Updated Clinic',
+        'role' => 'clinic',
+        'is_root_admin' => false,
         'deleted_at' => null,
     ]);
 });
