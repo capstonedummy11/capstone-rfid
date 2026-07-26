@@ -205,7 +205,8 @@ const sections = [
             {
                 icon: Reports,
                 text: 'Reports',
-                roles: ['admin'],
+                route: route('reports.index'),
+                roles: ['admin', 'instructor', 'clinic', 'registrar'],
             },
             {
                 icon: ActivityLogs,
@@ -241,12 +242,6 @@ const sections = [
                 icon: Instructor,
                 text: 'Patient History',
                 route: route('clinic.patient-history'),
-                roles: ['clinic'],
-            },
-            {
-                icon: Reports,
-                text: 'Reports',
-                route: route('clinic.reports'),
                 roles: ['clinic'],
             },
             {

@@ -111,6 +111,38 @@ Routes:
 2. Attachments are stored on the public disk path but exposed through an authorized download route.
 3. Only the message sender or recipient can download the attachment.
 
+## Shared Reporting Flow
+
+Page names:
+
+- `Reports/Index.vue` - shared report dashboard for admin, clinic, registrar, and instructor users.
+
+Routes:
+
+- `/reports` - opens the role-aware report dashboard.
+- `/reports/export` - downloads the currently filtered report rows as CSV.
+- `/clinic/reports` - keeps the existing clinic-specific report page for compatibility.
+
+### 1. Report Access
+
+1. Admin, clinic, registrar, and instructor users can open Reports from the authenticated sidebar.
+2. The shared page resolves the current user's role and returns only the report groups for that role.
+3. Student, parent, and console users do not have access to the shared reporting route.
+
+### 2. Role-Specific Report Data
+
+1. Admin reports show system-wide users, students, attendance, borrowing, inventory, and clinic case counts.
+2. Clinic reports show clinic cases, patient histories, emergency alerts, statuses, severities, and case types.
+3. Registrar reports show student totals, active students, sections, strands, and enrollment log activity.
+4. Instructor reports are scoped to the signed-in instructor profile and show assigned schedules, handled sections, attendance, and online class activity.
+
+### 3. Filters, Charts, And Download
+
+1. The user can apply `date_from` and `date_to` filters.
+2. Summary cards and chart rows refresh from the filtered dataset.
+3. Charts are rendered on the page from real database counts.
+4. The Download CSV button exports the same filtered report rows shown in the detail table.
+
 ## Attendance Panel Flow
 
 Page names:

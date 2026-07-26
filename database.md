@@ -136,6 +136,15 @@ Messenger data behavior:
 - `attachment_path`, `attachment_name`, `attachment_mime`, and `attachment_size` store optional message attachment metadata.
 - Messenger attachments are downloaded through an authorized route that allows only the sender or recipient.
 
+Reporting data behavior:
+
+- Shared reports do not add a new database table.
+- Admin reports aggregate existing `users`, `students`, `attendances`, `borrowings`, `inventory_items`, and `clinic_cases` rows.
+- Clinic reports aggregate existing `clinic_cases`, `patient_histories`, and `emergency_alerts` rows.
+- Registrar reports aggregate existing `students`, `sections`, `strands`, and `registrar_enrollment_logs` rows.
+- Instructor reports aggregate existing schedules, attendance records, online classes, and online class attendance scoped to the signed-in instructor profile.
+- `/reports/export` downloads the same filtered aggregate rows as CSV.
+
 School-year entry behavior:
 
 - Admin Student and Section add/edit forms use dropdown values from `2025-2026` through `2030-2031`.

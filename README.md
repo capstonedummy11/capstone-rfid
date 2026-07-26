@@ -25,6 +25,7 @@ Start with these docs when setting up a new machine:
 - Admin user management for clinic, registrar, and admin accounts, with root-admin-only admin creation, updates, deletion, and promotion.
 - Registrar biometric enrollment for student and faculty RFID or face records.
 - Clinic dashboard, case logs, patient history, reports, emergency types, emergency hotline CRUD, and emergency alert handling.
+- Shared Reports page for admin, clinic, registrar, and instructor accounts with role-specific charts, date filters, summary cards, detail rows, and CSV download.
 - Instructor verification by face, OTP, or security questions.
 - System settings for panel access, inventory availability, face recognition, security questions, and attendance behavior.
 - Online Class management for instructors, student online-class joining, attendance recording, notifications, and admin audit logs.
@@ -285,6 +286,7 @@ Student portal unfinished items:
 - `/student-parent/messages` - student/parent portal messages.
 - `/student-parent/notifications` - student online class notifications.
 - `/messages` - unified authenticated Messenger for admin, instructor, clinic, registrar, student, and parent accounts.
+- `/reports` and `/reports/export` - shared authenticated reporting page and CSV export for admin, clinic, registrar, instructor.
 - `/admin/messages/{message}/reply` - assigned instructor reply back to the linked student portal thread.
 - `/admin/attendance/scanner` and `/admin/attendance/logs` - attendance tools.
 - `/admin/inventory` and `/admin/borrow` - inventory and borrowing.

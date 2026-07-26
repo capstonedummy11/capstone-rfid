@@ -17,6 +17,7 @@ use App\Http\Controllers\LaboratoryController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\OnlineClassController;
 use App\Http\Controllers\RegistrarController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RfidController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\SectionController;
@@ -82,6 +83,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/messages/conversation', [MessageController::class, 'sendConversationMessage'])->name('messages.conversation.store');
     Route::put('/messages/{message}/read', [MessageController::class, 'markRead'])->name('messages.read');
     Route::get('/messages/{message}/attachment', [MessageController::class, 'downloadAttachment'])->name('messages.attachments.show');
+});
+Route::middleware(['auth', 'role:admin,instructor,clinic,registrar'])->group(function () {
+    Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+    Route::get('/reports/export', [ReportController::class, 'export'])->name('reports.export');
 });
 Route::get('/attendance-control-panel/login', [AttendanceController::class, 'panelLogin'])->name('attendanceControlPanel.login');
 Route::post('/panel-verify', [AttendanceController::class, 'verifyPanelPin'])->name('panelVerify');
