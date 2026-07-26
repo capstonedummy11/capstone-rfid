@@ -1468,6 +1468,8 @@ class AttendanceController
             $filters['instructor'] = $rfidInstructorUserId ? (string) $rfidInstructorUserId : '__not_found__';
         }
 
+        $absentDefaultDays = SystemSetting::integer(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 15);
+
         $applySessionScope = function ($query) use ($isInstructor, $instructorId, $filters) {
             if ($isInstructor) {
                 $query->where('schedules.instructor_id', $instructorId ?: 0);
@@ -1577,7 +1579,7 @@ class AttendanceController
                     'session_time' => trim(($this->formatTime($log->time_start) ?? 'N/A').' - '.($this->formatTime($log->time_end) ?? 'N/A')),
                     'time' => $log->tap_datetime ? Carbon::parse($log->tap_datetime)->format('g:i A') : ($this->formatTime($log->time_in) ?? 'N/A'),
                     'time_in' => $this->formatTime($log->attendance_time_in) ?? $this->formatTime($log->time_in),
-                    'time_out' => $this->formatTime($log->attendance_time_out),
+                    'time_out' => $this->formatTime($log->attendance_time_out) ?? $this->formatTime($log->time_out),
                     'tap_type' => $log->tap_type ?? 'Check-in',
                     'tap_sequence_number' => $log->tap_sequence_number,
                     'room_status' => ucfirst((string) ($log->room_status ?? 'outside')),
@@ -1587,6 +1589,8 @@ class AttendanceController
                 ];
             })
             ->values();
+
+        $logs = $this->appendAbsentAttendanceLogs($logs, $filters, $isAdmin, $isInstructor, $instructorId, $absentDefaultDays);
 
         $sessionOptionsQuery = DB::table('attendance_sessions');
         $sessionJoin($sessionOptionsQuery);
@@ -1655,7 +1659,7 @@ class AttendanceController
             'filters' => $filters,
             'currentUserRole' => $role,
             'canInspectAllAttendance' => $isAdmin,
-            'absentDefaultDays' => $absentDefaultDays ?? 0,
+            'absentDefaultDays' => $absentDefaultDays,
             'attendanceSessionOptions' => $sessionOptions,
             'subjectOptions' => $subjectOptionsQuery
                 ->when($isInstructor, fn ($subjectQuery) => $subjectQuery->where('schedules.instructor_id', $instructorId ?: 0))

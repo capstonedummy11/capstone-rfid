@@ -10,6 +10,7 @@ Start with these docs when setting up a new machine:
 
 - Full beginner guide: [docs/RUNNING_THE_SYSTEM.md](docs/RUNNING_THE_SYSTEM.md)
 - Official software download links: [docs/INSTALLATION_LINKS.md](docs/INSTALLATION_LINKS.md)
+- Database and seeder reference: [database.md](database.md)
 
 ## Main Features
 
@@ -148,6 +149,38 @@ Current state: this branch now includes the StudentParent Vue pages, portal cont
 ## README Maintenance Rule
 
 Whenever a meaningful project-facing discovery, limitation, setup step, account, schema change, route change, or implementation update is found while working on this project, update this `README.md` in the same change. Keep demo accounts, route notes, and public feature documentation current so the next work session starts from accurate project knowledge.
+
+## Attendance Panel Flow
+
+The Attendance Control Panel is used by a console account in a selected laboratory or room. An instructor starts the live attendance session by tapping their RFID card. The active room, schedule, subject, instructor, and section are resolved from the current class schedule.
+
+Student tap flow:
+
+- The first valid student tap for the active schedule and date creates the official check-in record.
+- Check-in within the scheduled start time plus the 15-minute grace period is treated as an on-time check-in.
+- Check-in more than 15 minutes after the scheduled start time is treated as late.
+- After check-in, the student is considered Inside the room.
+- Taps before the official checkout window are saved as temporary movement records, not as checkout.
+- Temporary movement taps alternate between Temporary Exit and Temporary Return based on the student's current room status.
+- The official checkout window starts 15 minutes before the scheduled class end time.
+- The first valid tap in the checkout window records the official check-out and completes the attendance record.
+- Any later tap after official check-out is saved as an ignored tap and does not change the completed attendance.
+
+Attendance statuses:
+
+- `Pending` - the student has checked in, but the class is still waiting for an official check-out.
+- `Present` - the student checked in within the 15-minute grace period and completed official check-out.
+- `Late` - the student checked in after the 15-minute grace period and completed official check-out.
+- `Incomplete Attendance` - the student checked in, with or without temporary exits/returns, but did not complete official check-out after the session ended.
+- `Absent` - the student had no valid check-in tap for the scheduled class after the attendance period ended.
+
+Audit and display behavior:
+
+- Each student has one main attendance record per student, schedule, and date.
+- Every valid, temporary, checkout, ignored, or invalid tap is stored as a separate attendance tap log.
+- Tap logs store the tap type, sequence number, timestamp, room/location, validation result, and remarks.
+- The live attendance panel displays check-in, temporary movements, official check-out, current room status, and final status.
+- Admin and instructor attendance logs show the same tap metadata while respecting instructor scope, with filters for session, subject, date, and admin-only instructor RFID/instructor selection.
 
 ## Online Class Module
 
