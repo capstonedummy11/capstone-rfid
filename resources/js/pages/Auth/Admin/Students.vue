@@ -104,7 +104,7 @@
                         >
                             <option value="">All School Years</option>
                             <option
-                                v-for="schoolYear in schoolYearOptions"
+                                v-for="schoolYear in availableSchoolYearOptions"
                                 :key="schoolYear"
                                 :value="schoolYear"
                             >
@@ -541,13 +541,20 @@
                                     class="mb-1 block text-sm font-medium text-slate-700"
                                     >School Year *</label
                                 >
-                                <input
+                                <select
                                     v-model="form.school_year"
-                                    type="text"
-                                    placeholder="e.g., 2025-2026"
-                                    class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                    class="w-full rounded-md border border-slate-300 px-3 py-2"
                                     required
-                                />
+                                >
+                                    <option value="">Select School Year</option>
+                                    <option
+                                        v-for="schoolYear in availableSchoolYearOptions"
+                                        :key="schoolYear"
+                                        :value="schoolYear"
+                                    >
+                                        {{ schoolYear }}
+                                    </option>
+                                </select>
                             </div>
                             <div>
                                 <label
@@ -1024,6 +1031,10 @@ const isEditing = ref(false);
 const selectedStudent = ref<Student | null>(null);
 const showParentModal = ref(false);
 const selectedParent = ref<ParentAccount | null>(null);
+const defaultSchoolYearOptions = Array.from({ length: 6 }, (_, index) => {
+    const startYear = 2025 + index;
+    return `${startYear}-${startYear + 1}`;
+});
 
 // Face image management state
 const faceImages = ref<string[]>([]);
@@ -1102,6 +1113,16 @@ const availableSections = computed<SectionOption[]>(() => {
             String(section.strand_id) === String(form.strand_id);
         return matchesStrand;
     });
+});
+
+const availableSchoolYearOptions = computed(() => {
+    return Array.from(
+        new Set([
+            ...defaultSchoolYearOptions,
+            ...(props.schoolYearOptions as string[]),
+            ...(props.students as Student[]).map((student) => student.school_year),
+        ].filter(Boolean)),
+    ).sort();
 });
 
 const onFilterChange = () => {

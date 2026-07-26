@@ -76,8 +76,8 @@ Messaging and portal tables:
 
 - `messages` - public/student-to-instructor and instructor inbox messages.
 - `parent_student_links` - parent account to student links.
-- `student_excuse_letters` - student/parent excuse letter submissions.
-- `student_portal_messages` - student/parent private portal conversations.
+- `student_excuse_letters` - student/parent excuse letter submissions with parent approval and signature metadata.
+- `student_portal_messages` - authenticated Messenger conversations for students, parents, clinic, registrar, instructors, and admins.
 
 Online Class tables:
 
@@ -118,6 +118,29 @@ System and audit tables:
 - `parent_student_links.parent_user_id` links parent users to students.
 - Parent portal accounts are stored in `users` with `role = parent`; Admin Student Management creates or links these accounts and stores the relationship label on `parent_student_links.relationship`.
 - `online_classes.schedule_id`, `instructor_id`, and `section_id` connect online classes to the academic setup.
+
+Student excuse-letter approval fields:
+
+- `parent_signature` stores the typed parent signature shown on generated PDFs.
+- `parent_approval_notes` stores optional parent approval notes.
+- `parent_approved_by_user_id` links to the parent `users` row that approved the letter.
+- `parent_approved_at` stores the approval timestamp.
+- Student-created letters use `pending_parent_approval` until a linked parent approves them; parent-created letters are saved as `approved`.
+- Excuse-letter attachments are downloaded through an authenticated student/parent route and remain scoped to the selected student.
+
+Messenger data behavior:
+
+- `student_portal_messages.student_id` is nullable so staff-to-staff and staff-to-parent conversations do not require a student record.
+- Student and parent messages may still include `student_id` for selected-student context.
+- `sender_user_id` and `recipient_user_id` define conversation privacy.
+- `attachment_path`, `attachment_name`, `attachment_mime`, and `attachment_size` store optional message attachment metadata.
+- Messenger attachments are downloaded through an authorized route that allows only the sender or recipient.
+
+School-year entry behavior:
+
+- Admin Student and Section add/edit forms use dropdown values from `2025-2026` through `2030-2031`.
+- Existing saved school-year values are merged into the dropdowns so older records remain editable.
+- Subjects and schedules use the selected section to inherit school-year context; their section dropdown labels include the section grade and school year.
 
 ## Attendance Data Model
 

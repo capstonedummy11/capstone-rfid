@@ -2,34 +2,77 @@
 import { useForm, usePage } from '@inertiajs/vue3';
 import SuccessModal from '@/components/StudentPortal/SuccessModal.vue';
 import LinkedStudentSelector from '@/components/StudentPortal/LinkedStudentSelector.vue';
-import { computed } from 'vue';
+import { computed, reactive } from 'vue';
 
 const props = defineProps({
     student: { type: Object, default: null },
     linkedStudents: { type: Array, default: () => [] },
     selectedStudentId: { type: [Number, String, null], default: null },
+    currentUserRole: { type: String, default: '' },
     letters: { type: Array, default: () => [] },
 });
 
 const page = usePage();
 const flashSuccess = computed(() => page.props.flash?.success);
 const showSuccessModal = computed(() => Boolean(flashSuccess.value));
+const isParent = computed(() => props.currentUserRole === 'parent');
 
 const form = useForm({
     subject: '',
     from_date: '',
     to_date: '',
     reason: '',
+    parent_signature: '',
     attachment: null,
 });
 
 const submitLetter = () => {
-    form.post(route('student-parent.excuse-letters.store'), {
-        forceFormData: true,
-        preserveScroll: true,
-        onSuccess: () => form.reset(),
-    });
+    form.post(
+        route('student-parent.excuse-letters.store', selectedStudentQuery.value),
+        {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => form.reset(),
+        },
+    );
 };
+
+const selectedStudentQuery = computed(() =>
+    props.selectedStudentId ? { student_id: props.selectedStudentId } : {},
+);
+
+const approvalForms = reactive({});
+
+const approvalFormFor = (letter) => {
+    if (!approvalForms[letter.id]) {
+        approvalForms[letter.id] = useForm({
+            parent_signature: '',
+            parent_approval_notes: '',
+        });
+    }
+
+    return approvalForms[letter.id];
+};
+
+const approveLetter = (letter) => {
+    const approveForm = approvalFormFor(letter);
+    approveForm.put(
+        route('student-parent.excuse-letters.approve', {
+            letter: letter.id,
+            ...selectedStudentQuery.value,
+        }),
+        {
+            preserveScroll: true,
+            onSuccess: () => approveForm.reset(),
+        },
+    );
+};
+
+const statusLabel = (status) =>
+    String(status || '')
+        .split('_')
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
 </script>
 
 <template>
@@ -91,6 +134,18 @@ const submitLetter = () => {
                             required
                         />
                     </label>
+                    <label
+                        v-if="isParent"
+                        class="text-xs font-bold text-slate-500 uppercase"
+                    >
+                        Parent Signature
+                        <input
+                            v-model="form.parent_signature"
+                            class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm normal-case"
+                            placeholder="Type your full name"
+                            required
+                        />
+                    </label>
                     <label class="text-xs font-bold text-slate-500 uppercase">
                         Attachment
                         <input
@@ -127,14 +182,81 @@ const submitLetter = () => {
                             </div>
                             <div class="text-xs text-slate-500">
                                 {{ letter.from_date }} to {{ letter.to_date }} |
-                                {{ letter.status }}
+                                {{ statusLabel(letter.status) }}
+                            </div>
+                            <div
+                                v-if="letter.parent_signature"
+                                class="mt-1 text-xs text-slate-500"
+                            >
+                                Signed by parent:
+                                {{ letter.parent_signature }}
+                            </div>
+                            <div
+                                v-else-if="
+                                    letter.status === 'pending_parent_approval'
+                                "
+                                class="mt-1 text-xs font-semibold text-amber-600"
+                            >
+                                Waiting for parent approval and signature.
                             </div>
                             <a
+                                v-if="letter.can_download"
                                 :href="letter.download_url"
                                 class="mt-2 inline-block text-xs font-bold text-brand"
                             >
-                                Download generated letter
+                                Download PDF
                             </a>
+                            <a
+                                v-if="letter.attachment_url"
+                                :href="letter.attachment_url"
+                                class="ml-3 mt-2 inline-block text-xs font-bold text-slate-600 underline"
+                            >
+                                Attachment
+                            </a>
+                            <p
+                                v-else
+                                class="mt-2 text-xs font-semibold text-slate-400"
+                            >
+                                PDF available after parent approval.
+                            </p>
+                            <form
+                                v-if="letter.can_parent_approve"
+                                class="mt-3 space-y-2 rounded-md bg-amber-50 p-3"
+                                @submit.prevent="approveLetter(letter)"
+                            >
+                                <label
+                                    class="text-xs font-bold text-slate-500 uppercase"
+                                >
+                                    Parent Signature
+                                    <input
+                                        v-model="
+                                            approvalFormFor(letter)
+                                                .parent_signature
+                                        "
+                                        class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm normal-case"
+                                        placeholder="Type your full name"
+                                        required
+                                    />
+                                </label>
+                                <label
+                                    class="text-xs font-bold text-slate-500 uppercase"
+                                >
+                                    Notes
+                                    <textarea
+                                        v-model="
+                                            approvalFormFor(letter)
+                                                .parent_approval_notes
+                                        "
+                                        class="mt-1 h-20 w-full rounded-md border border-slate-300 px-3 py-2 text-sm normal-case"
+                                    />
+                                </label>
+                                <button
+                                    class="rounded-md bg-emerald-600 px-3 py-2 text-xs font-bold text-white"
+                                    :disabled="approvalFormFor(letter).processing"
+                                >
+                                    Approve and Sign
+                                </button>
+                            </form>
                         </div>
                         <p
                             v-if="letters.length === 0"
@@ -178,6 +300,10 @@ const submitLetter = () => {
                         <p>Sincerely,</p>
                         <p>{{ student?.name || '[Student Name]' }}</p>
                     </div>
+                    <div v-if="isParent" class="mt-12">
+                        <p>Parent Signature:</p>
+                        <p>{{ form.parent_signature || '[Parent Signature]' }}</p>
+                    </div>
                 </div>
             </section>
         </div>
@@ -186,8 +312,8 @@ const submitLetter = () => {
             :show="showSuccessModal"
             title="Success"
             message="Take Care of yourself."
-            :primary-href="letters[0]?.download_url || ''"
-            primary-text="Download Letter"
+            :primary-href="letters.find((letter) => letter.can_download)?.download_url || ''"
+            primary-text="Download PDF"
             :secondary-href="route('student-parent.attendance')"
             secondary-text="Back to Attendance Page"
         />

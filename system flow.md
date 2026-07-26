@@ -19,6 +19,7 @@ Routes:
 2. The page loads each student with section, strand, RFID, face image count, status, and linked parent accounts.
 3. Instructors can view scoped student records only for handled sections.
 4. Only admins can create, update, delete, or manage parent links.
+5. Student add/edit uses a School Year dropdown with `2025-2026` through `2030-2031`, plus any existing saved school-year values.
 
 ### 2. Parent Account Management
 
@@ -29,6 +30,86 @@ Routes:
 5. Emails that belong to non-parent users cannot be linked as parent accounts.
 6. The parent-student relationship label is saved on `parent_student_links.relationship`.
 7. Unlink removes only the student association. The parent user account remains available for other linked students.
+
+### 3. Section And Schedule School-Year Selection
+
+1. Admin Section add/edit uses the same School Year dropdown: `2025-2026` through `2030-2031`, plus existing saved values.
+2. Subject and Schedule add/edit modals do not store school year directly.
+3. Subject and Schedule modals display section choices with section name, grade, and school year so admins can select the intended academic year.
+
+## Student/Parent Excuse Letter Flow
+
+Page names:
+
+- `StudentParent/ExcuseLetters.vue` - student and parent excuse letter submission, approval, and download page.
+
+Routes:
+
+- `/student-parent/excuse-letters` - opens the excuse letter page and stores new letters.
+- `/student-parent/excuse-letters/{letter}/approve` - linked parent approval endpoint for student-created letters.
+- `/student-parent/excuse-letters/{letter}/download` - downloads the approved generated PDF.
+
+### 1. Student-Created Letter
+
+1. A student submits an excuse letter for their own student record.
+2. The letter is saved with status `pending_parent_approval`.
+3. PDF download is blocked while parent approval is pending.
+4. A linked parent opens the same student's Excuse Letter page.
+5. The parent enters a typed parent signature and optional notes, then approves the letter.
+6. The letter status becomes `approved`, and the parent signature, approver, and approval timestamp are stored.
+7. The student or linked parent can download the generated `.pdf`.
+
+### 2. Parent-Created Letter
+
+1. A parent selects the linked student and submits an excuse letter.
+2. Parent signature is required on submission.
+3. The letter is saved immediately as `approved` with the parent signature and approval timestamp.
+4. The generated `.pdf` includes the letter content and parent approval block.
+
+### 3. Excuse Letter Attachments
+
+1. A student or parent can upload an optional attachment when submitting an excuse letter.
+2. The attachment path and original file name are saved on the letter record.
+3. The attachment link uses an authenticated download route.
+4. Only the student or linked parent for the selected student can download the attachment.
+
+## Authenticated Messenger Flow
+
+Page names:
+
+- `Messages/Index.vue` - unified messenger for all authenticated roles.
+
+Routes:
+
+- `/messages` - unified messenger inbox.
+- `/messages/conversation` - sends a new chat message.
+- `/messages/{message}/read` - marks a received message as read.
+- `/messages/{message}/attachment` - downloads a message attachment when the current user is sender or recipient.
+- `/student-parent/messages` - compatibility route that opens the same messenger for student and parent accounts.
+- `/admin/messages` - compatibility route that opens the same messenger for admin and instructor accounts.
+
+### 1. User Search And Conversation Start
+
+1. Any authenticated admin, instructor, clinic, registrar, student, or parent opens Messenger.
+2. The page loads searchable recipient options from active user accounts except the current user.
+3. The user searches by name, email, or role.
+4. Selecting a user opens the existing conversation when previous messages exist, showing both sender and recipient history in the same chat room.
+5. If no previous conversation exists, selecting a user starts a new conversation draft.
+6. Parent accounts keep the selected-student context when a linked student is selected.
+
+### 2. Chat Messages
+
+1. The sender enters a message body and optional attachment.
+2. The message is saved in `student_portal_messages` with sender, recipient, sender role, optional student context, encrypted subject/body, and attachment metadata.
+3. Conversation lists group messages by the other user so both your sent messages and the other user's replies appear in one room.
+4. The chat view displays messages as sender/recipient bubbles newest conversation first and thread messages oldest to newest.
+5. A received message can be marked as read only by its recipient.
+
+### 3. Message Attachments
+
+1. Messenger accepts PDF, Word, image, text, and web image attachment types up to the configured upload limit.
+2. Attachments are stored on the public disk path but exposed through an authorized download route.
+3. Only the message sender or recipient can download the attachment.
 
 ## Attendance Panel Flow
 

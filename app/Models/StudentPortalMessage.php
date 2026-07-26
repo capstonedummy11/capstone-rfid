@@ -23,6 +23,8 @@ class StudentPortalMessage extends Model
         'body_ciphertext',
         'attachment_path',
         'attachment_name',
+        'attachment_mime',
+        'attachment_size',
         'read_at',
     ];
 

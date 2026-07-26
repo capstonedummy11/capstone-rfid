@@ -14,6 +14,7 @@ use App\Models\StudentPortalMessage;
 use App\Models\Students;
 use App\Models\User;
 use App\Services\CompreFaceService;
+use App\Services\ExcuseLetterPdfService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -514,8 +515,9 @@ class StudentsController
             'student' => $this->studentPayload($student),
             'linkedStudents' => $this->linkedStudentsPayload($request),
             'selectedStudentId' => $student?->student_id,
+            'currentUserRole' => strtolower((string) $request->user()?->role),
             'letters' => $student
-                ? $student->excuseLetters()->with('submittedBy')->latest()->get()->map(fn (StudentExcuseLetter $letter) => $this->letterPayload($letter))
+                ? $student->excuseLetters()->with(['submittedBy', 'parentApprovedBy'])->latest()->get()->map(fn (StudentExcuseLetter $letter) => $this->letterPayload($letter, $request))
                 : [],
         ]);
     }
@@ -524,12 +526,14 @@ class StudentsController
     {
         $student = $this->currentStudent($request);
         abort_unless($student, 403);
+        $role = strtolower((string) $request->user()?->role);
 
         $validated = $request->validate([
             'subject' => ['required', 'string', 'max:255'],
             'from_date' => ['required', 'date'],
             'to_date' => ['required', 'date', 'after_or_equal:from_date'],
             'reason' => ['required', 'string', 'max:5000'],
+            'parent_signature' => [Rule::requiredIf($role === 'parent'), 'nullable', 'string', 'max:255'],
             'attachment' => ['nullable', 'file', 'max:5120', 'mimes:pdf,doc,docx,jpg,jpeg,png'],
         ]);
 
@@ -539,12 +543,17 @@ class StudentsController
             $validated['attachment_name'] = $attachment->getClientOriginalName();
         }
         unset($validated['attachment']);
+        unset($validated['parent_signature']);
 
         $letter = StudentExcuseLetter::query()->create([
             ...$validated,
             'student_id' => $student->student_id,
             'submitted_by_user_id' => $request->user()->user_id,
-            'submitted_by_role' => strtolower((string) $request->user()->role),
+            'submitted_by_role' => $role,
+            'status' => $role === 'parent' ? 'approved' : 'pending_parent_approval',
+            'parent_signature' => $role === 'parent' ? $request->input('parent_signature') : null,
+            'parent_approved_by_user_id' => $role === 'parent' ? $request->user()->user_id : null,
+            'parent_approved_at' => $role === 'parent' ? now() : null,
         ]);
 
         $this->logActivity('create', 'student_excuse_letters', 'Submitted excuse letter '.$letter->student_excuse_letter_id.' for student '.$student->student_number);
@@ -552,29 +561,68 @@ class StudentsController
         return back()->with('success', 'Excuse letter submitted.');
     }
 
+    public function approvePortalExcuseLetter(Request $request, StudentExcuseLetter $letter)
+    {
+        $student = $this->currentStudent($request);
+        abort_unless(
+            strtolower((string) $request->user()?->role) === 'parent'
+            && $student
+            && (int) $letter->student_id === (int) $student->student_id,
+            403,
+        );
+
+        if ((string) $letter->submitted_by_role !== 'student') {
+            return back()->withErrors(['letter' => 'Only student-created excuse letters need parent approval.']);
+        }
+
+        $validated = $request->validate([
+            'parent_signature' => ['required', 'string', 'max:255'],
+            'parent_approval_notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $letter->update([
+            'status' => 'approved',
+            'parent_signature' => $validated['parent_signature'],
+            'parent_approval_notes' => $validated['parent_approval_notes'] ?? null,
+            'parent_approved_by_user_id' => $request->user()->user_id,
+            'parent_approved_at' => now(),
+        ]);
+
+        $this->logActivity('update', 'student_excuse_letters', 'Parent approved excuse letter '.$letter->student_excuse_letter_id.' for student '.$student->student_number);
+
+        return back()->with('success', 'Excuse letter approved.');
+    }
+
     public function downloadPortalExcuseLetter(Request $request, StudentExcuseLetter $letter)
     {
         $student = $this->currentStudent($request);
         abort_unless($student && (int) $letter->student_id === (int) $student->student_id, 403);
+        abort_if((string) $letter->status === 'pending_parent_approval', 422, 'Parent approval is required before downloading this excuse letter.');
 
-        $letter->loadMissing(['student.section', 'submittedBy']);
+        $letter->loadMissing(['student.section', 'submittedBy', 'parentApprovedBy']);
         $studentName = trim($letter->student->first_name.' '.$letter->student->last_name);
         $section = $letter->student->section?->section_name ?: 'Section';
         $submittedBy = $letter->submittedBy?->name ?: $studentName;
-        $filename = 'excuse-letter-'.$letter->student_excuse_letter_id.'.doc';
-        $html = view('documents.excuse-letter', [
-            'letter' => $letter,
-            'studentName' => $studentName,
-            'section' => $section,
-            'submittedBy' => $submittedBy,
-        ])->render();
+        $filename = 'excuse-letter-'.$letter->student_excuse_letter_id.'.pdf';
+        $pdf = app(ExcuseLetterPdfService::class)->render($letter, $studentName, $section, $submittedBy);
 
         $this->logActivity('download', 'student_excuse_letters', 'Downloaded generated excuse letter '.$letter->student_excuse_letter_id.' for student '.$student->student_number);
 
-        return response($html, 200, [
-            'Content-Type' => 'application/msword; charset=UTF-8',
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         ]);
+    }
+
+    public function downloadPortalExcuseLetterAttachment(Request $request, StudentExcuseLetter $letter)
+    {
+        $student = $this->currentStudent($request);
+        abort_unless($student && (int) $letter->student_id === (int) $student->student_id, 403);
+        abort_unless($letter->attachment_path && Storage::disk('public')->exists($letter->attachment_path), 404);
+
+        $this->logActivity('download', 'student_excuse_letters', 'Downloaded excuse letter attachment '.$letter->student_excuse_letter_id.' for student '.$student->student_number);
+
+        return Storage::disk('public')->download($letter->attachment_path, $letter->attachment_name ?: 'excuse-letter-attachment');
     }
 
     public function portalMessages(Request $request)
@@ -870,8 +918,10 @@ class StudentsController
         ];
     }
 
-    private function letterPayload(StudentExcuseLetter $letter): array
+    private function letterPayload(StudentExcuseLetter $letter, ?Request $request = null): array
     {
+        $role = strtolower((string) $request?->user()?->role);
+
         return [
             'id' => $letter->student_excuse_letter_id,
             'subject' => $letter->subject,
@@ -881,9 +931,25 @@ class StudentsController
             'status' => $letter->status,
             'submitted_by' => $letter->submittedBy?->name,
             'submitted_by_role' => $letter->submitted_by_role,
+            'parent_signature' => $letter->parent_signature,
+            'parent_approval_notes' => $letter->parent_approval_notes,
+            'parent_approved_by' => $letter->parentApprovedBy?->name,
+            'parent_approved_at' => $letter->parent_approved_at?->toDateTimeString(),
+            'can_parent_approve' => $role === 'parent'
+                && $letter->submitted_by_role === 'student'
+                && $letter->status === 'pending_parent_approval',
+            'can_download' => $letter->status !== 'pending_parent_approval',
             'attachment_name' => $letter->attachment_name,
-            'attachment_url' => $letter->attachment_path ? Storage::disk('public')->url($letter->attachment_path) : null,
-            'download_url' => route('student-parent.excuse-letters.download', $letter),
+            'attachment_url' => $letter->attachment_path
+                ? route('student-parent.excuse-letters.attachment', array_filter([
+                    'letter' => $letter,
+                    'student_id' => $request?->input('student_id'),
+                ]))
+                : null,
+            'download_url' => route('student-parent.excuse-letters.download', array_filter([
+                'letter' => $letter,
+                'student_id' => $request?->input('student_id'),
+            ])),
             'created_at' => $letter->created_at?->toDateTimeString(),
         ];
     }

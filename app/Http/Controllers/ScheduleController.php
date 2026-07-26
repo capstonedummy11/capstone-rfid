@@ -61,7 +61,21 @@ class ScheduleController
                 ? Laboratory::query()->orderBy('name')->get(['laboratory_id', 'name', 'status'])->values()
                 : [],
             'sectionOptions' => $isAdmin
-                ? Section::query()->orderBy('section_name')->get(['section_id', 'section_name'])->values()
+                ? Section::query()
+                    ->orderBy('section_name')
+                    ->get(['section_id', 'section_name', 'year_level', 'school_year'])
+                    ->map(fn (Section $section) => [
+                        'section_id' => $section->section_id,
+                        'section_name' => $section->section_name,
+                        'year_level' => $section->year_level,
+                        'school_year' => $section->school_year,
+                        'label' => trim(implode(' - ', array_filter([
+                            $section->section_name,
+                            $section->year_level ? 'Grade '.$section->year_level : null,
+                            $section->school_year,
+                        ]))),
+                    ])
+                    ->values()
                 : [],
             'subjectOptions' => $isAdmin
                 ? Subject::query()->orderBy('subject_code')->get(['subject_code', 'subject_name'])->values()

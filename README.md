@@ -21,6 +21,7 @@ Start with these docs when setting up a new machine:
 - Inventory and borrowing workflows for laboratory items.
 - Student, instructor, section, strand, subject, schedule, and laboratory management.
 - Admin Student Management now includes parent account management for creating or linking parent portal accounts, editing parent details, setting the relationship label, and associating or unlinking parents from student records.
+- Admin Student and Section add/edit modals use a fixed School Year dropdown starting at `2025-2026` and advancing through `2030-2031`; existing saved school-year values are also preserved in the dropdowns when present.
 - Admin user management for clinic, registrar, and admin accounts, with root-admin-only admin creation, updates, deletion, and promotion.
 - Registrar biometric enrollment for student and faculty RFID or face records.
 - Clinic dashboard, case logs, patient history, reports, emergency types, emergency hotline CRUD, and emergency alert handling.
@@ -205,7 +206,8 @@ Implemented student capabilities:
 - Students can open the meeting link and record join attendance.
 - Join attendance records joined time, attendance status, late flag, face-required flag, face verification result, and face verification timestamp when required.
 - Students and linked parents can submit excuse letters with optional attachments.
-- Students and linked parents can send portal messages after searching/selecting a recipient. Message history is shown as private conversations, and each message is visible only to its sender and recipient.
+- Student-created excuse letters now require linked parent approval before PDF download. Parents approve from the portal with a typed parent signature, and parent-created letters are signed/approved immediately.
+- All authenticated roles can use Messenger from `/messages` to search for another user and start private chat-style conversations with optional attachments. Selecting a user with existing messages opens the shared chat room with both users' past messages. Available roles include student, parent, clinic, registrar, instructor, and admin.
 
 Notifications:
 
@@ -242,15 +244,15 @@ Known limitations:
 - The Online Class join endpoint also validates the submitted face image server-side before recording attendance, so a plain `face_verified` flag is not accepted for required-face classes.
 - The log export is CSV, which Excel can open. A native `.xlsx` export is not implemented.
 - Student/parent notification center exists at `/student-parent/notifications` and supports marking notifications as read.
-- Student/parent and instructor inbox messages work as chat-style conversations with no visible subject field. Stored message subjects are generated internally for compatibility, student portal messages remain encrypted, and public/student messages are mirrored into the instructor inbox.
+- Messenger conversations use `student_portal_messages` for authenticated user-to-user chat. Message body and subject remain encrypted, attachments are downloaded through authorized routes, and only the sender or recipient can see a conversation.
 - Parent accounts can switch between linked students on portal pages when more than one child is linked.
 - Online Class facial recognition can only be required when Face Rekognition is enabled and AWS Rekognition appears configured. Settings and Online Class forms warn and keep the toggle off when unavailable.
 - If an older required-face online class is joined while AWS Rekognition is unavailable, the student is allowed to join and the instructor receives one system inbox message per student/class.
 
 Student portal unfinished items:
 
-- Excuse Letter now generates a Word-compatible `.doc` download from the saved letter record. Native PDF generation is still not implemented.
-- Excuse Letter has no instructor/admin review workflow yet; submitted letters stay in the student portal with their stored status.
+- Excuse Letter now generates a native `.pdf` download from approved saved letter records.
+- Excuse Letter requires linked parent approval and parent signature for student-created letters. Instructor/admin review workflow is still not implemented.
 - Portal Messages now use a conversation-style student/parent UI with the conversation list on the left, an empty-state prompt when there are no conversations, and recipient search before starting a new conversation.
 - Portal Messages can receive instructor replies from the instructor inbox. Replies are written back to the portal conversation for the original sender only.
 - Attendance page now has client-side search, status filtering, reset, class time, duration, and pagination. It remains read-only.
@@ -282,6 +284,7 @@ Student portal unfinished items:
 - `/student-parent/excuse-letters/{letter}/download` - generated Word-compatible excuse-letter download.
 - `/student-parent/messages` - student/parent portal messages.
 - `/student-parent/notifications` - student online class notifications.
+- `/messages` - unified authenticated Messenger for admin, instructor, clinic, registrar, student, and parent accounts.
 - `/admin/messages/{message}/reply` - assigned instructor reply back to the linked student portal thread.
 - `/admin/attendance/scanner` and `/admin/attendance/logs` - attendance tools.
 - `/admin/inventory` and `/admin/borrow` - inventory and borrowing.

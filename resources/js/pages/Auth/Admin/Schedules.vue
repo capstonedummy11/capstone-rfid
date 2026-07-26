@@ -143,7 +143,7 @@
             <label class="mb-1 block text-sm font-medium text-slate-700">Section <span class="text-rose-500">*</span></label>
             <select v-model="form.section_id" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100" required>
               <option value="">Select section</option>
-              <option v-for="sec in props.sectionOptions" :key="sec.section_id" :value="String(sec.section_id)">{{ sec.section_name }}</option>
+              <option v-for="sec in props.sectionOptions" :key="sec.section_id" :value="String(sec.section_id)">{{ sec.label }}</option>
             </select>
           </div>
           <div>
@@ -218,6 +218,9 @@ interface Laboratory {
 interface SectionOption {
   section_id: string | number;
   section_name: string;
+  year_level?: string | number;
+  school_year?: string;
+  label: string;
 }
 
 interface SubjectOption {

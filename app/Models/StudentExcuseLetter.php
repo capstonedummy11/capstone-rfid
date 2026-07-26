@@ -20,11 +20,16 @@ class StudentExcuseLetter extends Model
         'attachment_path',
         'attachment_name',
         'status',
+        'parent_signature',
+        'parent_approval_notes',
+        'parent_approved_by_user_id',
+        'parent_approved_at',
     ];
 
     protected $casts = [
         'from_date' => 'date',
         'to_date' => 'date',
+        'parent_approved_at' => 'datetime',
     ];
 
     public function student(): BelongsTo
@@ -35,5 +40,10 @@ class StudentExcuseLetter extends Model
     public function submittedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'submitted_by_user_id', 'user_id');
+    }
+
+    public function parentApprovedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'parent_approved_by_user_id', 'user_id');
     }
 }

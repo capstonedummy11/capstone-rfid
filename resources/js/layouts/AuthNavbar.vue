@@ -121,8 +121,8 @@ const sections = [
             {
                 icon: MessageSquare,
                 text: 'Messages',
-                route: route('admin.messages.index'),
-                roles: ['admin', 'instructor'],
+                route: route('messages.index'),
+                roles: ['admin', 'instructor', 'clinic', 'registrar'],
             },
             {
                 icon: MonitorCheck,
@@ -168,7 +168,7 @@ const sections = [
             {
                 icon: MessageSquare,
                 text: 'Messages',
-                route: route('student-parent.messages.index'),
+                route: route('messages.index'),
                 roles: ['student', 'parent'],
             },
             {

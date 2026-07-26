@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class MessageController
@@ -68,24 +69,34 @@ class MessageController
     {
         $user = $request->user();
         $role = strtolower(trim((string) $user?->role));
+        $student = $this->currentStudentContext($request);
 
-        $messages = Message::query()
-            ->with('instructor:user_id,name,email')
-            ->where('instructor_user_id', $user->user_id)
+        $messages = StudentPortalMessage::query()
+            ->with(['sender:user_id,name,email,role', 'recipient:user_id,name,email,role', 'student'])
+            ->where(function ($query) use ($user) {
+                $query
+                    ->where('sender_user_id', $user->user_id)
+                    ->orWhere('recipient_user_id', $user->user_id);
+            })
             ->latest('created_at')
             ->get()
-            ->map(fn (Message $message) => [
-                'id' => $message->message_id,
-                'sender_type' => $message->sender_type,
-                'sender_name' => $message->sender_name,
-                'sender_email' => $message->sender_email,
-                'student_number' => $message->student_number,
-                'subject' => $message->subject ?: 'Instructor conversation',
+            ->map(fn (StudentPortalMessage $message) => [
+                'id' => $message->student_portal_message_id,
+                'student_id' => $message->student_id,
+                'student_name' => $message->student ? trim($message->student->first_name.' '.$message->student->last_name) : null,
+                'sender_user_id' => $message->sender_user_id,
+                'recipient_user_id' => $message->recipient_user_id,
+                'sender' => $message->sender?->name,
+                'sender_email' => $message->sender?->email,
+                'sender_role' => $message->sender_role,
+                'recipient' => $message->recipient?->name,
+                'recipient_email' => $message->recipient?->email,
+                'recipient_role' => $message->recipient?->role,
+                'subject' => $message->subject ?: 'Conversation',
                 'body' => $message->body,
                 'preview' => str($message->body)->squish()->limit(82)->toString(),
-                'instructor_name' => $message->instructor?->name,
                 'attachment_name' => $message->attachment_name,
-                'attachment_url' => $message->attachment_path ? Storage::disk('public')->url($message->attachment_path) : null,
+                'attachment_url' => $message->attachment_path ? route('messages.attachments.show', $message) : null,
                 'is_image' => $message->attachment_mime ? str_starts_with($message->attachment_mime, 'image/') : false,
                 'read_at' => $message->read_at?->toDateTimeString(),
                 'created_at' => $message->created_at?->toDateTimeString(),
@@ -96,23 +107,87 @@ class MessageController
         return Inertia::render('Messages/Index', [
             'title' => 'Messages',
             'messages' => $messages,
+            'recipients' => $this->recipientOptions($user),
             'currentUserRole' => $role,
+            'linkedStudents' => $role === 'parent' ? $this->linkedStudentsPayload($request) : [],
+            'selectedStudentId' => $student?->student_id,
         ]);
     }
 
-    public function markRead(Request $request, Message $message)
+    public function sendConversationMessage(Request $request)
     {
         $user = $request->user();
         $role = strtolower(trim((string) $user?->role));
+        $student = $this->currentStudentContext($request);
 
-        abort_unless((int) $message->instructor_user_id === (int) $user->user_id, 403);
+        $validated = $request->validate([
+            'recipient_user_id' => ['required', 'integer', 'exists:users,user_id', Rule::notIn([$user->user_id])],
+            'body' => ['required', 'string', 'max:5000'],
+            'subject' => ['nullable', 'string', 'max:255'],
+            'student_id' => ['nullable', 'integer', 'exists:students,student_id'],
+            'attachment' => ['nullable', 'file', 'max:10240', 'mimes:pdf,doc,docx,jpg,jpeg,png,webp,txt'],
+        ]);
+
+        $recipient = User::query()->findOrFail($validated['recipient_user_id']);
+        abort_unless(in_array(strtolower((string) $recipient->role), $this->messageRoles(), true), 422, 'Selected recipient is not available.');
+
+        $attachment = $request->file('attachment');
+        $attachmentPath = null;
+        $attachmentName = null;
+        $attachmentMime = null;
+        $attachmentSize = null;
+
+        if ($attachment) {
+            $attachmentPath = $attachment->store('student-portal-messages', 'public');
+            $attachmentName = $attachment->getClientOriginalName();
+            $attachmentMime = $attachment->getClientMimeType();
+            $attachmentSize = $attachment->getSize();
+        }
+
+        $message = StudentPortalMessage::query()->create([
+            'student_id' => $student?->student_id,
+            'sender_user_id' => $user->user_id,
+            'recipient_user_id' => $recipient->user_id,
+            'sender_role' => $role,
+            'instructor_user_id' => strtolower((string) $recipient->role) === 'instructor' ? $recipient->user_id : null,
+            'subject' => filled($validated['subject'] ?? null) ? $validated['subject'] : 'Conversation',
+            'body' => $validated['body'],
+            'attachment_path' => $attachmentPath,
+            'attachment_name' => $attachmentName,
+            'attachment_mime' => $attachmentMime,
+            'attachment_size' => $attachmentSize,
+        ]);
+
+        $this->logActivity('create', 'student_portal_messages', 'Sent messenger message '.$message->student_portal_message_id.' from '.$user->email.' to '.$recipient->email);
+
+        return back()->with('success', 'Message sent.');
+    }
+
+    public function markRead(Request $request, StudentPortalMessage $message)
+    {
+        $user = $request->user();
+
+        abort_unless((int) $message->recipient_user_id === (int) $user->user_id, 403);
 
         if (! $message->read_at) {
             $message->update(['read_at' => now()]);
-            $this->logActivity('update', 'messages', 'Marked instructor inbox message '.$message->message_id.' as read');
+            $this->logActivity('update', 'student_portal_messages', 'Marked messenger message '.$message->student_portal_message_id.' as read');
         }
 
         return back();
+    }
+
+    public function downloadAttachment(Request $request, StudentPortalMessage $message)
+    {
+        $userId = (int) $request->user()?->user_id;
+
+        abort_unless(
+            $userId === (int) $message->sender_user_id || $userId === (int) $message->recipient_user_id,
+            403,
+        );
+        abort_unless($message->attachment_path && Storage::disk('public')->exists($message->attachment_path), 404);
+
+        return Storage::disk('public')->download($message->attachment_path, $message->attachment_name ?: 'message-attachment');
     }
 
     public function reply(Request $request, Message $message)
@@ -142,7 +217,7 @@ class MessageController
             'recipient_user_id' => $recipientUserId,
             'sender_role' => 'instructor',
             'instructor_user_id' => $message->instructor_user_id,
-            'subject' => 'Instructor conversation',
+            'subject' => 'Re: '.($message->subject ?: 'Instructor conversation'),
             'body' => $validated['body'],
         ]);
 
@@ -182,5 +257,68 @@ class MessageController
             ])
             ->sortBy('label')
             ->values();
+    }
+
+    private function recipientOptions(?User $currentUser)
+    {
+        return User::query()
+            ->where('user_id', '!=', $currentUser?->user_id)
+            ->whereIn('role', $this->messageRoles())
+            ->orderBy('name')
+            ->get(['user_id', 'name', 'email', 'role'])
+            ->map(fn (User $user) => [
+                'user_id' => $user->user_id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => strtolower((string) $user->role),
+            ])
+            ->values();
+    }
+
+    private function messageRoles(): array
+    {
+        return ['admin', 'instructor', 'clinic', 'registrar', 'student', 'parent'];
+    }
+
+    private function currentStudentContext(Request $request): ?Students
+    {
+        $role = strtolower((string) $request->user()?->role);
+
+        if ($role === 'parent') {
+            $query = $request->user()?->linkedStudents()->orderBy('students.student_id');
+
+            if ($request->filled('student_id')) {
+                $selected = (clone $query)->where('students.student_id', (int) $request->input('student_id'))->first();
+                if ($selected) {
+                    return $selected;
+                }
+            }
+
+            return $query?->first();
+        }
+
+        if ($role === 'student') {
+            return Students::query()->where('email', $request->user()?->email)->first();
+        }
+
+        return null;
+    }
+
+    private function linkedStudentsPayload(Request $request)
+    {
+        return $request->user()
+            ?->linkedStudents()
+            ->with(['section', 'strand'])
+            ->orderBy('students.student_id')
+            ->get()
+            ->map(fn (Students $student) => [
+                'student_id' => $student->student_id,
+                'student_number' => $student->student_number,
+                'name' => trim($student->first_name.' '.$student->last_name),
+                'section' => $student->section?->section_name,
+                'strand' => $student->strand?->strand_code,
+                'school_year' => $student->school_year,
+            ])
+            ->values() ?? [];
     }
 }

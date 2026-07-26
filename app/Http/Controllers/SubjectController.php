@@ -50,7 +50,21 @@ class SubjectController
                 'semester' => $subject->semester,
             ])->values(),
             'filters' => $filters,
-            'sectionOptions' => Section::query()->orderBy('section_name')->get(['section_id', 'section_name'])->values(),
+            'sectionOptions' => Section::query()
+                ->orderBy('section_name')
+                ->get(['section_id', 'section_name', 'year_level', 'school_year'])
+                ->map(fn (Section $section) => [
+                    'section_id' => $section->section_id,
+                    'section_name' => $section->section_name,
+                    'year_level' => $section->year_level,
+                    'school_year' => $section->school_year,
+                    'label' => trim(implode(' - ', array_filter([
+                        $section->section_name,
+                        $section->year_level ? 'Grade '.$section->year_level : null,
+                        $section->school_year,
+                    ]))),
+                ])
+                ->values(),
             'instructorOptions' => User::query()->orderBy('name')->get(['user_id', 'name', 'role'])->values(),
         ]);
     }
