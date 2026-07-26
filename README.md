@@ -15,7 +15,8 @@ Start with these docs when setting up a new machine:
 
 - Public landing page and message form.
 - Role-based dashboards for admin, instructor, clinic, registrar, and attendance console users.
-- RFID attendance control panel with room selection, RFID lookup, student tap recording, attendance logs, required student face verification, and instructor RFID/face override when student face verification cannot run.
+- RFID attendance control panel with room selection, RFID lookup, schedule-aware student tap recording, attendance logs, required student face verification, and instructor RFID/face override when student face verification cannot run.
+- Attendance panel taps are classified by the active class schedule: first valid tap is check-in, taps before the final 15-minute checkout window alternate between Temporary Exit and Temporary Return, the first tap inside the checkout window becomes the official check-out, and later taps are ignored.
 - Inventory and borrowing workflows for laboratory items.
 - Student, instructor, section, strand, subject, schedule, and laboratory management.
 - Admin user management for clinic, registrar, and admin accounts, with root-admin-only admin creation, updates, deletion, and promotion.
@@ -220,6 +221,7 @@ Student portal unfinished items:
 - Parent profile updates now save only the parent user profile; student accounts still sync their own phone/gender to their student record.
 - Online Class face verification depends on existing AWS Rekognition credentials and saved student face images. Missing AWS setup prevents enabling required face recognition; missing student face images can still block required-face verification when the provider is available.
 - Attendance panel student taps require direct student face verification when Face Rekognition is enabled. If the student has no saved face image, Face Rekognition is disabled, or AWS comparison is unavailable, the panel requires the active instructor RFID before recording attendance; when the instructor has a saved face image, the instructor face must also verify.
+- Attendance panel student taps now keep a main attendance row plus per-tap audit rows. Final statuses are Present, Late, Pending, Incomplete Attendance, or Absent; admin and instructor attendance logs show tap type, sequence, check-in, check-out, room status, and final status.
 
 ## Important Routes
 

@@ -838,18 +838,24 @@ const recordAttendance = async (student) => {
     }
 
     const savedRecord = tapResult.record ?? {};
-    const action = tapResult.action ?? 'time_in';
-    const savedStatus =
-        savedRecord.status ?? (action === 'time_out' ? 'Completed' : 'Present');
+    const savedStatus = savedRecord.status ?? 'Pending';
+    const tapType = savedRecord.tap_type ?? tapResult.tap_type ?? 'Check-in';
 
     const mappedRecord = {
         id: savedRecord.id ?? `${student.id}-${Date.now()}`,
+        attendance_id: savedRecord.attendance_id ?? null,
         rfid: savedRecord.rfid ?? student.rfid,
         name: savedRecord.name ?? student.name,
         year: student.year,
         course: student.course,
         section: student.section,
         time: savedRecord.time ?? timestamp,
+        time_in: savedRecord.time_in ?? null,
+        time_out: savedRecord.time_out ?? null,
+        tap_type: tapType,
+        tap_sequence_number: savedRecord.tap_sequence_number ?? null,
+        room_status: savedRecord.room_status ?? null,
+        remarks: savedRecord.remarks ?? tapResult.message ?? null,
         status: savedStatus,
     };
 
@@ -860,14 +866,21 @@ const recordAttendance = async (student) => {
         ),
     ];
 
-    lastAction.value = `${student.name} was recorded ${savedStatus.toLowerCase()} at ${timestamp}.`;
+    lastAction.value = `${student.name}: ${tapType} at ${timestamp}. Status: ${savedStatus}.`;
     pushHistory(
-        'Attendance recorded',
-        `${student.name} tapped in at ${timestamp}.`,
-        'success',
+        tapResult.accepted === false ? 'Tap ignored' : tapType,
+        `${student.name}: ${tapResult.message ?? `${tapType} recorded.`}`,
+        tapResult.accepted === false ? 'warning' : 'success',
     );
-    setTapHeadline('Attendance successfully recorded', STUDENT_TOAST_MS);
-    showStudentToast(student, 'Attendance successfully recorded.', 'success');
+    setTapHeadline(
+        tapResult.accepted === false ? 'Tap ignored' : tapType,
+        STUDENT_TOAST_MS,
+    );
+    showStudentToast(
+        student,
+        tapResult.message ?? `${tapType} recorded.`,
+        tapResult.accepted === false ? 'warning' : 'success',
+    );
 };
 
 const submitBorrowingUpdate = async (borrower, selectedItems) => {
@@ -2313,7 +2326,7 @@ watch(
                                 <h3
                                     class="mt-1 text-xl font-extrabold text-slate-900"
                                 >
-                                    Students Attended
+                                    Attendance Taps
                                 </h3>
                             </div>
                         </div>
@@ -2393,10 +2406,22 @@ watch(
                                 </div>
                             </div>
                             <div
-                                class="mt-2 flex items-center justify-between text-[11px] text-slate-500"
+                                class="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500"
                             >
                                 <span>RFID: {{ record.rfid }}</span>
-                                <span>{{ record.time }}</span>
+                                <span
+                                    >{{ record.tap_type || 'Check-in' }} Â·
+                                    {{ record.time }}</span
+                                >
+                            </div>
+                            <div
+                                class="mt-2 grid grid-cols-3 gap-2 rounded-xl bg-slate-50 px-3 py-2 text-[11px] text-slate-600"
+                            >
+                                <span>In: {{ record.time_in || '-' }}</span>
+                                <span>Out: {{ record.time_out || '-' }}</span>
+                                <span>{{
+                                    record.room_status || 'Inside'
+                                }}</span>
                             </div>
                         </li>
                     </ul>
