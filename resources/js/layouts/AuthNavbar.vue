@@ -20,7 +20,6 @@ import Borrowing from '@/components/Icon/Borrowing.vue';
 import Dashboard from '@/components/Icon/Dashboard.vue';
 import Graduation from '@/components/Icon/Graduation.vue';
 import Instructor from '@/components/Icon/Instructor.vue';
-import Laboratory from '@/components/Icon/Laboratory.vue';
 import LogoutIcon from '@/components/Icon/LogoutIcon.vue';
 import Reports from '@/components/Icon/Reports.vue';
 import RFID from '@/components/Icon/RFID.vue';
@@ -69,12 +68,6 @@ const sections = [
                 icon: Graduation,
                 text: 'Strands',
                 route: route('admin.strands.index'),
-                roles: ['admin'],
-            },
-            {
-                icon: Laboratory,
-                text: 'Laboratories',
-                route: route('admin.laboratories'),
                 roles: ['admin'],
             },
         ],
@@ -222,15 +215,9 @@ const sections = [
             },
             {
                 icon: MonitorCheck,
-                text: 'Active Devices',
+                text: 'Laboratories & Devices',
                 route: route('admin.active-devices.index'),
                 roles: ['admin'],
-            },
-            {
-                icon: MonitorCheck,
-                text: 'Panel Login',
-                route: route('attendanceControlPanel.login'),
-                roles: ['admin', 'instructor', 'registrar', 'clinic'],
             },
             {
                 icon: ActivityLogs,

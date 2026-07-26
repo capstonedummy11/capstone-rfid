@@ -151,6 +151,7 @@ Page names:
 - `AttendanceControlPanel.vue` - live RFID attendance panel used by the console account.
 - `AttendanceLogs.vue` - admin and instructor attendance log page.
 - `AttendanceScanner.vue` - admin and instructor RFID attendance scanner/demo page.
+- `Auth/Admin/ActiveDevices.vue` - combined admin Laboratories & Devices page with laboratory management, panel login access, and active panel monitoring.
 
 Routes:
 
@@ -158,6 +159,7 @@ Routes:
 - `/attendance-control-panel` - opens the live attendance control panel.
 - `/admin/attendance/logs` - opens the admin/instructor attendance logs.
 - `/admin/attendance/scanner` - opens the admin/instructor scanner page.
+- `/admin/active-devices` - opens the combined Laboratories & Devices page.
 
 ### 1. Panel Login
 
@@ -244,6 +246,11 @@ Tap log records:
 - Tap types include `Check-in`, `Temporary Exit`, `Temporary Return`, `Check-out`, `Ignored Tap`, and `Invalid Tap`.
 
 ### 10. Admin And Instructor Attendance Views
+
+`Auth/Admin/ActiveDevices.vue`:
+
+- Admin users manage laboratory records and monitor active attendance panel devices from one Laboratories & Devices sidebar entry.
+- The page includes the only sidebar-reachable Panel Login link, panel device label/PIN settings, active/waiting device counts, and forced panel logout controls.
 
 `AttendanceLogs.vue`:
 

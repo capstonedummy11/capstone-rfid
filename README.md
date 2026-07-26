@@ -290,7 +290,8 @@ Student portal unfinished items:
 - `/admin/messages/{message}/reply` - assigned instructor reply back to the linked student portal thread.
 - `/admin/attendance/scanner` and `/admin/attendance/logs` - attendance tools.
 - `/admin/inventory` and `/admin/borrow` - inventory and borrowing.
-- `/attendance-control-panel/login` - console panel login. Public Student/Parent navigation should not show this link; authenticated staff/admin navigation exposes Panel Login for staff roles.
+- `/admin/active-devices` - combined admin Laboratories & Devices page for laboratory records, panel access settings, active panel monitoring, forced panel logout, and the Panel Login link.
+- `/attendance-control-panel/login` - console panel login. Public Student/Parent navigation should not show this link; admin users open it from the combined `/admin/active-devices` Laboratories & Devices page.
 - `/attendance-control-panel` - console attendance panel.
 - `/registrar/dashboard`, `/registrar/biometric-enrollment`, and `/registrar/instructor-face-enrollment` - registrar workflows.
 - `/clinic/dashboard` - clinic dashboard with alert response tools, emergency type management, and real clinic calendar events.
