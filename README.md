@@ -160,10 +160,11 @@ Student tap flow:
 - Check-in within the scheduled start time plus the 15-minute grace period is treated as an on-time check-in.
 - Check-in more than 15 minutes after the scheduled start time is treated as late.
 - After check-in, the student is considered Inside the room.
-- Taps before the official checkout window are saved as temporary movement records, not as checkout.
+- Taps before the official checkout window can be saved as temporary movement records only after the active instructor authorizes the movement with their RFID.
 - Temporary movement taps alternate between Temporary Exit and Temporary Return based on the student's current room status.
 - The official checkout window starts 15 minutes before the scheduled class end time.
-- The first valid tap in the checkout window records the official check-out and completes the attendance record.
+- The first valid tap in the checkout window records official logout/check-out and completes the attendance record. Temporary Exit and Temporary Return are disabled during this final 15-minute window.
+- If the instructor taps their RFID again and chooses Student Logout, the next student tap is forced to official check-out even before the normal checkout window.
 - Any later tap after official check-out is saved as an ignored tap and does not change the completed attendance.
 
 Attendance statuses:
@@ -255,6 +256,7 @@ Student portal unfinished items:
 - Online Class face verification depends on existing AWS Rekognition credentials and saved student face images. Missing AWS setup prevents enabling required face recognition; missing student face images can still block required-face verification when the provider is available.
 - Attendance panel student taps require direct student face verification when Face Rekognition is enabled. If the student has no saved face image, Face Rekognition is disabled, or AWS comparison is unavailable, the panel requires the active instructor RFID before recording attendance; when the instructor has a saved face image, the instructor face must also verify.
 - Attendance panel student taps now keep a main attendance row plus per-tap audit rows. Final statuses are Present, Late, Pending, Incomplete Attendance, or Absent; admin and instructor attendance logs show tap type, sequence, check-in, check-out, room status, and final status.
+- Instructor re-tap on the attendance panel includes Student Logout mode. When enabled, the next student RFID tap is recorded as official Check-out instead of Temporary Exit. Normal Temporary Exit and Temporary Return also require the active instructor RFID before they are saved.
 
 ## Important Routes
 

@@ -151,6 +151,8 @@ class AttendanceController
             'room' => ['required', 'string', 'max:255'],
             'subject_code' => ['nullable', 'string', 'max:255'],
             'schedule_id' => ['nullable', 'integer'],
+            'force_checkout' => ['nullable', 'boolean'],
+            'temporary_movement_instructor_rfid' => ['nullable', 'string', 'max:255'],
         ]);
 
         $rfid = strtolower(trim($validated['rfid']));
@@ -226,8 +228,9 @@ class AttendanceController
         $scheduleStart = $this->scheduleDateTime($today, (string) $currentSchedule->time_start);
         $scheduleEnd = $this->scheduleDateTime($today, (string) $currentSchedule->time_end);
         $checkoutWindowStart = $scheduleEnd?->copy()->subMinutes(15);
+        $forceCheckout = (bool) ($validated['force_checkout'] ?? false);
 
-        $result = DB::transaction(function () use ($student, $attendanceSession, $currentSchedule, $scheduleId, $subjectCode, $validated, $today, $now, $nowTime, $scheduleStart, $checkoutWindowStart) {
+        $result = DB::transaction(function () use ($student, $attendanceSession, $currentSchedule, $scheduleId, $subjectCode, $validated, $today, $now, $nowTime, $scheduleStart, $checkoutWindowStart, $forceCheckout) {
             $attendance = Attendance::query()
                 ->where('student_id', $student->student_id)
                 ->where('schedule_id', $scheduleId)
@@ -242,6 +245,12 @@ class AttendanceController
             $sequence = $lastSequence + 1;
 
             if (! $attendance) {
+                if ($forceCheckout) {
+                    $logId = $this->insertInvalidAttendanceTapLog($attendanceSession->attendance_id, $student, $scheduleId, $now, 'Invalid Tap', $sequence, $validated['room'], 'Student logout was requested, but the student has no check-in for this class.');
+
+                    return [null, $logId, 'invalid_tap', 'Invalid Tap', false, 'Student has no check-in record to log out from this class.', false];
+                }
+
                 $checkInStatus = $scheduleStart && $now->greaterThan($scheduleStart->copy()->addMinutes(15)) ? 'late' : 'present';
 
                 $attendance = Attendance::query()->create([
@@ -265,31 +274,38 @@ class AttendanceController
 
                 $logId = $this->insertAttendanceTapLog($attendanceSession->attendance_id, $attendance, $student, $scheduleId, $now, 'Check-in', $sequence, $validated['room'], 'valid', 'Official check-in recorded.');
 
-                return [$attendance, $logId, 'check_in', 'Check-in', true, 'Official check-in recorded.'];
+                return [$attendance, $logId, 'check_in', 'Check-in', true, 'Official check-in recorded.', false];
             }
 
             if ($attendance->time_out) {
                 $logId = $this->insertAttendanceTapLog($attendanceSession->attendance_id, $attendance, $student, $scheduleId, $now, 'Ignored Tap', $sequence, $validated['room'], 'ignored', 'Official check-out already exists.');
 
-                return [$attendance, $logId, 'ignored_tap', 'Ignored Tap', false, 'Attendance is already completed for this class.'];
+                return [$attendance, $logId, 'ignored_tap', 'Ignored Tap', false, 'Attendance is already completed for this class.', false];
             }
 
-            $isCheckoutTap = $checkoutWindowStart ? $now->greaterThanOrEqualTo($checkoutWindowStart) : false;
+            $isCheckoutTap = $forceCheckout || ($checkoutWindowStart ? $now->greaterThanOrEqualTo($checkoutWindowStart) : false);
 
             if ($isCheckoutTap) {
                 $finalStatus = $attendance->check_in_status === 'late' ? 'late' : 'present';
+                $remarks = $forceCheckout
+                    ? 'Official check-out recorded by instructor student logout override.'
+                    : 'Official check-out recorded.';
 
                 $attendance->update([
                     'time_out' => $nowTime,
                     'status' => $finalStatus,
                     'room_status' => 'outside',
                     'total_taps' => $sequence,
-                    'remarks' => 'Official check-out recorded.',
+                    'remarks' => $remarks,
                 ]);
 
-                $logId = $this->insertAttendanceTapLog($attendanceSession->attendance_id, $attendance->fresh(), $student, $scheduleId, $now, 'Check-out', $sequence, $validated['room'], 'valid', 'Official check-out recorded.');
+                $logId = $this->insertAttendanceTapLog($attendanceSession->attendance_id, $attendance->fresh(), $student, $scheduleId, $now, 'Check-out', $sequence, $validated['room'], 'valid', $remarks);
 
-                return [$attendance->fresh(), $logId, 'check_out', 'Check-out', true, 'Official check-out recorded.'];
+                return [$attendance->fresh(), $logId, 'check_out', 'Check-out', true, $remarks, false];
+            }
+
+            if (! $this->instructorRfidAuthorizesTemporaryMovement($currentSchedule, $validated['temporary_movement_instructor_rfid'] ?? null)) {
+                return [$attendance, null, 'temporary_authorization_required', 'Temporary Movement', false, 'Instructor RFID is required before recording Temporary Exit or Temporary Return.', true];
             }
 
             $tapType = $attendance->room_status === 'outside' ? 'Temporary Return' : 'Temporary Exit';
@@ -304,11 +320,22 @@ class AttendanceController
 
             $logId = $this->insertAttendanceTapLog($attendanceSession->attendance_id, $attendance->fresh(), $student, $scheduleId, $now, $tapType, $sequence, $validated['room'], 'valid', $tapType.' recorded before the official check-out window.');
 
-            return [$attendance->fresh(), $logId, Str::snake($tapType), $tapType, true, $tapType.' recorded.'];
+            return [$attendance->fresh(), $logId, Str::snake($tapType), $tapType, true, $tapType.' recorded.', false];
         });
 
-        [$attendance, $attendanceLogId, $action, $tapType, $accepted, $message] = $result;
-        $displayStatus = $this->attendanceDisplayStatus($attendance, $attendanceSession);
+        [$attendance, $attendanceLogId, $action, $tapType, $accepted, $message, $requiresTemporaryMovementInstructor] = $result;
+
+        if ($requiresTemporaryMovementInstructor) {
+            return response()->json([
+                'ok' => false,
+                'requires_temporary_movement_instructor' => true,
+                'action' => $action,
+                'tap_type' => $tapType,
+                'message' => $message,
+            ], 428);
+        }
+
+        $displayStatus = $attendance ? $this->attendanceDisplayStatus($attendance, $attendanceSession) : 'Invalid Tap';
 
         return response()->json([
             'ok' => true,
@@ -318,17 +345,17 @@ class AttendanceController
             'message' => $message,
             'record' => [
                 'id' => $attendanceLogId,
-                'attendance_id' => $attendance->attendance_id,
+                'attendance_id' => $attendance?->attendance_id,
                 'rfid' => $student->rfid_tag,
                 'name' => trim($student->first_name.' '.$student->last_name),
                 'course' => $student->strand?->strand_code,
                 'section' => $student->year_level.' - '.($student->section?->section_name ?? ''),
                 'time' => date('g:i A', strtotime($nowTime)),
-                'time_in' => $attendance->time_in ? date('g:i A', strtotime((string) $attendance->time_in)) : null,
-                'time_out' => $attendance->time_out ? date('g:i A', strtotime((string) $attendance->time_out)) : null,
+                'time_in' => $attendance?->time_in ? date('g:i A', strtotime((string) $attendance->time_in)) : null,
+                'time_out' => $attendance?->time_out ? date('g:i A', strtotime((string) $attendance->time_out)) : null,
                 'tap_type' => $tapType,
-                'tap_sequence_number' => $attendance->total_taps ?: null,
-                'room_status' => ucfirst((string) ($attendance->room_status ?? 'outside')),
+                'tap_sequence_number' => $attendance?->total_taps ?: null,
+                'room_status' => ucfirst((string) ($attendance?->room_status ?? 'outside')),
                 'status' => $displayStatus,
                 'remarks' => $message,
             ],
@@ -1846,6 +1873,44 @@ class AttendanceController
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    private function insertInvalidAttendanceTapLog(int $sessionId, Students $student, ?int $scheduleId, Carbon $tapTime, string $tapType, int $sequence, string $room, string $remarks): int
+    {
+        return (int) DB::table('attendance_logs')->insertGetId([
+            'attendance_id' => $sessionId,
+            'main_attendance_id' => null,
+            'student_id' => $student->student_id,
+            'schedule_id' => $scheduleId,
+            'time_in' => $tapTime->format('H:i:s'),
+            'time_out' => null,
+            'status' => 'invalid',
+            'tap_datetime' => $tapTime->toDateTimeString(),
+            'tap_type' => $tapType,
+            'tap_sequence_number' => $sequence,
+            'device_scanner_id' => SystemSetting::string(SystemSetting::PANEL_DEVICE_LABEL, 'Attendance Console'),
+            'location' => $room,
+            'validation_result' => 'invalid',
+            'remarks' => $remarks,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function instructorRfidAuthorizesTemporaryMovement(?Schedule $schedule, ?string $instructorRfid): bool
+    {
+        $rfid = strtolower(trim((string) $instructorRfid));
+
+        if (! $schedule || ! $schedule->instructor_id || $rfid === '') {
+            return false;
+        }
+
+        return DB::table('instructors')
+            ->join('users', 'users.user_id', '=', 'instructors.user_id')
+            ->where('instructors.instructor_id', $schedule->instructor_id)
+            ->whereRaw('LOWER(users.rfid_tag) = ?', [$rfid])
+            ->whereRaw('LOWER(users.role) = ?', ['instructor'])
+            ->exists();
     }
 
     private function attendanceDisplayStatus(object $attendance, ?object $session = null): string

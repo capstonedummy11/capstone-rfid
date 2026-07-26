@@ -47,35 +47,47 @@ Routes:
 
 1. After check-in, a student may tap again before the checkout window.
 2. The checkout window starts 15 minutes before the scheduled class end time.
-3. Taps before that checkout window do not end attendance.
-4. If the student is currently `Inside`, the tap is recorded as `Temporary Exit`.
-5. If the student is currently `Outside`, the tap is recorded as `Temporary Return`.
-6. Temporary taps continue alternating between exit and return.
-7. Temporary taps are kept as audit records and do not change the final attendance status by themselves.
+3. Taps before that checkout window do not end attendance automatically.
+4. The panel asks for the active instructor RFID before saving a temporary movement.
+5. If the instructor RFID is valid and the student is currently `Inside`, the tap is recorded as `Temporary Exit`.
+6. If the instructor RFID is valid and the student is currently `Outside`, the tap is recorded as `Temporary Return`.
+7. Temporary taps continue alternating between exit and return.
+8. Temporary taps are kept as audit records and do not change the final attendance status by themselves.
+9. If the instructor RFID is not provided or does not match the active class instructor, the temporary movement is not saved.
 
 ### 5. Official Check-out
 
 1. The official checkout window starts 15 minutes before the scheduled end time.
-2. The first valid student tap inside the checkout window becomes the official check-out.
-3. The attendance record saves the check-out time.
-4. The student room status becomes `Outside`.
-5. If the student checked in on time and checked out, final status becomes `Present`.
-6. If the student checked in late and checked out, final status becomes `Late`.
+2. During this final 15-minute window, Temporary Exit and Temporary Return are disabled.
+3. The first valid student tap inside the checkout window becomes the official logout/check-out.
+4. The attendance record saves the check-out time.
+5. The student room status becomes `Outside`.
+6. If the student checked in on time and checked out, final status becomes `Present`.
+7. If the student checked in late and checked out, final status becomes `Late`.
 
-### 6. Ignored Taps
+### 6. Instructor Student Logout Override
+
+1. During a live attendance session, the active instructor may tap their RFID again.
+2. The panel opens instructor session actions.
+3. If the instructor chooses `Student Logout`, the panel enters Student Logout Mode.
+4. The next student RFID tap is recorded as official `Check-out` even if the normal checkout window has not started.
+5. This is used when the instructor wants to log the student out of the class instead of recording a `Temporary Exit`.
+6. Student Logout Mode is one-shot: after the next student tap, the panel returns to normal attendance tap rules.
+
+### 7. Ignored Taps
 
 1. If a student taps again after official check-out, the tap is recorded as `Ignored Tap`.
 2. Ignored taps do not change check-in, check-out, room status, or final attendance status.
 3. This prevents duplicate checkout records for the same class.
 
-### 7. Incomplete And Absent Attendance
+### 8. Incomplete And Absent Attendance
 
 1. If a student checked in but did not complete official check-out, the status remains `Pending` while the session is still active.
 2. After the session or allowed attendance period ends, a checked-in student without official check-out is treated as `Incomplete Attendance`.
 3. This applies even if the student has Temporary Exit or Temporary Return records.
 4. If a student has no valid check-in tap for the scheduled class, the admin/instructor logs show the student as `Absent` after the attendance period ends.
 
-### 8. Attendance Records And Tap Logs
+### 9. Attendance Records And Tap Logs
 
 Main attendance record:
 
@@ -88,7 +100,7 @@ Tap log records:
 - Tap logs store attendance ID, student ID, schedule ID, tap date/time, tap type, tap sequence number, device/scanner ID, room/location, validation result, and remarks.
 - Tap types include `Check-in`, `Temporary Exit`, `Temporary Return`, `Check-out`, `Ignored Tap`, and `Invalid Tap`.
 
-### 9. Admin And Instructor Attendance Views
+### 10. Admin And Instructor Attendance Views
 
 `AttendanceLogs.vue`:
 
@@ -108,7 +120,7 @@ Tap log records:
 - Console users use this page for live class attendance.
 - The page displays the active instructor, student tap result, temporary movements, official check-out, current room status, and final attendance status.
 
-### 10. Final Attendance Status Priority
+### 11. Final Attendance Status Priority
 
 1. No valid check-in after the attendance period ends: `Absent`.
 2. Valid check-in but no official check-out after the session ends: `Incomplete Attendance`.
