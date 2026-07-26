@@ -130,7 +130,10 @@
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <label class="mb-1 block text-sm font-medium text-slate-700">School Year *</label>
-                <input v-model="form.school_year" type="text" placeholder="e.g., 2025-2026" class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100" required />
+                <select v-model="form.school_year" class="w-full rounded-md border border-slate-300 px-3 py-2" required>
+                  <option value="">Select School Year</option>
+                  <option v-for="schoolYear in schoolYearOptions" :key="schoolYear" :value="schoolYear">{{ schoolYear }}</option>
+                </select>
               </div>
               <div>
                 <label class="mb-1 block text-sm font-medium text-slate-700">Status *</label>
@@ -203,6 +206,10 @@ const selectedStatus = ref(props.filters.status ?? '');
 const showModal = ref(false);
 const isEditing = ref(false);
 const selectedSection = ref<Section | null>(null);
+const defaultSchoolYearOptions = Array.from({ length: 6 }, (_, index) => {
+  const startYear = 2025 + index;
+  return `${startYear}-${startYear + 1}`;
+});
 
 const form = useForm({
   section_id: '',
@@ -223,6 +230,15 @@ const filteredSections = computed<Section[]>(() => {
 
     return matchesSearch && matchesStrand && matchesYear && matchesStatus;
   });
+});
+
+const schoolYearOptions = computed(() => {
+  return Array.from(
+    new Set([
+      ...defaultSchoolYearOptions,
+      ...(props.sections as Section[]).map((section) => section.school_year),
+    ].filter(Boolean)),
+  ).sort();
 });
 
 const onFilterChange = () => {

@@ -1,0 +1,330 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Closure;
+use Illuminate\Database\Query\Builder;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+
+class ReportController
+{
+    public function index(Request $request)
+    {
+        return Inertia::render('Reports/Index', $this->reportPayload($request));
+    }
+
+    public function export(Request $request): StreamedResponse
+    {
+        $payload = $this->reportPayload($request);
+        $filename = $payload['role'].'-report-'.now()->format('Y-m-d-His').'.csv';
+
+        return response()->streamDownload(function () use ($payload) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['Report', $payload['title']]);
+            fputcsv($handle, ['Generated At', now()->format('Y-m-d H:i:s')]);
+            fputcsv($handle, ['Date From', $payload['filters']['date_from'] ?: 'All']);
+            fputcsv($handle, ['Date To', $payload['filters']['date_to'] ?: 'All']);
+            fputcsv($handle, []);
+            fputcsv($handle, ['Category', 'Metric', 'Value', 'Group']);
+
+            foreach ($payload['tableRows'] as $row) {
+                fputcsv($handle, [
+                    $row['category'],
+                    $row['metric'],
+                    $row['value'],
+                    $row['group'],
+                ]);
+            }
+
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    private function reportPayload(Request $request): array
+    {
+        $role = strtolower((string) $request->user()?->role);
+        $filters = [
+            'date_from' => $request->string('date_from')->toString(),
+            'date_to' => $request->string('date_to')->toString(),
+        ];
+
+        return match ($role) {
+            'clinic' => $this->clinicReport($filters),
+            'registrar' => $this->registrarReport($filters),
+            'instructor' => $this->instructorReport($request, $filters),
+            default => $this->adminReport($filters),
+        };
+    }
+
+    private function adminReport(array $filters): array
+    {
+        $charts = [
+            $this->chart('Users by Role', $this->grouped('users', 'role')),
+            $this->chart('Students by Status', $this->grouped('students', 'status')),
+            $this->chart('Attendance by Status', $this->grouped('attendances', 'status', $filters, 'date')),
+            $this->chart('Borrowing by Status', $this->grouped('borrowings', 'status', $filters, 'borrowed_at')),
+            $this->chart('Inventory by Status', $this->grouped('inventory_items', 'status')),
+        ];
+
+        return $this->payload('admin', 'Admin Reports', [
+            $this->card('Users', $this->countTable('users')),
+            $this->card('Students', $this->countTable('students')),
+            $this->card('Attendance Records', $this->countTable('attendances', $filters, 'date')),
+            $this->card('Borrowings', $this->countTable('borrowings', $filters, 'borrowed_at')),
+            $this->card('Clinic Cases', $this->countTable('clinic_cases', $filters, 'occurred_at')),
+        ], $charts, $filters);
+    }
+
+    private function clinicReport(array $filters): array
+    {
+        $charts = [
+            $this->chart('Clinic Cases by Status', $this->grouped('clinic_cases', 'status', $filters, 'occurred_at')),
+            $this->chart('Clinic Cases by Type', $this->grouped('clinic_cases', 'case_type', $filters, 'occurred_at')),
+            $this->chart('Emergency Alerts by Status', $this->grouped('emergency_alerts', 'status', $filters)),
+            $this->chart('Emergency Alerts by Severity', $this->grouped('emergency_alerts', 'severity', $filters)),
+            $this->chart('Patient Histories by Type', $this->grouped('patient_histories', 'patient_type', $filters, 'occurred_at')),
+        ];
+
+        return $this->payload('clinic', 'Clinic Reports', [
+            $this->card('Clinic Cases', $this->countTable('clinic_cases', $filters, 'occurred_at')),
+            $this->card('Open Cases', $this->countTable('clinic_cases', $filters, 'occurred_at', fn (Builder $query) => $query->whereIn('status', ['open', 'monitoring']))),
+            $this->card('Patient Histories', $this->countTable('patient_histories', $filters, 'occurred_at')),
+            $this->card('Emergency Alerts', $this->countTable('emergency_alerts', $filters)),
+            $this->card('Resolved Alerts', $this->countTable('emergency_alerts', $filters, 'created_at', fn (Builder $query) => $query->where('status', 'resolved'))),
+        ], $charts, $filters);
+    }
+
+    private function registrarReport(array $filters): array
+    {
+        $strandRows = $this->joinedStudentGroup('strands', 'strand_id', 'strand_code');
+        $sectionRows = $this->joinedStudentGroup('sections', 'section_id', 'section_name');
+        $charts = [
+            $this->chart('Students by Strand', $strandRows),
+            $this->chart('Students by Section', $sectionRows),
+            $this->chart('Students by Status', $this->grouped('students', 'status')),
+            $this->chart('Enrollment Logs by Action', $this->grouped('registrar_enrollment_logs', 'action', $filters)),
+            $this->chart('Enrollment Logs by Person Type', $this->grouped('registrar_enrollment_logs', 'person_type', $filters)),
+        ];
+
+        return $this->payload('registrar', 'Registrar Reports', [
+            $this->card('Students', $this->countTable('students')),
+            $this->card('Active Students', $this->countTable('students', [], 'created_at', fn (Builder $query) => $query->where('status', 'active'))),
+            $this->card('Sections', $this->countTable('sections')),
+            $this->card('Strands', $this->countTable('strands')),
+            $this->card('Enrollment Logs', $this->countTable('registrar_enrollment_logs', $filters)),
+        ], $charts, $filters);
+    }
+
+    private function instructorReport(Request $request, array $filters): array
+    {
+        $instructorId = $this->instructorId((int) $request->user()->user_id);
+        $scheduleIds = $this->scheduleIdsForInstructor($instructorId);
+        $onlineClassIds = $this->onlineClassIdsForInstructor($instructorId);
+
+        $scopeSchedules = fn (Builder $query) => $query->where('instructor_id', $instructorId ?: 0);
+        $scopeAttendance = fn (Builder $query) => $query->whereIn('schedule_id', $scheduleIds ?: [0]);
+        $scopeOnline = fn (Builder $query) => $query->where('instructor_id', $instructorId ?: 0);
+        $scopeOnlineAttendance = fn (Builder $query) => $query->whereIn('online_class_id', $onlineClassIds ?: [0]);
+
+        $charts = [
+            $this->chart('Attendance by Status', $this->grouped('attendances', 'status', $filters, 'date', $scopeAttendance)),
+            $this->chart('Schedules by Subject', $this->grouped('schedules', 'subject_code', [], 'created_at', $scopeSchedules)),
+            $this->chart('Online Classes by Status', $this->grouped('online_classes', 'status', $filters, 'scheduled_date', $scopeOnline)),
+            $this->chart('Online Class Attendance', $this->grouped('online_class_attendances', 'status', $filters, 'created_at', $scopeOnlineAttendance)),
+        ];
+
+        return $this->payload('instructor', 'Instructor Reports', [
+            $this->card('Schedules', $this->countTable('schedules', [], 'created_at', $scopeSchedules)),
+            $this->card('Attendance Records', $this->countTable('attendances', $filters, 'date', $scopeAttendance)),
+            $this->card('Online Classes', $this->countTable('online_classes', $filters, 'scheduled_date', $scopeOnline)),
+            $this->card('Handled Sections', $this->handledSections($instructorId)),
+        ], $charts, $filters);
+    }
+
+    private function payload(string $role, string $title, array $summaryCards, array $charts, array $filters): array
+    {
+        return [
+            'role' => $role,
+            'title' => $title,
+            'filters' => $filters,
+            'summaryCards' => $summaryCards,
+            'charts' => array_values($charts),
+            'tableRows' => $this->tableRows($charts),
+            'exportUrl' => route('reports.export', array_filter($filters)),
+        ];
+    }
+
+    private function card(string $label, int $value, ?string $detail = null): array
+    {
+        return compact('label', 'value', 'detail');
+    }
+
+    private function chart(string $title, array $data): array
+    {
+        return [
+            'title' => $title,
+            'data' => $data,
+        ];
+    }
+
+    private function grouped(string $table, string $column, array $filters = [], string $dateColumn = 'created_at', ?Closure $scope = null): array
+    {
+        if (! Schema::hasTable($table) || ! Schema::hasColumn($table, $column)) {
+            return [];
+        }
+
+        $query = DB::table($table);
+        $this->withoutDeleted($query, $table);
+        $this->applyDateRange($query, $table, $filters, $dateColumn);
+
+        if ($scope) {
+            $scope($query);
+        }
+
+        return $query
+            ->selectRaw("COALESCE({$column}, 'Unspecified') as label, COUNT(*) as value")
+            ->groupBy($column)
+            ->orderByDesc('value')
+            ->get()
+            ->map(fn ($row) => [
+                'label' => $this->label((string) $row->label),
+                'value' => (int) $row->value,
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function joinedStudentGroup(string $joinTable, string $key, string $labelColumn): array
+    {
+        if (! Schema::hasTable('students') || ! Schema::hasTable($joinTable)) {
+            return [];
+        }
+
+        $query = DB::table('students')
+            ->leftJoin($joinTable, "students.{$key}", '=', "{$joinTable}.{$key}")
+            ->selectRaw("COALESCE({$joinTable}.{$labelColumn}, 'Unspecified') as label, COUNT(*) as value")
+            ->groupBy("{$joinTable}.{$labelColumn}")
+            ->orderByDesc('value');
+
+        $this->withoutDeleted($query, 'students');
+
+        return $query->get()
+            ->map(fn ($row) => [
+                'label' => $this->label((string) $row->label),
+                'value' => (int) $row->value,
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function countTable(string $table, array $filters = [], string $dateColumn = 'created_at', ?Closure $scope = null): int
+    {
+        if (! Schema::hasTable($table)) {
+            return 0;
+        }
+
+        $query = DB::table($table);
+        $this->withoutDeleted($query, $table);
+        $this->applyDateRange($query, $table, $filters, $dateColumn);
+
+        if ($scope) {
+            $scope($query);
+        }
+
+        return (int) $query->count();
+    }
+
+    private function applyDateRange(Builder $query, string $table, array $filters, string $dateColumn): void
+    {
+        if (! $dateColumn || ! Schema::hasColumn($table, $dateColumn)) {
+            return;
+        }
+
+        if (! empty($filters['date_from'])) {
+            $query->whereDate($dateColumn, '>=', $filters['date_from']);
+        }
+
+        if (! empty($filters['date_to'])) {
+            $query->whereDate($dateColumn, '<=', $filters['date_to']);
+        }
+    }
+
+    private function withoutDeleted(Builder $query, string $table): void
+    {
+        if (Schema::hasColumn($table, 'deleted_at')) {
+            $query->whereNull("{$table}.deleted_at");
+        }
+    }
+
+    private function tableRows(array $charts): array
+    {
+        $rows = [];
+
+        foreach ($charts as $chart) {
+            foreach ($chart['data'] as $datum) {
+                $rows[] = [
+                    'category' => $chart['title'],
+                    'metric' => $datum['label'],
+                    'value' => $datum['value'],
+                    'group' => 'Count',
+                ];
+            }
+        }
+
+        return $rows;
+    }
+
+    private function instructorId(int $userId): ?int
+    {
+        if (! Schema::hasTable('instructors')) {
+            return null;
+        }
+
+        return DB::table('instructors')->where('user_id', $userId)->value('instructor_id');
+    }
+
+    private function scheduleIdsForInstructor(?int $instructorId): array
+    {
+        if (! $instructorId || ! Schema::hasTable('schedules') || ! Schema::hasColumn('schedules', 'instructor_id')) {
+            return [];
+        }
+
+        return DB::table('schedules')
+            ->where('instructor_id', $instructorId)
+            ->pluck('scheduled_id')
+            ->all();
+    }
+
+    private function handledSections(?int $instructorId): int
+    {
+        if (! $instructorId || ! Schema::hasTable('schedules') || ! Schema::hasColumn('schedules', 'instructor_id')) {
+            return 0;
+        }
+
+        return DB::table('schedules')
+            ->where('instructor_id', $instructorId)
+            ->distinct()
+            ->count('section_id');
+    }
+
+    private function onlineClassIdsForInstructor(?int $instructorId): array
+    {
+        if (! $instructorId || ! Schema::hasTable('online_classes') || ! Schema::hasColumn('online_classes', 'instructor_id')) {
+            return [];
+        }
+
+        return DB::table('online_classes')
+            ->where('instructor_id', $instructorId)
+            ->pluck('online_class_id')
+            ->all();
+    }
+
+    private function label(string $value): string
+    {
+        return trim(ucwords(str_replace(['_', '-'], ' ', $value))) ?: 'Unspecified';
+    }
+}

@@ -431,7 +431,7 @@ const statusClass = (status) => {
 
                     <Link
                         v-if="isInstructor"
-                        :href="route('admin.messages.index')"
+                        :href="route('messages.index')"
                         class="flex items-center justify-between rounded-md border border-slate-200 bg-white p-4 shadow-sm"
                     >
                         <span class="flex items-center gap-3">

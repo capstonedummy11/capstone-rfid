@@ -10,6 +10,7 @@ Start with these docs when setting up a new machine:
 
 - Full beginner guide: [docs/RUNNING_THE_SYSTEM.md](docs/RUNNING_THE_SYSTEM.md)
 - Official software download links: [docs/INSTALLATION_LINKS.md](docs/INSTALLATION_LINKS.md)
+- Database and seeder reference: [database.md](database.md)
 
 ## Main Features
 
@@ -20,14 +21,17 @@ Start with these docs when setting up a new machine:
 - If the camera is unavailable, the active instructor can scan their RFID once to enable a camera bypass for the current scheduled class. The bypass is stored server-side, applies only to that attendance session, and ends when the class or panel session ends.
 - If the camera works but AWS Rekognition is unavailable, each time-in/time-out capture is stored as attendance evidence and the console shows a warning for that attendance event.
 - Admin and instructor attendance logs and the student/linked-parent attendance table show authorized time-in and time-out evidence thumbnails. Selecting a thumbnail opens a larger preview; RFID-only overrides display `Not captured`.
-- A first student tap creates a checked-in record. The second verified tap records time-out and finalizes the student as `present`, or preserves `late` when applicable. Ending the class with no student time-out marks the open record `absent` with completion reason `cutting`.
 - `attendance.late_threshold_minutes` controls how many minutes after scheduled start count as late. Admin Settings exposes this value and defaults it to 15 minutes.
+- Attendance panel taps are classified by the active class schedule: first valid tap is check-in, taps before the final 15-minute checkout window alternate between Temporary Exit and Temporary Return, the first tap inside the checkout window becomes the official check-out, and later taps are ignored.
 - Inventory and borrowing workflows for laboratory items.
 - Student, instructor, section, strand, subject, schedule, and laboratory management.
+- Admin Student Management now includes parent account management for creating or linking parent portal accounts, editing parent details, setting the relationship label, and associating or unlinking parents from student records.
+- Admin Student and Section add/edit modals use a fixed School Year dropdown starting at `2025-2026` and advancing through `2030-2031`; existing saved school-year values are also preserved in the dropdowns when present.
 - Admin user management for clinic, registrar, and admin accounts, with root-admin-only admin creation, updates, deletion, and promotion.
 - Registrar biometric enrollment for student and faculty RFID or face records.
 - Registrar student and instructor biometric enrollment supports RFID assignment plus either image-file upload or direct webcam capture, with capture preview/retake controls and the existing five-image limit.
 - Clinic dashboard, case logs, patient history, reports, emergency types, emergency hotline CRUD, and emergency alert handling.
+- Shared Reports page for admin, clinic, registrar, and instructor accounts with role-specific charts, date filters, summary cards, detail rows, and CSV download.
 - Instructor verification by face, OTP, or security questions.
 - System settings for panel access, inventory availability, face recognition, security questions, and attendance behavior.
 - Online Class management for instructors, student online-class joining, attendance recording, notifications, and admin audit logs.
@@ -239,6 +243,42 @@ Whenever a meaningful project-facing discovery, limitation, setup step, account,
 
 When adding a new feature, review its audit requirements as part of the implementation. Record security-relevant and state-changing actions in the system activity log, including the actor, module, action, outcome, affected record, and request context where applicable. Add or reuse meaningful admin filters when the feature introduces a new module, action, role, or affected record type. Never place passwords, tokens, face images, request bodies, or other sensitive payloads in audit records. Add automated tests confirming that the feature's important actions create the expected logs.
 
+When creating a new feature or fixing a bug, also update `system flow.md` in the same change so the documented system behavior stays aligned with the implementation.
+
+## Attendance Panel Flow
+
+The Attendance Control Panel is used by a console account in a selected laboratory or room. An instructor starts the live attendance session by tapping their RFID card. The active room, schedule, subject, instructor, and section are resolved from the current class schedule.
+
+Student tap flow:
+
+- The first valid student tap for the active schedule and date creates the official check-in record.
+- Check-in within the scheduled start time plus the 15-minute grace period is treated as an on-time check-in.
+- Check-in more than 15 minutes after the scheduled start time is treated as late.
+- After check-in, the student is considered Inside the room.
+- Taps before the official checkout window can be saved as temporary movement records only after the active instructor authorizes the movement with their RFID.
+- Temporary movement taps alternate between Temporary Exit and Temporary Return based on the student's current room status.
+- The official checkout window starts 15 minutes before the scheduled class end time.
+- The first valid tap in the checkout window records official logout/check-out and completes the attendance record. Temporary Exit and Temporary Return are disabled during this final 15-minute window.
+- If the instructor taps their RFID again and chooses Student Logout, the next student tap is forced to official check-out even before the normal checkout window.
+- Any later tap after official check-out is saved as an ignored tap and does not change the completed attendance.
+
+Attendance statuses:
+
+- `Pending` - the student has checked in, but the class is still waiting for an official check-out.
+- `Present` - the student checked in within the 15-minute grace period and completed official check-out.
+- `Late` - the student checked in after the 15-minute grace period and completed official check-out.
+- `Incomplete Attendance` - the student checked in, with or without temporary exits/returns, but did not complete official check-out after the session ended.
+- `Absent` - the student had no valid check-in tap for the scheduled class after the attendance period ended.
+
+Audit and display behavior:
+
+- Each student has one main attendance record per student, schedule, and date.
+- Every valid, temporary, checkout, ignored, or invalid tap is stored as a separate attendance tap log.
+- Tap logs store the tap type, sequence number, timestamp, room/location, validation result, and remarks.
+- Face verification stores authorized time-in/time-out evidence images on the attendance tap logs when camera capture is available.
+- The live attendance panel displays check-in, temporary movements, official check-out, current room status, and final status.
+- Admin and instructor attendance logs show the same tap metadata while respecting instructor scope, with filters for session, subject, date, and admin-only instructor RFID/instructor selection.
+
 ## Online Class Module
 
 The Online Class module lets instructors create and manage online class sessions for their assigned schedules. Admin users can also access the management page and have a dedicated immutable audit-log page.
@@ -258,7 +298,8 @@ Implemented student capabilities:
 - Students can open the meeting link and record join attendance.
 - Join attendance records joined time, attendance status, late flag, face-required flag, face verification result, and face verification timestamp when required.
 - Students and linked parents can submit excuse letters with optional attachments.
-- Students and linked parents can send portal messages after searching/selecting a recipient. Message history is shown as private conversations, and each message is visible only to its sender and recipient.
+- Student-created excuse letters now require linked parent approval before PDF download. Parents approve from the portal with a typed parent signature, and parent-created letters are signed/approved immediately.
+- All authenticated roles can use Messenger from `/messages` to search for another user and start private chat-style conversations with optional attachments. Selecting a user with existing messages opens the shared chat room with both users' past messages. Available roles include student, parent, clinic, registrar, instructor, and admin.
 
 Notifications:
 
@@ -324,15 +365,15 @@ Known limitations:
 - The Online Class join endpoint also validates the submitted face image server-side before recording attendance, so a plain `face_verified` flag is not accepted for required-face classes.
 - The log export is CSV, which Excel can open. A native `.xlsx` export is not implemented.
 - Student/parent notification center exists at `/student-parent/notifications` and supports marking notifications as read.
-- Student/parent and instructor inbox messages work as private Messenger-style conversations with a searchable conversation list, complete chronological incoming/outgoing reply history, unread indicators, attachment links, and a reply composer. Stored message subjects are generated internally for compatibility, student portal messages remain encrypted, and public/student messages are mirrored into the instructor inbox.
+- Messenger conversations use `student_portal_messages` for authenticated user-to-user chat. Student/parent and instructor inbox messages work as private conversation-style threads with searchable users, chronological incoming/outgoing history, unread indicators, attachment links, and a reply composer. Message body and subject remain encrypted, attachments are downloaded through authorized routes, and only the sender or recipient can see a conversation.
 - Parent accounts can switch between linked students on portal pages when more than one child is linked.
 - Online Class facial recognition can only be required when Face Rekognition is enabled and AWS Rekognition appears configured. Settings and Online Class forms warn and keep the toggle off when unavailable.
 - If an older required-face online class is joined while AWS Rekognition is unavailable, the student is allowed to join and the instructor receives one system inbox message per student/class.
 
 Student portal unfinished items:
 
-- Excuse Letter now generates a Word-compatible `.doc` download from the saved letter record. Native PDF generation is still not implemented.
-- Excuse Letter has no instructor/admin review workflow yet; submitted letters stay in the student portal with their stored status.
+- Excuse Letter now generates a native `.pdf` download from approved saved letter records.
+- Excuse Letter requires linked parent approval and parent signature for student-created letters. Instructor/admin review workflow is still not implemented.
 - Portal Messages now use a conversation-style student/parent UI with the conversation list on the left, an empty-state prompt when there are no conversations, and recipient search before starting a new conversation.
 - Portal Messages can receive instructor replies from the instructor inbox. Replies are written back to the portal conversation for the original sender only.
 - Attendance page now has client-side search, status filtering, reset, class time, duration, and pagination. It remains read-only.
@@ -340,6 +381,8 @@ Student portal unfinished items:
 - Parent profile updates now save only the parent user profile; student accounts still sync their own phone/gender to their student record.
 - Online Class face verification depends on existing AWS Rekognition credentials and saved student face images. Missing AWS setup prevents enabling required face recognition; missing student face images can still block required-face verification when the provider is available.
 - Attendance panel student taps require direct student face verification when Face Rekognition is enabled. If the student has no saved face image, Face Rekognition is disabled, or AWS comparison is unavailable, the panel requires the active instructor RFID before recording attendance; when the instructor has a saved face image, the instructor face must also verify.
+- Attendance panel student taps now keep a main attendance row plus per-tap audit rows. Final statuses are Present, Late, Pending, Incomplete Attendance, or Absent; admin and instructor attendance logs show tap type, sequence, check-in, check-out, room status, and final status.
+- Instructor re-tap on the attendance panel includes Student Logout mode. When enabled, the next student RFID tap is recorded as official Check-out instead of Temporary Exit. Normal Temporary Exit and Temporary Return also require the active instructor RFID before they are saved.
 
 ## Important Routes
 
@@ -350,6 +393,7 @@ Student portal unfinished items:
 - `/dashboard` - role-based dashboard redirect.
 - `/admin/dashboard` - admin/instructor dashboard.
 - `/admin/users` - admin user management for clinic, registrar, and admin accounts. Only root admins can create, update, delete, or promote admin accounts; standard admins can manage clinic and registrar accounts only.
+- `/admin/students` - student management for admins and scoped student viewing for instructors. Admins can add/edit/delete students and manage linked parent portal accounts from the Parents action in the student row.
 - `/admin/online-classes` - instructor/admin online class management.
 - `/admin/online-class-logs` - admin-only online class audit logs.
 - `/admin/online-class-logs/export` - admin-only online class audit log CSV export.
@@ -363,10 +407,13 @@ Student portal unfinished items:
 - `/student-parent/excuse-letters/{letter}/download` - generated Word-compatible excuse-letter download.
 - `/student-parent/messages` - student/parent portal messages.
 - `/student-parent/notifications` - student online class notifications.
+- `/messages` - unified authenticated Messenger for admin, instructor, clinic, registrar, student, and parent accounts.
+- `/reports` and `/reports/export` - shared authenticated reporting page and CSV export for admin, clinic, registrar, instructor.
 - `/admin/messages/{message}/reply` - assigned instructor reply back to the linked student portal thread.
 - `/admin/attendance/scanner` and `/admin/attendance/logs` - attendance tools.
 - `/admin/inventory` and `/admin/borrow` - inventory and borrowing.
-- `/attendance-control-panel/login` - direct console panel login route. It is intentionally hidden from authenticated role navigation and remains available to dedicated attendance-panel devices by URL.
+- `/admin/active-devices` - combined admin Laboratories & Devices page for laboratory records, default panel access settings, per-existing-panel PIN changes, active panel monitoring, forced panel logout, and the Panel Login link.
+- `/attendance-control-panel/login` - console panel login. Public Student/Parent navigation should not show this link; admin users open it from the combined `/admin/active-devices` Laboratories & Devices page.
 - `/attendance-control-panel` - console attendance panel.
 - `/registrar/dashboard`, `/registrar/biometric-enrollment`, and `/registrar/instructor-face-enrollment` - registrar workflows.
 - `/clinic/dashboard` - clinic dashboard with alert response tools, emergency type management, and real clinic calendar events.

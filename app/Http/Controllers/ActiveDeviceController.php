@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Laboratory;
+use App\Models\PanelDevice;
 use App\Models\RfidPanelSession;
 use App\Models\SystemSetting;
 use Illuminate\Http\JsonResponse;
@@ -16,11 +18,15 @@ class ActiveDeviceController
     {
         return Inertia::render('Auth/Admin/ActiveDevices', [
             'devices' => $this->deviceRows(),
+            'laboratories' => Laboratory::query()
+                ->orderBy('name')
+                ->get(['laboratory_id', 'name', 'description', 'location', 'status'])
+                ->values(),
             'featureSettings' => SystemSetting::featureFlags(),
             'panelAccess' => [
                 'device_label' => SystemSetting::string(SystemSetting::PANEL_DEVICE_LABEL, 'Attendance Console'),
             ],
-            'title' => 'Active Devices',
+            'title' => 'Laboratories & Devices',
         ]);
     }
 
@@ -40,6 +46,29 @@ class ActiveDeviceController
         return response()->json([
             'ok' => true,
             'message' => 'Panel access settings updated.',
+        ]);
+    }
+
+    public function updatePanelDevicePin(Request $request, int $panelSessionId): JsonResponse
+    {
+        $validated = $request->validate([
+            'pin' => ['required', 'string', 'min:4', 'max:32'],
+        ]);
+
+        $session = RfidPanelSession::query()->findOrFail($panelSessionId);
+        $label = trim((string) ($session->panel_id ?: SystemSetting::string(SystemSetting::PANEL_DEVICE_LABEL, 'Attendance Console')));
+
+        PanelDevice::query()->updateOrCreate(
+            ['label' => $label],
+            [
+                'pin_hash' => Hash::make((string) $validated['pin']),
+                'is_active' => true,
+            ],
+        );
+
+        return response()->json([
+            'ok' => true,
+            'message' => "{$label} PIN updated.",
         ]);
     }
 

@@ -8,7 +8,7 @@
                 <p class="text-sm text-slate-500">
                     {{
                         canInspectAllAttendance
-                            ? 'Filter by subject, attendance date, and instructor RFID.'
+                            ? 'Filter by session, subject, attendance date, and instructor RFID.'
                             : 'View attendance records for your assigned classes only.'
                     }}
                     Default absent status is shown for the latest
@@ -18,8 +18,30 @@
 
             <div class="mb-4 rounded-lg bg-white p-4 shadow-sm">
                 <div
-                    class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4"
+                    class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5"
                 >
+                    <div>
+                        <label
+                            for="sessionFilter"
+                            class="mb-1 block text-xs font-semibold tracking-wide text-slate-500 uppercase"
+                            >Session</label
+                        >
+                        <select
+                            v-model="attendanceSessionFilter"
+                            id="sessionFilter"
+                            class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                        >
+                            <option value="">All Sessions</option>
+                            <option
+                                v-for="session in attendanceSessionOptions"
+                                :key="session.value"
+                                :value="String(session.value)"
+                            >
+                                {{ session.label }}
+                            </option>
+                        </select>
+                    </div>
+
                     <div class="md:col-span-2">
                         <label
                             for="subjectFilter"
@@ -128,45 +150,37 @@
                 </div>
             </div>
 
-            <div class="mb-4 grid grid-cols-1 gap-3 md:grid-cols-5">
-                <div
-                    class="rounded-lg border border-emerald-200 bg-emerald-50 p-4"
-                >
-                    <h3 class="text-sm font-semibold text-emerald-800">
-                        Present
-                    </h3>
-                    <p class="text-2xl font-bold text-emerald-600">
-                        {{ getStatusCount('Present') }}
-                    </p>
-                </div>
-                <div class="rounded-lg border border-amber-200 bg-amber-50 p-4">
-                    <h3 class="text-sm font-semibold text-amber-800">Late</h3>
-                    <p class="text-2xl font-bold text-amber-600">
-                        {{ getStatusCount('Late') }}
-                    </p>
-                </div>
-                <div class="rounded-lg border border-sky-200 bg-sky-50 p-4">
-                    <h3 class="text-sm font-semibold text-sky-800">
-                        Completed
-                    </h3>
-                    <p class="text-2xl font-bold text-sky-600">
-                        {{ getStatusCount('Completed') }}
-                    </p>
-                </div>
-                <div class="rounded-lg border border-red-200 bg-red-50 p-4">
-                    <h3 class="text-sm font-semibold text-red-800">Absent</h3>
-                    <p class="text-2xl font-bold text-red-600">
-                        {{ getStatusCount('Absent') }}
-                    </p>
-                </div>
-                <div class="rounded-lg border border-blue-200 bg-blue-50 p-4">
-                    <h3 class="text-sm font-semibold text-blue-800">
-                        Total Records
-                    </h3>
-                    <p class="text-2xl font-bold text-blue-600">
-                        {{ logs.length }}
-                    </p>
-                </div>
+            <div class="mb-4 grid grid-cols-1 gap-3 md:grid-cols-6">
+                <StatusSummaryCard
+                    label="Present"
+                    tone="present"
+                    :count="getStatusCount('Present')"
+                />
+                <StatusSummaryCard
+                    label="Late"
+                    tone="late"
+                    :count="getStatusCount('Late')"
+                />
+                <StatusSummaryCard
+                    label="Pending"
+                    tone="pending"
+                    :count="getStatusCount('Pending')"
+                />
+                <StatusSummaryCard
+                    label="Incomplete"
+                    tone="incomplete"
+                    :count="getStatusCount('Incomplete Attendance')"
+                />
+                <StatusSummaryCard
+                    label="Absent"
+                    tone="absent"
+                    :count="getStatusCount('Absent')"
+                />
+                <StatusSummaryCard
+                    label="Total Records"
+                    tone="total"
+                    :count="logs.length"
+                />
             </div>
 
             <div class="space-y-4">
@@ -180,59 +194,66 @@
                     >
                         <div>
                             <h2 class="text-sm font-bold text-slate-800">
-                                {{ group.date }} · {{ group.room }}
+                                {{ group.date }} | {{ group.room }}
                             </h2>
                             <p class="text-xs text-slate-500">
-                                {{ group.instructor }} ·
-                                {{ group.items.length }} record(s)
+                                {{ group.subject }} | {{ group.sessionTime }} |
+                                {{ group.instructor }} |
+                                {{ group.items.length }} tap record(s)
                             </p>
                         </div>
                         <div class="text-xs text-slate-500">
                             Present {{ group.counts.Present ?? 0 }} | Late
-                            {{ group.counts.Late ?? 0 }} | Completed
-                            {{ group.counts.Completed ?? 0 }} | Absent
-                            {{ group.counts.Absent ?? 0 }}
+                            {{ group.counts.Late ?? 0 }} | Pending
+                            {{ group.counts.Pending ?? 0 }} | Incomplete
+                            {{ group.counts['Incomplete Attendance'] ?? 0 }} |
+                            Absent {{ group.counts.Absent ?? 0 }}
                         </div>
                     </div>
 
                     <div class="overflow-x-auto">
                         <table
-                            class="w-full table-auto border-collapse text-sm"
+                            class="w-full table-fixed border-collapse text-sm"
                         >
                             <thead>
                                 <tr class="bg-white">
                                     <th
-                                        class="border-b border-slate-200 px-4 py-3 text-left font-medium text-slate-600"
+                                        class="w-[18%] border-b border-slate-200 px-4 py-3 text-left font-medium text-slate-600"
                                     >
                                         Student
                                     </th>
                                     <th
-                                        class="border-b border-slate-200 px-4 py-3 text-left font-medium text-slate-600"
+                                        class="w-[16%] border-b border-slate-200 px-4 py-3 text-left font-medium text-slate-600"
                                     >
                                         Subject
                                     </th>
                                     <th
-                                        class="border-b border-slate-200 px-4 py-3 text-left font-medium text-slate-600"
+                                        class="w-[18%] border-b border-slate-200 px-4 py-3 text-left font-medium text-slate-600"
                                     >
-                                        Time In
+                                        Tap
                                     </th>
                                     <th
-                                        class="border-b border-slate-200 px-4 py-3 text-left font-medium text-slate-600"
+                                        class="w-[12%] border-b border-slate-200 px-4 py-3 text-left font-medium text-slate-600"
                                     >
-                                        Time Out
+                                        Check-in
                                     </th>
                                     <th
-                                        class="border-b border-slate-200 px-4 py-3 text-left font-medium text-slate-600"
+                                        class="w-[12%] border-b border-slate-200 px-4 py-3 text-left font-medium text-slate-600"
                                     >
-                                        Time In Image
+                                        Check-out
                                     </th>
                                     <th
-                                        class="border-b border-slate-200 px-4 py-3 text-left font-medium text-slate-600"
+                                        class="w-[10%] border-b border-slate-200 px-4 py-3 text-left font-medium text-slate-600"
                                     >
-                                        Time Out Image
+                                        Room
                                     </th>
                                     <th
-                                        class="border-b border-slate-200 px-4 py-3 text-left font-medium text-slate-600"
+                                        class="w-[12%] border-b border-slate-200 px-4 py-3 text-left font-medium text-slate-600"
+                                    >
+                                        Evidence
+                                    </th>
+                                    <th
+                                        class="w-[12%] border-b border-slate-200 px-4 py-3 text-left font-medium text-slate-600"
                                     >
                                         Status
                                     </th>
@@ -245,79 +266,105 @@
                                     class="hover:bg-slate-50"
                                 >
                                     <td
-                                        class="border-b border-slate-100 px-4 py-3"
+                                        class="border-b border-slate-100 px-4 py-3 align-top"
                                     >
-                                        {{ log.student }}
+                                        <div class="font-medium text-slate-800">
+                                            {{ log.student }}
+                                        </div>
+                                        <div class="text-xs text-slate-500">
+                                            {{ log.student_number || 'N/A' }}
+                                        </div>
                                     </td>
                                     <td
-                                        class="border-b border-slate-100 px-4 py-3"
+                                        class="border-b border-slate-100 px-4 py-3 align-top"
                                     >
                                         {{ log.subject }}
                                     </td>
                                     <td
-                                        class="border-b border-slate-100 px-4 py-3"
+                                        class="border-b border-slate-100 px-4 py-3 align-top"
                                     >
-                                        {{ log.time }}
+                                        <div
+                                            class="font-semibold text-slate-700"
+                                        >
+                                            {{ log.tap_type || 'No Tap' }}
+                                        </div>
+                                        <div class="text-xs text-slate-500">
+                                            #{{
+                                                log.tap_sequence_number || '-'
+                                            }}
+                                            | {{ log.time || 'N/A' }}
+                                        </div>
                                     </td>
                                     <td
-                                        class="border-b border-slate-100 px-4 py-3"
+                                        class="border-b border-slate-100 px-4 py-3 align-top"
+                                    >
+                                        {{ log.time_in || '-' }}
+                                    </td>
+                                    <td
+                                        class="border-b border-slate-100 px-4 py-3 align-top"
                                     >
                                         {{ log.time_out || '-' }}
                                     </td>
                                     <td
-                                        class="border-b border-slate-100 px-4 py-3"
+                                        class="border-b border-slate-100 px-4 py-3 align-top"
                                     >
-                                        <button
-                                            v-if="log.time_in_image_url"
-                                            type="button"
-                                            @click="
-                                                openEvidence(
-                                                    log.time_in_image_url,
-                                                    `${log.student} - Time In`,
-                                                )
-                                            "
-                                        >
-                                            <img
-                                                :src="log.time_in_image_url"
-                                                alt="Time-in face evidence"
-                                                class="h-12 w-12 rounded-md border border-slate-200 object-cover hover:ring-2 hover:ring-blue-400"
-                                            />
-                                        </button>
-                                        <span
-                                            v-else
-                                            class="text-xs text-slate-400"
-                                            >Not captured</span
-                                        >
+                                        {{ log.room_status || '-' }}
                                     </td>
                                     <td
-                                        class="border-b border-slate-100 px-4 py-3"
+                                        class="border-b border-slate-100 px-4 py-3 align-top"
                                     >
-                                        <button
-                                            v-if="log.time_out_image_url"
-                                            type="button"
-                                            @click="
-                                                openEvidence(
-                                                    log.time_out_image_url,
-                                                    `${log.student} - Time Out`,
-                                                )
-                                            "
-                                        >
-                                            <img
-                                                :src="log.time_out_image_url"
-                                                alt="Time-out face evidence"
-                                                class="h-12 w-12 rounded-md border border-slate-200 object-cover hover:ring-2 hover:ring-blue-400"
-                                            />
-                                        </button>
-                                        <span
-                                            v-else
-                                            class="text-xs text-slate-400"
-                                            >Not captured</span
-                                        >
+                                        <div class="flex items-center gap-2">
+                                            <button
+                                                v-if="log.time_in_image_url"
+                                                type="button"
+                                                class="h-10 w-10 overflow-hidden rounded-md border border-slate-200 hover:ring-2 hover:ring-blue-400"
+                                                @click="
+                                                    openEvidence(
+                                                        log.time_in_image_url,
+                                                        `${log.student} - Time In`,
+                                                    )
+                                                "
+                                            >
+                                                <img
+                                                    :src="log.time_in_image_url"
+                                                    alt="Time-in face evidence"
+                                                    class="h-full w-full object-cover"
+                                                />
+                                            </button>
+                                            <button
+                                                v-if="log.time_out_image_url"
+                                                type="button"
+                                                class="h-10 w-10 overflow-hidden rounded-md border border-slate-200 hover:ring-2 hover:ring-blue-400"
+                                                @click="
+                                                    openEvidence(
+                                                        log.time_out_image_url,
+                                                        `${log.student} - Time Out`,
+                                                    )
+                                                "
+                                            >
+                                                <img
+                                                    :src="
+                                                        log.time_out_image_url
+                                                    "
+                                                    alt="Time-out face evidence"
+                                                    class="h-full w-full object-cover"
+                                                />
+                                            </button>
+                                            <span
+                                                v-if="
+                                                    !log.time_in_image_url &&
+                                                    !log.time_out_image_url
+                                                "
+                                                class="text-xs text-slate-400"
+                                                >Not captured</span
+                                            >
+                                        </div>
                                     </td>
                                     <td
-                                        class="border-b border-slate-100 px-4 py-3"
+                                        class="border-b border-slate-100 px-4 py-3 align-top"
                                     >
                                         <span
+                                            class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold"
                                             :class="statusClass(log.status)"
                                             >{{ log.status }}</span
                                         >
@@ -367,7 +414,7 @@
 
 <script setup>
 import { router, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, defineComponent, h, ref } from 'vue';
 
 const props = defineProps({
     logs: { type: Array, default: () => [] },
@@ -401,6 +448,7 @@ const canInspectAllAttendance = computed(
 );
 const logs = computed(() => props.logs);
 
+const attendanceSessionFilter = ref(props.filters.attendance_id ?? '');
 const dateFilter = ref(props.filters.date ?? '');
 const subjectFilter = ref(props.filters.subject ?? '');
 const instructorFilter = ref(props.filters.instructor ?? '');
@@ -451,7 +499,7 @@ const applyFilters = () => {
     router.get(
         route('admin.attendance.logs'),
         {
-            attendance_id: '',
+            attendance_id: attendanceSessionFilter.value,
             date: dateFilter.value,
             subject: subjectFilter.value,
             instructor: canInspectAllAttendance.value
@@ -475,6 +523,7 @@ const applyInstructorRfidFilter = () => {
 };
 
 const resetFilters = () => {
+    attendanceSessionFilter.value = '';
     dateFilter.value = '';
     subjectFilter.value = '';
     instructorFilter.value = '';
@@ -486,9 +535,53 @@ const getStatusCount = (status) =>
     logs.value.filter((log) => log.status === status).length;
 
 const statusClass = (status) => {
-    if (status === 'Present') return 'font-medium text-emerald-600';
-    if (status === 'Completed') return 'font-medium text-sky-600';
-    if (status === 'Absent') return 'font-medium text-red-600';
-    return 'font-medium text-amber-600';
+    if (status === 'Present') return 'bg-emerald-50 text-emerald-700';
+    if (status === 'Pending') return 'bg-sky-50 text-sky-700';
+    if (status === 'Incomplete Attendance')
+        return 'bg-purple-50 text-purple-700';
+    if (status === 'Absent') return 'bg-red-50 text-red-700';
+    return 'bg-amber-50 text-amber-700';
 };
+
+const summaryToneClass = {
+    present: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    late: 'border-amber-200 bg-amber-50 text-amber-700',
+    pending: 'border-sky-200 bg-sky-50 text-sky-700',
+    incomplete: 'border-purple-200 bg-purple-50 text-purple-700',
+    absent: 'border-red-200 bg-red-50 text-red-700',
+    total: 'border-blue-200 bg-blue-50 text-blue-700',
+};
+
+const StatusSummaryCard = defineComponent({
+    props: {
+        label: { type: String, required: true },
+        tone: { type: String, required: true },
+        count: { type: Number, required: true },
+    },
+    setup(cardProps) {
+        return () =>
+            h(
+                'div',
+                {
+                    class: [
+                        'rounded-lg border p-4',
+                        summaryToneClass[cardProps.tone] ??
+                            summaryToneClass.total,
+                    ],
+                },
+                [
+                    h(
+                        'h3',
+                        { class: 'text-sm font-semibold' },
+                        cardProps.label,
+                    ),
+                    h(
+                        'p',
+                        { class: 'text-2xl font-bold' },
+                        String(cardProps.count),
+                    ),
+                ],
+            );
+    },
+});
 </script>

@@ -1,31 +1,51 @@
 <script setup>
+import LinkedStudentSelector from '@/components/StudentPortal/LinkedStudentSelector.vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
-import { computed, nextTick, ref, watch } from 'vue';
-import { FileText, Image, Inbox, Search, Send } from 'lucide-vue-next';
+import { computed, ref, watch } from 'vue';
+import { FileText, Image, Search, Send } from 'lucide-vue-next';
 
 const props = defineProps({
-    conversations: { type: Array, default: () => [] },
+    messages: { type: Array, default: () => [] },
+    recipients: { type: Array, default: () => [] },
+    linkedStudents: { type: Array, default: () => [] },
+    selectedStudentId: { type: [Number, String, null], default: null },
     currentUserRole: { type: String, default: '' },
 });
 
 const page = usePage();
-const selectedKey = ref(props.conversations[0]?.key ?? null);
-const search = ref('');
-const thread = ref(null);
-const replyForm = useForm({ body: '' });
 const flashSuccess = computed(() => page.props.flash?.success);
+const currentUserId = computed(() =>
+    Number(page.props.auth?.user?.user_id ?? page.props.auth?.user?.id ?? 0),
+);
+const currentRole = computed(() =>
+    String(
+        props.currentUserRole || page.props.auth?.user?.role || '',
+    ).toLowerCase(),
+);
+const search = ref('');
+const selectedConversationKey = ref('');
+const selectedRecipient = ref(null);
 
-const filteredConversations = computed(() => {
+const selectedStudentQuery = computed(() =>
+    props.selectedStudentId ? { student_id: props.selectedStudentId } : {},
+);
+
+const form = useForm({
+    recipient_user_id: '',
+    body: '',
+    attachment: null,
+});
+
+const filteredRecipients = computed(() => {
     const term = search.value.trim().toLowerCase();
-    if (!term) return props.conversations;
+    const list = props.recipients.filter(
+        (recipient) => Number(recipient.user_id) !== currentUserId.value,
+    );
 
-    return props.conversations.filter((conversation) =>
-        [
-            conversation.participant?.name,
-            conversation.participant?.email,
-            conversation.participant?.student_number,
-            conversation.preview,
-        ].some((value) =>
+    if (!term) return list;
+
+    return list.filter((recipient) =>
+        [recipient.name, recipient.email, recipient.role].some((value) =>
             String(value || '')
                 .toLowerCase()
                 .includes(term),
@@ -33,285 +53,369 @@ const filteredConversations = computed(() => {
     );
 });
 
-const selectedConversation = computed(
-    () =>
-        props.conversations.find(
-            (conversation) => conversation.key === selectedKey.value,
-        ) ??
-        props.conversations[0] ??
-        null,
-);
+const partnerFor = (message) => {
+    const senderIsMe = Number(message.sender_user_id) === currentUserId.value;
 
-const scrollToLatest = () =>
-    nextTick(() => {
-        if (thread.value) thread.value.scrollTop = thread.value.scrollHeight;
+    return {
+        id: senderIsMe ? message.recipient_user_id : message.sender_user_id,
+        name: senderIsMe ? message.recipient : message.sender,
+        email: senderIsMe ? message.recipient_email : message.sender_email,
+        role: senderIsMe ? message.recipient_role : message.sender_role,
+    };
+};
+
+const conversations = computed(() => {
+    const grouped = new Map();
+
+    props.messages.forEach((message) => {
+        const partner = partnerFor(message);
+        if (!partner.id) return;
+
+        const key = `user-${partner.id}`;
+        if (!grouped.has(key)) {
+            grouped.set(key, {
+                key,
+                partner,
+                messages: [],
+                latest: message,
+            });
+        }
+
+        grouped.get(key).messages.push(message);
     });
 
-watch(
-    () => selectedConversation.value?.key,
-    () => {
-        const conversation = selectedConversation.value;
-        if (!conversation) return;
+    return Array.from(grouped.values())
+        .map((conversation) => {
+            const sortedMessages = conversation.messages.sort(
+                (a, b) => new Date(a.created_at) - new Date(b.created_at),
+            );
 
-        scrollToLatest();
-        if (!conversation.unread) return;
-
-        router.put(
-            route('admin.messages.read', {
-                message: conversation.reply_message_id,
-            }),
-            {},
-            {
-                preserveScroll: true,
-                preserveState: true,
-                replace: true,
-            },
+            return {
+                ...conversation,
+                messages: sortedMessages,
+                latest: sortedMessages[sortedMessages.length - 1],
+            };
+        })
+        .sort(
+            (a, b) =>
+                new Date(b.latest.created_at) - new Date(a.latest.created_at),
         );
+});
+
+watch(
+    conversations,
+    (items) => {
+        if (!selectedConversationKey.value && items.length > 0) {
+            selectedConversationKey.value = items[0].key;
+        }
     },
     { immediate: true },
 );
 
-watch(() => selectedConversation.value?.messages?.length, scrollToLatest);
+const selectedConversation = computed(
+    () =>
+        conversations.value.find(
+            (conversation) =>
+                conversation.key === selectedConversationKey.value,
+        ) ?? null,
+);
 
-const sendReply = () => {
-    const conversation = selectedConversation.value;
-    if (!conversation) return;
+const conversationForUser = (userId) =>
+    conversations.value.find(
+        (conversation) => Number(conversation.partner.id) === Number(userId),
+    ) ?? null;
 
-    replyForm.post(
-        route('admin.messages.reply', conversation.reply_message_id),
-        {
-            preserveScroll: true,
-            onSuccess: () => {
-                replyForm.reset();
-                scrollToLatest();
-            },
-        },
-    );
+watch(
+    () => selectedConversation.value?.messages,
+    (messages) => {
+        if (!messages) return;
+
+        messages.forEach((message) => {
+            if (
+                Number(message.recipient_user_id) === currentUserId.value &&
+                !message.read_at
+            ) {
+                router.put(
+                    route('messages.read', { message: message.id }),
+                    {},
+                    {
+                        preserveScroll: true,
+                        preserveState: true,
+                        replace: true,
+                    },
+                );
+            }
+        });
+    },
+    { immediate: true },
+);
+
+const selectRecipient = (recipient) => {
+    const existingConversation = conversationForUser(recipient.user_id);
+    if (existingConversation) {
+        selectConversation(existingConversation);
+        return;
+    }
+
+    selectedRecipient.value = recipient;
+    selectedConversationKey.value = '';
+    form.recipient_user_id = recipient.user_id;
+    form.body = '';
+    form.attachment = null;
 };
+
+const selectConversation = (conversation) => {
+    selectedConversationKey.value = conversation.key;
+    selectedRecipient.value = null;
+    form.recipient_user_id = conversation.partner.id;
+};
+
+const sendMessage = () => {
+    const recipientId = form.recipient_user_id;
+
+    form.transform((data) => ({
+        ...data,
+        ...selectedStudentQuery.value,
+    })).post(route('messages.conversation.store'), {
+        forceFormData: true,
+        preserveScroll: true,
+        onSuccess: () => {
+            form.reset('body', 'attachment');
+            selectedRecipient.value = null;
+            form.recipient_user_id = recipientId;
+            selectedConversationKey.value = `user-${recipientId}`;
+            router.reload({
+                only: ['messages'],
+                onSuccess: () => {
+                    selectedConversationKey.value = `user-${recipientId}`;
+                    form.recipient_user_id = recipientId;
+                },
+            });
+        },
+    });
+};
+
+const roleLabel = (role) =>
+    String(role || '')
+        .split('_')
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
 </script>
 
 <template>
-    <div class="h-full bg-slate-50">
-        <div
-            class="grid h-full min-h-[640px] grid-cols-1 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm lg:grid-cols-[340px_minmax(0,1fr)]"
-        >
-            <aside class="flex min-h-0 flex-col border-r border-slate-200">
+    <div class="h-full bg-slate-50 p-4">
+        <div class="grid h-full min-h-[680px] gap-4 lg:grid-cols-[340px_1fr]">
+            <aside
+                class="flex min-h-0 flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm"
+            >
                 <div class="border-b border-slate-100 p-4">
-                    <h1 class="text-xl font-bold text-slate-900">Chats</h1>
-                    <label
-                        class="mt-3 flex items-center gap-2 rounded-full bg-slate-100 px-3 py-2"
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <h1 class="text-lg font-bold text-slate-900">
+                                Messenger
+                            </h1>
+                            <p class="text-xs text-slate-500">
+                                {{ roleLabel(currentRole) }}
+                            </p>
+                        </div>
+                        <LinkedStudentSelector
+                            v-if="linkedStudents.length"
+                            :students="linkedStudents"
+                            :selected-student-id="selectedStudentId"
+                        />
+                    </div>
+                </div>
+
+                <div class="border-b border-slate-100 p-4">
+                    <label class="text-xs font-bold text-slate-500 uppercase">
+                        Search User
+                    </label>
+                    <div
+                        class="mt-2 flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2"
                     >
                         <Search class="h-4 w-4 text-slate-400" />
                         <input
                             v-model="search"
                             type="search"
-                            placeholder="Search messages"
-                            class="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                            placeholder="Name, email, or role"
+                            class="w-full bg-transparent text-sm outline-none"
                         />
-                    </label>
+                    </div>
+                    <div
+                        class="mt-2 max-h-44 overflow-y-auto rounded-md border border-slate-100"
+                    >
+                        <button
+                            v-for="recipient in filteredRecipients"
+                            :key="recipient.user_id"
+                            type="button"
+                            class="block w-full border-b border-slate-100 px-3 py-2 text-left text-sm hover:bg-slate-50"
+                            @click="selectRecipient(recipient)"
+                        >
+                            <span class="block font-semibold text-slate-800">
+                                {{ recipient.name }}
+                            </span>
+                            <span class="block text-xs text-slate-500">
+                                {{ recipient.email }} /
+                                {{ roleLabel(recipient.role) }}
+                            </span>
+                        </button>
+                        <p
+                            v-if="filteredRecipients.length === 0"
+                            class="p-3 text-sm text-slate-400"
+                        >
+                            No users found.
+                        </p>
+                    </div>
                 </div>
 
                 <div class="min-h-0 flex-1 overflow-y-auto">
                     <button
-                        v-for="conversation in filteredConversations"
+                        v-for="conversation in conversations"
                         :key="conversation.key"
                         type="button"
-                        class="flex w-full gap-3 border-b border-slate-100 px-4 py-3 text-left hover:bg-slate-50"
+                        class="block w-full border-b border-slate-100 px-4 py-3 text-left hover:bg-slate-50"
                         :class="
-                            selectedConversation?.key === conversation.key
+                            selectedConversationKey === conversation.key
                                 ? 'bg-sky-50'
                                 : 'bg-white'
                         "
-                        @click="selectedKey = conversation.key"
+                        @click="selectConversation(conversation)"
                     >
-                        <div
-                            class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-bold text-white"
-                        >
-                            {{
-                                conversation.participant?.name
-                                    ?.charAt(0)
-                                    ?.toUpperCase() || '?'
-                            }}
-                        </div>
-                        <div class="min-w-0 flex-1">
-                            <div
-                                class="flex items-center justify-between gap-2"
+                        <div class="flex items-center justify-between gap-2">
+                            <p
+                                class="truncate text-sm font-bold text-slate-900"
                             >
-                                <p
-                                    class="truncate text-sm text-slate-900"
-                                    :class="
-                                        conversation.unread
-                                            ? 'font-extrabold'
-                                            : 'font-semibold'
-                                    "
-                                >
-                                    {{ conversation.participant?.name }}
-                                </p>
-                                <span
-                                    class="shrink-0 text-[11px] text-slate-400"
-                                >
-                                    {{ conversation.latest_label }}
-                                </span>
-                            </div>
-                            <div class="mt-1 flex items-center gap-2">
-                                <p
-                                    class="min-w-0 flex-1 truncate text-xs text-slate-500"
-                                >
-                                    {{ conversation.preview }}
-                                </p>
-                                <span
-                                    v-if="conversation.unread"
-                                    class="h-2.5 w-2.5 shrink-0 rounded-full bg-brand"
-                                ></span>
-                            </div>
+                                {{ conversation.partner.name }}
+                            </p>
+                            <span class="text-[11px] text-slate-400">
+                                {{ conversation.latest.created_label }}
+                            </span>
                         </div>
+                        <p class="mt-1 truncate text-xs text-slate-500">
+                            {{ conversation.latest.preview }}
+                        </p>
                     </button>
-
                     <p
-                        v-if="filteredConversations.length === 0"
-                        class="p-8 text-center text-sm text-slate-400"
+                        v-if="conversations.length === 0"
+                        class="p-6 text-center text-sm text-slate-400"
                     >
-                        No conversations found.
+                        No conversations yet. Search for a user to start one.
                     </p>
                 </div>
             </aside>
 
-            <section class="flex min-h-0 flex-col">
-                <template v-if="selectedConversation">
-                    <header
-                        class="flex items-center gap-3 border-b border-slate-100 px-5 py-3"
+            <section
+                class="flex min-h-0 flex-col rounded-md border border-slate-200 bg-white shadow-sm"
+            >
+                <div class="border-b border-slate-100 px-5 py-4">
+                    <p
+                        v-if="flashSuccess"
+                        class="mb-3 rounded-md bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700"
                     >
-                        <div
-                            class="flex h-10 w-10 items-center justify-center rounded-full bg-brand font-bold text-white"
-                        >
-                            {{
-                                selectedConversation.participant?.name
-                                    ?.charAt(0)
-                                    ?.toUpperCase() || '?'
-                            }}
-                        </div>
-                        <div class="min-w-0">
-                            <h2 class="truncate font-bold text-slate-900">
-                                {{ selectedConversation.participant?.name }}
-                            </h2>
-                            <p class="truncate text-xs text-slate-500">
-                                {{
-                                    selectedConversation.participant
-                                        ?.student_number ||
-                                    selectedConversation.participant?.role
-                                }}
-                            </p>
-                        </div>
-                    </header>
+                        {{ flashSuccess }}
+                    </p>
+                    <h2 class="text-lg font-bold text-slate-900">
+                        {{
+                            selectedConversation?.partner.name ||
+                            selectedRecipient?.name ||
+                            'Select a user'
+                        }}
+                    </h2>
+                    <p class="text-xs text-slate-500">
+                        {{
+                            selectedConversation?.partner.email ||
+                            selectedRecipient?.email ||
+                            'Search for another user to start a conversation.'
+                        }}
+                    </p>
+                </div>
 
-                    <div
-                        ref="thread"
-                        class="min-h-0 flex-1 space-y-3 overflow-y-auto bg-slate-50 p-5"
+                <div
+                    v-if="selectedConversation"
+                    class="min-h-0 flex-1 space-y-3 overflow-y-auto bg-slate-50 p-5"
+                >
+                    <article
+                        v-for="message in selectedConversation.messages"
+                        :key="message.id"
+                        class="max-w-[78%] rounded-2xl p-3 shadow-sm"
+                        :class="
+                            Number(message.sender_user_id) === currentUserId
+                                ? 'ml-auto rounded-br-sm bg-brand text-white'
+                                : 'rounded-bl-sm bg-white text-slate-700'
+                        "
                     >
-                        <p
-                            v-if="flashSuccess"
-                            class="mx-auto max-w-md rounded-md bg-emerald-50 px-3 py-2 text-center text-sm font-semibold text-emerald-700"
-                        >
-                            {{ flashSuccess }}
+                        <p class="text-xs font-bold opacity-80">
+                            {{ message.sender }}
                         </p>
-
-                        <article
-                            v-for="message in selectedConversation.messages"
-                            :key="message.id"
-                            class="flex"
-                            :class="
-                                message.direction === 'outgoing'
-                                    ? 'justify-end'
-                                    : 'justify-start'
-                            "
+                        <p class="mt-2 text-sm whitespace-pre-line">
+                            {{ message.body }}
+                        </p>
+                        <a
+                            v-if="message.attachment_url"
+                            :href="message.attachment_url"
+                            class="mt-2 inline-flex max-w-full items-center gap-2 rounded-md bg-white/15 px-2 py-1 text-xs font-semibold underline"
                         >
-                            <div class="max-w-[78%] space-y-1">
-                                <div
-                                    class="rounded-2xl px-4 py-2.5 shadow-sm"
-                                    :class="
-                                        message.direction === 'outgoing'
-                                            ? 'rounded-br-sm bg-brand text-white'
-                                            : 'rounded-bl-sm bg-white text-slate-700'
-                                    "
-                                >
-                                    <p
-                                        class="text-sm leading-6 whitespace-pre-wrap"
-                                    >
-                                        {{ message.body }}
-                                    </p>
-                                    <a
-                                        v-if="message.attachment_url"
-                                        :href="message.attachment_url"
-                                        target="_blank"
-                                        class="mt-2 flex items-center gap-2 rounded-lg border border-current/20 px-3 py-2 text-xs font-semibold"
-                                    >
-                                        <Image
-                                            v-if="message.is_image"
-                                            class="h-4 w-4"
-                                        />
-                                        <FileText v-else class="h-4 w-4" />
-                                        <span class="truncate">{{
-                                            message.attachment_name
-                                        }}</span>
-                                    </a>
-                                </div>
-                                <p
-                                    class="px-1 text-[11px] text-slate-400"
-                                    :class="
-                                        message.direction === 'outgoing'
-                                            ? 'text-right'
-                                            : 'text-left'
-                                    "
-                                >
-                                    {{ message.created_label }}
-                                </p>
-                            </div>
-                        </article>
-                    </div>
-
-                    <footer class="border-t border-slate-100 bg-white p-4">
-                        <form
-                            class="flex items-center gap-3 rounded-full border border-slate-200 bg-slate-50 px-4 py-2.5 focus-within:border-brand"
-                            @submit.prevent="sendReply"
-                        >
-                            <input
-                                v-model="replyForm.body"
-                                type="text"
-                                :placeholder="`Message ${selectedConversation.participant?.name}`"
-                                class="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
-                                required
+                            <Image
+                                v-if="message.is_image"
+                                class="h-4 w-4 shrink-0"
                             />
-                            <button
-                                type="submit"
-                                class="rounded-full bg-brand p-2 text-white disabled:opacity-50"
-                                :disabled="
-                                    replyForm.processing ||
-                                    !replyForm.body.trim()
-                                "
-                                aria-label="Send reply"
-                            >
-                                <Send class="h-4 w-4" />
-                            </button>
-                        </form>
-                        <p
-                            v-if="replyForm.errors.body"
-                            class="mt-2 text-xs text-red-600"
-                        >
-                            {{ replyForm.errors.body }}
+                            <FileText v-else class="h-4 w-4 shrink-0" />
+                            <span class="truncate">
+                                {{ message.attachment_name || 'Attachment' }}
+                            </span>
+                        </a>
+                        <p class="mt-2 text-[11px] opacity-70">
+                            {{ message.created_label }}
                         </p>
-                    </footer>
-                </template>
+                    </article>
+                </div>
 
                 <div
                     v-else
-                    class="flex flex-1 flex-col items-center justify-center p-8 text-center text-slate-500"
+                    class="flex min-h-0 flex-1 items-center justify-center bg-slate-50 p-6 text-center text-slate-400"
                 >
-                    <Inbox class="mb-3 h-11 w-11 text-slate-300" />
-                    <p class="font-semibold">No messages yet.</p>
-                    <p class="mt-1 text-sm text-slate-400">
-                        New student and parent messages will appear here.
+                    <p class="font-semibold">
+                        Select a conversation or search for a user to start one.
                     </p>
                 </div>
+
+                <form
+                    v-if="selectedRecipient || selectedConversation"
+                    class="border-t border-slate-100 bg-white p-4"
+                    @submit.prevent="sendMessage"
+                >
+                    <div
+                        class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3"
+                    >
+                        <textarea
+                            v-model="form.body"
+                            class="min-h-20 w-full resize-none bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                            placeholder="Type a message..."
+                            required
+                        />
+                        <div
+                            class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+                        >
+                            <input
+                                type="file"
+                                class="text-sm text-slate-500"
+                                @change="
+                                    form.attachment =
+                                        $event.target.files?.[0] || null
+                                "
+                            />
+                            <button
+                                class="inline-flex items-center gap-2 rounded-md bg-brand px-5 py-2 text-sm font-bold text-white disabled:opacity-60"
+                                :disabled="
+                                    form.processing || !form.recipient_user_id
+                                "
+                            >
+                                <Send class="h-4 w-4" />
+                                {{ form.processing ? 'Sending...' : 'Send' }}
+                            </button>
+                        </div>
+                    </div>
+                </form>
             </section>
         </div>
     </div>

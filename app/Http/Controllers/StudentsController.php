@@ -12,12 +12,15 @@ use App\Models\Strand;
 use App\Models\StudentExcuseLetter;
 use App\Models\StudentPortalMessage;
 use App\Models\Students;
+use App\Models\User;
 use App\Services\CompreFaceService;
+use App\Services\ExcuseLetterPdfService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class StudentsController
@@ -54,7 +57,7 @@ class StudentsController
                 ->pluck('section_id');
         }
 
-        $query = Students::query()->with(['section', 'strand']);
+        $query = Students::query()->with(['section', 'strand', 'parentUsers']);
 
         if ($isInstructor) {
             $query->whereIn('section_id', $handledSectionIds->all());
@@ -120,6 +123,9 @@ class StudentsController
                     'rfid_tag' => $student->rfid_tag,
                     'face_images' => $student->face_images ?? [],
                     'status' => $student->status ?? 'active',
+                    'parents' => $student->parentUsers
+                        ->map(fn (User $parent) => $this->parentPayload($parent))
+                        ->values(),
                 ];
             })
             ->values();
@@ -230,6 +236,121 @@ class StudentsController
         $this->logActivity('update', 'students', 'Updated student '.$student->student_number);
 
         return back()->with('success', 'Student updated successfully.');
+    }
+
+    public function storeParent(Request $request, int $id)
+    {
+        $student = Students::query()->findOrFail($id);
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'gender' => ['nullable', 'in:male,female'],
+            'relationship' => ['required', 'string', 'max:100'],
+            'password' => ['nullable', 'string', 'min:8', 'max:255'],
+        ]);
+
+        $parent = User::query()
+            ->whereRaw('LOWER(email) = ?', [strtolower($validated['email'])])
+            ->first();
+
+        if ($parent && strtolower((string) $parent->role) !== 'parent') {
+            return back()->withErrors([
+                'email' => 'This email already belongs to a non-parent account.',
+            ]);
+        }
+
+        if (! $parent && blank($validated['password'] ?? null)) {
+            return back()->withErrors([
+                'password' => 'Password is required when creating a new parent account.',
+            ]);
+        }
+
+        if (! $parent) {
+            $parent = User::query()->create([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => Hash::make($validated['password']),
+                'role' => 'parent',
+                'phone' => $validated['phone'] ?? null,
+                'gender' => $validated['gender'] ?? null,
+            ]);
+
+            $this->logActivity('create', 'users', 'Created parent account '.$parent->email.' for student '.$student->student_number);
+        } else {
+            $payload = [
+                'name' => $validated['name'],
+                'phone' => $validated['phone'] ?? null,
+                'gender' => $validated['gender'] ?? null,
+            ];
+
+            if (! blank($validated['password'] ?? null)) {
+                $payload['password'] = Hash::make($validated['password']);
+            }
+
+            $parent->update($payload);
+        }
+
+        $student->parentUsers()->syncWithoutDetaching([
+            $parent->user_id => ['relationship' => $validated['relationship']],
+        ]);
+
+        $this->logActivity('update', 'parent_student_links', 'Linked parent '.$parent->email.' to student '.$student->student_number);
+
+        return back()->with('success', 'Parent account linked to student.');
+    }
+
+    public function updateParent(Request $request, int $id, int $parent)
+    {
+        $student = Students::query()->findOrFail($id);
+        $parentUser = $student->parentUsers()
+            ->where('users.user_id', $parent)
+            ->whereRaw('LOWER(role) = ?', ['parent'])
+            ->firstOrFail();
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($parentUser->user_id, 'user_id')],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'gender' => ['nullable', 'in:male,female'],
+            'relationship' => ['required', 'string', 'max:100'],
+            'password' => ['nullable', 'string', 'min:8', 'max:255'],
+        ]);
+
+        $payload = [
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'phone' => $validated['phone'] ?? null,
+            'gender' => $validated['gender'] ?? null,
+        ];
+
+        if (! blank($validated['password'] ?? null)) {
+            $payload['password'] = Hash::make($validated['password']);
+        }
+
+        $parentUser->update($payload);
+        $student->parentUsers()->updateExistingPivot($parentUser->user_id, [
+            'relationship' => $validated['relationship'],
+        ]);
+
+        $this->logActivity('update', 'parent_student_links', 'Updated parent '.$parentUser->email.' for student '.$student->student_number);
+
+        return back()->with('success', 'Parent account updated.');
+    }
+
+    public function destroyParent(Request $request, int $id, int $parent)
+    {
+        $student = Students::query()->findOrFail($id);
+        $parentUser = $student->parentUsers()
+            ->where('users.user_id', $parent)
+            ->whereRaw('LOWER(role) = ?', ['parent'])
+            ->firstOrFail();
+
+        $student->parentUsers()->detach($parentUser->user_id);
+
+        $this->logActivity('delete', 'parent_student_links', 'Unlinked parent '.$parentUser->email.' from student '.$student->student_number);
+
+        return back()->with('success', 'Parent account unlinked from student.');
     }
 
     public function uploadFaceImage(Request $request, $id)
@@ -395,8 +516,9 @@ class StudentsController
             'student' => $this->studentPayload($student),
             'linkedStudents' => $this->linkedStudentsPayload($request),
             'selectedStudentId' => $student?->student_id,
+            'currentUserRole' => strtolower((string) $request->user()?->role),
             'letters' => $student
-                ? $student->excuseLetters()->with('submittedBy')->latest()->get()->map(fn (StudentExcuseLetter $letter) => $this->letterPayload($letter))
+                ? $student->excuseLetters()->with(['submittedBy', 'parentApprovedBy'])->latest()->get()->map(fn (StudentExcuseLetter $letter) => $this->letterPayload($letter, $request))
                 : [],
         ]);
     }
@@ -405,12 +527,14 @@ class StudentsController
     {
         $student = $this->currentStudent($request);
         abort_unless($student, 403);
+        $role = strtolower((string) $request->user()?->role);
 
         $validated = $request->validate([
             'subject' => ['required', 'string', 'max:255'],
             'from_date' => ['required', 'date'],
             'to_date' => ['required', 'date', 'after_or_equal:from_date'],
             'reason' => ['required', 'string', 'max:5000'],
+            'parent_signature' => [Rule::requiredIf($role === 'parent'), 'nullable', 'string', 'max:255'],
             'attachment' => ['nullable', 'file', 'max:5120', 'mimes:pdf,doc,docx,jpg,jpeg,png'],
         ]);
 
@@ -420,12 +544,17 @@ class StudentsController
             $validated['attachment_name'] = $attachment->getClientOriginalName();
         }
         unset($validated['attachment']);
+        unset($validated['parent_signature']);
 
         $letter = StudentExcuseLetter::query()->create([
             ...$validated,
             'student_id' => $student->student_id,
             'submitted_by_user_id' => $request->user()->user_id,
-            'submitted_by_role' => strtolower((string) $request->user()->role),
+            'submitted_by_role' => $role,
+            'status' => $role === 'parent' ? 'approved' : 'pending_parent_approval',
+            'parent_signature' => $role === 'parent' ? $request->input('parent_signature') : null,
+            'parent_approved_by_user_id' => $role === 'parent' ? $request->user()->user_id : null,
+            'parent_approved_at' => $role === 'parent' ? now() : null,
         ]);
 
         $this->logActivity('create', 'student_excuse_letters', 'Submitted excuse letter '.$letter->student_excuse_letter_id.' for student '.$student->student_number);
@@ -433,29 +562,68 @@ class StudentsController
         return back()->with('success', 'Excuse letter submitted.');
     }
 
+    public function approvePortalExcuseLetter(Request $request, StudentExcuseLetter $letter)
+    {
+        $student = $this->currentStudent($request);
+        abort_unless(
+            strtolower((string) $request->user()?->role) === 'parent'
+            && $student
+            && (int) $letter->student_id === (int) $student->student_id,
+            403,
+        );
+
+        if ((string) $letter->submitted_by_role !== 'student') {
+            return back()->withErrors(['letter' => 'Only student-created excuse letters need parent approval.']);
+        }
+
+        $validated = $request->validate([
+            'parent_signature' => ['required', 'string', 'max:255'],
+            'parent_approval_notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $letter->update([
+            'status' => 'approved',
+            'parent_signature' => $validated['parent_signature'],
+            'parent_approval_notes' => $validated['parent_approval_notes'] ?? null,
+            'parent_approved_by_user_id' => $request->user()->user_id,
+            'parent_approved_at' => now(),
+        ]);
+
+        $this->logActivity('update', 'student_excuse_letters', 'Parent approved excuse letter '.$letter->student_excuse_letter_id.' for student '.$student->student_number);
+
+        return back()->with('success', 'Excuse letter approved.');
+    }
+
     public function downloadPortalExcuseLetter(Request $request, StudentExcuseLetter $letter)
     {
         $student = $this->currentStudent($request);
         abort_unless($student && (int) $letter->student_id === (int) $student->student_id, 403);
+        abort_if((string) $letter->status === 'pending_parent_approval', 422, 'Parent approval is required before downloading this excuse letter.');
 
-        $letter->loadMissing(['student.section', 'submittedBy']);
+        $letter->loadMissing(['student.section', 'submittedBy', 'parentApprovedBy']);
         $studentName = trim($letter->student->first_name.' '.$letter->student->last_name);
         $section = $letter->student->section?->section_name ?: 'Section';
         $submittedBy = $letter->submittedBy?->name ?: $studentName;
-        $filename = 'excuse-letter-'.$letter->student_excuse_letter_id.'.doc';
-        $html = view('documents.excuse-letter', [
-            'letter' => $letter,
-            'studentName' => $studentName,
-            'section' => $section,
-            'submittedBy' => $submittedBy,
-        ])->render();
+        $filename = 'excuse-letter-'.$letter->student_excuse_letter_id.'.pdf';
+        $pdf = app(ExcuseLetterPdfService::class)->render($letter, $studentName, $section, $submittedBy);
 
         $this->logActivity('download', 'student_excuse_letters', 'Downloaded generated excuse letter '.$letter->student_excuse_letter_id.' for student '.$student->student_number);
 
-        return response($html, 200, [
-            'Content-Type' => 'application/msword; charset=UTF-8',
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         ]);
+    }
+
+    public function downloadPortalExcuseLetterAttachment(Request $request, StudentExcuseLetter $letter)
+    {
+        $student = $this->currentStudent($request);
+        abort_unless($student && (int) $letter->student_id === (int) $student->student_id, 403);
+        abort_unless($letter->attachment_path && Storage::disk('public')->exists($letter->attachment_path), 404);
+
+        $this->logActivity('download', 'student_excuse_letters', 'Downloaded excuse letter attachment '.$letter->student_excuse_letter_id.' for student '.$student->student_number);
+
+        return Storage::disk('public')->download($letter->attachment_path, $letter->attachment_name ?: 'excuse-letter-attachment');
     }
 
     public function portalMessages(Request $request)
@@ -656,6 +824,18 @@ class StudentsController
         ];
     }
 
+    private function parentPayload(User $parent): array
+    {
+        return [
+            'id' => $parent->user_id,
+            'name' => $parent->name,
+            'email' => $parent->email,
+            'phone' => $parent->phone,
+            'gender' => $parent->gender,
+            'relationship' => $parent->pivot?->relationship ?? 'parent',
+        ];
+    }
+
     private function attendanceQuery(?Students $student)
     {
         return $student
@@ -757,8 +937,10 @@ class StudentsController
         ];
     }
 
-    private function letterPayload(StudentExcuseLetter $letter): array
+    private function letterPayload(StudentExcuseLetter $letter, ?Request $request = null): array
     {
+        $role = strtolower((string) $request?->user()?->role);
+
         return [
             'id' => $letter->student_excuse_letter_id,
             'subject' => $letter->subject,
@@ -768,9 +950,25 @@ class StudentsController
             'status' => $letter->status,
             'submitted_by' => $letter->submittedBy?->name,
             'submitted_by_role' => $letter->submitted_by_role,
+            'parent_signature' => $letter->parent_signature,
+            'parent_approval_notes' => $letter->parent_approval_notes,
+            'parent_approved_by' => $letter->parentApprovedBy?->name,
+            'parent_approved_at' => $letter->parent_approved_at?->toDateTimeString(),
+            'can_parent_approve' => $role === 'parent'
+                && $letter->submitted_by_role === 'student'
+                && $letter->status === 'pending_parent_approval',
+            'can_download' => $letter->status !== 'pending_parent_approval',
             'attachment_name' => $letter->attachment_name,
-            'attachment_url' => $letter->attachment_path ? Storage::disk('public')->url($letter->attachment_path) : null,
-            'download_url' => route('student-parent.excuse-letters.download', $letter),
+            'attachment_url' => $letter->attachment_path
+                ? route('student-parent.excuse-letters.attachment', array_filter([
+                    'letter' => $letter,
+                    'student_id' => $request?->input('student_id'),
+                ]))
+                : null,
+            'download_url' => route('student-parent.excuse-letters.download', array_filter([
+                'letter' => $letter,
+                'student_id' => $request?->input('student_id'),
+            ])),
             'created_at' => $letter->created_at?->toDateTimeString(),
         ];
     }

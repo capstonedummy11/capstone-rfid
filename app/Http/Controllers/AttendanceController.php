@@ -10,6 +10,7 @@ use App\Models\EmergencyHotline;
 use App\Models\EmergencyType;
 use App\Models\Instructor;
 use App\Models\Item;
+use App\Models\PanelDevice;
 use App\Models\RfidPanelSession;
 use App\Models\Schedule;
 use App\Models\Section;
@@ -157,6 +158,8 @@ class AttendanceController
             'room' => ['required', 'string', 'max:255'],
             'subject_code' => ['nullable', 'string', 'max:255'],
             'schedule_id' => ['nullable', 'integer'],
+            'force_checkout' => ['nullable', 'boolean'],
+            'temporary_movement_instructor_rfid' => ['nullable', 'string', 'max:255'],
         ]);
 
         $rfid = strtolower(trim($validated['rfid']));
@@ -244,96 +247,172 @@ class AttendanceController
         $verificationMethod = (string) ($verification['method'] ?? 'unknown');
         $verificationFacePath = $verification['face_path'] ?? null;
 
-        $latestOpenAttendance = Attendance::query()
-            ->where('student_id', $student->student_id)
-            ->whereDate('date', $today)
-            ->where('room', $validated['room'])
-            ->where('subject_code', $subjectCode)
-            ->whereNull('time_out')
-            ->latest('attendance_id')
-            ->first();
+        $now = now();
+        $scheduleStart = $this->scheduleDateTime($today, (string) $currentSchedule->time_start);
+        $scheduleEnd = $this->scheduleDateTime($today, (string) $currentSchedule->time_end);
+        $checkoutWindowStart = $scheduleEnd?->copy()->subMinutes(15);
+        $forceCheckout = (bool) ($validated['force_checkout'] ?? false);
 
-        $latestLog = DB::table('attendance_logs')
-            ->where('attendance_id', $attendanceSession->attendance_id)
-            ->where('student_id', $student->student_id)
-            ->orderByDesc('id')
-            ->first();
+        $result = DB::transaction(function () use ($student, $attendanceSession, $currentSchedule, $scheduleId, $subjectCode, $validated, $today, $now, $nowTime, $scheduleStart, $checkoutWindowStart, $forceCheckout, $verificationMethod, $verificationFacePath) {
+            $attendance = Attendance::query()
+                ->where('student_id', $student->student_id)
+                ->where('schedule_id', $scheduleId)
+                ->whereDate('date', $today)
+                ->lockForUpdate()
+                ->first();
 
-        if ($latestLog && ! $latestLog->time_out) {
-            $finalStatus = (bool) ($latestLog->is_late ?? false) ? 'late' : 'present';
-            DB::table('attendance_logs')
-                ->where('id', $latestLog->id)
-                ->update([
-                    'time_out' => $nowTime,
-                    'status' => $finalStatus,
-                    'time_out_face_path' => $verificationFacePath,
-                    'completion_reason' => 'time_out',
-                    'updated_at' => now(),
+            $lastSequence = (int) DB::table('attendance_logs')
+                ->where('attendance_id', $attendanceSession->attendance_id)
+                ->where('student_id', $student->student_id)
+                ->max('tap_sequence_number');
+            $sequence = $lastSequence + 1;
+
+            if (! $attendance) {
+                if ($forceCheckout) {
+                    $logId = $this->insertInvalidAttendanceTapLog($attendanceSession->attendance_id, $student, $scheduleId, $now, 'Invalid Tap', $sequence, $validated['room'], 'Student logout was requested, but the student has no check-in for this class.');
+
+                    return [null, $logId, 'invalid_tap', 'Invalid Tap', false, 'Student has no check-in record to log out from this class.', false];
+                }
+
+                $lateThreshold = SystemSetting::integer(SystemSetting::ATTENDANCE_LATE_THRESHOLD_MINUTES, 15);
+                $checkInStatus = $scheduleStart && $now->greaterThan($scheduleStart->copy()->addMinutes($lateThreshold)) ? 'late' : 'present';
+
+                $attendance = Attendance::query()->create([
+                    'student_id' => $student->student_id,
+                    'schedule_id' => $scheduleId,
+                    'date' => $today,
+                    'time_start' => $currentSchedule->time_start,
+                    'time_end' => $currentSchedule->time_end,
+                    'time_in' => $nowTime,
+                    'time_out' => null,
+                    'check_in_status' => $checkInStatus,
+                    'status' => 'pending',
+                    'room_status' => 'inside',
+                    'total_taps' => 1,
+                    'remarks' => $checkInStatus === 'late'
+                        ? 'Checked in after the 15-minute grace period.'
+                        : 'Checked in within the 15-minute grace period.',
+                    'subject_code' => $subjectCode,
+                    'room' => $validated['room'],
                 ]);
 
-            if ($latestOpenAttendance) {
-                $latestOpenAttendance->update([
-                    'time_out' => $nowTime,
-                    'status' => $finalStatus,
-                ]);
+                $logId = $this->insertAttendanceTapLog($attendanceSession->attendance_id, $attendance, $student, $scheduleId, $now, 'Check-in', $sequence, $validated['room'], 'valid', 'Official check-in recorded.', $verificationMethod, $verificationFacePath);
+
+                return [$attendance, $logId, 'check_in', 'Check-in', true, 'Official check-in recorded.', false];
             }
 
-            return response()->json([
-                'ok' => true,
-                'action' => 'time_out',
-                'record' => [
-                    'id' => $latestLog->id,
-                    'rfid' => $student->rfid_tag,
-                    'name' => trim($student->first_name.' '.$student->last_name),
-                    'course' => $student->strand?->strand_code,
-                    'section' => $student->year_level.' - '.($student->section?->section_name ?? ''),
-                    'time_in' => $latestLog->time_in ? date('g:i A', strtotime((string) $latestLog->time_in)) : null,
-                    'time_out' => date('g:i A', strtotime($nowTime)),
-                    'status' => ucfirst($finalStatus),
-                ],
+            if ($attendance->time_out) {
+                $logId = $this->insertAttendanceTapLog($attendanceSession->attendance_id, $attendance, $student, $scheduleId, $now, 'Ignored Tap', $sequence, $validated['room'], 'ignored', 'Official check-out already exists.');
+
+                return [$attendance, $logId, 'ignored_tap', 'Ignored Tap', false, 'Attendance is already completed for this class.', false];
+            }
+
+            $fallbackVerificationMethods = [
+                'captured_aws_unavailable',
+                'camera_session_override',
+                'face_recognition_disabled',
+                'instructor_rfid',
+            ];
+            $isFallbackVerificationCheckout = in_array($verificationMethod, $fallbackVerificationMethods, true);
+            $isCheckoutTap = $forceCheckout
+                || $isFallbackVerificationCheckout
+                || ($checkoutWindowStart ? $now->greaterThanOrEqualTo($checkoutWindowStart) : false);
+
+            if ($isCheckoutTap) {
+                $finalStatus = $attendance->check_in_status === 'late' ? 'late' : 'present';
+                $remarks = $forceCheckout
+                    ? 'Official check-out recorded by instructor student logout override.'
+                    : 'Official check-out recorded.';
+
+                $attendance->update([
+                    'time_out' => $nowTime,
+                    'status' => $finalStatus,
+                    'room_status' => 'outside',
+                    'total_taps' => $sequence,
+                    'remarks' => $remarks,
+                ]);
+
+                $logId = $this->insertAttendanceTapLog($attendanceSession->attendance_id, $attendance->fresh(), $student, $scheduleId, $now, 'Check-out', $sequence, $validated['room'], 'valid', $remarks, $verificationMethod, $verificationFacePath);
+
+                DB::table('attendance_logs')
+                    ->where('attendance_id', $attendanceSession->attendance_id)
+                    ->where('student_id', $student->student_id)
+                    ->where('tap_type', 'Check-in')
+                    ->orderBy('tap_sequence_number')
+                    ->limit(1)
+                    ->update([
+                        'time_out' => $nowTime,
+                        'time_out_face_path' => $verificationFacePath,
+                        'completion_reason' => 'time_out',
+                        'updated_at' => now(),
+                    ]);
+
+                return [$attendance->fresh(), $logId, 'check_out', 'Check-out', true, $remarks, false];
+            }
+
+            if (! $this->instructorRfidAuthorizesTemporaryMovement($currentSchedule, $validated['temporary_movement_instructor_rfid'] ?? null)) {
+                return [$attendance, null, 'temporary_authorization_required', 'Temporary Movement', false, 'Instructor RFID is required before recording Temporary Exit or Temporary Return.', true];
+            }
+
+            $tapType = $attendance->room_status === 'outside' ? 'Temporary Return' : 'Temporary Exit';
+            $nextRoomStatus = $tapType === 'Temporary Return' ? 'inside' : 'outside';
+
+            $attendance->update([
+                'status' => 'pending',
+                'room_status' => $nextRoomStatus,
+                'total_taps' => $sequence,
+                'remarks' => $tapType.' recorded before the official check-out window.',
             ]);
+
+            $logId = $this->insertAttendanceTapLog($attendanceSession->attendance_id, $attendance->fresh(), $student, $scheduleId, $now, $tapType, $sequence, $validated['room'], 'valid', $tapType.' recorded before the official check-out window.', $verificationMethod, $verificationFacePath);
+
+            return [$attendance->fresh(), $logId, Str::snake($tapType), $tapType, true, $tapType.' recorded.', false];
+        });
+
+        [$attendance, $attendanceLogId, $action, $tapType, $accepted, $message, $requiresTemporaryMovementInstructor] = $result;
+
+        if ($requiresTemporaryMovementInstructor) {
+            return response()->json([
+                'ok' => false,
+                'requires_temporary_movement_instructor' => true,
+                'action' => $action,
+                'tap_type' => $tapType,
+                'message' => $message,
+            ], 428);
         }
 
-        $lateThreshold = SystemSetting::integer(SystemSetting::ATTENDANCE_LATE_THRESHOLD_MINUTES, 15);
-        $scheduledStart = Carbon::parse($today.' '.($currentSchedule->time_start ?? $attendanceSession->time_start ?? $nowTime));
-        $isLate = now()->greaterThan($scheduledStart->copy()->addMinutes($lateThreshold));
-        $initialStatus = $isLate ? 'late' : 'present';
+        $displayStatus = $attendance ? $this->attendanceDisplayStatus($attendance, $attendanceSession) : 'Invalid Tap';
 
-        $attendance = Attendance::query()->create([
-            'student_id' => $student->student_id,
-            'schedule_id' => $scheduleId,
-            'date' => $today,
-            'time_in' => $nowTime,
-            'status' => $initialStatus,
-            'subject_code' => $subjectCode,
-            'room' => $validated['room'],
-        ]);
-
-        $attendanceLogId = DB::table('attendance_logs')->insertGetId([
-            'attendance_id' => $attendanceSession->attendance_id,
-            'student_id' => $student->student_id,
-            'time_in' => $nowTime,
-            'time_out' => null,
-            'status' => $isLate ? 'late' : 'checked_in',
-            'verification_method' => $verificationMethod,
-            'time_in_face_path' => $verificationFacePath,
-            'is_late' => $isLate,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $responseAction = match ($action) {
+            'check_in' => 'time_in',
+            'check_out' => 'time_out',
+            default => $action,
+        };
+        $responseStatus = $tapType === 'Check-in'
+            ? 'Checked In'
+            : $displayStatus;
 
         return response()->json([
             'ok' => true,
-            'action' => 'time_in',
+            'accepted' => $accepted,
+            'action' => $responseAction,
+            'tap_type' => $tapType,
+            'message' => $message,
             'record' => [
                 'id' => $attendanceLogId,
+                'attendance_id' => $attendance?->attendance_id,
                 'rfid' => $student->rfid_tag,
                 'name' => trim($student->first_name.' '.$student->last_name),
                 'course' => $student->strand?->strand_code,
                 'section' => $student->year_level.' - '.($student->section?->section_name ?? ''),
-                'time_in' => date('g:i A', strtotime((string) $attendance->time_in)),
-                'time_out' => null,
-                'status' => $isLate ? 'Late' : 'Checked In',
+                'time' => date('g:i A', strtotime($nowTime)),
+                'time_in' => $attendance?->time_in ? date('g:i A', strtotime((string) $attendance->time_in)) : null,
+                'time_out' => $attendance?->time_out ? date('g:i A', strtotime((string) $attendance->time_out)) : null,
+                'tap_type' => $tapType,
+                'tap_sequence_number' => $attendance?->total_taps ?: null,
+                'room_status' => ucfirst((string) ($attendance?->room_status ?? 'outside')),
+                'status' => $responseStatus,
+                'remarks' => $message,
             ],
         ]);
     }
@@ -803,10 +882,12 @@ class AttendanceController
 
         $records = DB::table('attendance_logs')
             ->join('students', 'students.student_id', '=', 'attendance_logs.student_id')
+            ->leftJoin('attendances', 'attendances.attendance_id', '=', 'attendance_logs.main_attendance_id')
             ->leftJoin('strands', 'strands.strand_id', '=', 'students.strand_id')
             ->leftJoin('sections', 'sections.section_id', '=', 'students.section_id')
             ->where('attendance_logs.attendance_id', $attendanceSession->attendance_id)
-            ->orderByDesc('attendance_logs.time_in')
+            ->orderByDesc('attendance_logs.tap_datetime')
+            ->orderByDesc('attendance_logs.id')
             ->select([
                 'attendance_logs.id',
                 'attendance_logs.time_in',
@@ -815,6 +896,18 @@ class AttendanceController
                 'attendance_logs.time_in_face_path',
                 'attendance_logs.time_out_face_path',
                 'attendance_logs.verification_method',
+                'attendance_logs.tap_datetime',
+                'attendance_logs.tap_type',
+                'attendance_logs.tap_sequence_number',
+                'attendance_logs.validation_result',
+                'attendance_logs.remarks as log_remarks',
+                'attendances.attendance_id as main_attendance_id',
+                'attendances.time_in as attendance_time_in',
+                'attendances.time_end as attendance_scheduled_end',
+                'attendances.time_out as attendance_time_out',
+                'attendances.status as attendance_status',
+                'attendances.room_status',
+                'attendances.total_taps',
                 'students.rfid_tag',
                 'students.first_name',
                 'students.last_name',
@@ -830,15 +923,21 @@ class AttendanceController
                     'name' => trim(($record->first_name ?? '').' '.($record->last_name ?? '')),
                     'course' => $record->strand_code,
                     'section' => trim(($record->year_level ? $record->year_level.' - ' : '').($record->section_name ?? '')),
-                    'time_in' => $record->time_in ? date('g:i A', strtotime((string) $record->time_in)) : null,
-                    'time_out' => $record->time_out ? date('g:i A', strtotime((string) $record->time_out)) : null,
-                    'status' => ucfirst((string) ($record->status ?? 'present')),
+                    'time' => $record->tap_datetime ? Carbon::parse($record->tap_datetime)->format('g:i A') : ($record->time_in ? date('g:i A', strtotime((string) $record->time_in)) : null),
+                    'time_in' => $record->attendance_time_in ? date('g:i A', strtotime((string) $record->attendance_time_in)) : null,
+                    'time_out' => $record->attendance_time_out ? date('g:i A', strtotime((string) $record->attendance_time_out)) : null,
+                    'tap_type' => $record->tap_type ?? 'Check-in',
+                    'tap_sequence_number' => $record->tap_sequence_number,
+                    'room_status' => ucfirst((string) ($record->room_status ?? 'outside')),
+                    'status' => $this->attendanceDisplayStatus($record, null),
+                    'validation_result' => ucfirst((string) ($record->validation_result ?? 'valid')),
+                    'remarks' => $record->log_remarks,
+                    'time_in_image_url' => $record->time_in_face_path ? route('attendance.evidence', ['attendanceLog' => $record->id, 'moment' => 'time-in']) : null,
+                    'time_out_image_url' => $record->time_out_face_path ? route('attendance.evidence', ['attendanceLog' => $record->id, 'moment' => 'time-out']) : null,
+                    'verification_method' => $record->verification_method,
                 ];
             })
             ->values();
-
-        $absentDefaultDays = SystemSetting::integer(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 15);
-        $logs = $this->appendAbsentAttendanceLogs($logs, $filters, $isAdmin, $isInstructor, $instructorId, $absentDefaultDays);
 
         return response()->json([
             'ok' => true,
@@ -1214,9 +1313,30 @@ class AttendanceController
     {
         $validated = $request->validate([
             'pin' => ['required', 'string'],
+            'room' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $pinHash = SystemSetting::string(SystemSetting::PANEL_PIN_HASH, '');
+        $pinHash = '';
+        $room = trim((string) ($validated['room'] ?? ''));
+        if ($room !== '') {
+            $latestSession = RfidPanelSession::query()
+                ->where('room', $room)
+                ->orderByDesc('panel_session_id')
+                ->first();
+            $panelLabel = trim((string) ($latestSession?->panel_id ?? ''));
+
+            if ($panelLabel !== '') {
+                $pinHash = (string) PanelDevice::query()
+                    ->where('label', $panelLabel)
+                    ->where('is_active', true)
+                    ->value('pin_hash');
+            }
+        }
+
+        if ($pinHash === '') {
+            $pinHash = SystemSetting::string(SystemSetting::PANEL_PIN_HASH, '');
+        }
+
         $pinMatches = $pinHash !== ''
             ? Hash::check((string) $validated['pin'], $pinHash)
             : (string) $validated['pin'] === (string) config('panel.pin', '1234');
@@ -1672,6 +1792,8 @@ class AttendanceController
             $filters['instructor'] = $rfidInstructorUserId ? (string) $rfidInstructorUserId : '__not_found__';
         }
 
+        $absentDefaultDays = SystemSetting::integer(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 15);
+
         $applySessionScope = function ($query) use ($isInstructor, $instructorId, $filters) {
             if ($isInstructor) {
                 $query->where('schedules.instructor_id', $instructorId ?: 0);
@@ -1712,6 +1834,7 @@ class AttendanceController
 
         $query = DB::table('attendance_logs')
             ->join('attendance_sessions', 'attendance_sessions.attendance_id', '=', 'attendance_logs.attendance_id')
+            ->leftJoin('attendances', 'attendances.attendance_id', '=', 'attendance_logs.main_attendance_id')
             ->leftJoin('students', 'students.student_id', '=', 'attendance_logs.student_id')
             ->leftJoin('sections as student_sections', 'student_sections.section_id', '=', 'students.section_id')
             ->leftJoin('strands', 'strands.strand_id', '=', 'students.strand_id');
@@ -1729,11 +1852,28 @@ class AttendanceController
                 'attendance_logs.time_in',
                 'attendance_logs.time_out',
                 'attendance_logs.status',
+                'attendance_logs.time_in_face_path',
+                'attendance_logs.time_out_face_path',
+                'attendance_logs.verification_method',
+                'attendance_logs.tap_datetime',
+                'attendance_logs.tap_type',
+                'attendance_logs.tap_sequence_number',
+                'attendance_logs.validation_result',
+                'attendance_logs.remarks as log_remarks',
+                'attendances.attendance_id as main_attendance_id',
+                'attendances.time_in as attendance_time_in',
+                'attendances.time_end as attendance_scheduled_end',
+                'attendances.time_out as attendance_time_out',
+                'attendances.status as attendance_status',
+                'attendances.room_status',
+                'attendances.total_taps',
+                'attendances.remarks as attendance_remarks',
                 'attendance_sessions.attendance_id as session_id',
                 'attendance_sessions.date',
                 'attendance_sessions.room',
                 'attendance_sessions.time_start',
                 'attendance_sessions.time_end',
+                'attendance_sessions.status as session_status',
                 'subjects.subject_name',
                 'subjects.subject_id',
                 'sections.section_name as schedule_section_name',
@@ -1764,15 +1904,23 @@ class AttendanceController
                     'room' => $log->room ?? 'N/A',
                     'date' => $log->date,
                     'session_time' => trim(($this->formatTime($log->time_start) ?? 'N/A').' - '.($this->formatTime($log->time_end) ?? 'N/A')),
-                    'time' => $this->formatTime($log->time_in) ?? 'N/A',
-                    'time_out' => $this->formatTime($log->time_out),
-                    'status' => ucfirst((string) ($log->status ?? 'pending')),
+                    'time' => $log->tap_datetime ? Carbon::parse($log->tap_datetime)->format('g:i A') : ($this->formatTime($log->time_in) ?? 'N/A'),
+                    'time_in' => $this->formatTime($log->attendance_time_in) ?? $this->formatTime($log->time_in),
+                    'time_out' => $this->formatTime($log->attendance_time_out) ?? $this->formatTime($log->time_out),
+                    'tap_type' => $log->tap_type ?? 'Check-in',
+                    'tap_sequence_number' => $log->tap_sequence_number,
+                    'room_status' => ucfirst((string) ($log->room_status ?? 'outside')),
+                    'validation_result' => ucfirst((string) ($log->validation_result ?? 'valid')),
+                    'remarks' => $log->log_remarks ?? $log->attendance_remarks,
+                    'status' => $this->attendanceDisplayStatus($log, $log),
                     'time_in_image_url' => $log->time_in_face_path ? route('attendance.evidence', ['attendanceLog' => $log->id, 'moment' => 'time-in']) : null,
                     'time_out_image_url' => $log->time_out_face_path ? route('attendance.evidence', ['attendanceLog' => $log->id, 'moment' => 'time-out']) : null,
                     'verification_method' => $log->verification_method,
                 ];
             })
             ->values();
+
+        $logs = $this->appendAbsentAttendanceLogs($logs, $filters, $isAdmin, $isInstructor, $instructorId, $absentDefaultDays);
 
         $sessionOptionsQuery = DB::table('attendance_sessions');
         $sessionJoin($sessionOptionsQuery);
@@ -1841,7 +1989,7 @@ class AttendanceController
             'filters' => $filters,
             'currentUserRole' => $role,
             'canInspectAllAttendance' => $isAdmin,
-            'absentDefaultDays' => $absentDefaultDays ?? 0,
+            'absentDefaultDays' => $absentDefaultDays,
             'attendanceSessionOptions' => $sessionOptions,
             'subjectOptions' => $subjectOptionsQuery
                 ->when($isInstructor, fn ($subjectQuery) => $subjectQuery->where('schedules.instructor_id', $instructorId ?: 0))
@@ -1971,9 +2119,16 @@ class AttendanceController
 
             AttendanceLog::create([
                 'attendance_id' => $attendance->attendance_id,
+                'main_attendance_id' => $attendance->attendance_id,
                 'student_id' => $student->student_id,
+                'schedule_id' => $schedule->scheduled_id,
                 'time_in' => $now->format('H:i:s'),
                 'status' => $status,
+                'tap_datetime' => $now->toDateTimeString(),
+                'tap_type' => 'Check-in',
+                'tap_sequence_number' => 1,
+                'location' => $schedule->room,
+                'validation_result' => 'valid',
             ]);
         } elseif (! $attendance->time_out) {
             $attendance->update([
@@ -1993,9 +2148,16 @@ class AttendanceController
             } else {
                 AttendanceLog::create([
                     'attendance_id' => $attendance->attendance_id,
+                    'main_attendance_id' => $attendance->attendance_id,
                     'student_id' => $student->student_id,
+                    'schedule_id' => $schedule->scheduled_id,
                     'time_out' => $now->format('H:i:s'),
                     'status' => $attendance->status,
+                    'tap_datetime' => $now->toDateTimeString(),
+                    'tap_type' => 'Check-out',
+                    'tap_sequence_number' => 2,
+                    'location' => $schedule->room,
+                    'validation_result' => 'valid',
                 ]);
             }
 
@@ -2026,6 +2188,133 @@ class AttendanceController
                 'status' => ucfirst((string) $attendance->status),
             ],
         ]);
+    }
+
+    private function insertAttendanceTapLog(int $sessionId, Attendance $attendance, Students $student, ?int $scheduleId, \Carbon\CarbonInterface $tapTime, string $tapType, int $sequence, string $room, string $validationResult, ?string $remarks = null, ?string $verificationMethod = null, ?string $verificationFacePath = null): int
+    {
+        $isCheckout = $tapType === 'Check-out';
+
+        return (int) DB::table('attendance_logs')->insertGetId([
+            'attendance_id' => $sessionId,
+            'main_attendance_id' => $attendance->attendance_id,
+            'student_id' => $student->student_id,
+            'schedule_id' => $scheduleId,
+            'time_in' => $tapTime->format('H:i:s'),
+            'time_out' => $isCheckout ? $tapTime->format('H:i:s') : null,
+            'status' => $attendance->status,
+            'verification_method' => $verificationMethod,
+            'time_in_face_path' => $isCheckout ? null : $verificationFacePath,
+            'time_out_face_path' => $isCheckout ? $verificationFacePath : null,
+            'is_late' => $attendance->check_in_status === 'late',
+            'completion_reason' => $isCheckout ? 'time_out' : null,
+            'tap_datetime' => $tapTime->toDateTimeString(),
+            'tap_type' => $tapType,
+            'tap_sequence_number' => $sequence,
+            'device_scanner_id' => SystemSetting::string(SystemSetting::PANEL_DEVICE_LABEL, 'Attendance Console'),
+            'location' => $room,
+            'validation_result' => $validationResult,
+            'remarks' => $remarks,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function insertInvalidAttendanceTapLog(int $sessionId, Students $student, ?int $scheduleId, \Carbon\CarbonInterface $tapTime, string $tapType, int $sequence, string $room, string $remarks): int
+    {
+        return (int) DB::table('attendance_logs')->insertGetId([
+            'attendance_id' => $sessionId,
+            'main_attendance_id' => null,
+            'student_id' => $student->student_id,
+            'schedule_id' => $scheduleId,
+            'time_in' => $tapTime->format('H:i:s'),
+            'time_out' => null,
+            'status' => 'invalid',
+            'tap_datetime' => $tapTime->toDateTimeString(),
+            'tap_type' => $tapType,
+            'tap_sequence_number' => $sequence,
+            'device_scanner_id' => SystemSetting::string(SystemSetting::PANEL_DEVICE_LABEL, 'Attendance Console'),
+            'location' => $room,
+            'validation_result' => 'invalid',
+            'remarks' => $remarks,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function instructorRfidAuthorizesTemporaryMovement(?Schedule $schedule, ?string $instructorRfid): bool
+    {
+        $rfid = strtolower(trim((string) $instructorRfid));
+
+        if (! $schedule || ! $schedule->instructor_id || $rfid === '') {
+            return false;
+        }
+
+        return DB::table('instructors')
+            ->join('users', 'users.user_id', '=', 'instructors.user_id')
+            ->where('instructors.instructor_id', $schedule->instructor_id)
+            ->whereRaw('LOWER(users.rfid_tag) = ?', [$rfid])
+            ->whereRaw('LOWER(users.role) = ?', ['instructor'])
+            ->exists();
+    }
+
+    private function attendanceDisplayStatus(object $attendance, ?object $session = null): string
+    {
+        $status = strtolower((string) ($attendance->attendance_status ?? $attendance->status ?? 'pending'));
+        $timeIn = $attendance->attendance_time_in ?? $attendance->time_in ?? null;
+        $timeOut = $attendance->attendance_time_out ?? $attendance->time_out ?? null;
+
+        if ($status === 'absent') {
+            return 'Absent';
+        }
+
+        if ($timeIn && ! $timeOut) {
+            return $this->attendanceSessionHasEnded($attendance, $session) ? 'Incomplete Attendance' : 'Pending';
+        }
+
+        if ($timeOut) {
+            return $status === 'late' ? 'Late' : 'Present';
+        }
+
+        return match ($status) {
+            'late' => 'Late',
+            'present' => 'Present',
+            'incomplete_attendance', 'incomplete attendance', 'incomplete' => 'Incomplete Attendance',
+            default => 'Pending',
+        };
+    }
+
+    private function attendanceSessionHasEnded(object $attendance, ?object $session = null): bool
+    {
+        $sessionStatus = strtolower((string) ($session->session_status ?? $session->status ?? ''));
+        $sessionTimeEnd = $session->time_end ?? null;
+
+        if ($sessionTimeEnd || ($sessionStatus !== '' && $sessionStatus !== 'attendance')) {
+            return true;
+        }
+
+        $date = (string) ($attendance->date ?? now()->toDateString());
+        $endTime = $attendance->attendance_scheduled_end ?? $attendance->attendance_time_end ?? $attendance->time_end ?? $session->time_end ?? null;
+
+        if (! $endTime) {
+            return false;
+        }
+
+        $end = $this->scheduleDateTime($date, (string) $endTime);
+
+        return $end ? now()->greaterThan($end) : false;
+    }
+
+    private function scheduleDateTime(string $date, ?string $time): ?Carbon
+    {
+        if (! $time) {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($date.' '.$time);
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private function formatTime(?string $value): ?string
@@ -2144,7 +2433,13 @@ class AttendanceController
                     'date' => $session->date,
                     'session_time' => trim(($this->formatTime($session->time_start) ?? 'N/A').' - '.($this->formatTime($session->time_end) ?? 'N/A')),
                     'time' => 'Absent',
+                    'time_in' => null,
                     'time_out' => null,
+                    'tap_type' => 'No Tap',
+                    'tap_sequence_number' => null,
+                    'room_status' => 'Outside',
+                    'validation_result' => 'Absent',
+                    'remarks' => 'No valid check-in tap was recorded for this scheduled class.',
                     'status' => 'Absent',
                 ]);
             }

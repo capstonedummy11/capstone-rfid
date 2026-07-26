@@ -152,17 +152,16 @@ test('student and parent only see portal messages where they are sender or recip
         ->get(route('student-parent.messages.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('StudentParent/Messages')
+            ->component('Messages/Index')
             ->has('messages', 2)
-            ->where('messages.0.sender_role', 'instructor')
-            ->where('messages.1.sender_role', 'student')
+            ->has('recipients')
         );
 
     $this->actingAs($fixture['parentUser'])
         ->get(route('student-parent.messages.index', ['student_id' => $fixture['student']->student_id]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('StudentParent/Messages')
+            ->component('Messages/Index')
             ->has('messages', 1)
             ->where('messages.0.sender_role', 'parent')
         );
@@ -175,6 +174,85 @@ test('student and parent only see portal messages where they are sender or recip
         'subject' => 'Encrypted message',
         'body' => 'Encrypted message',
     ]);
+});
+
+test('authenticated users can search recipients and exchange attachment messages', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+
+    $admin = User::factory()->create([
+        'name' => 'Admin User',
+        'email' => 'admin.messages@example.com',
+        'role' => 'admin',
+    ]);
+    $clinic = User::factory()->create([
+        'name' => 'Clinic User',
+        'email' => 'clinic.messages@example.com',
+        'role' => 'clinic',
+    ]);
+    $registrar = User::factory()->create([
+        'name' => 'Registrar User',
+        'email' => 'registrar.messages@example.com',
+        'role' => 'registrar',
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('messages.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Messages/Index')
+            ->has('recipients', 2)
+        );
+
+    $this->actingAs($admin)
+        ->post(route('messages.conversation.store'), [
+            'recipient_user_id' => $clinic->user_id,
+            'body' => 'Please review the clinic note.',
+            'attachment' => Illuminate\Http\UploadedFile::fake()->create('clinic-note.pdf', 12, 'application/pdf'),
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Message sent.');
+
+    $message = StudentPortalMessage::query()->firstOrFail();
+
+    expect($message->sender_user_id)->toBe($admin->user_id)
+        ->and($message->recipient_user_id)->toBe($clinic->user_id)
+        ->and($message->attachment_name)->toBe('clinic-note.pdf');
+
+    $this->actingAs($clinic)
+        ->get(route('messages.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Messages/Index')
+            ->has('messages', 1)
+            ->where('messages.0.sender', 'Admin User')
+            ->where('messages.0.recipient', 'Clinic User')
+            ->where('messages.0.sender_user_id', $admin->user_id)
+            ->where('messages.0.recipient_user_id', $clinic->user_id)
+        );
+
+    $this->actingAs($clinic)
+        ->post(route('messages.conversation.store'), [
+            'recipient_user_id' => $admin->user_id,
+            'body' => 'I saw the clinic note.',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Message sent.');
+
+    $this->actingAs($clinic)
+        ->get(route('messages.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Messages/Index')
+            ->has('messages', 2)
+        );
+
+    $this->actingAs($clinic)
+        ->get(route('messages.attachments.show', $message))
+        ->assertOk();
+
+    $this->actingAs($registrar)
+        ->get(route('messages.attachments.show', $message))
+        ->assertForbidden();
 });
 
 test('instructor inbox replies create student portal replies', function () {
@@ -260,7 +338,87 @@ test('parent profile update does not change linked student phone or gender', fun
     ]);
 });
 
-test('student can download a generated excuse letter document', function () {
+test('student-created excuse letter requires parent approval before pdf download', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    $fixture = portalFixture();
+
+    $this->actingAs($fixture['studentUser'])
+        ->post(route('student-parent.excuse-letters.store'), [
+            'subject' => 'Programming I',
+            'from_date' => '2026-07-01',
+            'to_date' => '2026-07-02',
+            'reason' => 'Medical appointment.',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Excuse letter submitted.');
+
+    $letter = StudentExcuseLetter::query()->firstOrFail();
+
+    expect($letter->status)->toBe('pending_parent_approval')
+        ->and($letter->parent_signature)->toBeNull();
+
+    $this->actingAs($fixture['studentUser'])
+        ->get(route('student-parent.excuse-letters.download', $letter))
+        ->assertStatus(422);
+
+    $this->actingAs($fixture['parentUser'])
+        ->put(route('student-parent.excuse-letters.approve', ['letter' => $letter]), [
+            'parent_signature' => 'Maria Santos',
+            'parent_approval_notes' => 'Approved after checking the appointment.',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Excuse letter approved.');
+
+    $letter->refresh();
+
+    expect($letter->status)->toBe('approved')
+        ->and($letter->parent_signature)->toBe('Maria Santos')
+        ->and($letter->parent_approved_by_user_id)->toBe($fixture['parentUser']->user_id);
+
+    $response = $this->actingAs($fixture['studentUser'])
+        ->get(route('student-parent.excuse-letters.download', $letter))
+        ->assertOk()
+        ->assertHeader('Content-Type', 'application/pdf');
+
+    expect(substr($response->getContent(), 0, 4))->toBe('%PDF');
+
+    $this->assertDatabaseHas('activity_logs', [
+        'user_id' => $fixture['parentUser']->user_id,
+        'action' => 'update',
+        'table_name' => 'student_excuse_letters',
+    ]);
+});
+
+test('parent-created excuse letter is signed and downloads as pdf', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    $fixture = portalFixture();
+
+    $this->actingAs($fixture['parentUser'])
+        ->post(route('student-parent.excuse-letters.store', ['student_id' => $fixture['student']->student_id]), [
+            'subject' => 'Programming I',
+            'from_date' => '2026-07-01',
+            'to_date' => '2026-07-02',
+            'reason' => 'Medical appointment.',
+            'parent_signature' => 'Maria Santos',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Excuse letter submitted.');
+
+    $letter = StudentExcuseLetter::query()->firstOrFail();
+
+    expect($letter->status)->toBe('approved')
+        ->and($letter->parent_signature)->toBe('Maria Santos')
+        ->and($letter->parent_approved_by_user_id)->toBe($fixture['parentUser']->user_id);
+
+    $response = $this->actingAs($fixture['parentUser'])
+        ->get(route('student-parent.excuse-letters.download', $letter))
+        ->assertOk()
+        ->assertHeader('Content-Type', 'application/pdf');
+
+    expect(substr($response->getContent(), 0, 4))->toBe('%PDF');
+});
+
+test('student can download an approved generated excuse letter pdf', function () {
     $fixture = portalFixture();
 
     $letter = StudentExcuseLetter::query()->create([
@@ -271,15 +429,18 @@ test('student can download a generated excuse letter document', function () {
         'from_date' => '2026-07-01',
         'to_date' => '2026-07-02',
         'reason' => 'Medical appointment.',
-        'status' => 'submitted',
+        'status' => 'approved',
+        'parent_signature' => 'Maria Santos',
+        'parent_approved_by_user_id' => $fixture['parentUser']->user_id,
+        'parent_approved_at' => now(),
     ]);
 
-    $this->actingAs($fixture['studentUser'])
+    $response = $this->actingAs($fixture['studentUser'])
         ->get(route('student-parent.excuse-letters.download', $letter))
         ->assertOk()
-        ->assertHeader('Content-Type', 'application/msword; charset=UTF-8')
-        ->assertSee('Excuse Letter')
-        ->assertSee('Medical appointment.');
+        ->assertHeader('Content-Type', 'application/pdf');
+
+    expect(substr($response->getContent(), 0, 4))->toBe('%PDF');
 
     $this->assertDatabaseHas('activity_logs', [
         'user_id' => $fixture['studentUser']->user_id,

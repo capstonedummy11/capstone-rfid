@@ -17,6 +17,7 @@ use App\Http\Controllers\LaboratoryController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\OnlineClassController;
 use App\Http\Controllers\RegistrarController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RfidController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\SectionController;
@@ -77,6 +78,16 @@ Route::post($staffLoginPath, [StaffLoginController::class, 'store'])
     ->name('staff.login.store');
 Route::get('/messages/new', [MessageController::class, 'create'])->name('messages.create');
 Route::post('/messages', [MessageController::class, 'store'])->name('messages.store');
+Route::middleware('auth')->group(function () {
+    Route::get('/messages', [MessageController::class, 'index'])->name('messages.index');
+    Route::post('/messages/conversation', [MessageController::class, 'sendConversationMessage'])->name('messages.conversation.store');
+    Route::put('/messages/{message}/read', [MessageController::class, 'markRead'])->name('messages.read');
+    Route::get('/messages/{message}/attachment', [MessageController::class, 'downloadAttachment'])->name('messages.attachments.show');
+});
+Route::middleware(['auth', 'role:admin,instructor,clinic,registrar'])->group(function () {
+    Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+    Route::get('/reports/export', [ReportController::class, 'export'])->name('reports.export');
+});
 Route::get('/attendance-control-panel/login', [AttendanceController::class, 'panelLogin'])->name('attendanceControlPanel.login');
 Route::post('/panel-verify', [AttendanceController::class, 'verifyPanelPin'])->name('panelVerify');
 Route::post('/face-recognition/verify-student', [AttendanceController::class, 'verifyStudentFace'])->name('faceRecognition.verifyStudent');
@@ -162,7 +173,6 @@ Route::prefix('admin')
             Route::get('/attendance/logs', [AttendanceController::class, 'logs'])->name('attendance.logs');
             Route::post('/attendance/scan', [AttendanceController::class, 'scan'])->name('attendance.scan');
             Route::get('/messages', [MessageController::class, 'index'])->name('messages.index');
-            Route::put('/messages/{message}/read', [MessageController::class, 'markRead'])->name('messages.read');
             Route::post('/messages/{message}/reply', [MessageController::class, 'reply'])->name('messages.reply');
             Route::get('/online-classes', [OnlineClassController::class, 'index'])->name('online-classes.index');
             Route::post('/online-classes', [OnlineClassController::class, 'store'])->name('online-classes.store');
@@ -207,6 +217,7 @@ Route::prefix('admin')
             Route::get('/online-class-logs/export', [OnlineClassController::class, 'exportLogs'])->name('online-class-logs.export');
             Route::get('/active-devices', [ActiveDeviceController::class, 'index'])->name('active-devices.index');
             Route::put('/active-devices/panel-access', [ActiveDeviceController::class, 'updatePanelAccess'])->name('active-devices.panel-access.update');
+            Route::put('/active-devices/{panelSessionId}/pin', [ActiveDeviceController::class, 'updatePanelDevicePin'])->name('active-devices.pin.update');
             Route::post('/active-devices/{panelSessionId}/force-logout', [ActiveDeviceController::class, 'forceLogout'])->name('active-devices.force-logout');
             Route::get('/settings', [SystemSettingsController::class, 'edit'])->name('settings.edit');
             Route::put('/settings', [SystemSettingsController::class, 'update'])->name('settings.update');
@@ -217,6 +228,9 @@ Route::prefix('admin')
             Route::post('/students', [StudentsController::class, 'store'])->name('students.store');
             Route::put('/students/{id}', [StudentsController::class, 'update'])->name('students.update');
             Route::delete('/students/{id}', [StudentsController::class, 'destroy'])->name('students.destroy');
+            Route::post('/students/{id}/parents', [StudentsController::class, 'storeParent'])->name('students.parents.store');
+            Route::put('/students/{id}/parents/{parent}', [StudentsController::class, 'updateParent'])->name('students.parents.update');
+            Route::delete('/students/{id}/parents/{parent}', [StudentsController::class, 'destroyParent'])->name('students.parents.destroy');
             Route::get('/instructors', [InstructorsController::class, 'indexAdmin'])->name('instructors.index');
             Route::post('/instructors', [InstructorsController::class, 'store'])->name('instructors.store');
             Route::put('/instructors/{id}', [InstructorsController::class, 'update'])->name('instructors.update');
@@ -278,9 +292,11 @@ Route::prefix('student-parent')
         Route::get('/attendance', [StudentsController::class, 'portalAttendance'])->name('attendance');
         Route::get('/excuse-letters', [StudentsController::class, 'portalExcuseLetters'])->name('excuse-letters.index');
         Route::post('/excuse-letters', [StudentsController::class, 'storePortalExcuseLetter'])->name('excuse-letters.store');
+        Route::put('/excuse-letters/{letter}/approve', [StudentsController::class, 'approvePortalExcuseLetter'])->name('excuse-letters.approve');
         Route::get('/excuse-letters/{letter}/download', [StudentsController::class, 'downloadPortalExcuseLetter'])->name('excuse-letters.download');
-        Route::get('/messages', [StudentsController::class, 'portalMessages'])->name('messages.index');
-        Route::post('/messages', [StudentsController::class, 'storePortalMessage'])->name('messages.store');
+        Route::get('/excuse-letters/{letter}/attachment', [StudentsController::class, 'downloadPortalExcuseLetterAttachment'])->name('excuse-letters.attachment');
+        Route::get('/messages', [MessageController::class, 'index'])->name('messages.index');
+        Route::post('/messages', [MessageController::class, 'sendConversationMessage'])->name('messages.store');
         Route::get('/notifications', [StudentsController::class, 'portalNotifications'])->name('notifications.index');
         Route::put('/notifications/{notification}/read', [StudentsController::class, 'markPortalNotificationRead'])->name('notifications.read');
         Route::get('/online-classes', [OnlineClassController::class, 'studentIndex'])->name('online-classes.index');

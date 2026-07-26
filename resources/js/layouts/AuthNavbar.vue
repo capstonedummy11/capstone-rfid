@@ -20,7 +20,6 @@ import Borrowing from '@/components/Icon/Borrowing.vue';
 import Dashboard from '@/components/Icon/Dashboard.vue';
 import Graduation from '@/components/Icon/Graduation.vue';
 import Instructor from '@/components/Icon/Instructor.vue';
-import Laboratory from '@/components/Icon/Laboratory.vue';
 import LogoutIcon from '@/components/Icon/LogoutIcon.vue';
 import Reports from '@/components/Icon/Reports.vue';
 import RFID from '@/components/Icon/RFID.vue';
@@ -71,12 +70,6 @@ const sections = [
                 route: route('admin.strands.index'),
                 roles: ['admin'],
             },
-            {
-                icon: Laboratory,
-                text: 'Laboratories',
-                route: route('admin.laboratories'),
-                roles: ['admin'],
-            },
         ],
     },
     {
@@ -121,8 +114,8 @@ const sections = [
             {
                 icon: MessageSquare,
                 text: 'Messages',
-                route: route('admin.messages.index'),
-                roles: ['admin', 'instructor'],
+                route: route('messages.index'),
+                roles: ['admin', 'instructor', 'clinic', 'registrar'],
             },
             {
                 icon: MonitorCheck,
@@ -168,7 +161,7 @@ const sections = [
             {
                 icon: MessageSquare,
                 text: 'Messages',
-                route: route('student-parent.messages.index'),
+                route: route('messages.index'),
                 roles: ['student', 'parent'],
             },
             {
@@ -205,7 +198,8 @@ const sections = [
             {
                 icon: Reports,
                 text: 'Reports',
-                roles: ['admin'],
+                route: route('reports.index'),
+                roles: ['admin', 'instructor', 'clinic', 'registrar'],
             },
             {
                 icon: ActivityLogs,
@@ -221,7 +215,7 @@ const sections = [
             },
             {
                 icon: MonitorCheck,
-                text: 'Active Devices',
+                text: 'Laboratories & Devices',
                 route: route('admin.active-devices.index'),
                 roles: ['admin'],
             },
@@ -235,12 +229,6 @@ const sections = [
                 icon: Instructor,
                 text: 'Patient History',
                 route: route('clinic.patient-history'),
-                roles: ['clinic'],
-            },
-            {
-                icon: Reports,
-                text: 'Reports',
-                route: route('clinic.reports'),
                 roles: ['clinic'],
             },
             {

@@ -16,7 +16,9 @@ class AttendanceLog extends Model
 
     protected $fillable = [
         'attendance_id',
+        'main_attendance_id',
         'student_id',
+        'schedule_id',
         'time_in',
         'time_out',
         'status',
@@ -25,6 +27,13 @@ class AttendanceLog extends Model
         'time_out_face_path',
         'is_late',
         'completion_reason',
+        'tap_datetime',
+        'tap_type',
+        'tap_sequence_number',
+        'device_scanner_id',
+        'location',
+        'validation_result',
+        'remarks',
     ];
 
     protected $casts = [
@@ -33,7 +42,7 @@ class AttendanceLog extends Model
 
     public function attendance(): BelongsTo
     {
-        return $this->belongsTo(Attendance::class, 'attendance_id', 'attendance_id');
+        return $this->belongsTo(Attendance::class, 'main_attendance_id', 'attendance_id');
     }
 
     public function student(): BelongsTo
