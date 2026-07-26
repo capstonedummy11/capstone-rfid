@@ -164,9 +164,11 @@ Routes:
 ### 1. Panel Login
 
 1. A console user opens `/attendance-control-panel/login`.
-2. The user enters the panel PIN or uses the configured panel access flow.
-3. After successful verification, the system opens `/attendance-control-panel`.
-4. The user selects the active room or laboratory.
+2. The user selects the active room or laboratory first.
+3. The user enters the PIN for the selected room.
+4. If the selected room maps to an existing panel with its own saved PIN, that panel-specific PIN is checked.
+5. If no panel-specific PIN exists, the global default panel PIN is checked.
+6. After successful verification, the system opens `/attendance-control-panel`.
 
 ### 2. Instructor Starts Attendance
 
@@ -250,7 +252,8 @@ Tap log records:
 `Auth/Admin/ActiveDevices.vue`:
 
 - Admin users manage laboratory records and monitor active attendance panel devices from one Laboratories & Devices sidebar entry.
-- The page includes the only sidebar-reachable Panel Login link, panel device label/PIN settings, active/waiting device counts, and forced panel logout controls.
+- The page includes the only sidebar-reachable Panel Login link, default panel device label/PIN settings, per-existing-panel PIN changes, active/waiting device counts, and forced panel logout controls.
+- The global panel PIN remains the default/fallback PIN. When an existing panel has its own saved PIN, panel login verifies that selected room against the panel-specific PIN instead.
 
 `AttendanceLogs.vue`:
 

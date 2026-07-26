@@ -261,6 +261,82 @@ const forceLogout = async (device) => {
         });
     }
 };
+
+const changePanelPin = async (device) => {
+    if (!device.panel_session_id) return;
+
+    const result = await Swal.fire({
+        title: `Change PIN for ${device.device_label}`,
+        input: 'password',
+        inputLabel: 'New panel PIN',
+        inputPlaceholder: 'Enter at least 4 characters',
+        inputAttributes: {
+            maxlength: 32,
+            autocapitalize: 'off',
+            autocorrect: 'off',
+        },
+        showCancelButton: true,
+        confirmButtonText: 'Save PIN',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#2563eb',
+        cancelButtonColor: '#64748b',
+        inputValidator: (value) => {
+            if (!value || value.length < 4) {
+                return 'PIN must be at least 4 characters.';
+            }
+
+            return null;
+        },
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+        const xsrfRaw = document.cookie
+            .split('; ')
+            .find((row) => row.startsWith('XSRF-TOKEN='))
+            ?.split('=')[1];
+
+        const response = await fetch(
+            route('admin.active-devices.pin.update', {
+                panelSessionId: device.panel_session_id,
+            }),
+            {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-XSRF-TOKEN': xsrfRaw ? decodeURIComponent(xsrfRaw) : '',
+                },
+                body: JSON.stringify({ pin: result.value }),
+            },
+        );
+
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload?.ok) {
+            throw new Error(payload?.message ?? 'Unable to update panel PIN.');
+        }
+
+        await Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: payload.message,
+            showConfirmButton: false,
+            timer: 1600,
+            timerProgressBar: true,
+        });
+
+        router.reload({ only: ['devices'] });
+    } catch (error) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Panel PIN update failed',
+            text: error?.message ?? 'Unable to update panel PIN.',
+            confirmButtonColor: '#dc2626',
+        });
+    }
+};
 </script>
 
 <template>
@@ -683,14 +759,23 @@ const forceLogout = async (device) => {
                                     {{ device.updated_at || 'Never' }}
                                 </td>
                                 <td class="px-4 py-3 text-right">
-                                    <button
-                                        type="button"
-                                        class="rounded-md border border-red-200 px-3 py-2 text-xs font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
-                                        :disabled="!device.can_force_logout"
-                                        @click="forceLogout(device)"
-                                    >
-                                        Log out panel
-                                    </button>
+                                    <div class="flex justify-end gap-2">
+                                        <button
+                                            type="button"
+                                            class="rounded-md border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50"
+                                            @click="changePanelPin(device)"
+                                        >
+                                            Change PIN
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="rounded-md border border-red-200 px-3 py-2 text-xs font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                            :disabled="!device.can_force_logout"
+                                            @click="forceLogout(device)"
+                                        >
+                                            Log out panel
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                             <tr v-if="devices.length === 0">

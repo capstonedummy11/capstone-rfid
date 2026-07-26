@@ -10,6 +10,7 @@ use App\Models\EmergencyHotline;
 use App\Models\EmergencyType;
 use App\Models\Instructor;
 use App\Models\Item;
+use App\Models\PanelDevice;
 use App\Models\RfidPanelSession;
 use App\Models\Schedule;
 use App\Models\Section;
@@ -1041,9 +1042,30 @@ class AttendanceController
     {
         $validated = $request->validate([
             'pin' => ['required', 'string'],
+            'room' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $pinHash = SystemSetting::string(SystemSetting::PANEL_PIN_HASH, '');
+        $pinHash = '';
+        $room = trim((string) ($validated['room'] ?? ''));
+        if ($room !== '') {
+            $latestSession = RfidPanelSession::query()
+                ->where('room', $room)
+                ->orderByDesc('panel_session_id')
+                ->first();
+            $panelLabel = trim((string) ($latestSession?->panel_id ?? ''));
+
+            if ($panelLabel !== '') {
+                $pinHash = (string) PanelDevice::query()
+                    ->where('label', $panelLabel)
+                    ->where('is_active', true)
+                    ->value('pin_hash');
+            }
+        }
+
+        if ($pinHash === '') {
+            $pinHash = SystemSetting::string(SystemSetting::PANEL_PIN_HASH, '');
+        }
+
         $pinMatches = $pinHash !== ''
             ? Hash::check((string) $validated['pin'], $pinHash)
             : (string) $validated['pin'] === (string) config('panel.pin', '1234');

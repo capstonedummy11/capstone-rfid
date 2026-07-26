@@ -92,6 +92,12 @@ System and audit tables:
 - `system_settings` - feature flags and configurable settings.
 - `activity_logs` - general activity/audit log records.
 
+Panel PIN behavior:
+
+- `system_settings.panel.pin_hash` stores the global default panel PIN.
+- `panel_devices.pin_hash` stores an override PIN for a registered or previously seen panel label.
+- Panel login asks for the room first, uses that room to find the latest panel label, checks the matching `panel_devices` PIN when one exists, and otherwise falls back to the global default PIN.
+
 ## Key Relationships
 
 - `users.role` controls dashboard access and major account behavior.

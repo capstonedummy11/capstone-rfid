@@ -18,7 +18,7 @@ const props = defineProps({
 });
 
 const selectedRoom = ref('');
-const gateStep = ref(props.alreadyVerified ? 'room' : 'pin');
+const gateStep = ref('room');
 const pinVerified = ref(props.alreadyVerified);
 const pinValue = ref('');
 const pinError = ref('');
@@ -56,7 +56,7 @@ const filteredRooms = computed(() => {
 });
 
 const verifyPin = async () => {
-    if (!pinValue.value) return;
+    if (!pinValue.value || !selectedRoom.value) return;
 
     pinError.value = '';
     pinLoading.value = true;
@@ -73,12 +73,15 @@ const verifyPin = async () => {
                 Accept: 'application/json',
                 'X-XSRF-TOKEN': xsrfRaw ? decodeURIComponent(xsrfRaw) : '',
             },
-            body: JSON.stringify({ pin: pinValue.value }),
+            body: JSON.stringify({
+                pin: pinValue.value,
+                room: selectedRoom.value,
+            }),
         });
 
         if (response.ok) {
             pinVerified.value = true;
-            gateStep.value = 'room';
+            unlockPanel();
             return;
         }
 
@@ -133,7 +136,7 @@ const unlockPanel = () => {
 };
 
 const resetPinStep = () => {
-    gateStep.value = 'pin';
+    gateStep.value = 'room';
     pinValue.value = '';
     pinError.value = '';
     pinVerified.value = false;
@@ -190,16 +193,23 @@ onMounted(() => {
                 class="rounded-[28px] bg-white p-10 shadow-xl ring-1 ring-slate-200/70"
             >
                 <div v-if="gateStep === 'pin'">
+                    <button
+                        type="button"
+                        class="mb-4 text-xs font-semibold text-slate-400 transition hover:text-slate-700"
+                        @click="resetPinStep"
+                    >
+                        <- Change Room
+                    </button>
                     <div
                         class="text-[10px] font-bold tracking-[0.28em] text-slate-400 uppercase"
                     >
-                        Step 1 of 2
+                        Step 2 of 2
                     </div>
                     <h2 class="mt-3 text-2xl font-extrabold text-slate-900">
                         Enter Access PIN
                     </h2>
                     <p class="mt-2 text-base text-slate-500">
-                        Verify administrator access before selecting a room.
+                        Enter the PIN for {{ selectedRoom }}.
                     </p>
                     <div class="mt-5">
                         <input
@@ -231,7 +241,7 @@ onMounted(() => {
                         @click="verifyPin"
                     >
                         <span v-if="pinLoading">Verifying...</span>
-                        <span v-else>Continue to Room Selection -></span>
+                        <span v-else>Verify PIN</span>
                     </button>
                     <Link
                         :href="route('landingPage')"
@@ -242,17 +252,10 @@ onMounted(() => {
                 </div>
 
                 <div v-else>
-                    <button
-                        type="button"
-                        class="text-xs font-semibold text-slate-400 transition hover:text-slate-700"
-                        @click="resetPinStep"
-                    >
-                        <- Change PIN
-                    </button>
                     <div
-                        class="mt-4 text-[10px] font-bold tracking-[0.28em] text-slate-400 uppercase"
+                        class="text-[10px] font-bold tracking-[0.28em] text-slate-400 uppercase"
                     >
-                        Step 2 of 2
+                        Step 1 of 2
                     </div>
                     <h2 class="mt-3 text-2xl font-extrabold text-slate-900">
                         Select a Room
@@ -324,11 +327,21 @@ onMounted(() => {
                     <button
                         type="button"
                         class="mt-5 w-full rounded-2xl bg-[#123456] py-4 text-base font-bold text-white shadow-sm transition hover:bg-[#0e2840] disabled:cursor-not-allowed disabled:opacity-40"
-                        :disabled="!selectedRoom || !pinVerified || roomLoading"
-                        @click="unlockPanel"
+                        :disabled="!selectedRoom || roomLoading"
+                        @click="
+                            props.alreadyVerified
+                                ? unlockPanel()
+                                : (gateStep = 'pin')
+                        "
                     >
                         <span v-if="roomLoading">Opening Panel...</span>
-                        <span v-else>Unlock Panel</span>
+                        <span v-else>
+                            {{
+                                props.alreadyVerified
+                                    ? 'Unlock Panel'
+                                    : 'Continue to PIN ->'
+                            }}
+                        </span>
                     </button>
                     <p
                         v-if="roomError"
