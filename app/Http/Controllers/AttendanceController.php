@@ -29,6 +29,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AttendanceController
 {
@@ -124,6 +125,11 @@ class AttendanceController
                     ]);
             }
         } elseif ($attendanceSession) {
+            if ($attendanceSession->status === 'attendance') {
+                $this->finalizeCuttingStudents($attendanceSession);
+                $request->session()->forget($this->cameraBypassKey((int) $attendanceSession->attendance_id));
+            }
+
             $updateData = [
                 'status' => $status,
                 'updated_at' => now(),
@@ -222,6 +228,22 @@ class AttendanceController
             ], 422);
         }
 
+        $verification = $request->session()->pull($this->attendanceVerificationKey(
+            (int) $attendanceSession->attendance_id,
+            (int) $student->student_id,
+        ));
+
+        if (! is_array($verification) || (int) ($verification['expires_at'] ?? 0) < now()->timestamp) {
+            return response()->json([
+                'ok' => false,
+                'requires_verification' => true,
+                'message' => 'Face verification or an instructor RFID override is required before attendance can be recorded.',
+            ], 422);
+        }
+
+        $verificationMethod = (string) ($verification['method'] ?? 'unknown');
+        $verificationFacePath = $verification['face_path'] ?? null;
+
         $latestOpenAttendance = Attendance::query()
             ->where('student_id', $student->student_id)
             ->whereDate('date', $today)
@@ -238,17 +260,21 @@ class AttendanceController
             ->first();
 
         if ($latestLog && ! $latestLog->time_out) {
+            $finalStatus = (bool) ($latestLog->is_late ?? false) ? 'late' : 'present';
             DB::table('attendance_logs')
                 ->where('id', $latestLog->id)
                 ->update([
                     'time_out' => $nowTime,
-                    'status' => 'completed',
+                    'status' => $finalStatus,
+                    'time_out_face_path' => $verificationFacePath,
+                    'completion_reason' => 'time_out',
                     'updated_at' => now(),
                 ]);
 
             if ($latestOpenAttendance) {
                 $latestOpenAttendance->update([
                     'time_out' => $nowTime,
+                    'status' => $finalStatus,
                 ]);
             }
 
@@ -263,17 +289,22 @@ class AttendanceController
                     'section' => $student->year_level.' - '.($student->section?->section_name ?? ''),
                     'time_in' => $latestLog->time_in ? date('g:i A', strtotime((string) $latestLog->time_in)) : null,
                     'time_out' => date('g:i A', strtotime($nowTime)),
-                    'status' => 'Completed',
+                    'status' => ucfirst($finalStatus),
                 ],
             ]);
         }
+
+        $lateThreshold = SystemSetting::integer(SystemSetting::ATTENDANCE_LATE_THRESHOLD_MINUTES, 15);
+        $scheduledStart = Carbon::parse($today.' '.($currentSchedule->time_start ?? $attendanceSession->time_start ?? $nowTime));
+        $isLate = now()->greaterThan($scheduledStart->copy()->addMinutes($lateThreshold));
+        $initialStatus = $isLate ? 'late' : 'present';
 
         $attendance = Attendance::query()->create([
             'student_id' => $student->student_id,
             'schedule_id' => $scheduleId,
             'date' => $today,
             'time_in' => $nowTime,
-            'status' => 'present',
+            'status' => $initialStatus,
             'subject_code' => $subjectCode,
             'room' => $validated['room'],
         ]);
@@ -283,7 +314,10 @@ class AttendanceController
             'student_id' => $student->student_id,
             'time_in' => $nowTime,
             'time_out' => null,
-            'status' => 'present',
+            'status' => $isLate ? 'late' : 'checked_in',
+            'verification_method' => $verificationMethod,
+            'time_in_face_path' => $verificationFacePath,
+            'is_late' => $isLate,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -299,7 +333,7 @@ class AttendanceController
                 'section' => $student->year_level.' - '.($student->section?->section_name ?? ''),
                 'time_in' => date('g:i A', strtotime((string) $attendance->time_in)),
                 'time_out' => null,
-                'status' => 'Present',
+                'status' => $isLate ? 'Late' : 'Checked In',
             ],
         ]);
     }
@@ -311,18 +345,10 @@ class AttendanceController
             'room' => ['required', 'string', 'max:255'],
             'subject_code' => ['nullable', 'string', 'max:255'],
             'schedule_id' => ['nullable', 'integer'],
-            'image' => ['required', 'string'],
+            'image' => ['nullable', 'string'],
+            'instructor_rfid' => ['nullable', 'string', 'max:255'],
+            'camera_unavailable' => ['nullable', 'boolean'],
         ]);
-
-        if (! SystemSetting::boolean(SystemSetting::FACE_RECOGNITION_ENABLED, true)) {
-            return response()->json([
-                'ok' => true,
-                'verified' => true,
-                'provider' => 'disabled',
-                'face_recognition_disabled' => true,
-                'message' => 'Face recognition is disabled. Attendance can continue.',
-            ]);
-        }
 
         $rfid = strtolower(trim($validated['rfid']));
         $student = Students::query()
@@ -386,31 +412,157 @@ class AttendanceController
 
         $faceImages = array_values(array_filter($student->face_images ?? []));
 
-        if (count($faceImages) === 0) {
+        if ($request->session()->get($this->cameraBypassKey((int) $attendanceSession->attendance_id)) === true) {
+            $this->grantAttendanceVerification($request, $attendanceSession, $student, 'camera_session_override');
+
             return response()->json([
-                'ok' => false,
-                'verified' => false,
-                'requires_instructor_override' => true,
-                'override_reason' => 'student_missing_face',
-                'message' => 'Student has no saved face image. Instructor RFID authorization is required before attendance can be recorded.',
-            ], 428);
+                'ok' => true,
+                'verified' => true,
+                'camera_session_override' => true,
+                'provider' => 'instructor_rfid',
+                'message' => 'Camera bypass is active for this class session.',
+            ]);
         }
 
-        $faceResult = (new AwsFaceRecognitionService)->compareBase64WithStoredImage(
-            $validated['image'],
-            $faceImages[0],
-        );
+        if ((bool) ($validated['camera_unavailable'] ?? false)) {
+            $instructorRfid = strtolower(trim((string) ($validated['instructor_rfid'] ?? '')));
+            if (! $this->matchesScheduleInstructorRfid($currentSchedule, $instructorRfid)) {
+                return response()->json([
+                    'ok' => false,
+                    'requires_instructor_rfid' => true,
+                    'camera_unavailable' => true,
+                    'message' => 'Active instructor RFID is required to bypass the unavailable camera.',
+                ], 422);
+            }
 
-        if ($faceResult === null) {
+            $request->session()->put($this->cameraBypassKey((int) $attendanceSession->attendance_id), true);
+            $this->grantAttendanceVerification($request, $attendanceSession, $student, 'camera_session_override');
+
+            return response()->json([
+                'ok' => true,
+                'verified' => true,
+                'camera_session_override' => true,
+                'provider' => 'instructor_rfid',
+                'message' => 'Instructor RFID verified. Camera bypass is active until this class session ends or the panel logs out.',
+            ]);
+        }
+
+        if (count($faceImages) === 0) {
+            $instructorRfid = strtolower(trim((string) ($validated['instructor_rfid'] ?? '')));
+            if ($instructorRfid === '') {
+                return response()->json([
+                    'ok' => false,
+                    'requires_instructor_rfid' => true,
+                    'message' => 'This student has no registered face image. The active instructor must scan their RFID card to approve attendance.',
+                ], 422);
+            }
+
+            if (! $this->matchesScheduleInstructorRfid($currentSchedule, $instructorRfid)) {
+                return response()->json([
+                    'ok' => false,
+                    'requires_instructor_rfid' => true,
+                    'message' => 'Instructor RFID verification failed. Attendance was not recorded.',
+                ], 422);
+            }
+
+            $this->grantAttendanceVerification($request, $attendanceSession, $student, 'instructor_rfid');
+
+            return response()->json([
+                'ok' => true,
+                'verified' => true,
+                'instructor_override' => true,
+                'provider' => 'instructor_rfid',
+                'message' => 'Active instructor RFID verified. Attendance can continue.',
+            ]);
+        }
+
+        if (! SystemSetting::boolean(SystemSetting::FACE_RECOGNITION_ENABLED, true)) {
+            $instructorRfid = strtolower(trim((string) ($validated['instructor_rfid'] ?? '')));
+            if ($instructorRfid === '') {
+                return response()->json([
+                    'ok' => false,
+                    'verified' => false,
+                    'requires_instructor_rfid' => true,
+                    'message' => 'Face recognition is disabled. The active instructor must scan their RFID card to approve attendance.',
+                ], 422);
+            }
+
+            if (! $this->matchesScheduleInstructorRfid($currentSchedule, $instructorRfid)) {
+                return response()->json([
+                    'ok' => false,
+                    'verified' => false,
+                    'requires_instructor_rfid' => true,
+                    'message' => 'Instructor RFID verification failed. Attendance was not recorded.',
+                ], 422);
+            }
+
+            $this->grantAttendanceVerification($request, $attendanceSession, $student, 'face_recognition_disabled');
+
+            return response()->json([
+                'ok' => true,
+                'verified' => true,
+                'instructor_override' => true,
+                'provider' => 'face_recognition_disabled',
+                'message' => 'Active instructor RFID verified. Attendance can continue while face recognition is disabled.',
+            ]);
+        }
+
+        if (blank($validated['image'] ?? null)) {
             return response()->json([
                 'ok' => false,
                 'verified' => false,
+                'message' => 'Camera capture is required for face verification.',
+            ], 422);
+        }
+
+        $faceService = new AwsFaceRecognitionService;
+        $faceResult = null;
+        $bestMismatch = null;
+
+        foreach ($faceImages as $faceImage) {
+            $comparison = $faceService->compareBase64WithStoredImage($validated['image'], $faceImage);
+            if ($comparison === null) {
+                continue;
+            }
+
+            if ($comparison['verified']) {
+                $faceResult = $comparison;
+                break;
+            }
+
+            if ($bestMismatch === null || $comparison['similarity'] > $bestMismatch['similarity']) {
+                $bestMismatch = $comparison;
+            }
+        }
+
+        $faceResult ??= $bestMismatch;
+
+        if ($faceResult === null) {
+            $capturePath = $this->storeAttendanceFaceCapture(
+                (string) $validated['image'],
+                (int) $attendanceSession->attendance_id,
+                $student,
+            );
+
+            if (! $capturePath) {
+                return response()->json([
+                    'ok' => false,
+                    'verified' => false,
+                    'provider_unavailable' => true,
+                    'message' => 'AWS face recognition is unavailable and the captured attendance photo could not be stored.',
+                ], 503);
+            }
+
+            $this->grantAttendanceVerification($request, $attendanceSession, $student, 'captured_aws_unavailable', $capturePath);
+
+            return response()->json([
+                'ok' => true,
+                'verified' => true,
                 'provider' => 'aws_rekognition',
                 'provider_unavailable' => true,
-                'requires_instructor_override' => true,
-                'override_reason' => 'provider_unavailable',
-                'message' => 'AWS face recognition is not available. Instructor RFID authorization is required before attendance can be recorded.',
-            ], 503);
+                'capture_recorded' => true,
+                'message' => 'Warning: AWS face recognition is unavailable. The student photo was captured and attached to this attendance event.',
+            ]);
         }
 
         if (! $faceResult['verified']) {
@@ -424,12 +576,29 @@ class AttendanceController
             ], 422);
         }
 
+        $capturePath = $this->storeAttendanceFaceCapture(
+            (string) $validated['image'],
+            (int) $attendanceSession->attendance_id,
+            $student,
+        );
+
+        if (! $capturePath) {
+            return response()->json([
+                'ok' => false,
+                'verified' => false,
+                'message' => 'Face matched, but the attendance evidence image could not be stored. Attendance was not recorded.',
+            ], 500);
+        }
+
+        $this->grantAttendanceVerification($request, $attendanceSession, $student, 'aws_rekognition', $capturePath);
+
         return response()->json([
             'ok' => true,
             'verified' => true,
             'provider' => $faceResult['provider'],
             'similarity' => $faceResult['similarity'],
             'threshold' => $faceResult['threshold'],
+            'capture_recorded' => true,
             'message' => 'Face verified.',
         ]);
     }
@@ -527,6 +696,82 @@ class AttendanceController
         ]);
     }
 
+    private function attendanceVerificationKey(int $attendanceSessionId, int $studentId): string
+    {
+        return "attendance.verification.{$attendanceSessionId}.{$studentId}";
+    }
+
+    private function grantAttendanceVerification(Request $request, object $attendanceSession, Students $student, string $method, ?string $facePath = null): void
+    {
+        $request->session()->put($this->attendanceVerificationKey(
+            (int) $attendanceSession->attendance_id,
+            (int) $student->student_id,
+        ), [
+            'method' => $method,
+            'face_path' => $facePath,
+            'expires_at' => now()->addMinutes(2)->timestamp,
+        ]);
+    }
+
+    private function cameraBypassKey(int $attendanceSessionId): string
+    {
+        return "attendance.camera_bypass.{$attendanceSessionId}";
+    }
+
+    private function matchesScheduleInstructorRfid(Schedule $schedule, string $rfid): bool
+    {
+        if ($rfid === '') {
+            return false;
+        }
+
+        $schedule->loadMissing('instructor.user');
+
+        return $schedule->instructor?->user
+            && strtolower(trim((string) $schedule->instructor->user->rfid_tag)) === $rfid;
+    }
+
+    private function storeAttendanceFaceCapture(string $dataUrl, int $attendanceSessionId, Students $student): ?string
+    {
+        $base64 = preg_replace('/^data:[^;]+;base64,/', '', $dataUrl);
+        $bytes = base64_decode((string) $base64, true);
+        if ($bytes === false || $bytes === '') {
+            return null;
+        }
+
+        $path = sprintf(
+            'attendance_face_captures/%d/%s-%s.jpg',
+            $attendanceSessionId,
+            Str::slug((string) $student->student_number),
+            now()->format('YmdHisv'),
+        );
+
+        return Storage::disk('public')->put($path, $bytes) ? $path : null;
+    }
+
+    private function finalizeCuttingStudents(object $attendanceSession): void
+    {
+        $openLogs = DB::table('attendance_logs')
+            ->where('attendance_id', $attendanceSession->attendance_id)
+            ->whereNull('time_out')
+            ->get();
+
+        foreach ($openLogs as $log) {
+            DB::table('attendance_logs')->where('id', $log->id)->update([
+                'status' => 'absent',
+                'completion_reason' => 'cutting',
+                'updated_at' => now(),
+            ]);
+
+            Attendance::query()
+                ->where('student_id', $log->student_id)
+                ->whereDate('date', $attendanceSession->date)
+                ->where('room', $attendanceSession->room)
+                ->where('subject_code', $attendanceSession->subject_code)
+                ->whereNull('time_out')
+                ->update(['status' => 'absent']);
+        }
+    }
+
     public function attendanceLogSnapshot(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -567,6 +812,9 @@ class AttendanceController
                 'attendance_logs.time_in',
                 'attendance_logs.time_out',
                 'attendance_logs.status',
+                'attendance_logs.time_in_face_path',
+                'attendance_logs.time_out_face_path',
+                'attendance_logs.verification_method',
                 'students.rfid_tag',
                 'students.first_name',
                 'students.last_name',
@@ -1037,6 +1285,10 @@ class AttendanceController
                 ->first();
 
             if ($attendanceSession) {
+                if ($attendanceSession->status === 'attendance') {
+                    $this->finalizeCuttingStudents($attendanceSession);
+                }
+
                 DB::table('attendance_sessions')
                     ->where('attendance_id', $attendanceSession->attendance_id)
                     ->update([
@@ -1515,6 +1767,9 @@ class AttendanceController
                     'time' => $this->formatTime($log->time_in) ?? 'N/A',
                     'time_out' => $this->formatTime($log->time_out),
                     'status' => ucfirst((string) ($log->status ?? 'pending')),
+                    'time_in_image_url' => $log->time_in_face_path ? route('attendance.evidence', ['attendanceLog' => $log->id, 'moment' => 'time-in']) : null,
+                    'time_out_image_url' => $log->time_out_face_path ? route('attendance.evidence', ['attendanceLog' => $log->id, 'moment' => 'time-out']) : null,
+                    'verification_method' => $log->verification_method,
                 ];
             })
             ->values();
@@ -1622,6 +1877,42 @@ class AttendanceController
                 ])
                 ->values() : [],
         ]);
+    }
+
+    public function evidence(Request $request, AttendanceLog $attendanceLog, string $moment): StreamedResponse
+    {
+        abort_unless(in_array($moment, ['time-in', 'time-out'], true), 404);
+
+        $record = DB::table('attendance_logs')
+            ->join('attendance_sessions', 'attendance_sessions.attendance_id', '=', 'attendance_logs.attendance_id')
+            ->leftJoin('schedules', 'schedules.scheduled_id', '=', 'attendance_sessions.schedule_id')
+            ->where('attendance_logs.id', $attendanceLog->id)
+            ->select([
+                'attendance_logs.student_id',
+                'attendance_logs.time_in_face_path',
+                'attendance_logs.time_out_face_path',
+                'schedules.instructor_id',
+            ])
+            ->firstOrFail();
+
+        $user = $request->user();
+        $role = strtolower((string) $user?->role);
+        $authorized = $role === 'admin';
+
+        if ($role === 'instructor') {
+            $authorized = (int) Instructor::query()->where('user_id', $user->user_id)->value('instructor_id') === (int) $record->instructor_id;
+        } elseif ($role === 'student') {
+            $authorized = (int) Students::query()->where('email', $user->email)->value('student_id') === (int) $record->student_id;
+        } elseif ($role === 'parent') {
+            $authorized = $user->linkedStudents()->where('students.student_id', $record->student_id)->exists();
+        }
+
+        abort_unless($authorized, 403);
+
+        $path = $moment === 'time-in' ? $record->time_in_face_path : $record->time_out_face_path;
+        abort_unless($path && Storage::disk('public')->exists($path), 404);
+
+        return Storage::disk('public')->response($path);
     }
 
     public function scan(Request $request)

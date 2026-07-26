@@ -20,6 +20,7 @@ class SystemSettingsController
             'faceRecognitionAvailability' => $faceAvailability,
             'attendanceSettings' => [
                 'absent_default_days' => SystemSetting::integer(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 15),
+                'late_threshold_minutes' => SystemSetting::integer(SystemSetting::ATTENDANCE_LATE_THRESHOLD_MINUTES, 15),
             ],
             'securitySettings' => [
                 'questions' => SystemSetting::securityQuestions(),
@@ -36,6 +37,7 @@ class SystemSettingsController
             'face_recognition_enabled' => ['required', 'boolean'],
             'online_class_face_recognition_default' => ['required', 'boolean'],
             'absent_default_days' => ['nullable', 'integer', 'min:1', 'max:365'],
+            'late_threshold_minutes' => ['required', 'integer', 'min:0', 'max:180'],
             'security_questions' => ['nullable', 'array', 'min:3', 'max:20'],
             'security_questions.*' => ['required_with:security_questions', 'string', 'min:8', 'max:255', 'distinct'],
         ]);
@@ -59,6 +61,7 @@ class SystemSettingsController
         if (array_key_exists('absent_default_days', $validated) && $validated['absent_default_days'] !== null) {
             SystemSetting::setInteger(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, (int) $validated['absent_default_days']);
         }
+        SystemSetting::setInteger(SystemSetting::ATTENDANCE_LATE_THRESHOLD_MINUTES, (int) $validated['late_threshold_minutes']);
         if (array_key_exists('security_questions', $validated) && $validated['security_questions'] !== null) {
             $questions = collect($validated['security_questions'])
                 ->map(fn ($question) => trim((string) $question))

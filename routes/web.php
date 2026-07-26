@@ -80,6 +80,9 @@ Route::post('/messages', [MessageController::class, 'store'])->name('messages.st
 Route::get('/attendance-control-panel/login', [AttendanceController::class, 'panelLogin'])->name('attendanceControlPanel.login');
 Route::post('/panel-verify', [AttendanceController::class, 'verifyPanelPin'])->name('panelVerify');
 Route::post('/face-recognition/verify-student', [AttendanceController::class, 'verifyStudentFace'])->name('faceRecognition.verifyStudent');
+Route::get('/attendance-evidence/{attendanceLog}/{moment}', [AttendanceController::class, 'evidence'])
+    ->middleware(['auth', 'role:admin,instructor,student,parent'])
+    ->name('attendance.evidence');
 
 Route::middleware(['auth', 'role:console'])->group(function () {
     Route::get('/attendance-control-panel', [AttendanceController::class, 'controlPanel'])->name('attendanceControlPanel');
@@ -195,7 +198,7 @@ Route::prefix('admin')
             Route::put('/inventory/{id}', [InventoryController::class, 'update'])->name('inventory.update');
             Route::delete('/inventory/{id}', [InventoryController::class, 'destroy'])->name('inventory.destroy');
             Route::get('/activity-logs', [ActivityLogController::class, 'indexAdmin'])->name('activity-logs.index');
-            Route::delete('/activity-logs/{id}', [ActivityLogController::class, 'destroy'])->name('activity-logs.destroy');
+            Route::get('/activity-logs/export', [ActivityLogController::class, 'export'])->name('activity-logs.export');
             Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
             Route::post('/users', [AdminUserController::class, 'store'])->name('users.store');
             Route::put('/users/{id}', [AdminUserController::class, 'update'])->name('users.update');

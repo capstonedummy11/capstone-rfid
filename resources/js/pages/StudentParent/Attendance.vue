@@ -12,6 +12,7 @@ const props = defineProps({
 const search = ref('');
 const statusFilter = ref('');
 const currentPage = ref(1);
+const evidencePreview = ref(null);
 const pageSize = 10;
 
 const filteredAttendance = computed(() => {
@@ -56,6 +57,14 @@ const resetFilters = () => {
     search.value = '';
     statusFilter.value = '';
     currentPage.value = 1;
+};
+
+const openEvidence = (url, title) => {
+    evidencePreview.value = { url, title };
+};
+
+const closeEvidence = () => {
+    evidencePreview.value = null;
 };
 </script>
 
@@ -113,6 +122,8 @@ const resetFilters = () => {
                             <th class="px-3 py-2">Class Time</th>
                             <th class="px-3 py-2">Time In</th>
                             <th class="px-3 py-2">Time Out</th>
+                            <th class="px-3 py-2">Time In Image</th>
+                            <th class="px-3 py-2">Time Out Image</th>
                             <th class="px-3 py-2">Duration</th>
                             <th class="px-3 py-2">Status</th>
                         </tr>
@@ -135,6 +146,48 @@ const resetFilters = () => {
                                 {{ record.time_out || '-' }}
                             </td>
                             <td class="px-3 py-3">
+                                <button
+                                    v-if="record.time_in_image_url"
+                                    type="button"
+                                    @click="
+                                        openEvidence(
+                                            record.time_in_image_url,
+                                            `${record.subject} - Time In`,
+                                        )
+                                    "
+                                >
+                                    <img
+                                        :src="record.time_in_image_url"
+                                        alt="Time-in face evidence"
+                                        class="h-12 w-12 rounded-md border border-slate-200 object-cover hover:ring-2 hover:ring-sky-400"
+                                    />
+                                </button>
+                                <span v-else class="text-xs text-slate-400"
+                                    >Not captured</span
+                                >
+                            </td>
+                            <td class="px-3 py-3">
+                                <button
+                                    v-if="record.time_out_image_url"
+                                    type="button"
+                                    @click="
+                                        openEvidence(
+                                            record.time_out_image_url,
+                                            `${record.subject} - Time Out`,
+                                        )
+                                    "
+                                >
+                                    <img
+                                        :src="record.time_out_image_url"
+                                        alt="Time-out face evidence"
+                                        class="h-12 w-12 rounded-md border border-slate-200 object-cover hover:ring-2 hover:ring-sky-400"
+                                    />
+                                </button>
+                                <span v-else class="text-xs text-slate-400"
+                                    >Not captured</span
+                                >
+                            </td>
+                            <td class="px-3 py-3">
                                 {{ record.duration || '-' }}
                             </td>
                             <td class="px-3 py-3 font-semibold text-slate-800">
@@ -143,7 +196,7 @@ const resetFilters = () => {
                         </tr>
                         <tr v-if="paginatedAttendance.length === 0">
                             <td
-                                colspan="8"
+                                colspan="10"
                                 class="px-3 py-8 text-center text-slate-400"
                             >
                                 No attendance records found.
@@ -151,6 +204,32 @@ const resetFilters = () => {
                         </tr>
                     </tbody>
                 </table>
+            </div>
+
+            <div
+                v-if="evidencePreview"
+                class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 p-4"
+                @click.self="closeEvidence"
+            >
+                <div class="w-full max-w-lg rounded-lg bg-white p-4 shadow-xl">
+                    <div class="mb-3 flex items-center justify-between gap-3">
+                        <h2 class="font-bold text-slate-900">
+                            {{ evidencePreview.title }}
+                        </h2>
+                        <button
+                            type="button"
+                            class="rounded-md border border-slate-300 px-3 py-1 text-sm font-bold text-slate-600"
+                            @click="closeEvidence"
+                        >
+                            Close
+                        </button>
+                    </div>
+                    <img
+                        :src="evidencePreview.url"
+                        :alt="evidencePreview.title"
+                        class="max-h-[70vh] w-full rounded-md bg-slate-100 object-contain"
+                    />
+                </div>
             </div>
 
             <div class="mt-4 flex justify-end gap-2 text-sm">

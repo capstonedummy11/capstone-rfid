@@ -69,33 +69,98 @@ class MessageController
         $user = $request->user();
         $role = strtolower(trim((string) $user?->role));
 
-        $messages = Message::query()
+        $inboxMessages = Message::query()
             ->with('instructor:user_id,name,email')
             ->where('instructor_user_id', $user->user_id)
             ->latest('created_at')
-            ->get()
-            ->map(fn (Message $message) => [
-                'id' => $message->message_id,
-                'sender_type' => $message->sender_type,
-                'sender_name' => $message->sender_name,
-                'sender_email' => $message->sender_email,
-                'student_number' => $message->student_number,
-                'subject' => $message->subject ?: 'Instructor conversation',
-                'body' => $message->body,
-                'preview' => str($message->body)->squish()->limit(82)->toString(),
-                'instructor_name' => $message->instructor?->name,
-                'attachment_name' => $message->attachment_name,
-                'attachment_url' => $message->attachment_path ? Storage::disk('public')->url($message->attachment_path) : null,
-                'is_image' => $message->attachment_mime ? str_starts_with($message->attachment_mime, 'image/') : false,
-                'read_at' => $message->read_at?->toDateTimeString(),
-                'created_at' => $message->created_at?->toDateTimeString(),
-                'created_label' => $message->created_at?->diffForHumans(),
-            ])
+            ->get();
+
+        $studentIds = Students::query()
+            ->whereIn('student_number', $inboxMessages->pluck('student_number')->filter()->unique())
+            ->pluck('student_id', 'student_number');
+        $participantIds = User::query()
+            ->whereIn('email', $inboxMessages->pluck('sender_email')->filter()->unique())
+            ->pluck('user_id', 'email');
+        $portalMessages = StudentPortalMessage::query()
+            ->with(['sender:user_id,name,email', 'recipient:user_id,name,email'])
+            ->where('instructor_user_id', $user->user_id)
+            ->whereIn('student_id', $studentIds->values())
+            ->oldest('created_at')
+            ->get();
+
+        $conversations = $inboxMessages
+            ->groupBy(fn (Message $message) => strtolower((string) $message->sender_email).'|'.(string) $message->student_number)
+            ->map(function ($messages, string $key) use ($participantIds, $portalMessages, $studentIds, $user) {
+                /** @var Message $latestInbox */
+                $latestInbox = $messages->first();
+                $participantId = $participantIds->get($latestInbox->sender_email);
+                $studentId = $studentIds->get($latestInbox->student_number);
+
+                $thread = $portalMessages
+                    ->filter(function (StudentPortalMessage $portalMessage) use ($participantId, $studentId, $user) {
+                        if (! $participantId || (int) $portalMessage->student_id !== (int) $studentId) {
+                            return false;
+                        }
+
+                        return in_array((int) $participantId, [
+                            (int) $portalMessage->sender_user_id,
+                            (int) $portalMessage->recipient_user_id,
+                        ], true) && in_array((int) $user->user_id, [
+                            (int) $portalMessage->sender_user_id,
+                            (int) $portalMessage->recipient_user_id,
+                        ], true);
+                    })
+                    ->map(fn (StudentPortalMessage $portalMessage) => $this->portalThreadMessage($portalMessage, (int) $user->user_id));
+
+                // Keep public/legacy inbox entries while avoiding the mirrored copy of portal messages.
+                $messages->each(function (Message $inboxMessage) use (&$thread) {
+                    $isMirrored = $thread->contains(function (array $threadMessage) use ($inboxMessage) {
+                        if ($threadMessage['direction'] !== 'incoming' || $threadMessage['body'] !== $inboxMessage->body) {
+                            return false;
+                        }
+
+                        return abs(strtotime((string) $threadMessage['created_at']) - $inboxMessage->created_at->timestamp) <= 5;
+                    });
+
+                    if (! $isMirrored) {
+                        $thread->push($this->inboxThreadMessage($inboxMessage));
+                    }
+                });
+                $thread = $thread->sort(function (array $left, array $right) {
+                    $timeComparison = strcmp((string) $left['created_at'], (string) $right['created_at']);
+
+                    if ($timeComparison !== 0) {
+                        return $timeComparison;
+                    }
+
+                    return ($left['direction'] === 'incoming' ? 0 : 1) <=> ($right['direction'] === 'incoming' ? 0 : 1);
+                })->values();
+
+                $latestThreadMessage = $thread->last();
+
+                return [
+                    'key' => sha1($key),
+                    'reply_message_id' => $latestInbox->message_id,
+                    'participant' => [
+                        'user_id' => $participantId,
+                        'name' => $latestInbox->sender_name,
+                        'email' => $latestInbox->sender_email,
+                        'role' => $latestInbox->sender_type,
+                        'student_number' => $latestInbox->student_number,
+                    ],
+                    'messages' => $thread->values(),
+                    'preview' => str($latestThreadMessage['body'] ?? '')->squish()->limit(82)->toString(),
+                    'latest_at' => $latestThreadMessage['created_at'] ?? null,
+                    'latest_label' => $latestThreadMessage['created_label'] ?? null,
+                    'unread' => $messages->contains(fn (Message $message) => ! $message->read_at),
+                ];
+            })
+            ->sortByDesc('latest_at')
             ->values();
 
         return Inertia::render('Messages/Index', [
             'title' => 'Messages',
-            'messages' => $messages,
+            'conversations' => $conversations,
             'currentUserRole' => $role,
         ]);
     }
@@ -108,7 +173,12 @@ class MessageController
         abort_unless((int) $message->instructor_user_id === (int) $user->user_id, 403);
 
         if (! $message->read_at) {
-            $message->update(['read_at' => now()]);
+            Message::query()
+                ->where('instructor_user_id', $user->user_id)
+                ->where('student_number', $message->student_number)
+                ->where('sender_email', $message->sender_email)
+                ->whereNull('read_at')
+                ->update(['read_at' => now()]);
             $this->logActivity('update', 'messages', 'Marked instructor inbox message '.$message->message_id.' as read');
         }
 
@@ -142,7 +212,7 @@ class MessageController
             'recipient_user_id' => $recipientUserId,
             'sender_role' => 'instructor',
             'instructor_user_id' => $message->instructor_user_id,
-            'subject' => 'Instructor conversation',
+            'subject' => 'Re: '.($message->subject ?: 'Instructor conversation'),
             'body' => $validated['body'],
         ]);
 
@@ -163,6 +233,38 @@ class MessageController
             'table_name' => $tableName,
             'description' => $description,
         ]);
+    }
+
+    private function inboxThreadMessage(Message $message): array
+    {
+        return [
+            'id' => 'inbox-'.$message->message_id,
+            'direction' => 'incoming',
+            'sender_name' => $message->sender_name,
+            'body' => $message->body,
+            'attachment_name' => $message->attachment_name,
+            'attachment_url' => $message->attachment_path ? Storage::disk('public')->url($message->attachment_path) : null,
+            'is_image' => $message->attachment_mime ? str_starts_with($message->attachment_mime, 'image/') : false,
+            'created_at' => $message->created_at?->toDateTimeString(),
+            'created_label' => $message->created_at?->diffForHumans(),
+        ];
+    }
+
+    private function portalThreadMessage(StudentPortalMessage $message, int $currentUserId): array
+    {
+        $attachmentExtension = strtolower(pathinfo((string) $message->attachment_name, PATHINFO_EXTENSION));
+
+        return [
+            'id' => 'portal-'.$message->student_portal_message_id,
+            'direction' => (int) $message->sender_user_id === $currentUserId ? 'outgoing' : 'incoming',
+            'sender_name' => $message->sender?->name,
+            'body' => $message->body,
+            'attachment_name' => $message->attachment_name,
+            'attachment_url' => $message->attachment_path ? Storage::disk('public')->url($message->attachment_path) : null,
+            'is_image' => in_array($attachmentExtension, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true),
+            'created_at' => $message->created_at?->toDateTimeString(),
+            'created_label' => $message->created_at?->diffForHumans(),
+        ];
     }
 
     private function instructorOptions()

@@ -208,6 +208,21 @@ test('instructor inbox replies create student portal replies', function () {
         ->and($reply->subject)->toBe('Re: Need help')
         ->and($reply->body)->toBe('Please attend the consultation.');
 
+    $this->actingAs($fixture['instructorUser'])
+        ->withSession(['instructor_verified' => true])
+        ->get(route('admin.messages.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Messages/Index')
+            ->has('conversations', 1)
+            ->where('conversations.0.participant.name', 'Andrea Santos')
+            ->has('conversations.0.messages', 2)
+            ->where('conversations.0.messages.0.direction', 'incoming')
+            ->where('conversations.0.messages.0.body', 'Please reply.')
+            ->where('conversations.0.messages.1.direction', 'outgoing')
+            ->where('conversations.0.messages.1.body', 'Please attend the consultation.')
+        );
+
     $this->assertDatabaseHas('activity_logs', [
         'user_id' => $fixture['instructorUser']->user_id,
         'action' => 'create',

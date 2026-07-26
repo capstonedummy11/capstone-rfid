@@ -15,6 +15,7 @@ use App\Models\Students;
 use App\Services\CompreFaceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -664,6 +665,21 @@ class StudentsController
 
     private function attendancePayload($attendance): array
     {
+        $sessionId = DB::table('attendance_sessions')
+            ->where('schedule_id', $attendance->schedule_id)
+            ->whereDate('date', $attendance->date)
+            ->where('room', $attendance->room)
+            ->where('subject_code', $attendance->subject_code)
+            ->orderByDesc('attendance_id')
+            ->value('attendance_id');
+        $evidence = $sessionId
+            ? DB::table('attendance_logs')
+                ->where('attendance_id', $sessionId)
+                ->where('student_id', $attendance->student_id)
+                ->orderByDesc('id')
+                ->first(['id', 'time_in_face_path', 'time_out_face_path', 'verification_method'])
+            : null;
+
         return [
             'attendance_id' => $attendance->attendance_id,
             'date' => $attendance->date?->format('Y-m-d'),
@@ -677,6 +693,9 @@ class StudentsController
             ]))),
             'duration' => $this->durationLabel($attendance->time_in, $attendance->time_out),
             'status' => $attendance->status,
+            'time_in_image_url' => $evidence?->time_in_face_path ? route('attendance.evidence', ['attendanceLog' => $evidence->id, 'moment' => 'time-in']) : null,
+            'time_out_image_url' => $evidence?->time_out_face_path ? route('attendance.evidence', ['attendanceLog' => $evidence->id, 'moment' => 'time-out']) : null,
+            'verification_method' => $evidence?->verification_method,
         ];
     }
 

@@ -15,11 +15,18 @@ Start with these docs when setting up a new machine:
 
 - Public landing page and message form.
 - Role-based dashboards for admin, instructor, clinic, registrar, and attendance console users.
-- RFID attendance control panel with room selection, RFID lookup, student tap recording, attendance logs, required student face verification, and instructor RFID/face override when student face verification cannot run.
+- RFID attendance control panel with room selection, RFID lookup, student tap recording, attendance logs, and optional face verification.
+- Attendance-panel student taps require active-class enrollment plus AWS face verification against the student's registered face images. The exact successful camera capture is stored as attendance evidence for both time-in and time-out without changing registrar-enrolled reference images. Students without a registered face require the active instructor's RFID approval. Verification creates a short-lived, one-use server-side grant required by the final attendance-write endpoint.
+- If the camera is unavailable, the active instructor can scan their RFID once to enable a camera bypass for the current scheduled class. The bypass is stored server-side, applies only to that attendance session, and ends when the class or panel session ends.
+- If the camera works but AWS Rekognition is unavailable, each time-in/time-out capture is stored as attendance evidence and the console shows a warning for that attendance event.
+- Admin and instructor attendance logs and the student/linked-parent attendance table show authorized time-in and time-out evidence thumbnails. Selecting a thumbnail opens a larger preview; RFID-only overrides display `Not captured`.
+- A first student tap creates a checked-in record. The second verified tap records time-out and finalizes the student as `present`, or preserves `late` when applicable. Ending the class with no student time-out marks the open record `absent` with completion reason `cutting`.
+- `attendance.late_threshold_minutes` controls how many minutes after scheduled start count as late. Admin Settings exposes this value and defaults it to 15 minutes.
 - Inventory and borrowing workflows for laboratory items.
 - Student, instructor, section, strand, subject, schedule, and laboratory management.
 - Admin user management for clinic, registrar, and admin accounts, with root-admin-only admin creation, updates, deletion, and promotion.
 - Registrar biometric enrollment for student and faculty RFID or face records.
+- Registrar student and instructor biometric enrollment supports RFID assignment plus either image-file upload or direct webcam capture, with capture preview/retake controls and the existing five-image limit.
 - Clinic dashboard, case logs, patient history, reports, emergency types, emergency hotline CRUD, and emergency alert handling.
 - Instructor verification by face, OTP, or security questions.
 - System settings for panel access, inventory availability, face recognition, security questions, and attendance behavior.
@@ -105,6 +112,88 @@ npm run lint
 
 Formats and lints frontend resources.
 
+## Updating the Production Server
+
+SSH into the server, then pull the latest `development` branch from the project directory:
+
+```bash
+cd /var/www/capstone-rfid
+git pull origin development
+```
+
+After a normal code update, run the production update steps:
+
+```bash
+cd /var/www/capstone-rfid
+git pull origin development
+composer install --no-dev --optimize-autoloader
+php artisan migrate --force
+php artisan optimize:clear
+php artisan config:cache
+php artisan view:cache
+NODE_OPTIONS=--max-old-space-size=2048 npm install
+NODE_OPTIONS=--max-old-space-size=2048 npm run build
+sudo chown -R ubuntu:www-data storage bootstrap/cache public/build
+sudo find storage bootstrap/cache -type d -exec chmod 775 {} \;
+sudo find storage bootstrap/cache -type f -exec chmod 664 {} \;
+sudo chmod -R g+s storage bootstrap/cache
+sudo systemctl restart php8.4-fpm
+sudo systemctl restart nginx
+```
+
+Use `php artisan migrate --force` for production schema updates. Do **not** run `php artisan migrate:fresh --seed` on the production server because it drops all existing database tables and data.
+
+### Deleting Saved Face Images
+
+For one student or instructor, use the Registrar Biometric Enrollment page at `/registrar/biometric-enrollment` and select the delete/remove action beside the image. This is the preferred method because it deletes the file and removes its database reference together.
+
+Face images are stored on the `public` Laravel disk under:
+
+- `storage/app/public/student_faces` - student enrollment images.
+- `storage/app/public/instructor_faces` - instructor enrollment images.
+- `storage/app/public/attendance_face_captures` - time-in/time-out evidence images.
+
+To remove **all student and instructor enrollment images** from the server, first back up the database and `storage/app/public`. Then run:
+
+```bash
+cd /var/www/capstone-rfid
+php artisan tinker
+```
+
+Paste these commands into Tinker one at a time:
+
+```php
+use Illuminate\Support\Facades\Storage;
+
+App\Models\Students::whereNotNull('face_images')->get()->each(function ($student) { collect($student->face_images ?? [])->each(fn ($path) => Storage::disk('public')->delete($path)); $student->update(['face_images' => []]); });
+
+App\Models\User::whereNotNull('face_images')->get()->each(function ($user) { collect($user->face_images ?? [])->each(fn ($path) => Storage::disk('public')->delete($path)); $user->update(['face_images' => []]); });
+
+exit
+```
+
+This keeps the database synchronized with the deleted enrollment files. It does not delete attendance evidence. Removing enrollment images means those users must enroll again before face verification can work.
+
+Attendance evidence is part of the attendance record and should normally be retained. If an authorized administrator must permanently remove **all attendance evidence images**, use Tinker separately:
+
+```bash
+cd /var/www/capstone-rfid
+php artisan tinker
+```
+
+```php
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+
+DB::table('attendance_logs')->select('time_in_face_path', 'time_out_face_path')->get()->each(function ($log) { collect([$log->time_in_face_path, $log->time_out_face_path])->filter()->each(fn ($path) => Storage::disk('public')->delete($path)); });
+
+DB::table('attendance_logs')->update(['time_in_face_path' => null, 'time_out_face_path' => null]);
+
+exit
+```
+
+This evidence deletion is permanent. Back up first and perform it only when required by the system's privacy or data-retention policy.
+
 ## Demo Seed Data
 
 The main database seeder calls:
@@ -117,7 +206,7 @@ The main database seeder calls:
 - `ClinicDashboardSeeder`
 - `MessageSeeder`
 
-Common seeded demo accounts include:
+Common seeded demo accounts include: test
 
 | Role       | Email                              | Password   |
 | ---------- | ---------------------------------- | ---------- |
@@ -147,6 +236,8 @@ Current state: this branch now includes the StudentParent Vue pages, portal cont
 ## README Maintenance Rule
 
 Whenever a meaningful project-facing discovery, limitation, setup step, account, schema change, route change, or implementation update is found while working on this project, update this `README.md` in the same change. Keep demo accounts, route notes, and public feature documentation current so the next work session starts from accurate project knowledge.
+
+When adding a new feature, review its audit requirements as part of the implementation. Record security-relevant and state-changing actions in the system activity log, including the actor, module, action, outcome, affected record, and request context where applicable. Add or reuse meaningful admin filters when the feature introduces a new module, action, role, or affected record type. Never place passwords, tokens, face images, request bodies, or other sensitive payloads in audit records. Add automated tests confirming that the feature's important actions create the expected logs.
 
 ## Online Class Module
 
@@ -181,6 +272,35 @@ Audit logs:
 - Logged events include create, update, reschedule, cancel, delete, facial-recognition requirement changes, student join, face pass/fail, attendance recorded, in-app notifications, and email notifications.
 - Admin log filters support search, date range, instructor id, user id, user role, section id, and action. CSV export is available at `/admin/online-class-logs/export`.
 
+System-wide audit logs:
+
+- Admins can review the immutable system activity trail at `/admin/activity-logs` and export the current filtered result as CSV from `/admin/activity-logs/export`.
+- Successful and failed state-changing web requests are recorded across all roles and modules with timestamp, actor snapshot, role, module, action, outcome, severity, affected record, route, HTTP method/status, IP address, and user agent. Viewing the audit log and using export endpoints are also audited.
+- Filters include free-text search, date range, module, action, actor user ID, role, outcome, severity, affected record type/ID, and IP address. Request bodies, passwords, tokens, face images, and other sensitive payloads are not stored.
+
+Each system activity log can contain:
+
+- Timestamp and a unique event ID for identifying and tracing the event.
+- Actor name, user ID, and role. Events without an authenticated actor are identified as System or Guest events.
+- Module and action, such as users, inventory, attendance, settings, messages, or online classes together with create, update, delete, export, cancel, or join actions.
+- Outcome (`success` or `failure`) and severity (`info`, `warning`, or `error`).
+- Affected record type and record ID when one can be determined from the request route.
+- A short event description and the Laravel route that handled the request.
+- HTTP method and response status code.
+- Originating IP address and browser/device user-agent information.
+
+Available system activity-log filters:
+
+- Free-text search across descriptions, actions, modules, actors, emails, event IDs, and routes.
+- From/to date range.
+- Module and action.
+- Actor user ID and role.
+- Outcome and severity.
+- Affected record type and record ID.
+- Exact IP address.
+
+For privacy and security, the system activity log does not store request bodies, passwords, access tokens, face images, or other sensitive payloads. Older activity-log records created before the expanded audit schema may contain fewer details than newly recorded events.
+
 System setting:
 
 - `online_class.face_recognition_enabled_by_default` controls the default Require Facial Recognition toggle for new online classes.
@@ -204,7 +324,7 @@ Known limitations:
 - The Online Class join endpoint also validates the submitted face image server-side before recording attendance, so a plain `face_verified` flag is not accepted for required-face classes.
 - The log export is CSV, which Excel can open. A native `.xlsx` export is not implemented.
 - Student/parent notification center exists at `/student-parent/notifications` and supports marking notifications as read.
-- Student/parent and instructor inbox messages work as chat-style conversations with no visible subject field. Stored message subjects are generated internally for compatibility, student portal messages remain encrypted, and public/student messages are mirrored into the instructor inbox.
+- Student/parent and instructor inbox messages work as private Messenger-style conversations with a searchable conversation list, complete chronological incoming/outgoing reply history, unread indicators, attachment links, and a reply composer. Stored message subjects are generated internally for compatibility, student portal messages remain encrypted, and public/student messages are mirrored into the instructor inbox.
 - Parent accounts can switch between linked students on portal pages when more than one child is linked.
 - Online Class facial recognition can only be required when Face Rekognition is enabled and AWS Rekognition appears configured. Settings and Online Class forms warn and keep the toggle off when unavailable.
 - If an older required-face online class is joined while AWS Rekognition is unavailable, the student is allowed to join and the instructor receives one system inbox message per student/class.
@@ -233,6 +353,8 @@ Student portal unfinished items:
 - `/admin/online-classes` - instructor/admin online class management.
 - `/admin/online-class-logs` - admin-only online class audit logs.
 - `/admin/online-class-logs/export` - admin-only online class audit log CSV export.
+- `/admin/activity-logs` - admin-only system-wide activity log with advanced filters.
+- `/admin/activity-logs/export` - CSV export of the current filtered system activity log.
 - `/student-parent/dashboard` - student portal dashboard summary.
 - `/student-parent/profile` - student profile and password page.
 - `/student-parent/attendance` - student attendance history.
@@ -244,7 +366,7 @@ Student portal unfinished items:
 - `/admin/messages/{message}/reply` - assigned instructor reply back to the linked student portal thread.
 - `/admin/attendance/scanner` and `/admin/attendance/logs` - attendance tools.
 - `/admin/inventory` and `/admin/borrow` - inventory and borrowing.
-- `/attendance-control-panel/login` - console panel login. Public Student/Parent navigation should not show this link; authenticated staff/admin navigation exposes Panel Login for staff roles.
+- `/attendance-control-panel/login` - direct console panel login route. It is intentionally hidden from authenticated role navigation and remains available to dedicated attendance-panel devices by URL.
 - `/attendance-control-panel` - console attendance panel.
 - `/registrar/dashboard`, `/registrar/biometric-enrollment`, and `/registrar/instructor-face-enrollment` - registrar workflows.
 - `/clinic/dashboard` - clinic dashboard with alert response tools, emergency type management, and real clinic calendar events.
