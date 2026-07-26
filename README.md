@@ -206,7 +206,7 @@ The main database seeder calls:
 - `ClinicDashboardSeeder`
 - `MessageSeeder`
 
-Common seeded demo accounts include:
+Common seeded demo accounts include: test
 
 | Role       | Email                              | Password   |
 | ---------- | ---------------------------------- | ---------- |
