@@ -484,16 +484,25 @@ Roles that can use the shared Messenger:
 - Student.
 - Parent.
 
+Console accounts cannot use Messenger. Console access is intentionally limited to attendance-panel room operation, RFID scans, attendance session state, and emergency alerts.
+
 Basic Messenger flow:
 
 1. Login using any supported role.
 2. Open `/messages`.
-3. Search for the person you want to message.
+3. Search for the person you want to message by name, email, or role.
 4. Select the user or existing conversation.
-5. Type the message.
-6. Attach a file if needed.
+5. Type a message, attach a file, or do both.
+6. Review the selected file name if an attachment was chosen.
 7. Send the message.
 8. The recipient opens `/messages` to read and reply.
+
+Attachment behavior:
+
+- You can send text-only, attachment-only, or text-plus-attachment messages.
+- Supported attachments include PDF, Word, JPG, PNG, WebP, GIF, and text files within the configured upload limit.
+- Image attachments show inline inside the chat bubble like a photo message.
+- All attachments still use a protected download route, so only the sender or recipient can open them.
 
 Use Messenger for:
 
@@ -502,6 +511,7 @@ Use Messenger for:
 - Clinic contacting admin or registrar.
 - Registrar coordinating enrollment issues.
 - Instructor replying to student concerns.
+- Admin sending files or announcements to supported users.
 
 There is also a public message form:
 

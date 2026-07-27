@@ -182,10 +182,15 @@ class MessageController
                 'recipient_role' => $message->recipient?->role,
                 'subject' => $message->subject ?: 'Conversation',
                 'body' => $message->body,
-                'preview' => str($message->body)->squish()->limit(82)->toString(),
+                'preview' => str($message->body ?: $message->attachment_name ?: 'Attachment')->squish()->limit(82)->toString(),
                 'attachment_name' => $message->attachment_name,
                 'attachment_url' => $message->attachment_path ? route('messages.attachments.show', $message) : null,
-                'is_image' => $message->attachment_mime ? str_starts_with($message->attachment_mime, 'image/') : false,
+                'attachment_preview_url' => $message->attachment_path && $this->isImageAttachment($message)
+                    ? route('messages.attachments.show', ['message' => $message, 'preview' => 1])
+                    : null,
+                'attachment_mime' => $message->attachment_mime,
+                'attachment_size' => $message->attachment_size,
+                'is_image' => $this->isImageAttachment($message),
                 'read_at' => $message->read_at?->toDateTimeString(),
                 'created_at' => $message->created_at?->toDateTimeString(),
                 'created_label' => $message->created_at?->diffForHumans(),
@@ -211,10 +216,10 @@ class MessageController
 
         $validated = $request->validate([
             'recipient_user_id' => ['required', 'integer', 'exists:users,user_id', Rule::notIn([$user->user_id])],
-            'body' => ['required', 'string', 'max:5000'],
+            'body' => ['nullable', 'required_without:attachment', 'string', 'max:5000'],
             'subject' => ['nullable', 'string', 'max:255'],
             'student_id' => ['nullable', 'integer', 'exists:students,student_id'],
-            'attachment' => ['nullable', 'file', 'max:10240', 'mimes:pdf,doc,docx,jpg,jpeg,png,webp,txt'],
+            'attachment' => ['nullable', 'file', 'max:10240', 'mimes:pdf,doc,docx,jpg,jpeg,png,webp,gif,txt'],
         ]);
 
         $recipient = User::query()->findOrFail($validated['recipient_user_id']);
@@ -240,7 +245,7 @@ class MessageController
             'sender_role' => $role,
             'instructor_user_id' => strtolower((string) $recipient->role) === 'instructor' ? $recipient->user_id : null,
             'subject' => filled($validated['subject'] ?? null) ? $validated['subject'] : 'Conversation',
-            'body' => $validated['body'],
+            'body' => $validated['body'] ?? '',
             'attachment_path' => $attachmentPath,
             'attachment_name' => $attachmentName,
             'attachment_mime' => $attachmentMime,
@@ -275,6 +280,13 @@ class MessageController
             403,
         );
         abort_unless($message->attachment_path && Storage::disk('public')->exists($message->attachment_path), 404);
+
+        if ($request->boolean('preview') && $this->isImageAttachment($message)) {
+            return response()->file(Storage::disk('public')->path($message->attachment_path), [
+                'Content-Type' => $message->attachment_mime ?: 'image/*',
+                'Content-Disposition' => 'inline; filename="'.addslashes($message->attachment_name ?: 'message-image').'"',
+            ]);
+        }
 
         return Storage::disk('public')->download($message->attachment_path, $message->attachment_name ?: 'message-attachment');
     }
@@ -338,7 +350,12 @@ class MessageController
             'body' => $message->body,
             'attachment_name' => $message->attachment_name,
             'attachment_url' => $message->attachment_path ? Storage::disk('public')->url($message->attachment_path) : null,
-            'is_image' => $message->attachment_mime ? str_starts_with($message->attachment_mime, 'image/') : false,
+            'attachment_preview_url' => $message->attachment_path && $this->isInboxImageAttachment($message)
+                ? Storage::disk('public')->url($message->attachment_path)
+                : null,
+            'attachment_mime' => $message->attachment_mime,
+            'attachment_size' => $message->attachment_size,
+            'is_image' => $this->isInboxImageAttachment($message),
             'created_at' => $message->created_at?->toDateTimeString(),
             'created_label' => $message->created_at?->diffForHumans(),
         ];
@@ -355,6 +372,11 @@ class MessageController
             'body' => $message->body,
             'attachment_name' => $message->attachment_name,
             'attachment_url' => $message->attachment_path ? Storage::disk('public')->url($message->attachment_path) : null,
+            'attachment_preview_url' => $message->attachment_path && in_array($attachmentExtension, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true)
+                ? Storage::disk('public')->url($message->attachment_path)
+                : null,
+            'attachment_mime' => $message->attachment_mime,
+            'attachment_size' => $message->attachment_size,
             'is_image' => in_array($attachmentExtension, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true),
             'created_at' => $message->created_at?->toDateTimeString(),
             'created_label' => $message->created_at?->diffForHumans(),
@@ -384,7 +406,11 @@ class MessageController
     {
         return User::query()
             ->where('user_id', '!=', $currentUser?->user_id)
-            ->whereIn('role', $this->messageRoles())
+            ->where(function ($query) {
+                foreach ($this->messageRoles() as $role) {
+                    $query->orWhereRaw('LOWER(role) = ?', [$role]);
+                }
+            })
             ->orderBy('name')
             ->get(['user_id', 'name', 'email', 'role'])
             ->map(fn (User $user) => [
@@ -399,6 +425,28 @@ class MessageController
     private function messageRoles(): array
     {
         return ['admin', 'instructor', 'clinic', 'registrar', 'student', 'parent'];
+    }
+
+    private function isImageAttachment(StudentPortalMessage $message): bool
+    {
+        if ($message->attachment_mime && str_starts_with($message->attachment_mime, 'image/')) {
+            return true;
+        }
+
+        $extension = strtolower(pathinfo((string) $message->attachment_name, PATHINFO_EXTENSION));
+
+        return in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true);
+    }
+
+    private function isInboxImageAttachment(Message $message): bool
+    {
+        if ($message->attachment_mime && str_starts_with($message->attachment_mime, 'image/')) {
+            return true;
+        }
+
+        $extension = strtolower(pathinfo((string) $message->attachment_name, PATHINFO_EXTENSION));
+
+        return in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true);
     }
 
     private function currentStudentContext(Request $request): ?Students

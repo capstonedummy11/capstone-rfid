@@ -78,7 +78,7 @@ Route::post($staffLoginPath, [StaffLoginController::class, 'store'])
     ->name('staff.login.store');
 Route::get('/messages/new', [MessageController::class, 'create'])->name('messages.create');
 Route::post('/messages', [MessageController::class, 'store'])->name('messages.store');
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'role:admin,instructor,clinic,registrar,student,parent'])->group(function () {
     Route::get('/messages', [MessageController::class, 'index'])->name('messages.index');
     Route::post('/messages/conversation', [MessageController::class, 'sendConversationMessage'])->name('messages.conversation.store');
     Route::put('/messages/{message}/read', [MessageController::class, 'markRead'])->name('messages.read');

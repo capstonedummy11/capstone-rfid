@@ -239,39 +239,44 @@ Routes:
 
 Page names:
 
-- `Messages/Index.vue` - unified messenger for all authenticated roles.
+- `Messages/Index.vue` - unified messenger for authenticated non-console roles.
 
 Routes:
 
-- `/messages` - unified messenger inbox.
+- `/messages` - unified messenger inbox for admin, instructor, clinic, registrar, student, and parent users.
 - `/messages/conversation` - sends a new chat message.
 - `/messages/{message}/read` - marks a received message as read.
-- `/messages/{message}/attachment` - downloads a message attachment when the current user is sender or recipient.
+- `/messages/{message}/attachment` - downloads a message attachment when the current user is sender or recipient; image attachments can also be returned inline for chat preview.
 - `/student-parent/messages` - compatibility route that opens the same messenger for student and parent accounts.
 - `/admin/messages` - compatibility route that opens the same messenger for admin and instructor accounts.
 
 ### 1. User Search And Conversation Start
 
 1. Any authenticated admin, instructor, clinic, registrar, student, or parent opens Messenger.
-2. The page loads searchable recipient options from active user accounts except the current user.
-3. The user searches by name, email, or role.
-4. Selecting a user opens the existing conversation when previous messages exist, showing both sender and recipient history in the same chat room.
-5. If no previous conversation exists, selecting a user starts a new conversation draft.
-6. Parent accounts keep the selected-student context when a linked student is selected.
+2. Console users cannot open Messenger because console accounts are reserved for physical attendance-panel operation.
+3. The page loads searchable recipient options from message-capable user accounts except the current user.
+4. Console accounts are excluded from recipient search results.
+5. The user searches by name, email, or role.
+6. Selecting a user opens the existing conversation when previous messages exist, showing both sender and recipient history in the same chat room.
+7. If no previous conversation exists, selecting a user starts a new conversation draft.
+8. Parent accounts keep the selected-student context when a linked student is selected.
 
 ### 2. Chat Messages
 
-1. The sender enters a message body and optional attachment.
+1. The sender enters a message body, selects an attachment, or sends both.
 2. The message is saved in `student_portal_messages` with sender, recipient, sender role, optional student context, encrypted subject/body, and attachment metadata.
 3. Conversation lists group messages by the other user so both your sent messages and the other user's replies appear in one room.
 4. The chat view displays messages as sender/recipient bubbles newest conversation first and thread messages oldest to newest.
 5. A received message can be marked as read only by its recipient.
+6. Attachment-only messages are allowed; the sidebar preview falls back to the attachment name when the text body is empty.
 
 ### 3. Message Attachments
 
-1. Messenger accepts PDF, Word, image, text, and web image attachment types up to the configured upload limit.
-2. Attachments are stored on the public disk path but exposed through an authorized download route.
-3. Only the message sender or recipient can download the attachment.
+1. Messenger accepts PDF, Word, JPG, PNG, WebP, GIF, and text attachment types up to the configured upload limit.
+2. Attachments are stored with file path, original file name, MIME type, and file size metadata.
+3. Attachments are exposed through an authorized route, not through unrestricted chat access.
+4. Only the message sender or recipient can download the attachment.
+5. Image attachments render inline in the chat bubble, similar to a photo message, while still linking to the protected download route.
 
 ## Shared Reporting Flow
 

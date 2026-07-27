@@ -14,6 +14,7 @@ This README is written from the current source code. It intentionally excludes p
 | Face verification | Implemented with provider dependency | AWS Rekognition service, fallback/override paths, attendance evidence storage. |
 | Borrowing and inventory | Implemented | Borrow, item, inventory, laboratory controllers/pages/models. |
 | Student/parent portal | Implemented | Dashboard, profile, attendance, online classes, excuse letters, messages, notifications. |
+| Unified Messenger | Implemented for all non-console roles | Admin, instructor, clinic, registrar, student, and parent users can search recipients, chat, send attachments, and preview image attachments inline. |
 | Clinic and emergency | Implemented | Clinic dashboard/cases/patient histories/reports; emergency types/hotlines/alerts. |
 | Shared reports | Implemented as CSV exports | Role-specific report payloads and stream downloads. |
 | Schedule conflict detection | Missing | Schedule CRUD validates data but does not reject overlapping schedules. |
@@ -180,9 +181,18 @@ Online class notifications are stored in-app and can attempt email delivery. Ema
 
 ### Messages
 
-Authenticated users can use the unified Messenger at `/messages` for role-to-role conversations with optional attachments. The public `/messages/new` route supports inbound public messages.
+Admin, instructor, clinic, registrar, student, and parent users can use the unified Messenger at `/messages` for role-to-role conversations. Console accounts are intentionally excluded because they are limited to physical attendance-panel operation.
 
-Student/parent portal messages use portal-specific message records while shared Messenger routes support all authenticated roles.
+Messenger supports:
+
+- Recipient search by name, email, or role across message-capable users, excluding the current user and console accounts.
+- Existing conversation grouping, so both sent and received messages with the same person appear in one chat thread.
+- Text messages, attachment-only messages, or text-plus-attachment messages.
+- PDF, Word, image, GIF/WebP, and text file attachments within the configured upload limit.
+- Inline image previews for image attachments, with protected download links for all attachment types.
+- Read-state updates that only the recipient can apply.
+
+Student/parent portal messages use `student_portal_messages`; staff, student, and parent conversations share the same Messenger page and protected attachment-download route.
 
 ### Reports
 
@@ -221,8 +231,8 @@ Audit records should avoid sensitive request bodies, secrets, tokens, passwords,
 | --- | --- |
 | `/` | Student/parent login or role redirect. |
 | `/dashboard` | Role-based dashboard redirect. |
-| `/messages` | Unified authenticated Messenger. |
-| `/messages/new` | Public message creation. |
+| `/messages` | Unified authenticated Messenger for all non-console roles. |
+| `/messages/new` | Public message creation for inbound public/student-to-instructor messages. |
 | `/reports` | Shared role-aware reports. |
 | `/reports/export` | Shared role-aware CSV export. |
 | `/attendance-control-panel/login` | Console panel login. |

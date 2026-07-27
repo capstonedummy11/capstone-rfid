@@ -77,7 +77,7 @@ Messaging and portal tables:
 - `messages` - public/student-to-instructor and instructor inbox messages.
 - `parent_student_links` - parent account to student links.
 - `student_excuse_letters` - student/parent excuse letter submissions with parent approval and signature metadata.
-- `student_portal_messages` - authenticated Messenger conversations for students, parents, clinic, registrar, instructors, and admins.
+- `student_portal_messages` - authenticated Messenger conversations for students, parents, clinic, registrar, instructors, and admins; console users are excluded from Messenger.
 
 Online Class tables:
 
@@ -140,7 +140,10 @@ Messenger data behavior:
 - Student and parent messages may still include `student_id` for selected-student context.
 - `sender_user_id` and `recipient_user_id` define conversation privacy.
 - `attachment_path`, `attachment_name`, `attachment_mime`, and `attachment_size` store optional message attachment metadata.
+- Messenger allows text messages, attachment-only messages, and text-plus-attachment messages.
+- Messenger recipient search includes admin, instructor, clinic, registrar, student, and parent users, but excludes console accounts and the current user.
 - Messenger attachments are downloaded through an authorized route that allows only the sender or recipient.
+- Image attachments can be served inline for chat preview while still using the same authorization check.
 
 Reporting data behavior:
 

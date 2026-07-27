@@ -257,19 +257,24 @@ Demo script:
 
 ## Slide 20: Messenger Capabilities
 
-- Unified Messenger for authenticated roles
-- Search users
+- Unified Messenger for all authenticated non-console roles
+- Search users by name, email, or role
 - Start or open conversation
-- Send message
-- Add attachment
+- Send text-only, attachment-only, or text-plus-attachment messages
+- Add PDF, Word, image, GIF/WebP, or text attachments
+- Show image attachments inline like photo messages
 - Mark messages as read
-- Download authorized attachments
+- Download authorized attachments through protected links
+
+Console accounts do not use Messenger because they are limited to attendance-panel operation.
 
 Demo conversation:
 
 - Student sends message to instructor.
 - Instructor replies.
 - Both users see the conversation history.
+- Presenter sends an image attachment to show inline photo preview.
+- Presenter sends a document attachment to show protected file download.
 
 ## Slide 21: Online Class Capabilities
 

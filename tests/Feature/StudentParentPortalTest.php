@@ -194,6 +194,11 @@ test('authenticated users can search recipients and exchange attachment messages
         'email' => 'registrar.messages@example.com',
         'role' => 'registrar',
     ]);
+    $console = User::factory()->create([
+        'name' => 'Console User',
+        'email' => 'console.messages@example.com',
+        'role' => 'console',
+    ]);
 
     $this->actingAs($admin)
         ->get(route('messages.index'))
@@ -202,6 +207,10 @@ test('authenticated users can search recipients and exchange attachment messages
             ->component('Messages/Index')
             ->has('recipients', 2)
         );
+
+    $this->actingAs($console)
+        ->get(route('messages.index'))
+        ->assertForbidden();
 
     $this->actingAs($admin)
         ->post(route('messages.conversation.store'), [

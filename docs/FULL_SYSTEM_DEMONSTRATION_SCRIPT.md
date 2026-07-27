@@ -163,12 +163,17 @@ Demo steps:
 2. Login as instructor.
 3. Open Messenger.
 4. Reply to the student.
-5. Show conversation history.
+5. Search for another supported recipient by name, email, or role.
+6. Attach an image and send it as a photo-style chat message.
+7. Attach a document and send it as a downloadable file.
+8. Show conversation history.
 
 Talk track:
 
-- Messenger supports authenticated role-to-role communication.
-- Attachments are routed through protected download endpoints.
+- Messenger supports authenticated role-to-role communication for admin, instructor, clinic, registrar, student, and parent users.
+- Console users are excluded because they are limited to the attendance panel.
+- Messenger can send text-only, attachment-only, or text-plus-attachment messages.
+- Image attachments display inline like photos, while all attachment downloads remain protected so only the sender or recipient can open them.
 
 ## 8. Online Class Demo
 

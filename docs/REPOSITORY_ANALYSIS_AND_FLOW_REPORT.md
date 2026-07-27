@@ -51,7 +51,7 @@ The merge conflict pass preserved the attendance panel work from the attendance-
 | Online classes | Instructor/admin CRUD, join attendance, notifications, audit logs, exports. | Video meeting itself is external through meeting links. | `OnlineClassController`, services, pages. |
 | Student portal | Dashboard, profile, attendance, online classes, excuse letters, messages, notifications. | Notifications mostly focus on online classes. | `StudentsController`, `StudentParent/*` pages. |
 | Excuse letters | Create, attach files, parent approval, generated download. | Instructor/admin review workflow is not implemented. | `StudentsController`, portal pages. |
-| Messenger | Unified authenticated conversations with attachments; public message creation. | Full moderation/admin inbox tooling is limited. | `MessageController`, message pages. |
+| Messenger | Unified authenticated conversations for all non-console roles; recipient search by name/email/role; text-only, attachment-only, and text-plus-attachment messages; inline image previews; protected attachment downloads; public message creation. | Full moderation/admin inbox tooling is limited. | `MessageController`, message pages, messenger feature tests. |
 | Reports | Role-specific report pages and CSV export. | Native spreadsheet/chart export is not implemented. | `ReportController`, clinic reports. |
 | Clinic | Dashboard, case logs, patient histories, reports, emergency details. | Clinic scheduling/medicine inventory is not implemented. | `ClinicController`. |
 | Emergency | Emergency alert creation, types, hotlines, status updates, dispatch route. | Live SMS/external dispatch is not confirmed. | `EmergencyController`, clinic routes. |
@@ -70,9 +70,9 @@ The merge conflict pass preserved the attendance panel work from the attendance-
 ### Authenticated Shared Routes
 
 - `/messages`: unified Messenger.
-- `/messages/conversation`: conversation creation/access.
+- `/messages/conversation`: conversation creation and message sending for text, attachments, or both.
 - `/messages/{message}/read`: read state.
-- `/messages/{message}/attachment`: protected attachment download.
+- `/messages/{message}/attachment`: protected attachment download and authorized inline image preview.
 - `/reports`: shared reports for admin, clinic, registrar, instructor.
 - `/reports/export`: CSV export for shared reports.
 
