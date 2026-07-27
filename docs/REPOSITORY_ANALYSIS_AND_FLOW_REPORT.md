@@ -53,8 +53,8 @@ The merge conflict pass preserved the attendance panel work from the attendance-
 | Excuse letters | Create, attach files, parent approval, generated download. | Instructor/admin review workflow is not implemented. | `StudentsController`, portal pages. |
 | Messenger | Unified authenticated conversations for all non-console roles; recipient search by name/email/role; text-only, attachment-only, and text-plus-attachment messages; inline image previews; protected attachment downloads; public message creation. | Full moderation/admin inbox tooling is limited. | `MessageController`, message pages, messenger feature tests. |
 | Reports | Role-specific report pages and CSV export. | Native spreadsheet/chart export is not implemented. | `ReportController`, clinic reports. |
-| Clinic | Dashboard, case logs, patient histories, reports, emergency details. | Clinic scheduling/medicine inventory is not implemented. | `ClinicController`. |
-| Emergency | Emergency alert creation, types, hotlines, status updates, dispatch route. | Live SMS/external dispatch is not confirmed. | `EmergencyController`, clinic routes. |
+| Clinic | Dashboard, case logs, patient histories, reports, emergency details, MP3 alert sound notice on new dashboard emergencies. | Clinic scheduling/medicine inventory is not implemented. | `ClinicController`, `Clinic/Dashboard.vue`. |
+| Emergency | Emergency alert creation, types, hotlines, status updates, dispatch route, clinic dashboard sound for newly received alerts. | Live SMS/external dispatch is not confirmed. | `EmergencyController`, clinic routes, `public/sound/emergency-alert.mp3`. |
 | Activity logs | System activity log and export. | Coverage depends on middleware/controller logging paths. | `ActivityLogController`, model/migrations. |
 | Settings | Attendance threshold, panel access, inventory, face recognition, online class defaults. | No school branding/school information module found. | `SystemSettingsController`. |
 

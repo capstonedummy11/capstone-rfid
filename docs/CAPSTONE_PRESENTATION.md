@@ -303,6 +303,7 @@ Key demo point: student-created letters are not downloadable until linked parent
 
 - Emergency alert creation from attendance panel
 - Clinic dashboard alert monitoring
+- Clinic dashboard MP3 sound for newly received emergency alerts
 - Emergency type management
 - Emergency hotline records
 - Alert status updates
@@ -319,11 +320,12 @@ Demo script:
 2. Trigger an emergency alert.
 3. Login as clinic.
 4. Open clinic dashboard.
-5. Review alert details.
-6. Update alert status.
-7. Create a clinic case if needed.
-8. Create patient history from the case.
-9. Show clinic reports.
+5. Click or press any key once if the dashboard shows the alert-sound note.
+6. Review alert details and explain that new alerts can play `/sound/emergency-alert.mp3`.
+7. Update alert status.
+8. Create a clinic case if needed.
+9. Create patient history from the case.
+10. Show clinic reports.
 
 Important note: live SMS/text sending depends on provider configuration and is not confirmed as a complete external integration in the current source.
 

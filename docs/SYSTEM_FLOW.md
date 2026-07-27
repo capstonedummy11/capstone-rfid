@@ -328,6 +328,112 @@ Routes:
 - `/admin/attendance/scanner` - opens the admin/instructor scanner page.
 - `/admin/active-devices` - opens the combined Laboratories & Devices page.
 
+### Attendance Panel Rules Summary
+
+The attendance panel follows strict rules so a tap does not become official attendance unless the room, schedule, instructor, student, verification, and timing conditions are valid.
+
+#### Access And Session Rules
+
+| Rule | Behavior |
+| --- | --- |
+| Console-only panel | Only `console` users operate `/attendance-control-panel`. Other roles use their own dashboards and logs. |
+| Room required | The console user must select a room/laboratory before attendance can start. |
+| Panel PIN required | Panel login checks the selected room's panel-specific PIN when available; otherwise it checks the global default panel PIN. |
+| Instructor starts class | A class session starts only after the assigned instructor taps a valid instructor RFID. |
+| Active schedule required | The selected room, instructor, weekday, and current time must match an active schedule. |
+| One room context | The active panel session is tied to one selected room/laboratory. |
+| Session context stored | The panel stores active instructor, subject, section, room, schedule start time, schedule end time, and date. |
+
+#### Student Tap Eligibility Rules
+
+| Rule | Behavior |
+| --- | --- |
+| Student RFID required | The tap must match a registered student RFID. |
+| Class roster required | The student must belong to the active schedule's section. |
+| Same schedule/date uniqueness | One main attendance row is kept per student, schedule, and date. |
+| Verification grant required | The attendance write requires a short-lived one-use student verification grant. |
+| Grant is one-use | A face/fallback grant is consumed by the next valid student tap and cannot be reused for another tap. |
+| Invalid student tap | Unknown RFID, wrong section, missing grant, or invalid state is rejected or logged without creating official attendance. |
+
+#### Face Verification And Fallback Rules
+
+| Rule | Behavior |
+| --- | --- |
+| Face enabled | When face recognition is enabled, the student must pass face verification or use an approved fallback path before RFID attendance is recorded. |
+| Reference image source | Registrar-enrolled face images are the reference images. Attendance camera captures are stored separately as evidence. |
+| Missing face image | A student without reference face images may require instructor approval, depending on settings and fallback path. |
+| Provider unavailable | Captured evidence may still be stored, but attendance depends on the supported fallback/override rules. |
+| Instructor override | The active instructor can approve supported fallback or exception paths. |
+
+#### Check-in And Late Rules
+
+| Rule | Behavior |
+| --- | --- |
+| First valid tap | If no attendance row exists yet, the first valid student tap becomes official `Check-in`. |
+| Late threshold | Check-in is on time when it is within the schedule start time plus the configured late threshold. |
+| Default late threshold | The documented default late threshold is 15 minutes unless changed in system settings. |
+| Late check-in | A valid check-in after the threshold is marked `Late` for check-in status. |
+| Pending after check-in | After check-in, the final attendance status stays `Pending` until official checkout or session finalization. |
+| Room status after check-in | The student room status becomes `Inside`. |
+
+#### Temporary Exit And Return Rules
+
+| Rule | Behavior |
+| --- | --- |
+| Temporary movement window | Temporary exit/return is allowed only after check-in and before the official checkout window. |
+| Instructor approval required | Temporary exit/return requires the active instructor RFID before it is saved. |
+| Exit from inside | If the student is `Inside`, an approved temporary tap becomes `Temporary Exit`. |
+| Return from outside | If the student is `Outside`, an approved temporary tap becomes `Temporary Return`. |
+| Alternating movement | Temporary movement alternates between exit and return based on the current room status. |
+| Audit-only effect | Temporary Exit and Temporary Return are audit/tap log records and do not decide final attendance status. |
+| No approval | Without valid active-instructor approval, the temporary movement is rejected. |
+
+#### Checkout And Student Logout Rules
+
+| Rule | Behavior |
+| --- | --- |
+| Checkout window | The official checkout window starts 15 minutes before scheduled class end time. |
+| Temporary movement disabled | During the final checkout window, Temporary Exit and Temporary Return are disabled. |
+| First checkout-window tap | The first valid student tap inside the checkout window becomes official `Check-out`. |
+| Room status after checkout | The student room status becomes `Outside`. |
+| Final present status | On-time check-in plus official checkout becomes `Present`. |
+| Final late status | Late check-in plus official checkout becomes `Late`. |
+| Instructor Student Logout mode | The active instructor can put the panel in one-shot Student Logout mode. |
+| Forced early checkout | In Student Logout mode, the next valid student tap becomes official `Check-out` even before the normal checkout window. |
+| One-shot override | Student Logout mode resets after the next student tap. |
+
+#### Duplicate, Incomplete, And Absent Rules
+
+| Rule | Behavior |
+| --- | --- |
+| After checkout tap | A student tap after official checkout is recorded as `Ignored Tap`. |
+| Ignored tap safety | Ignored taps do not change check-in, checkout, room status, or final attendance status. |
+| Checked in but no checkout | A student with check-in but no official checkout becomes `Incomplete Attendance` after the session/allowed period ends. |
+| No valid check-in | A student with no valid check-in for the scheduled class is treated as `Absent` after the attendance period. |
+| Temporary movement does not rescue status | Temporary Exit or Temporary Return does not convert an incomplete attendance into present/late without official checkout. |
+
+#### Logging And Evidence Rules
+
+| Rule | Behavior |
+| --- | --- |
+| Main attendance row | `attendances` stores the official student result for the schedule/date. |
+| Tap log row | `attendance_logs` stores each RFID tap or validation event. |
+| Tap sequence | Tap logs preserve sequence, tap type, date/time, room/location, device/scanner ID, validation result, and remarks. |
+| Evidence storage | Attendance evidence is stored separately from registrar reference images. |
+| Evidence access | Attendance evidence preview routes are protected and only exposed to authorized users. |
+| Invalid taps logged | Invalid or rejected taps can be kept as audit evidence without changing official attendance. |
+
+#### Emergency Panel Rules
+
+| Rule | Behavior |
+| --- | --- |
+| Console emergency action | Emergency alerts can be created from the attendance panel. |
+| Emergency type required | The panel uses configured emergency types and default messages. |
+| Hotline metadata | If a hotline is selected, hotline metadata can be included with the alert. |
+| Clinic receives alert | The clinic dashboard receives and displays the emergency alert. |
+| Clinic sound | The clinic dashboard plays `/sound/emergency-alert.mp3` for newly received alerts after browser audio is enabled. |
+| Clinic follow-up | Clinic users can update alert status, dispatch response, create clinic cases, and create patient histories. |
+
 ### 1. Panel Login
 
 1. A console user opens `/attendance-control-panel/login`.
@@ -573,9 +679,12 @@ sequenceDiagram
     participant E as EmergencyController
     participant DB as Database
     participant C as Clinic User
+    participant B as Clinic Dashboard Browser
     P->>E: Submit emergency alert
     E->>DB: Save emergency_alert
     C->>DB: View alert on clinic dashboard
+    B->>DB: Poll dashboard alert data
+    B-->>C: Play /sound/emergency-alert.mp3 for newly received alert
     C->>E: Update alert status / dispatch
     E->>DB: Save status and dispatch metadata
     C->>DB: Create clinic case if treatment occurs
@@ -589,6 +698,15 @@ Clinic outputs:
 - `patient_histories` preserve longer-term medical history.
 - `emergency_hotlines` and `emergency_types` support clinic configuration.
 - Clinic reports aggregate alerts, cases, patient histories, response states, and severity/case-type data.
+
+Clinic dashboard sound behavior:
+
+- `resources/js/pages/Clinic/Dashboard.vue` polls for refreshed alert data while the clinic dashboard is open.
+- The page compares the newest `emergency_alert_id` against the latest alert already seen by the browser.
+- When a higher alert ID appears after initial page load, the browser plays `/sound/emergency-alert.mp3`.
+- The MP3 file is stored at `public/sound/emergency-alert.mp3`.
+- Browsers block audio before user interaction, so the dashboard shows a small note asking the clinic user to click or press any key once.
+- After sound is unlocked, the note disappears automatically.
 
 Live SMS or external dispatch should be treated as provider-dependent unless the deployed environment confirms a working integration.
 

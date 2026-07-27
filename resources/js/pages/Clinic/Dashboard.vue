@@ -1,6 +1,6 @@
 <script setup>
 import { router, useForm, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
     AlertTriangle,
     BellRing,
@@ -24,6 +24,12 @@ const props = defineProps({
 const page = usePage();
 const flashSuccess = computed(() => page.props.flash?.success);
 const editingTypeId = ref(null);
+const latestAlertId = ref(0);
+const audioUnlocked = ref(false);
+const emergencyAlertSoundPath = '/sound/emergency-alert.mp3';
+const showAudioNotice = computed(() => !audioUnlocked.value);
+let alertPollInterval = null;
+let alertAudio = null;
 
 const typeForm = useForm({
     name: '',
@@ -166,6 +172,82 @@ const ignoreAlert = (id) => {
         { preserveScroll: true },
     );
 };
+
+const highestAlertId = (alerts) =>
+    Math.max(
+        0,
+        ...(alerts ?? []).map((alert) => Number(alert.emergency_alert_id) || 0),
+    );
+
+const unlockAlertAudio = () => {
+    if (audioUnlocked.value || typeof window === 'undefined') return;
+
+    alertAudio ||= new Audio(emergencyAlertSoundPath);
+    alertAudio.preload = 'auto';
+
+    const previousVolume = alertAudio.volume;
+    alertAudio.volume = 0;
+    alertAudio
+        .play()
+        .then(() => {
+            alertAudio.pause();
+            alertAudio.currentTime = 0;
+            alertAudio.volume = previousVolume || 1;
+            audioUnlocked.value = true;
+        })
+        .catch(() => {
+            alertAudio.volume = previousVolume || 1;
+        });
+};
+
+const playEmergencySound = () => {
+    if (!audioUnlocked.value || !alertAudio) return;
+
+    alertAudio.pause();
+    alertAudio.currentTime = 0;
+    alertAudio.play().catch(() => {
+        audioUnlocked.value = false;
+    });
+};
+
+watch(
+    () => props.alerts,
+    (alerts) => {
+        const newestId = highestAlertId(alerts);
+        if (!latestAlertId.value) {
+            latestAlertId.value = newestId;
+            return;
+        }
+
+        if (newestId > latestAlertId.value) {
+            latestAlertId.value = newestId;
+            playEmergencySound();
+        }
+    },
+    { immediate: true, deep: true },
+);
+
+onMounted(() => {
+    window.addEventListener('click', unlockAlertAudio, { once: true });
+    window.addEventListener('keydown', unlockAlertAudio, { once: true });
+
+    alertPollInterval = window.setInterval(() => {
+        router.reload({
+            only: ['alerts', 'emergencyDetails', 'counts', 'calendarEvents'],
+            preserveScroll: true,
+            preserveState: true,
+        });
+    }, 10000);
+});
+
+onBeforeUnmount(() => {
+    window.removeEventListener('click', unlockAlertAudio);
+    window.removeEventListener('keydown', unlockAlertAudio);
+
+    if (alertPollInterval) {
+        window.clearInterval(alertPollInterval);
+    }
+});
 </script>
 
 <template>
@@ -195,6 +277,14 @@ const ignoreAlert = (id) => {
                     {{ flashSuccess }}
                 </p>
             </header>
+
+            <div
+                v-if="showAudioNotice"
+                class="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800"
+            >
+                Click anywhere or press any key once to enable emergency alert
+                sound.
+            </div>
 
             <section class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <article

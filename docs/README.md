@@ -15,7 +15,7 @@ This README is written from the current source code. It intentionally excludes p
 | Borrowing and inventory | Implemented | Borrow, item, inventory, laboratory controllers/pages/models. |
 | Student/parent portal | Implemented | Dashboard, profile, attendance, online classes, excuse letters, messages, notifications. |
 | Unified Messenger | Implemented for all non-console roles | Admin, instructor, clinic, registrar, student, and parent users can search recipients, chat, send attachments, and preview image attachments inline. |
-| Clinic and emergency | Implemented | Clinic dashboard/cases/patient histories/reports; emergency types/hotlines/alerts. |
+| Clinic and emergency | Implemented | Clinic dashboard/cases/patient histories/reports; emergency types/hotlines/alerts; clinic dashboard MP3 alert sound for newly received emergencies. |
 | Shared reports | Implemented as CSV exports | Role-specific report payloads and stream downloads. |
 | Schedule conflict detection | Missing | Schedule CRUD validates data but does not reject overlapping schedules. |
 | Full term/department/course management | Partial | Strands, sections, subjects, schedules, and school year fields exist; no dedicated term closing, department, curriculum, or course lifecycle module. |
@@ -210,6 +210,9 @@ Report scope:
 Clinic routes support:
 
 - Dashboard counts and emergency view.
+- Automatic clinic dashboard refresh for newly received emergency alerts.
+- MP3 emergency alert sound when a new emergency appears on the clinic dashboard.
+- A small browser-audio notice that disappears after the clinic user clicks or presses a key once to enable alert sound.
 - Case logs.
 - Patient histories.
 - Clinic reports and CSV export.
@@ -218,6 +221,8 @@ Clinic routes support:
 - Emergency alert status updates and dispatch actions.
 
 SMS/provider dispatch is not confirmed as a live external integration in the current source.
+
+The clinic emergency sound file is served from `public/sound/emergency-alert.mp3` and loaded in the browser as `/sound/emergency-alert.mp3`.
 
 ### Audit Logs
 
@@ -313,6 +318,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     A[Emergency alert] --> B[Clinic dashboard]
+    B --> S[Play emergency MP3 after browser audio is enabled]
     B --> C[Update alert status]
     B --> D[Create clinic case]
     D --> E[Create patient history]

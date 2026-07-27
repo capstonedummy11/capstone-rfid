@@ -619,8 +619,16 @@ Emergency alert flow from the panel:
 2. User selects or enters the emergency type/details.
 3. User submits the emergency alert.
 4. Clinic dashboard receives the alert.
-5. Clinic reviews the room, type, message, patient/student details when available, and status.
-6. Clinic updates the alert status as it is handled.
+5. If the clinic dashboard is already open, it refreshes alert data automatically and plays the emergency alert sound for a newly received alert.
+6. If the browser has not enabled audio yet, the clinic dashboard shows a small note asking the user to click anywhere or press any key once. After audio is enabled, the note disappears.
+7. Clinic reviews the room, type, message, patient/student details when available, and status.
+8. Clinic updates the alert status as it is handled.
+
+Emergency alert sound:
+
+- The sound file is stored at `public/sound/emergency-alert.mp3`.
+- The browser loads it from `/sound/emergency-alert.mp3`.
+- The sound is intended for newly received emergency alerts on the clinic dashboard, not for the initial page load.
 
 Emergency hotline/text-management flow:
 
@@ -911,6 +919,7 @@ Features:
 
 - Clinic dashboard.
 - Emergency alert monitoring.
+- Emergency alert sound for newly received clinic-dashboard alerts.
 - Emergency alert status updates.
 - Emergency dispatch action where available.
 - Clinic case logs.
@@ -925,13 +934,14 @@ Common tasks:
 
 1. Login as clinic.
 2. Open `/clinic/dashboard`.
-3. Review emergency alerts.
-4. Update alert status.
-5. Create case logs.
-6. Create or update patient histories.
-7. Maintain emergency types and hotlines.
-8. Use clinic reports.
-9. Use Messenger for coordination.
+3. Click anywhere or press any key once if the dashboard shows the alert-sound note.
+4. Review emergency alerts.
+5. Update alert status.
+6. Create case logs.
+7. Create or update patient histories.
+8. Maintain emergency types and hotlines.
+9. Use clinic reports.
+10. Use Messenger for coordination.
 
 ## 27. Student And Parent Daily Use
 
@@ -963,12 +973,13 @@ Clinic users login and go to:
 
 Clinic workflow:
 
-1. Review emergency alerts.
-2. Update alert status when handled.
-3. Create clinic cases when a patient is treated.
-4. Create patient history from case records when needed.
-5. Review clinic reports.
-6. Maintain emergency types and hotlines.
+1. Open the clinic dashboard and enable alert sound when the note appears.
+2. Review emergency alerts.
+3. Update alert status when handled.
+4. Create clinic cases when a patient is treated.
+5. Create patient history from case records when needed.
+6. Review clinic reports.
+7. Maintain emergency types and hotlines.
 
 ## Recommended First Demo Script
 

@@ -204,17 +204,20 @@ From console:
 From clinic:
 
 1. Open `/clinic/dashboard`.
-2. Review emergency alert.
-3. Update alert status.
-4. Open `/clinic/case-logs`.
-5. Create a clinic case.
-6. Open `/clinic/patient-history`.
-7. Create or review patient history.
-8. Open `/clinic/reports`.
+2. Click anywhere or press any key once if the emergency-sound notice is visible.
+3. Review emergency alert.
+4. Point out that newly received alerts play `/sound/emergency-alert.mp3` on the clinic dashboard.
+5. Update alert status.
+6. Open `/clinic/case-logs`.
+7. Create a clinic case.
+8. Open `/clinic/patient-history`.
+9. Create or review patient history.
+10. Open `/clinic/reports`.
 
 Talk track:
 
 - Emergency alert records and hotline records are managed in the app.
+- The clinic dashboard refreshes alert data and plays an MP3 sound for newly received emergency alerts after browser audio is enabled.
 - Live SMS/text sending depends on external provider configuration and is not confirmed as fully implemented in the current source.
 
 ## 10. Reports And Audit Demo
