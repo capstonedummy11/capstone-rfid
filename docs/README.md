@@ -76,7 +76,7 @@ After the app and database are already running, configure the operational data i
 
 There is no dedicated setup wizard in the current codebase.
 
-For a full click-by-click operating tutorial, see [docs/USER_OPERATIONS_TUTORIAL.md](docs/USER_OPERATIONS_TUTORIAL.md).
+For a full click-by-click operating tutorial, see [USER_OPERATIONS_TUTORIAL.md](USER_OPERATIONS_TUTORIAL.md).
 
 ## Core Modules
 
@@ -340,11 +340,11 @@ During this documentation and conflict-resolution pass:
 - Targeted attendance/student-parent feature tests were run.
 - Frontend production build was run.
 
-See [docs/REPOSITORY_ANALYSIS_AND_FLOW_REPORT.md](docs/REPOSITORY_ANALYSIS_AND_FLOW_REPORT.md) for the deeper feature inventory, flow verification, limitations, and recommendations.
+See [REPOSITORY_ANALYSIS_AND_FLOW_REPORT.md](REPOSITORY_ANALYSIS_AND_FLOW_REPORT.md) for the deeper feature inventory, flow verification, limitations, and recommendations.
 
-See [docs/CAPSTONE_PRESENTATION.md](docs/CAPSTONE_PRESENTATION.md) for editable presentation slide text. The generated PowerPoint is saved at `docs/capstone-rfid-system-presentation.pptx`.
+See [CAPSTONE_PRESENTATION.md](CAPSTONE_PRESENTATION.md) for editable presentation slide text. The generated PowerPoint is saved at `capstone-rfid-system-presentation.pptx`.
 
-For a presenter-friendly full demonstration sequence, see [docs/FULL_SYSTEM_DEMONSTRATION_SCRIPT.md](docs/FULL_SYSTEM_DEMONSTRATION_SCRIPT.md).
+For a presenter-friendly full demonstration sequence, see [FULL_SYSTEM_DEMONSTRATION_SCRIPT.md](FULL_SYSTEM_DEMONSTRATION_SCRIPT.md).
 
 ## Known Limitations And Recommendations
 

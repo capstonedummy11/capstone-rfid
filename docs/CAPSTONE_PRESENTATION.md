@@ -1,6 +1,6 @@
 # Full System Capabilities Presentation And Demonstration
 
-This file mirrors the generated editable PowerPoint at `docs/capstone-rfid-system-presentation.pptx`.
+This file mirrors the generated editable PowerPoint at `capstone-rfid-system-presentation.pptx`.
 
 ## Slide 1: RFID Attendance And School Operations System
 

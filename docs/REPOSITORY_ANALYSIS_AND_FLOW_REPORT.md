@@ -22,7 +22,7 @@ The merge conflict pass preserved the attendance panel work from the attendance-
 | Seeders | `database/seeders` |
 | Migrations | `database/migrations` |
 | Frontend pages | `resources/js/pages` |
-| Existing docs | `README.md`, `docs/*.md`, `database.md`, `system flow.md` |
+| Existing docs | `docs/README.md`, `docs/*.md`, `docs/DATABASE.md`, `docs/SYSTEM_FLOW.md` |
 | Tests | `tests/Feature`, `tests/Unit` |
 | Ignore rules | `.gitignore` |
 
