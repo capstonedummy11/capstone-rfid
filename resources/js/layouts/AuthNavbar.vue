@@ -25,7 +25,6 @@ import Reports from '@/components/Icon/Reports.vue';
 import RFID from '@/components/Icon/RFID.vue';
 import Schedule from '@/components/Icon/Schedule.vue';
 import Section from '@/components/Icon/Section.vue';
-import Trash from '@/components/Icon/Trash.vue';
 import Inventory from '@/components/Icon/Inventory.vue';
 
 const page = usePage();
@@ -236,11 +235,6 @@ const sections = [
                 text: 'Emergency Hotlines',
                 route: route('clinic.emergency-hotlines.index'),
                 roles: ['clinic'],
-            },
-            {
-                icon: Trash,
-                text: 'Trash',
-                roles: ['admin'],
             },
             {
                 icon: RFID,
