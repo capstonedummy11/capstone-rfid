@@ -35,4 +35,23 @@ return [
         ],
     ],
 
+    'compreface' => [
+        'url'     => env('COMPREFACE_URL', 'http://localhost:8000'),
+        'api_key' => env('COMPREFACE_API_KEY', ''),
+    ],
+
+    'aws_rekognition' => [
+        'key' => env('AWS_ACCESS_KEY_ID'),
+        'secret' => env('AWS_SECRET_ACCESS_KEY'),
+        'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
+        'similarity_threshold' => env('AWS_REKOGNITION_SIMILARITY_THRESHOLD', 90),
+    ],
+
+    'semaphore' => [
+        'key' => env('SEMAPHORE_API_KEY'),
+        'sender_name' => env('SEMAPHORE_SENDER_NAME'),
+        'endpoint' => env('SEMAPHORE_ENDPOINT', 'https://api.semaphore.co/api/v4/messages'),
+        'enabled' => env('SEMAPHORE_ENABLED', true),
+    ],
+
 ];

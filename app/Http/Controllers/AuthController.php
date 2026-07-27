@@ -8,23 +8,20 @@ use Illuminate\Support\Facades\Auth;
 
 class AuthController
 {
-    public function register(Request $request) {
-
-        //Validate
+    public function register(Request $request)
+    {
         $register = $request->validate([
-            'name' => ['required', 'max:255'], 
-            'email' => ['required', 'max:255', 'unique:users'], 
+            'name' => ['required', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'confirmed', 'min:6'],
-            'role' => ['required', 'in:admin,instructor'],
         ]);
 
-        //Register
+        $register['role'] = 'student';
+
         $user = User::create($register);
 
-        //Login
         Auth::login($user);
 
-        //Redirect
-        return redirect()->route('register')->with('success', 'Registered successfully!');
+        return redirect()->route('dashboard')->with('success', 'Registered successfully!');
     }
 }

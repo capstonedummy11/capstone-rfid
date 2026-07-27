@@ -119,7 +119,7 @@
                 <label class="mb-1 block text-sm font-medium text-slate-700">Section</label>
                 <select v-model="form.section_id" class="w-full rounded-md border border-slate-300 px-3 py-2">
                   <option value="">Unassigned</option>
-                  <option v-for="section in props.sectionOptions" :key="section.section_id" :value="String(section.section_id)">{{ section.section_name }}</option>
+                  <option v-for="section in props.sectionOptions" :key="section.section_id" :value="String(section.section_id)">{{ section.label }}</option>
                 </select>
               </div>
             </div>
@@ -164,6 +164,9 @@ interface Subject {
 interface SectionOption {
   section_id: string | number;
   section_name: string;
+  year_level?: string | number;
+  school_year?: string;
+  label: string;
 }
 
 interface InstructorOption {

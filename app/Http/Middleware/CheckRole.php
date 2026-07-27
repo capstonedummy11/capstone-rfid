@@ -8,12 +8,16 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CheckRole
 {
-  public function handle(Request $request, Closure $next, string $role): Response
+  public function handle(Request $request, Closure $next, string ...$roles): Response
   {
     $userRole = strtolower(trim((string) $request->user()?->role));
-    $requiredRole = strtolower(trim($role));
+    $allowedRoles = collect($roles)
+      ->flatMap(fn (string $role) => explode(',', $role))
+      ->map(fn (string $role) => strtolower(trim($role)))
+      ->filter()
+      ->all();
 
-    if (!$request->user() || $userRole !== $requiredRole) {
+    if (!$request->user() || !in_array($userRole, $allowedRoles, true)) {
       abort(403, 'Unauthorized.');
     }
 

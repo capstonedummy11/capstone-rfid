@@ -4,11 +4,14 @@ namespace App\Http\Controllers;
 use Illuminate\Routing\Controller;
 use Illuminate\Http\Request;
 use App\Models\Item;
+use App\Models\SystemSetting;
 
 class ItemController extends Controller
 {
     public function store(Request $request) 
     {
+        abort_unless(SystemSetting::boolean(SystemSetting::INVENTORY_ENABLED, false), 423, 'Inventory is currently disabled.');
+
         $request->validate([
             'barcode'          => 'required|string|unique:inventory_items,barcode',
             'name'        => 'required|string|max:255',
@@ -29,6 +32,8 @@ class ItemController extends Controller
     }
     public function update(Request $request, Item $item)
     {
+        abort_unless(SystemSetting::boolean(SystemSetting::INVENTORY_ENABLED, false), 423, 'Inventory is currently disabled.');
+
         $validated = $request->validate([
             'barcode'     => 'required|string|max:255',
             'name'        => 'required|string|max:255',
@@ -43,6 +48,8 @@ class ItemController extends Controller
     }
     public function destroy(Item $item)
     {
+        abort_unless(SystemSetting::boolean(SystemSetting::INVENTORY_ENABLED, false), 423, 'Inventory is currently disabled.');
+
         $item->delete();
         return back()->with('success', 'Item deleted successfully.');
     }

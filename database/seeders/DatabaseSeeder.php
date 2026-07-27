@@ -13,8 +13,12 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             UserSeeder::class,
+            EmergencySeeder::class,
             ComlabUserSeeder::class,
-            BorrowingSeeder::class,
+            DemoSystemSeeder::class,
+            StudentParentAccountSeeder::class,
+            ClinicDashboardSeeder::class,
+            MessageSeeder::class,
         ]);
     }
 }

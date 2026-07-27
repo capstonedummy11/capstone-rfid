@@ -27,7 +27,11 @@ class Attendance extends Model
         'time_end',
         'time_in',
         'time_out',
+        'check_in_status',
         'status',
+        'room_status',
+        'total_taps',
+        'remarks',
         'subject_code',
         'room'
     ];
@@ -53,6 +57,6 @@ class Attendance extends Model
 
     public function attendanceLogs(): HasMany
     {
-        return $this->hasMany(AttendanceLog::class, 'attendance_id', 'attendance_id');
+        return $this->hasMany(AttendanceLog::class, 'main_attendance_id', 'attendance_id');
     }
 }

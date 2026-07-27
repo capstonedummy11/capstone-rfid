@@ -1,9 +1,9 @@
 <template>
   <div class="flex h-[calc(100vh-64px)] overflow-hidden bg-slate-50">
     <!-- Left sidebar: Laboratory navigation -->
-    <aside class="flex w-60 shrink-0 flex-col border-r border-slate-200 bg-white shadow-sm">
+    <aside v-if="isAdmin" class="flex w-60 shrink-0 flex-col border-r border-slate-200 bg-white shadow-sm">
       <div class="border-b border-slate-100 px-4 py-4">
-        <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Laboratories</h2>
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Rooms</h2>
       </div>
       <nav class="flex-1 overflow-y-auto py-2">
         <button
@@ -15,7 +15,7 @@
               : 'text-slate-700 hover:bg-slate-50',
           ]"
         >
-          All Laboratories
+          All Rooms
         </button>
         <button
           v-for="lab in props.laboratories"
@@ -37,7 +37,7 @@
             ]"
           >{{ lab.status }}</span>
         </button>
-        <div v-if="props.laboratories.length === 0" class="px-4 py-4 text-xs text-slate-400">No laboratories found.</div>
+        <div v-if="props.laboratories.length === 0" class="px-4 py-4 text-xs text-slate-400">No rooms found.</div>
       </nav>
     </aside>
 
@@ -46,13 +46,14 @@
       <!-- Top bar -->
       <div class="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4 shadow-sm">
         <div>
-          <h1 class="text-xl font-bold text-slate-800">{{ selectedLaboratory ? selectedLaboratory.name : 'All Laboratories' }}</h1>
-          <p class="text-xs text-slate-400">Weekly schedule overview</p>
+          <h1 class="text-xl font-bold text-slate-800">{{ pageTitle }}</h1>
+          <p class="text-xs text-slate-400">{{ isAdmin ? 'Weekly schedule overview by room' : 'Your assigned weekly schedule' }}</p>
         </div>
         <button
+          v-if="isAdmin"
           @click="openAddModal"
           :disabled="selectedLaboratoryId === null"
-          :title="selectedLaboratoryId === null ? 'Select a laboratory first' : 'Add schedule'"
+          :title="selectedLaboratoryId === null ? 'Select a room first' : 'Add schedule'"
           class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
         >+ Add Schedule</button>
       </div>
@@ -90,11 +91,13 @@
                     <div
                       v-if="cell.type === 'start' && cell.schedule"
                       class="flex h-full w-full cursor-pointer flex-col gap-0.5 overflow-hidden rounded-md border border-blue-200 bg-blue-50 px-2 py-1.5 transition hover:border-blue-400 hover:bg-blue-100"
+                      :class="{ 'cursor-default hover:border-blue-200 hover:bg-blue-50': !isAdmin }"
                       @click="openEditModal(cell.schedule)"
                     >
                       <span class="truncate text-[11px] font-semibold text-blue-800 leading-tight">{{ cell.schedule.subject_code || 'No subject' }}</span>
                       <span class="truncate text-[10px] text-blue-600 leading-tight">{{ cell.schedule.section_name || '-' }}</span>
                       <span class="truncate text-[10px] text-slate-500 leading-tight">{{ cell.schedule.instructor_name || '-' }}</span>
+                      <span class="truncate text-[10px] font-medium text-slate-600 leading-tight">Room: {{ cell.schedule.room || cell.schedule.laboratory_name || '-' }}</span>
                       <span class="mt-auto text-[9px] text-slate-400 leading-tight">{{ normalizeTime(cell.schedule.time_start) }} - {{ normalizeTime(cell.schedule.time_end) }}</span>
                     </div>
                   </td>
@@ -103,14 +106,14 @@
             </tbody>
           </table>
           <div v-if="filteredSchedules.length === 0" class="py-12 text-center text-slate-400">
-            {{ selectedLaboratoryId ? 'No schedules for this laboratory.' : 'Select a laboratory to view its schedule.' }}
+            {{ emptyMessage }}
           </div>
         </div>
       </div>
     </div>
 
     <!-- Modal -->
-    <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @click.self="closeModal">
+    <div v-if="showModal && isAdmin" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @click.self="closeModal">
       <div class="w-full max-w-lg overflow-hidden rounded-xl bg-white shadow-2xl">
         <div class="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <div>
@@ -140,7 +143,7 @@
             <label class="mb-1 block text-sm font-medium text-slate-700">Section <span class="text-rose-500">*</span></label>
             <select v-model="form.section_id" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100" required>
               <option value="">Select section</option>
-              <option v-for="sec in props.sectionOptions" :key="sec.section_id" :value="String(sec.section_id)">{{ sec.section_name }}</option>
+              <option v-for="sec in props.sectionOptions" :key="sec.section_id" :value="String(sec.section_id)">{{ sec.label }}</option>
             </select>
           </div>
           <div>
@@ -184,7 +187,7 @@
 </template>
 
 <script setup lang="ts">
-import { router, useForm } from '@inertiajs/vue3';
+import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
 // â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -215,6 +218,9 @@ interface Laboratory {
 interface SectionOption {
   section_id: string | number;
   section_name: string;
+  year_level?: string | number;
+  school_year?: string;
+  label: string;
 }
 
 interface SubjectOption {
@@ -238,7 +244,15 @@ const props = defineProps({
   sectionOptions: { type: Array as () => SectionOption[], default: () => [] },
   subjectOptions: { type: Array as () => SubjectOption[], default: () => [] },
   instructorOptions: { type: Array as () => InstructorOption[], default: () => [] },
+  currentUserRole: { type: String, default: '' },
+  canManageSchedules: { type: Boolean, default: false },
 });
+
+const page = usePage();
+const currentRole = computed(() =>
+  String(props.currentUserRole || page.props.auth?.user?.role || '').toLowerCase(),
+);
+const isAdmin = computed(() => props.canManageSchedules || currentRole.value === 'admin');
 
 // â”€â”€â”€ Days / time config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -266,7 +280,18 @@ const selectedLaboratory = computed(() =>
     : (props.laboratories.find((l) => l.laboratory_id === selectedLaboratoryId.value) ?? null),
 );
 
+const pageTitle = computed(() => {
+  if (!isAdmin.value) return 'My Schedule';
+  return selectedLaboratory.value ? selectedLaboratory.value.name : 'All Rooms';
+});
+
+const emptyMessage = computed(() => {
+  if (!isAdmin.value) return 'No schedules are assigned to your instructor account.';
+  return selectedLaboratoryId.value ? 'No schedules for this room.' : 'Select a room to view its schedule.';
+});
+
 const selectLaboratory = (id: number | null) => {
+  if (!isAdmin.value) return;
   selectedLaboratoryId.value = id;
   router.get(
     route('admin.schedules.index'),
@@ -278,7 +303,7 @@ const selectLaboratory = (id: number | null) => {
 // â”€â”€â”€ Filtered schedules â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const filteredSchedules = computed(() =>
-  selectedLaboratoryId.value === null
+  !isAdmin.value || selectedLaboratoryId.value === null
     ? props.schedules
     : props.schedules.filter((s) => Number(s.laboratory_id) === selectedLaboratoryId.value),
 );
@@ -356,6 +381,7 @@ const form = useForm({
 });
 
 const openAddModal = () => {
+  if (!isAdmin.value) return;
   if (selectedLaboratoryId.value === null) return;
   isEditing.value = false;
   selectedSchedule.value = null;
@@ -366,6 +392,7 @@ const openAddModal = () => {
 };
 
 const openEditModal = (schedule: Schedule) => {
+  if (!isAdmin.value) return;
   isEditing.value = true;
   selectedSchedule.value = schedule;
   selectedWeekdays.value = schedule.weekdays.split(/[,\-\/\s]+/).map((d) => d.trim()).filter(Boolean);
@@ -437,4 +464,3 @@ const deleteSchedule = (schedule: Schedule) => {
   });
 };
 </script>
-

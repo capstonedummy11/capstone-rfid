@@ -20,7 +20,14 @@
                                 name="email"
                                 v-model="form.email"
                                 class="h-[50px] w-full rounded-[10px] border-2 p-2"
+                                :class="{ 'border-red-500': form.errors.email }"
                             />
+                            <p
+                                v-if="form.errors.email"
+                                class="text-sm text-red-600"
+                            >
+                                {{ form.errors.email }}
+                            </p>
                         </div>
                         <div class="my-5 flex flex-col">
                             <label for="password">Password:</label>
@@ -30,6 +37,9 @@
                                     name="password"
                                     v-model="form.password"
                                     class="h-[50px] w-full rounded-[10px] border-2 p-2 pr-10"
+                                    :class="{
+                                        'border-red-500': form.errors.password,
+                                    }"
                                 />
                                 <button
                                     type="button"
@@ -42,6 +52,12 @@
                                     <EyeOff v-else />
                                 </button>
                             </div>
+                            <p
+                                v-if="form.errors.password"
+                                class="mt-2 text-sm text-red-600"
+                            >
+                                {{ form.errors.password }}
+                            </p>
                             <Link class="m-0 p-0 text-brand">
                                 Forgot Password?
                             </Link>
@@ -76,6 +92,6 @@ const form = useForm({
 });
 
 const submit = () => {
-    form.post('/login');
+    form.post(route('login.store'));
 };
 </script>
