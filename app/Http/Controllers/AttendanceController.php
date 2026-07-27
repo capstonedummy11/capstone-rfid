@@ -1283,7 +1283,7 @@ class AttendanceController
 
     public function controlPanel()
     {
-        $panelRoom = session('panel.room');
+        $panelRoom = $this->currentPanelRoom();
 
         if (! $panelRoom) {
             return redirect()->route('attendanceControlPanel.login');
@@ -1298,8 +1298,9 @@ class AttendanceController
     public function panelLogin()
     {
         $isConsole = strtolower(trim((string) Auth::user()?->role)) === 'console';
+        $panelRoom = $this->currentPanelRoom();
 
-        if ($isConsole && session('panel.room')) {
+        if ($isConsole && $panelRoom) {
             return redirect()->route('attendanceControlPanel');
         }
 
@@ -1374,6 +1375,7 @@ class AttendanceController
         ]);
 
         session(['panel.room' => $validated['room']]);
+        $this->openPanelRoomSession($validated['room'], $request->user());
 
         return response()->json(['success' => true]);
     }
@@ -1432,7 +1434,7 @@ class AttendanceController
 
     public function panelStatus(Request $request): JsonResponse
     {
-        $room = trim((string) ($request->input('room') ?? session('panel.room')));
+        $room = trim((string) ($request->input('room') ?? $this->currentPanelRoom()));
 
         if ($room === '') {
             return response()->json([
@@ -1458,6 +1460,62 @@ class AttendanceController
             'featureSettings' => SystemSetting::featureFlags(),
             'message' => $logoutRequired ? 'This panel was logged out by an administrator.' : null,
         ]);
+    }
+
+    private function currentPanelRoom(): ?string
+    {
+        $room = trim((string) session('panel.room', ''));
+
+        if ($room !== '') {
+            return $room;
+        }
+
+        $user = Auth::user();
+        if (strtolower(trim((string) $user?->role)) !== 'console') {
+            return null;
+        }
+
+        $query = RfidPanelSession::query()
+            ->whereNull('ended_at')
+            ->where('status', '!=', 'offline')
+            ->latest('panel_session_id');
+
+        $session = (clone $query)
+            ->where('opened_by_user_id', $user?->user_id)
+            ->first()
+            ?? $query->first();
+
+        $room = trim((string) ($session?->room ?? ''));
+        if ($room === '') {
+            return null;
+        }
+
+        session(['panel.room' => $room]);
+
+        return $room;
+    }
+
+    private function openPanelRoomSession(string $room, ?User $user): void
+    {
+        $session = RfidPanelSession::query()
+            ->where('room', $room)
+            ->whereNull('ended_at')
+            ->latest('panel_session_id')
+            ->first();
+
+        if (! $session) {
+            $session = new RfidPanelSession;
+            $session->room = $room;
+            $session->panel_id = SystemSetting::string(SystemSetting::PANEL_DEVICE_LABEL, 'Attendance Console');
+        }
+
+        $session->status = 'online';
+        $session->opened_by_user_id = $user?->user_id;
+        $session->is_listening = true;
+        $session->listening_started_at ??= now();
+        $session->paused_at = null;
+        $session->ended_at = null;
+        $session->save();
     }
 
     private function panelPayload(): array

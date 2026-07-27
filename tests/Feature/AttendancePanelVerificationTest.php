@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Instructor;
+use App\Models\RfidPanelSession;
 use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\Strand;
@@ -13,6 +14,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Carbon;
+use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
 
@@ -106,6 +108,52 @@ test('direct student tap cannot record attendance without server-side verificati
 
     $this->assertDatabaseCount('attendances', 0);
     $this->assertDatabaseCount('attendance_logs', 0);
+});
+
+test('attendance panel room remains unlocked on refresh until panel logout', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    $fixture = attendanceVerificationFixture();
+
+    $this->actingAs($fixture['console'])
+        ->postJson(route('attendanceControlPanel.room'), [
+            'room' => 'COMLAB-ATT',
+        ])
+        ->assertOk()
+        ->assertJsonPath('success', true);
+
+    $this->assertDatabaseHas('rfid_panel_sessions', [
+        'room' => 'COMLAB-ATT',
+        'opened_by_user_id' => $fixture['console']->user_id,
+        'status' => 'online',
+        'ended_at' => null,
+    ]);
+
+    $this->flushSession();
+
+    $this->actingAs($fixture['console'])
+        ->get(route('attendanceControlPanel'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('AttendanceControlPanel')
+            ->where('panelRoom', 'COMLAB-ATT')
+        );
+
+    $this->actingAs($fixture['console'])
+        ->withSession(['panel.room' => 'COMLAB-ATT'])
+        ->postJson(route('attendanceControlPanel.logout'), [
+            'room' => 'COMLAB-ATT',
+        ])
+        ->assertOk()
+        ->assertJsonPath('success', true);
+
+    expect(RfidPanelSession::query()
+        ->where('room', 'COMLAB-ATT')
+        ->whereNull('ended_at')
+        ->exists())->toBeFalse();
+
+    $this->actingAs($fixture['console'])
+        ->get(route('attendanceControlPanel'))
+        ->assertRedirect(route('attendanceControlPanel.login'));
 });
 
 test('student without a face requires the active instructor rfid before attendance is recorded', function () {
