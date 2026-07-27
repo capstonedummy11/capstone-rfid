@@ -10,6 +10,7 @@ const props = defineProps({
             borrowing_enabled: false,
             inventory_enabled: false,
             face_recognition_enabled: true,
+            demo_attendance_panel_enabled: false,
             online_class_face_recognition_default: true,
         }),
     },
@@ -25,6 +26,18 @@ const props = defineProps({
         default: () => ({
             absent_default_days: 15,
             late_threshold_minutes: 15,
+        }),
+    },
+    demoAttendancePanelSettings: {
+        type: Object,
+        default: () => ({
+            enabled: false,
+            rfids: {
+                professor_tap: 'RFID-INSTRUCTOR-SAMPLE',
+                student_tap: 'RFID-STUDENT-1101',
+                second_student_tap: 'RFID-STUDENT-1102',
+                second_professor_tap: 'RFID-INSTRUCTOR-SAMPLE',
+            },
         }),
     },
     securitySettings: {
@@ -58,6 +71,23 @@ const form = useForm({
         Boolean(
             props.featureSettings.online_class_face_recognition_default ?? true,
         ),
+    demo_attendance_panel_enabled: Boolean(
+        props.demoAttendancePanelSettings.enabled,
+    ),
+    demo_attendance_panel_rfids: {
+        professor_tap:
+            props.demoAttendancePanelSettings.rfids?.professor_tap ??
+            'RFID-INSTRUCTOR-SAMPLE',
+        student_tap:
+            props.demoAttendancePanelSettings.rfids?.student_tap ??
+            'RFID-STUDENT-1101',
+        second_student_tap:
+            props.demoAttendancePanelSettings.rfids?.second_student_tap ??
+            'RFID-STUDENT-1102',
+        second_professor_tap:
+            props.demoAttendancePanelSettings.rfids?.second_professor_tap ??
+            'RFID-INSTRUCTOR-SAMPLE',
+    },
     absent_default_days: Number(
         props.attendanceSettings.absent_default_days ?? 15,
     ),
@@ -186,6 +216,97 @@ const toggleFaceSetting = (field) => {
                             class="h-5 w-5 shrink-0 accent-brand"
                         />
                     </label>
+
+                    <div class="rounded-md border border-slate-200 p-4">
+                        <label class="flex items-start justify-between gap-4">
+                            <span class="min-w-0">
+                                <span
+                                    class="block text-sm font-bold text-slate-900"
+                                >
+                                    Demo Attendance Panel
+                                </span>
+                                <span class="block text-sm text-slate-500">
+                                    Shows manual demo tap buttons on the
+                                    attendance panel for testing professor and
+                                    student RFID flow.
+                                </span>
+                            </span>
+                            <input
+                                v-model="form.demo_attendance_panel_enabled"
+                                type="checkbox"
+                                class="mt-1 h-5 w-5 shrink-0 accent-brand"
+                            />
+                        </label>
+
+                        <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                            <label class="flex flex-col gap-1">
+                                <span
+                                    class="text-xs font-bold text-slate-500 uppercase"
+                                >
+                                    Professor Tap RFID
+                                </span>
+                                <input
+                                    v-model="
+                                        form.demo_attendance_panel_rfids
+                                            .professor_tap
+                                    "
+                                    type="text"
+                                    class="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:ring-2 focus:ring-brand focus:outline-none"
+                                />
+                            </label>
+                            <label class="flex flex-col gap-1">
+                                <span
+                                    class="text-xs font-bold text-slate-500 uppercase"
+                                >
+                                    Student Tap RFID
+                                </span>
+                                <input
+                                    v-model="
+                                        form.demo_attendance_panel_rfids
+                                            .student_tap
+                                    "
+                                    type="text"
+                                    class="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:ring-2 focus:ring-brand focus:outline-none"
+                                />
+                            </label>
+                            <label class="flex flex-col gap-1">
+                                <span
+                                    class="text-xs font-bold text-slate-500 uppercase"
+                                >
+                                    Second Student Tap RFID
+                                </span>
+                                <input
+                                    v-model="
+                                        form.demo_attendance_panel_rfids
+                                            .second_student_tap
+                                    "
+                                    type="text"
+                                    class="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:ring-2 focus:ring-brand focus:outline-none"
+                                />
+                            </label>
+                            <label class="flex flex-col gap-1">
+                                <span
+                                    class="text-xs font-bold text-slate-500 uppercase"
+                                >
+                                    Second Professor Tap RFID
+                                </span>
+                                <input
+                                    v-model="
+                                        form.demo_attendance_panel_rfids
+                                            .second_professor_tap
+                                    "
+                                    type="text"
+                                    class="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:ring-2 focus:ring-brand focus:outline-none"
+                                />
+                            </label>
+                        </div>
+                        <p
+                            v-if="form.errors.demo_attendance_panel_rfids"
+                            class="mt-2 text-xs text-red-600"
+                        >
+                            {{ form.errors.demo_attendance_panel_rfids }}
+                        </p>
+                    </div>
 
                     <label
                         class="flex items-center justify-between gap-4 rounded-md border border-slate-200 p-4"

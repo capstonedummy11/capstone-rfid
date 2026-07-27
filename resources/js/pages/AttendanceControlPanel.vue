@@ -25,6 +25,19 @@ const props = defineProps({
         default: () => ({
             borrowing_enabled: false,
             inventory_enabled: false,
+            demo_attendance_panel_enabled: false,
+        }),
+    },
+    demoAttendancePanel: {
+        type: Object,
+        default: () => ({
+            enabled: false,
+            rfids: {
+                professor_tap: '',
+                student_tap: '',
+                second_student_tap: '',
+                second_professor_tap: '',
+            },
         }),
     },
     demoInstructorRfids: {
@@ -110,6 +123,10 @@ let panelStatusTicker = null;
 const cameraRef = ref(null);
 const capturedPhotoUrl = ref(null);
 const panelFeatureSettings = ref({ ...(props.featureSettings ?? {}) });
+const demoAttendancePanelSettings = ref({
+    ...(props.demoAttendancePanel ?? {}),
+    rfids: { ...(props.demoAttendancePanel?.rfids ?? {}) },
+});
 
 const PANEL_RUNTIME_KEY = 'panelRuntime';
 
@@ -129,6 +146,25 @@ const STUDENT_INFO_VISIBLE_MS =
 const borrowingEnabled = computed(() =>
     Boolean(panelFeatureSettings.value?.borrowing_enabled),
 );
+const demoAttendanceEnabled = computed(
+    () =>
+        Boolean(panelFeatureSettings.value?.demo_attendance_panel_enabled) &&
+        Boolean(demoAttendancePanelSettings.value?.enabled),
+);
+const demoAttendanceRfids = computed(() => ({
+    professorTap: String(
+        demoAttendancePanelSettings.value?.rfids?.professor_tap ?? '',
+    ).trim(),
+    studentTap: String(
+        demoAttendancePanelSettings.value?.rfids?.student_tap ?? '',
+    ).trim(),
+    secondStudentTap: String(
+        demoAttendancePanelSettings.value?.rfids?.second_student_tap ?? '',
+    ).trim(),
+    secondProfessorTap: String(
+        demoAttendancePanelSettings.value?.rfids?.second_professor_tap ?? '',
+    ).trim(),
+}));
 const modeLabel = computed(() => {
     if (currentMode.value === 'attendance') return 'Attendance Mode';
     if (currentMode.value === 'borrowing' && borrowingEnabled.value)
@@ -182,13 +218,6 @@ const statusSubline = computed(() => {
     if (currentMode.value === 'borrowing' && borrowingEnabled.value)
         return 'Tap the professor card again to resume attendance or end the session.';
     return 'Students can now tap their RFID cards to be marked present.';
-});
-
-const actionButtonLabel = computed(() => {
-    if (!sessionActive.value) return 'Demo Instructor Tap';
-    if (currentMode.value === 'borrowing' && borrowingEnabled.value)
-        return 'Demo Borrower Tap';
-    return 'Demo Student Tap';
 });
 
 const emergencyGroups = computed(() => {
@@ -1620,6 +1649,12 @@ const checkPanelStatus = async () => {
         if (payload?.featureSettings) {
             panelFeatureSettings.value = payload.featureSettings;
         }
+        if (payload?.demoAttendancePanel) {
+            demoAttendancePanelSettings.value = {
+                ...payload.demoAttendancePanel,
+                rfids: { ...(payload.demoAttendancePanel.rfids ?? {}) },
+            };
+        }
         if (response.ok && payload?.logout_required) {
             await performForcedPanelLogout(payload.message);
         }
@@ -1836,51 +1871,26 @@ const toggleListening = () => {
 };
 
 const runDemoTap = () => {
-    if (!sessionActive.value) {
-        const demoInstructorRfid = props.demoInstructorRfids?.[0];
-        if (!demoInstructorRfid) {
-            showToast('warning', 'No seeded instructor RFID found');
-            return;
-        }
+    runConfiguredDemoTap('professorTap', 'Professor Tap RFID is not set.');
+};
 
-        handleRfidScan(demoInstructorRfid);
+const runConfiguredDemoTap = (key, missingMessage) => {
+    if (!demoAttendanceEnabled.value) return;
+
+    const rfid = demoAttendanceRfids.value[key];
+    if (!rfid) {
+        showToast('warning', missingMessage);
         return;
     }
 
-    if (currentMode.value === 'borrowing' && borrowingEnabled.value) {
-        const borrowerRfid =
-            demoStudentRfids.value[1] ?? demoStudentRfids.value[0];
-        if (!borrowerRfid) {
-            showToast('warning', 'No seeded student RFID found');
-            return;
-        }
-        handleRfidScan(borrowerRfid);
-        return;
-    }
-
-    if (demoStudentRfids.value.length === 0) {
-        showToast('warning', 'No seeded student RFID found');
-        return;
-    }
-
-    const nextRfid =
-        demoStudentRfids.value[
-            demoStudentCursor % demoStudentRfids.value.length
-        ];
-    demoStudentCursor += 1;
-    handleRfidScan(nextRfid);
+    handleRfidScan(rfid);
 };
 
 const demoProfessorRetap = () => {
-    // Re-tap active professor to open session controls.
-    const currentInstructorRfid =
-        activeProfessor.value?.rfid ?? props.demoInstructorRfids?.[0];
-    if (!currentInstructorRfid) {
-        showToast('warning', 'No seeded instructor RFID found');
-        return;
-    }
-
-    handleRfidScan(currentInstructorRfid);
+    runConfiguredDemoTap(
+        'secondProfessorTap',
+        'Second Professor Tap RFID is not set.',
+    );
 };
 
 const runDemoStudentTap = () => {
@@ -1889,17 +1899,19 @@ const runDemoStudentTap = () => {
         return;
     }
 
-    if (demoStudentRfids.value.length === 0) {
-        showToast('warning', 'No seeded student RFID found');
+    runConfiguredDemoTap('studentTap', 'Student Tap RFID is not set.');
+};
+
+const runSecondDemoStudentTap = () => {
+    if (!sessionActive.value || currentMode.value !== 'attendance') {
+        showToast('warning', 'Start attendance session first');
         return;
     }
 
-    const nextRfid =
-        demoStudentRfids.value[
-            demoStudentCursor % demoStudentRfids.value.length
-        ];
-    demoStudentCursor += 1;
-    handleRfidScan(nextRfid);
+    runConfiguredDemoTap(
+        'secondStudentTap',
+        'Second Student Tap RFID is not set.',
+    );
 };
 
 const runDemoBorrowTap = () => {
@@ -2264,34 +2276,37 @@ watch(
                             >
                                 Last RFID: {{ lastScanned || 'Waiting...' }}
                             </div>
-                            <div class="flex gap-2">
+                            <div
+                                v-if="demoAttendanceEnabled"
+                                class="flex flex-wrap justify-end gap-2"
+                            >
                                 <button
                                     type="button"
                                     class="rounded-xl bg-[#123456] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#0e2840]"
                                     @click="runDemoTap"
                                 >
-                                    {{ actionButtonLabel }}
-                                </button>
-                                <button
-                                    type="button"
-                                    class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50"
-                                    @click="demoProfessorRetap"
-                                >
-                                    Professor Re-Tap
+                                    Professor Tap
                                 </button>
                                 <button
                                     type="button"
                                     class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100"
                                     @click="runDemoStudentTap"
                                 >
-                                    Student Attendance
+                                    Student Tap
                                 </button>
                                 <button
                                     type="button"
-                                    class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-bold text-amber-700 transition hover:bg-amber-100"
-                                    @click="runDemoBorrowTap"
+                                    class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100"
+                                    @click="runSecondDemoStudentTap"
                                 >
-                                    Borrow Item Demo
+                                    Second Student Tap
+                                </button>
+                                <button
+                                    type="button"
+                                    class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50"
+                                    @click="demoProfessorRetap"
+                                >
+                                    Second Professor Tap
                                 </button>
                             </div>
                         </div>

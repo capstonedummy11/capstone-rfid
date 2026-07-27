@@ -440,6 +440,14 @@ The attendance panel follows strict rules so a tap does not become official atte
 | Clinic sound             | The clinic dashboard plays `/sound/emergency-alert.mp3` for newly received alerts after browser audio is enabled. |
 | Clinic follow-up         | Clinic users can update alert status, dispatch response, create clinic cases, and create patient histories.       |
 
+#### Demo Attendance Panel Rules
+
+- Demo attendance buttons are disabled by default.
+- Admins can enable Demo Attendance Panel from `/admin/settings`.
+- Admins can configure the RFID values for Professor Tap, Student Tap, Second Student Tap, and Second Professor Tap.
+- The attendance panel shows those demo buttons only while demo mode is enabled.
+- The open attendance panel receives demo enable/disable changes through the panel status refresh.
+
 ### 1. Panel Login
 
 1. A console user opens `/attendance-control-panel/login`.

@@ -21,6 +21,17 @@ class SystemSetting extends Model
 
     public const FACE_RECOGNITION_ENABLED = 'feature.face_recognition_enabled';
 
+    public const DEMO_ATTENDANCE_PANEL_ENABLED = 'feature.demo_attendance_panel_enabled';
+
+    public const DEMO_ATTENDANCE_PANEL_RFIDS = 'attendance.demo_panel_rfids';
+
+    public const DEFAULT_DEMO_ATTENDANCE_PANEL_RFIDS = [
+        'professor_tap' => 'RFID-INSTRUCTOR-SAMPLE',
+        'student_tap' => 'RFID-STUDENT-1101',
+        'second_student_tap' => 'RFID-STUDENT-1102',
+        'second_professor_tap' => 'RFID-INSTRUCTOR-SAMPLE',
+    ];
+
     public const ONLINE_CLASS_FACE_RECOGNITION_DEFAULT = 'online_class.face_recognition_enabled_by_default';
 
     public const PANEL_PIN_HASH = 'panel.pin_hash';
@@ -50,7 +61,22 @@ class SystemSetting extends Model
             'borrowing_enabled' => static::boolean(static::BORROWING_ENABLED, false),
             'inventory_enabled' => static::boolean(static::INVENTORY_ENABLED, false),
             'face_recognition_enabled' => static::boolean(static::FACE_RECOGNITION_ENABLED, true),
+            'demo_attendance_panel_enabled' => static::boolean(static::DEMO_ATTENDANCE_PANEL_ENABLED, false),
             'online_class_face_recognition_default' => static::boolean(static::ONLINE_CLASS_FACE_RECOGNITION_DEFAULT, true),
+        ];
+    }
+
+    public static function demoAttendancePanelSettings(): array
+    {
+        $rfids = static::array(static::DEMO_ATTENDANCE_PANEL_RFIDS, static::DEFAULT_DEMO_ATTENDANCE_PANEL_RFIDS);
+
+        return [
+            'enabled' => static::boolean(static::DEMO_ATTENDANCE_PANEL_ENABLED, false),
+            'rfids' => collect(static::DEFAULT_DEMO_ATTENDANCE_PANEL_RFIDS)
+                ->mapWithKeys(fn (string $default, string $key) => [
+                    $key => trim((string) ($rfids[$key] ?? $default)),
+                ])
+                ->all(),
         ];
     }
 
@@ -172,7 +198,7 @@ class SystemSetting extends Model
         static::query()->updateOrCreate(
             ['key' => $key],
             [
-                'value' => json_encode(array_values($value)),
+                'value' => json_encode($value),
                 'type' => 'array',
             ],
         );

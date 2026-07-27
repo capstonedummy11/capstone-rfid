@@ -1458,6 +1458,7 @@ class AttendanceController
             'logout_required' => $logoutRequired,
             'status' => $session?->status ?? 'offline',
             'featureSettings' => SystemSetting::featureFlags(),
+            'demoAttendancePanel' => SystemSetting::demoAttendancePanelSettings(),
             'message' => $logoutRequired ? 'This panel was logged out by an administrator.' : null,
         ]);
     }
@@ -1523,6 +1524,7 @@ class AttendanceController
         return [
             'rooms' => $this->panelRooms(),
             'panelDeviceLabel' => SystemSetting::string(SystemSetting::PANEL_DEVICE_LABEL, 'Attendance Console'),
+            'demoAttendancePanel' => SystemSetting::demoAttendancePanelSettings(),
             'demoInstructorRfids' => User::query()
                 ->whereRaw('LOWER(role) = ?', ['instructor'])
                 ->whereNotNull('rfid_tag')

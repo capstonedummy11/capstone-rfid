@@ -156,6 +156,42 @@ test('attendance panel room remains unlocked on refresh until panel logout', fun
         ->assertRedirect(route('attendanceControlPanel.login'));
 });
 
+test('attendance panel demo buttons are disabled by default and use configured rfids when enabled', function () {
+    $fixture = attendanceVerificationFixture();
+
+    $this->actingAs($fixture['console'])
+        ->withSession(['panel.room' => 'COMLAB-ATT'])
+        ->get(route('attendanceControlPanel'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('AttendanceControlPanel')
+            ->where('featureSettings.demo_attendance_panel_enabled', false)
+            ->where('demoAttendancePanel.enabled', false)
+        );
+
+    SystemSetting::setBoolean(SystemSetting::DEMO_ATTENDANCE_PANEL_ENABLED, true);
+    SystemSetting::setArray(SystemSetting::DEMO_ATTENDANCE_PANEL_RFIDS, [
+        'professor_tap' => 'PROF-ONE',
+        'student_tap' => 'STUDENT-ONE',
+        'second_student_tap' => 'STUDENT-TWO',
+        'second_professor_tap' => 'PROF-TWO',
+    ]);
+
+    $this->actingAs($fixture['console'])
+        ->withSession(['panel.room' => 'COMLAB-ATT'])
+        ->get(route('attendanceControlPanel'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('AttendanceControlPanel')
+            ->where('featureSettings.demo_attendance_panel_enabled', true)
+            ->where('demoAttendancePanel.enabled', true)
+            ->where('demoAttendancePanel.rfids.professor_tap', 'PROF-ONE')
+            ->where('demoAttendancePanel.rfids.student_tap', 'STUDENT-ONE')
+            ->where('demoAttendancePanel.rfids.second_student_tap', 'STUDENT-TWO')
+            ->where('demoAttendancePanel.rfids.second_professor_tap', 'PROF-TWO')
+        );
+});
+
 test('student without a face requires the active instructor rfid before attendance is recorded', function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
     $fixture = attendanceVerificationFixture();

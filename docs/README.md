@@ -144,6 +144,7 @@ Student tap behavior:
 - Instructor Student Logout mode can force the next student tap to official checkout.
 - Taps after official checkout are ignored and logged without changing the completed record.
 - When a live class ends, unfinished attendance is finalized according to the implemented session-ending rules.
+- Demo attendance buttons are disabled by default and can be enabled from admin settings with configurable professor/student RFID values.
 
 Attendance records keep the main state. Attendance logs keep per-tap evidence, sequence, room/location, validation result, verification method, and remarks.
 

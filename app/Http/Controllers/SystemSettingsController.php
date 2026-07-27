@@ -17,6 +17,7 @@ class SystemSettingsController
 
         return Inertia::render('Auth/Admin/SystemSettings', [
             'featureSettings' => SystemSetting::featureFlags(),
+            'demoAttendancePanelSettings' => SystemSetting::demoAttendancePanelSettings(),
             'faceRecognitionAvailability' => $faceAvailability,
             'attendanceSettings' => [
                 'absent_default_days' => SystemSetting::integer(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 15),
@@ -35,6 +36,12 @@ class SystemSettingsController
             'borrowing_enabled' => ['required', 'boolean'],
             'inventory_enabled' => ['required', 'boolean'],
             'face_recognition_enabled' => ['required', 'boolean'],
+            'demo_attendance_panel_enabled' => ['required', 'boolean'],
+            'demo_attendance_panel_rfids' => ['required', 'array'],
+            'demo_attendance_panel_rfids.professor_tap' => ['nullable', 'string', 'max:255'],
+            'demo_attendance_panel_rfids.student_tap' => ['nullable', 'string', 'max:255'],
+            'demo_attendance_panel_rfids.second_student_tap' => ['nullable', 'string', 'max:255'],
+            'demo_attendance_panel_rfids.second_professor_tap' => ['nullable', 'string', 'max:255'],
             'online_class_face_recognition_default' => ['required', 'boolean'],
             'absent_default_days' => ['nullable', 'integer', 'min:1', 'max:365'],
             'late_threshold_minutes' => ['required', 'integer', 'min:0', 'max:180'],
@@ -57,6 +64,15 @@ class SystemSettingsController
         SystemSetting::setBoolean(SystemSetting::BORROWING_ENABLED, (bool) $validated['borrowing_enabled']);
         SystemSetting::setBoolean(SystemSetting::INVENTORY_ENABLED, (bool) $validated['inventory_enabled']);
         SystemSetting::setBoolean(SystemSetting::FACE_RECOGNITION_ENABLED, (bool) $validated['face_recognition_enabled']);
+        SystemSetting::setBoolean(SystemSetting::DEMO_ATTENDANCE_PANEL_ENABLED, (bool) $validated['demo_attendance_panel_enabled']);
+        SystemSetting::setArray(
+            SystemSetting::DEMO_ATTENDANCE_PANEL_RFIDS,
+            collect(SystemSetting::DEFAULT_DEMO_ATTENDANCE_PANEL_RFIDS)
+                ->mapWithKeys(fn (string $default, string $key) => [
+                    $key => trim((string) ($validated['demo_attendance_panel_rfids'][$key] ?? $default)),
+                ])
+                ->all(),
+        );
         SystemSetting::setBoolean(SystemSetting::ONLINE_CLASS_FACE_RECOGNITION_DEFAULT, (bool) $validated['online_class_face_recognition_default']);
         if (array_key_exists('absent_default_days', $validated) && $validated['absent_default_days'] !== null) {
             SystemSetting::setInteger(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, (int) $validated['absent_default_days']);
