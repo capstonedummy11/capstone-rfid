@@ -288,7 +288,7 @@ Routes:
 
 Page names:
 
-- `Reports/Index.vue` - shared report dashboard for admin, clinic, registrar, and instructor users.
+- `Reports/Index.vue` - shared report dashboard for all non-console roles.
 
 Routes:
 
@@ -298,9 +298,9 @@ Routes:
 
 ### 1. Report Access
 
-1. Admin, clinic, registrar, and instructor users can open Reports from the authenticated sidebar.
+1. Admin, clinic, registrar, instructor, student, and parent users can open Reports from authenticated navigation.
 2. The shared page resolves the current user's role and returns only the report groups for that role.
-3. Student, parent, and console users do not have access to the shared reporting route.
+3. Console users do not have access to the shared reporting route.
 
 ### 2. Role-Specific Report Data
 
@@ -308,12 +308,14 @@ Routes:
 2. Clinic reports show clinic cases, patient histories, emergency alerts, statuses, severities, and case types.
 3. Registrar reports show student totals, active students, sections, strands, and enrollment log activity.
 4. Instructor reports are scoped to the signed-in instructor profile and show assigned schedules, handled sections, attendance, and online class activity.
+5. Student reports are scoped to the signed-in student record and show attendance, online class participation, excuse letters, and messages.
+6. Parent reports are scoped to linked students and show linked student attendance, online class participation, and excuse letters.
 
 ### 3. Filters, Charts, And Download
 
 1. The user can apply `date_from` and `date_to` filters.
 2. Summary cards and chart rows refresh from the filtered dataset.
-3. Charts are rendered on the page from real database counts.
+3. Charts are rendered on the page from real database counts using bar, donut, trend, and list styles.
 4. The Download CSV button exports the same filtered report rows shown in the detail table.
 
 ## Attendance Panel Flow

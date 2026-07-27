@@ -84,7 +84,7 @@ Route::middleware(['auth', 'role:admin,instructor,clinic,registrar,student,paren
     Route::put('/messages/{message}/read', [MessageController::class, 'markRead'])->name('messages.read');
     Route::get('/messages/{message}/attachment', [MessageController::class, 'downloadAttachment'])->name('messages.attachments.show');
 });
-Route::middleware(['auth', 'role:admin,instructor,clinic,registrar'])->group(function () {
+Route::middleware(['auth', 'role:admin,instructor,clinic,registrar,student,parent'])->group(function () {
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('/reports/export', [ReportController::class, 'export'])->name('reports.export');
 });

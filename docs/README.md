@@ -203,7 +203,7 @@ Student/parent portal messages use `student_portal_messages`; staff, student, an
 
 ### Reports
 
-The shared Reports module serves admin, clinic, registrar, and instructor roles with role-specific summary cards, charts, detail rows, filters, and CSV exports.
+The shared Reports module serves all non-console roles with role-specific summary cards, bar/donut/trend/list charts, detail rows, filters, and CSV exports.
 
 Report scope:
 
@@ -211,6 +211,8 @@ Report scope:
 - Clinic: cases, alerts, patient histories, response metrics.
 - Registrar: students by academic grouping and enrollment logs.
 - Instructor: assigned schedules, scoped attendance, online classes, and online attendance.
+- Student: own attendance, online class participation, excuse letters, and messages.
+- Parent: linked student attendance, online class participation, and excuse letters.
 
 ### Clinic And Emergency
 

@@ -56,6 +56,8 @@ class ReportController
             'clinic' => $this->clinicReport($filters),
             'registrar' => $this->registrarReport($filters),
             'instructor' => $this->instructorReport($request, $filters),
+            'student' => $this->studentReport($request, $filters),
+            'parent' => $this->parentReport($request, $filters),
             default => $this->adminReport($filters),
         };
     }
@@ -63,11 +65,15 @@ class ReportController
     private function adminReport(array $filters): array
     {
         $charts = [
-            $this->chart('Users by Role', $this->grouped('users', 'role')),
-            $this->chart('Students by Status', $this->grouped('students', 'status')),
-            $this->chart('Attendance by Status', $this->grouped('attendances', 'status', $filters, 'date')),
-            $this->chart('Borrowing by Status', $this->grouped('borrowings', 'status', $filters, 'borrowed_at')),
-            $this->chart('Inventory by Status', $this->grouped('inventory_items', 'status')),
+            $this->chart('Users by Role', $this->grouped('users', 'role'), 'donut'),
+            $this->chart('Students by Status', $this->grouped('students', 'status'), 'bar'),
+            $this->chart('Students by Year Level', $this->grouped('students', 'year_level'), 'donut'),
+            $this->chart('Attendance by Status', $this->grouped('attendances', 'status', $filters, 'date'), 'bar'),
+            $this->chart('Attendance Trend', $this->dateSeries('attendances', 'date', $filters), 'trend'),
+            $this->chart('Borrowing by Status', $this->grouped('borrowings', 'status', $filters, 'borrowed_at'), 'bar'),
+            $this->chart('Borrowing by Borrower Type', $this->grouped('borrowings', 'borrower_type', $filters, 'borrowed_at'), 'donut'),
+            $this->chart('Inventory by Status', $this->grouped('inventory_items', 'status'), 'donut'),
+            $this->chart('Clinic Cases by Status', $this->grouped('clinic_cases', 'status', $filters, 'occurred_at'), 'list'),
         ];
 
         return $this->payload('admin', 'Admin Reports', [
@@ -82,11 +88,13 @@ class ReportController
     private function clinicReport(array $filters): array
     {
         $charts = [
-            $this->chart('Clinic Cases by Status', $this->grouped('clinic_cases', 'status', $filters, 'occurred_at')),
-            $this->chart('Clinic Cases by Type', $this->grouped('clinic_cases', 'case_type', $filters, 'occurred_at')),
-            $this->chart('Emergency Alerts by Status', $this->grouped('emergency_alerts', 'status', $filters)),
-            $this->chart('Emergency Alerts by Severity', $this->grouped('emergency_alerts', 'severity', $filters)),
-            $this->chart('Patient Histories by Type', $this->grouped('patient_histories', 'patient_type', $filters, 'occurred_at')),
+            $this->chart('Clinic Cases by Status', $this->grouped('clinic_cases', 'status', $filters, 'occurred_at'), 'donut'),
+            $this->chart('Clinic Cases by Type', $this->grouped('clinic_cases', 'case_type', $filters, 'occurred_at'), 'bar'),
+            $this->chart('Clinic Case Trend', $this->dateSeries('clinic_cases', 'occurred_at', $filters), 'trend'),
+            $this->chart('Emergency Alerts by Status', $this->grouped('emergency_alerts', 'status', $filters), 'donut'),
+            $this->chart('Emergency Alerts by Severity', $this->grouped('emergency_alerts', 'severity', $filters), 'bar'),
+            $this->chart('Emergency Alert Trend', $this->dateSeries('emergency_alerts', 'created_at', $filters), 'trend'),
+            $this->chart('Patient Histories by Type', $this->grouped('patient_histories', 'patient_type', $filters, 'occurred_at'), 'list'),
         ];
 
         return $this->payload('clinic', 'Clinic Reports', [
@@ -103,11 +111,13 @@ class ReportController
         $strandRows = $this->joinedStudentGroup('strands', 'strand_id', 'strand_code');
         $sectionRows = $this->joinedStudentGroup('sections', 'section_id', 'section_name');
         $charts = [
-            $this->chart('Students by Strand', $strandRows),
-            $this->chart('Students by Section', $sectionRows),
-            $this->chart('Students by Status', $this->grouped('students', 'status')),
-            $this->chart('Enrollment Logs by Action', $this->grouped('registrar_enrollment_logs', 'action', $filters)),
-            $this->chart('Enrollment Logs by Person Type', $this->grouped('registrar_enrollment_logs', 'person_type', $filters)),
+            $this->chart('Students by Strand', $strandRows, 'bar'),
+            $this->chart('Students by Section', $sectionRows, 'list'),
+            $this->chart('Students by Year Level', $this->grouped('students', 'year_level'), 'donut'),
+            $this->chart('Students by Status', $this->grouped('students', 'status'), 'donut'),
+            $this->chart('Enrollment Logs by Action', $this->grouped('registrar_enrollment_logs', 'action', $filters), 'bar'),
+            $this->chart('Enrollment Logs by Person Type', $this->grouped('registrar_enrollment_logs', 'person_type', $filters), 'donut'),
+            $this->chart('Enrollment Log Trend', $this->dateSeries('registrar_enrollment_logs', 'created_at', $filters), 'trend'),
         ];
 
         return $this->payload('registrar', 'Registrar Reports', [
@@ -131,10 +141,13 @@ class ReportController
         $scopeOnlineAttendance = fn (Builder $query) => $query->whereIn('online_class_id', $onlineClassIds ?: [0]);
 
         $charts = [
-            $this->chart('Attendance by Status', $this->grouped('attendances', 'status', $filters, 'date', $scopeAttendance)),
-            $this->chart('Schedules by Subject', $this->grouped('schedules', 'subject_code', [], 'created_at', $scopeSchedules)),
-            $this->chart('Online Classes by Status', $this->grouped('online_classes', 'status', $filters, 'scheduled_date', $scopeOnline)),
-            $this->chart('Online Class Attendance', $this->grouped('online_class_attendances', 'status', $filters, 'created_at', $scopeOnlineAttendance)),
+            $this->chart('Attendance by Status', $this->grouped('attendances', 'status', $filters, 'date', $scopeAttendance), 'donut'),
+            $this->chart('Attendance by Subject', $this->grouped('attendances', 'subject_code', $filters, 'date', $scopeAttendance), 'bar'),
+            $this->chart('Attendance Trend', $this->dateSeries('attendances', 'date', $filters, $scopeAttendance), 'trend'),
+            $this->chart('Schedules by Subject', $this->grouped('schedules', 'subject_code', [], 'created_at', $scopeSchedules), 'list'),
+            $this->chart('Online Classes by Status', $this->grouped('online_classes', 'status', $filters, 'scheduled_date', $scopeOnline), 'donut'),
+            $this->chart('Online Class Attendance', $this->grouped('online_class_attendances', 'status', $filters, 'created_at', $scopeOnlineAttendance), 'bar'),
+            $this->chart('Online Class Trend', $this->dateSeries('online_classes', 'scheduled_date', $filters, $scopeOnline), 'trend'),
         ];
 
         return $this->payload('instructor', 'Instructor Reports', [
@@ -142,6 +155,58 @@ class ReportController
             $this->card('Attendance Records', $this->countTable('attendances', $filters, 'date', $scopeAttendance)),
             $this->card('Online Classes', $this->countTable('online_classes', $filters, 'scheduled_date', $scopeOnline)),
             $this->card('Handled Sections', $this->handledSections($instructorId)),
+        ], $charts, $filters);
+    }
+
+    private function studentReport(Request $request, array $filters): array
+    {
+        $studentIds = $this->studentIdsForUser($request);
+        $scopeStudents = fn (Builder $query) => $query->whereIn('student_id', $studentIds ?: [0]);
+        $scopeOnlineClasses = fn (Builder $query) => $query->whereIn(
+            'section_id',
+            $this->sectionIdsForStudents($studentIds) ?: [0],
+        );
+
+        $charts = [
+            $this->chart('My Attendance by Status', $this->grouped('attendances', 'status', $filters, 'date', $scopeStudents), 'donut'),
+            $this->chart('My Attendance by Subject', $this->grouped('attendances', 'subject_code', $filters, 'date', $scopeStudents), 'bar'),
+            $this->chart('My Attendance Trend', $this->dateSeries('attendances', 'date', $filters, $scopeStudents), 'trend'),
+            $this->chart('Online Class Attendance', $this->grouped('online_class_attendances', 'status', $filters, 'created_at', $scopeStudents), 'bar'),
+            $this->chart('Online Classes by Status', $this->grouped('online_classes', 'status', $filters, 'scheduled_date', $scopeOnlineClasses), 'donut'),
+            $this->chart('Excuse Letters by Status', $this->grouped('student_excuse_letters', 'status', $filters, 'created_at', $scopeStudents), 'list'),
+        ];
+
+        return $this->payload('student', 'Student Reports', [
+            $this->card('Attendance Records', $this->countTable('attendances', $filters, 'date', $scopeStudents)),
+            $this->card('Online Class Records', $this->countTable('online_class_attendances', $filters, 'created_at', $scopeStudents)),
+            $this->card('Excuse Letters', $this->countTable('student_excuse_letters', $filters, 'created_at', $scopeStudents)),
+            $this->card('Messages', $this->countTable('student_portal_messages', $filters, 'created_at', $scopeStudents)),
+        ], $charts, $filters);
+    }
+
+    private function parentReport(Request $request, array $filters): array
+    {
+        $studentIds = $this->studentIdsForUser($request);
+        $scopeStudents = fn (Builder $query) => $query->whereIn('student_id', $studentIds ?: [0]);
+        $scopeOnlineClasses = fn (Builder $query) => $query->whereIn(
+            'section_id',
+            $this->sectionIdsForStudents($studentIds) ?: [0],
+        );
+
+        $charts = [
+            $this->chart('Linked Student Attendance', $this->grouped('attendances', 'status', $filters, 'date', $scopeStudents), 'donut'),
+            $this->chart('Attendance by Subject', $this->grouped('attendances', 'subject_code', $filters, 'date', $scopeStudents), 'bar'),
+            $this->chart('Attendance Trend', $this->dateSeries('attendances', 'date', $filters, $scopeStudents), 'trend'),
+            $this->chart('Online Class Attendance', $this->grouped('online_class_attendances', 'status', $filters, 'created_at', $scopeStudents), 'bar'),
+            $this->chart('Upcoming/Created Online Classes', $this->grouped('online_classes', 'status', $filters, 'scheduled_date', $scopeOnlineClasses), 'list'),
+            $this->chart('Excuse Letters by Status', $this->grouped('student_excuse_letters', 'status', $filters, 'created_at', $scopeStudents), 'donut'),
+        ];
+
+        return $this->payload('parent', 'Parent Reports', [
+            $this->card('Linked Students', count($studentIds)),
+            $this->card('Attendance Records', $this->countTable('attendances', $filters, 'date', $scopeStudents)),
+            $this->card('Online Class Records', $this->countTable('online_class_attendances', $filters, 'created_at', $scopeStudents)),
+            $this->card('Excuse Letters', $this->countTable('student_excuse_letters', $filters, 'created_at', $scopeStudents)),
         ], $charts, $filters);
     }
 
@@ -163,10 +228,11 @@ class ReportController
         return compact('label', 'value', 'detail');
     }
 
-    private function chart(string $title, array $data): array
+    private function chart(string $title, array $data, string $type = 'bar'): array
     {
         return [
             'title' => $title,
+            'type' => $type,
             'data' => $data,
         ];
     }
@@ -192,6 +258,35 @@ class ReportController
             ->get()
             ->map(fn ($row) => [
                 'label' => $this->label((string) $row->label),
+                'value' => (int) $row->value,
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function dateSeries(string $table, string $dateColumn, array $filters = [], ?Closure $scope = null): array
+    {
+        if (! Schema::hasTable($table) || ! Schema::hasColumn($table, $dateColumn)) {
+            return [];
+        }
+
+        $query = DB::table($table);
+        $this->withoutDeleted($query, $table);
+        $this->applyDateRange($query, $table, $filters, $dateColumn);
+
+        if ($scope) {
+            $scope($query);
+        }
+
+        return $query
+            ->selectRaw("DATE({$dateColumn}) as label, COUNT(*) as value")
+            ->whereNotNull($dateColumn)
+            ->groupByRaw("DATE({$dateColumn})")
+            ->orderBy('label')
+            ->limit(14)
+            ->get()
+            ->map(fn ($row) => [
+                'label' => (string) $row->label,
                 'value' => (int) $row->value,
             ])
             ->values()
@@ -320,6 +415,52 @@ class ReportController
         return DB::table('online_classes')
             ->where('instructor_id', $instructorId)
             ->pluck('online_class_id')
+            ->all();
+    }
+
+    private function studentIdsForUser(Request $request): array
+    {
+        $user = $request->user();
+        $role = strtolower((string) $user?->role);
+
+        if ($role === 'parent' && Schema::hasTable('parent_student_links')) {
+            return DB::table('parent_student_links')
+                ->where('parent_user_id', $user?->user_id ?: 0)
+                ->pluck('student_id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+        }
+
+        if ($role !== 'student' || ! Schema::hasTable('students')) {
+            return [];
+        }
+
+        $query = DB::table('students');
+
+        if (Schema::hasColumn('students', 'email') && $user?->email) {
+            $query->where('email', $user->email);
+        } else {
+            $query->whereRaw('1 = 0');
+        }
+
+        return $query
+            ->pluck('student_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    private function sectionIdsForStudents(array $studentIds): array
+    {
+        if (! $studentIds || ! Schema::hasTable('students') || ! Schema::hasColumn('students', 'section_id')) {
+            return [];
+        }
+
+        return DB::table('students')
+            ->whereIn('student_id', $studentIds)
+            ->whereNotNull('section_id')
+            ->distinct()
+            ->pluck('section_id')
+            ->map(fn ($id) => (int) $id)
             ->all();
     }
 
