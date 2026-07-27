@@ -6,19 +6,19 @@ This README is written from the current source code. It intentionally excludes p
 
 ## Current Status
 
-| Area | Status | Evidence |
-| --- | --- | --- |
-| Merge conflicts | Resolved | No unresolved conflict markers were found in tracked source/docs checked during this pass. |
-| Application stack | Implemented | Laravel backend, Inertia routes, Vue pages, migrations, seeders, tests, Vite build. |
-| Attendance panel | Implemented with complex rules | `AttendanceController`, `AttendanceControlPanel.vue`, attendance panel feature tests. |
-| Face verification | Implemented with provider dependency | AWS Rekognition service, fallback/override paths, attendance evidence storage. |
-| Borrowing and inventory | Implemented | Borrow, item, inventory, laboratory controllers/pages/models. |
-| Student/parent portal | Implemented | Dashboard, profile, attendance, online classes, excuse letters, messages, notifications. |
-| Unified Messenger | Implemented for all non-console roles | Admin, instructor, clinic, registrar, student, and parent users can search recipients, chat, send attachments, and preview image attachments inline. |
-| Clinic and emergency | Implemented | Clinic dashboard/cases/patient histories/reports; emergency types/hotlines/alerts; clinic dashboard MP3 alert sound for newly received emergencies. |
-| Shared reports | Implemented as CSV exports | Role-specific report payloads and stream downloads. |
-| Schedule conflict detection | Missing | Schedule CRUD validates data but does not reject overlapping schedules. |
-| Full term/department/course management | Partial | Strands, sections, subjects, schedules, and school year fields exist; no dedicated term closing, department, curriculum, or course lifecycle module. |
+| Area                                   | Status                                | Evidence                                                                                                                                             |
+| -------------------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Merge conflicts                        | Resolved                              | No unresolved conflict markers were found in tracked source/docs checked during this pass.                                                           |
+| Application stack                      | Implemented                           | Laravel backend, Inertia routes, Vue pages, migrations, seeders, tests, Vite build.                                                                  |
+| Attendance panel                       | Implemented with complex rules        | `AttendanceController`, `AttendanceControlPanel.vue`, attendance panel feature tests.                                                                |
+| Face verification                      | Implemented with provider dependency  | AWS Rekognition service, fallback/override paths, attendance evidence storage.                                                                       |
+| Borrowing and inventory                | Implemented                           | Borrow, item, inventory, laboratory controllers/pages/models.                                                                                        |
+| Student/parent portal                  | Implemented                           | Dashboard, profile, attendance, online classes, excuse letters, messages, notifications.                                                             |
+| Unified Messenger                      | Implemented for all non-console roles | Admin, instructor, clinic, registrar, student, and parent users can search recipients, chat, send attachments, and preview image attachments inline. |
+| Clinic and emergency                   | Implemented                           | Clinic dashboard/cases/patient histories/reports; emergency types/hotlines/alerts; clinic dashboard MP3 alert sound for newly received emergencies.  |
+| Shared reports                         | Implemented as CSV exports            | Role-specific report payloads and stream downloads.                                                                                                  |
+| Schedule conflict detection            | Missing                               | Schedule CRUD validates data but does not reject overlapping schedules.                                                                              |
+| Full term/department/course management | Partial                               | Strands, sections, subjects, schedules, and school year fields exist; no dedicated term closing, department, curriculum, or course lifecycle module. |
 
 ## Primary Roles
 
@@ -35,13 +35,13 @@ This README is written from the current source code. It intentionally excludes p
 
 The root route `/` is the student/parent login entry when the visitor is not authenticated. Authenticated users are redirected by role:
 
-| Role | Destination |
-| --- | --- |
-| `admin`, `instructor` | `/admin/dashboard` |
-| `clinic` | `/clinic/dashboard` |
-| `console` | `/attendance-control-panel` |
-| `registrar` | `/registrar/dashboard` |
-| `student`, `parent` | `/student-parent/dashboard` |
+| Role                  | Destination                 |
+| --------------------- | --------------------------- |
+| `admin`, `instructor` | `/admin/dashboard`          |
+| `clinic`              | `/clinic/dashboard`         |
+| `console`             | `/attendance-control-panel` |
+| `registrar`           | `/registrar/dashboard`      |
+| `student`, `parent`   | `/student-parent/dashboard` |
 
 Staff users authenticate through the configured staff login route. Student and parent users authenticate from the public portal login.
 
@@ -58,6 +58,12 @@ The app can run from a minimal migrated database, but the repository seeders cre
 - `MessageSeeder`
 
 Because of those seeders, a seeded database contains sample users, console accounts, academic records, students, parent links, clinic data, emergency data, and messages. An unseeded database should be treated as empty except for schema-level defaults and whatever records an operator creates manually.
+
+Seeder shortcuts:
+
+- `php artisan db:seed` runs the normal full seed path.
+- `php artisan db:seed --class=SystemSeeder` seeds system reference records and demo operational data.
+- `php artisan db:seed --class=DataAccountSeeder` seeds login accounts, console accounts, and student/parent portal account links.
 
 ## Initial Configuration Flow
 
@@ -232,40 +238,40 @@ Audit records should avoid sensitive request bodies, secrets, tokens, passwords,
 
 ## Important Routes
 
-| Route | Purpose |
-| --- | --- |
-| `/` | Student/parent login or role redirect. |
-| `/dashboard` | Role-based dashboard redirect. |
-| `/messages` | Unified authenticated Messenger for all non-console roles. |
-| `/messages/new` | Public message creation for inbound public/student-to-instructor messages. |
-| `/reports` | Shared role-aware reports. |
-| `/reports/export` | Shared role-aware CSV export. |
-| `/attendance-control-panel/login` | Console panel login. |
-| `/attendance-control-panel` | Console attendance panel. |
-| `/attendance-evidence/{attendanceLog}/{moment}` | Protected attendance evidence preview. |
-| `/admin/dashboard` | Admin/instructor dashboard. |
-| `/admin/students` | Student management and instructor-scoped student view. |
-| `/admin/schedules` | Schedule management/viewing. |
-| `/admin/inventory` | Inventory management. |
-| `/admin/borrow` | Borrowing workflows. |
-| `/admin/active-devices` | Laboratories, panel access, panel monitoring, and force logout. |
-| `/admin/activity-logs` | System activity log. |
-| `/admin/online-classes` | Online class management. |
-| `/admin/online-class-logs` | Online class audit log. |
-| `/registrar/dashboard` | Registrar dashboard. |
-| `/registrar/biometric-enrollment` | Student RFID/face enrollment. |
-| `/registrar/instructor-face-enrollment` | Faculty RFID/face enrollment. |
-| `/clinic/dashboard` | Clinic dashboard and emergency overview. |
-| `/clinic/case-logs` | Clinic cases. |
-| `/clinic/patient-history` | Patient history records. |
-| `/clinic/reports` | Clinic-specific reports. |
-| `/clinic/emergency-hotlines` | Emergency hotline CRUD. |
-| `/student-parent/dashboard` | Student/parent portal dashboard. |
-| `/student-parent/attendance` | Student attendance history. |
-| `/student-parent/online-classes` | Student online classes. |
-| `/student-parent/excuse-letters` | Excuse letters. |
-| `/student-parent/messages` | Portal messages. |
-| `/student-parent/notifications` | Online class notifications. |
+| Route                                           | Purpose                                                                    |
+| ----------------------------------------------- | -------------------------------------------------------------------------- |
+| `/`                                             | Student/parent login or role redirect.                                     |
+| `/dashboard`                                    | Role-based dashboard redirect.                                             |
+| `/messages`                                     | Unified authenticated Messenger for all non-console roles.                 |
+| `/messages/new`                                 | Public message creation for inbound public/student-to-instructor messages. |
+| `/reports`                                      | Shared role-aware reports.                                                 |
+| `/reports/export`                               | Shared role-aware CSV export.                                              |
+| `/attendance-control-panel/login`               | Console panel login.                                                       |
+| `/attendance-control-panel`                     | Console attendance panel.                                                  |
+| `/attendance-evidence/{attendanceLog}/{moment}` | Protected attendance evidence preview.                                     |
+| `/admin/dashboard`                              | Admin/instructor dashboard.                                                |
+| `/admin/students`                               | Student management and instructor-scoped student view.                     |
+| `/admin/schedules`                              | Schedule management/viewing.                                               |
+| `/admin/inventory`                              | Inventory management.                                                      |
+| `/admin/borrow`                                 | Borrowing workflows.                                                       |
+| `/admin/active-devices`                         | Laboratories, panel access, panel monitoring, and force logout.            |
+| `/admin/activity-logs`                          | System activity log.                                                       |
+| `/admin/online-classes`                         | Online class management.                                                   |
+| `/admin/online-class-logs`                      | Online class audit log.                                                    |
+| `/registrar/dashboard`                          | Registrar dashboard.                                                       |
+| `/registrar/biometric-enrollment`               | Student RFID/face enrollment.                                              |
+| `/registrar/instructor-face-enrollment`         | Faculty RFID/face enrollment.                                              |
+| `/clinic/dashboard`                             | Clinic dashboard and emergency overview.                                   |
+| `/clinic/case-logs`                             | Clinic cases.                                                              |
+| `/clinic/patient-history`                       | Patient history records.                                                   |
+| `/clinic/reports`                               | Clinic-specific reports.                                                   |
+| `/clinic/emergency-hotlines`                    | Emergency hotline CRUD.                                                    |
+| `/student-parent/dashboard`                     | Student/parent portal dashboard.                                           |
+| `/student-parent/attendance`                    | Student attendance history.                                                |
+| `/student-parent/online-classes`                | Student online classes.                                                    |
+| `/student-parent/excuse-letters`                | Excuse letters.                                                            |
+| `/student-parent/messages`                      | Portal messages.                                                           |
+| `/student-parent/notifications`                 | Online class notifications.                                                |
 
 ## System Architecture
 

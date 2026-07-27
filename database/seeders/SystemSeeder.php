@@ -4,20 +4,16 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 
-class DatabaseSeeder extends Seeder
+class SystemSeeder extends Seeder
 {
     /**
-     * Seed the application's database.
+     * Seed system reference records and demo operational data.
      */
     public function run(): void
     {
-        // Keep the default seed order stable while the wrapper seeders remain available for partial seeding.
         $this->call([
-            UserSeeder::class,
             EmergencySeeder::class,
-            ComlabUserSeeder::class,
             DemoSystemSeeder::class,
-            StudentParentAccountSeeder::class,
             ClinicDashboardSeeder::class,
             MessageSeeder::class,
         ]);

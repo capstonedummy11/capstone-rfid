@@ -111,6 +111,12 @@ Important limitation: schedule creation validates fields, but the current source
 | Services    | `app/Services`         | Face recognition, online class audit, notifications, and related business services.                    |
 | Storage     | Laravel disks          | Face images, attendance evidence, message attachments, excuse-letter attachments, and generated files. |
 
+Seeder entry points:
+
+- `DatabaseSeeder` is the default full seed path used by normal `php artisan db:seed` and migration refresh commands with `--seed`.
+- `SystemSeeder` can be run separately for system reference records and demo operational data.
+- `DataAccountSeeder` can be run separately for login accounts, console accounts, and student/parent portal account links.
+
 ## Core Database Flow
 
 The operational database centers on these record chains:
