@@ -19,6 +19,11 @@ class ClinicController
     public function dashboard(Request $request)
     {
         $alerts = EmergencyAlert::with(['type', 'cases'])->latest('emergency_alert_id')->limit(20)->get();
+        $activeAlerts = EmergencyAlert::with(['type', 'cases'])
+            ->where('status', 'open')
+            ->latest('emergency_alert_id')
+            ->limit(20)
+            ->get();
         $currentUser = $request->user();
         $openAlerts = EmergencyAlert::where('status', 'open')->count();
         $todayAlerts = EmergencyAlert::whereDate('created_at', today())->count();
@@ -44,7 +49,7 @@ class ClinicController
                 'yearRange' => $this->yearRange(),
             ],
             'alerts' => $this->formatAlerts($alerts),
-            'emergencyDetails' => $this->formatEmergencyDetails($alerts),
+            'emergencyDetails' => $this->formatEmergencyDetails($activeAlerts),
             'calendarEvents' => $this->calendarEvents(),
             'emergencyTypes' => $this->emergencyTypes(),
         ]);

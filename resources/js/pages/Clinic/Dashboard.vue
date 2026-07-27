@@ -26,6 +26,7 @@ const flashSuccess = computed(() => page.props.flash?.success);
 const editingTypeId = ref(null);
 const latestAlertId = ref(0);
 const audioUnlocked = ref(false);
+const processingAlertIds = ref(new Set());
 const emergencyAlertSoundPath = '/sound/emergency-alert.mp3';
 const showAudioNotice = computed(() => !audioUnlocked.value);
 let alertPollInterval = null;
@@ -120,13 +121,40 @@ const editType = (type) => {
     typeForm.sort_order = type.sort_order || 0;
 };
 
+const refreshDashboard = (
+    only = ['alerts', 'emergencyDetails', 'counts', 'calendarEvents'],
+) => {
+    router.reload({
+        only,
+        preserveScroll: true,
+        preserveState: true,
+    });
+};
+
+const setAlertProcessing = (id, isProcessing) => {
+    const next = new Set(processingAlertIds.value);
+
+    if (isProcessing) {
+        next.add(id);
+    } else {
+        next.delete(id);
+    }
+
+    processingAlertIds.value = next;
+};
+
+const isAlertProcessing = (id) => processingAlertIds.value.has(id);
+
 const submitType = () => {
     if (editingTypeId.value) {
         typeForm.put(
             route('clinic.emergency-types.update', editingTypeId.value),
             {
                 preserveScroll: true,
-                onSuccess: resetTypeForm,
+                onSuccess: () => {
+                    resetTypeForm();
+                    refreshDashboard(['emergencyTypes']);
+                },
             },
         );
         return;
@@ -134,7 +162,10 @@ const submitType = () => {
 
     typeForm.post(route('clinic.emergency-types.store'), {
         preserveScroll: true,
-        onSuccess: resetTypeForm,
+        onSuccess: () => {
+            resetTypeForm();
+            refreshDashboard(['emergencyTypes']);
+        },
     });
 };
 
@@ -145,6 +176,7 @@ const deleteType = (type) => {
         route('clinic.emergency-types.destroy', type.emergency_type_id),
         {
             preserveScroll: true,
+            onSuccess: () => refreshDashboard(['emergencyTypes']),
         },
     );
 };
@@ -153,23 +185,38 @@ const updateAlert = (id, status) => {
     router.put(
         route('clinic.emergency-alerts.update', { id }),
         { status },
-        { preserveScroll: true },
+        {
+            preserveScroll: true,
+            onSuccess: () => refreshDashboard(),
+        },
     );
 };
 
 const dispatchAlert = (id) => {
+    setAlertProcessing(id, true);
+
     router.post(
         route('clinic.emergency-alerts.dispatch', { id }),
         {},
-        { preserveScroll: true },
+        {
+            preserveScroll: true,
+            onSuccess: () => refreshDashboard(),
+            onFinish: () => setAlertProcessing(id, false),
+        },
     );
 };
 
 const ignoreAlert = (id) => {
+    setAlertProcessing(id, true);
+
     router.put(
         route('clinic.emergency-alerts.update', { id }),
         { status: 'cancelled' },
-        { preserveScroll: true },
+        {
+            preserveScroll: true,
+            onSuccess: () => refreshDashboard(),
+            onFinish: () => setAlertProcessing(id, false),
+        },
     );
 };
 
@@ -487,13 +534,19 @@ onBeforeUnmount(() => {
                             </div>
                             <div class="mt-3 flex gap-2">
                                 <button
-                                    class="flex-1 rounded-md bg-rose-500 px-3 py-2 text-xs font-bold text-white"
+                                    class="flex-1 rounded-md bg-rose-500 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                                    :disabled="isAlertProcessing(detail.id)"
                                     @click="dispatchAlert(detail.id)"
                                 >
-                                    Dispatch
+                                    {{
+                                        isAlertProcessing(detail.id)
+                                            ? 'Sending...'
+                                            : 'Dispatch'
+                                    }}
                                 </button>
                                 <button
-                                    class="flex-1 rounded-md border border-slate-200 px-3 py-2 text-xs font-bold text-slate-500"
+                                    class="flex-1 rounded-md border border-slate-200 px-3 py-2 text-xs font-bold text-slate-500 disabled:cursor-not-allowed disabled:opacity-60"
+                                    :disabled="isAlertProcessing(detail.id)"
                                     @click="ignoreAlert(detail.id)"
                                 >
                                     Ignore
@@ -526,6 +579,12 @@ onBeforeUnmount(() => {
                             placeholder="Type name"
                             class="rounded-md border border-slate-300 px-3 py-2 text-sm"
                         />
+                        <p
+                            v-if="typeForm.errors.name"
+                            class="text-xs font-semibold text-rose-600"
+                        >
+                            {{ typeForm.errors.name }}
+                        </p>
                         <div class="grid grid-cols-2 gap-2">
                             <select
                                 v-model="typeForm.category"
@@ -543,12 +602,30 @@ onBeforeUnmount(() => {
                                 class="rounded-md border border-slate-300 px-3 py-2 text-sm"
                             />
                         </div>
+                        <p
+                            v-if="
+                                typeForm.errors.category ||
+                                typeForm.errors.sort_order
+                            "
+                            class="text-xs font-semibold text-rose-600"
+                        >
+                            {{
+                                typeForm.errors.category ||
+                                typeForm.errors.sort_order
+                            }}
+                        </p>
                         <textarea
                             v-model="typeForm.default_message"
                             rows="3"
                             placeholder="Default message"
                             class="rounded-md border border-slate-300 px-3 py-2 text-sm"
                         />
+                        <p
+                            v-if="typeForm.errors.default_message"
+                            class="text-xs font-semibold text-rose-600"
+                        >
+                            {{ typeForm.errors.default_message }}
+                        </p>
                         <label
                             class="flex items-center gap-2 text-sm font-semibold text-slate-600"
                         >
