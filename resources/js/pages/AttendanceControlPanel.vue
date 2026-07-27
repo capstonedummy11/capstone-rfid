@@ -147,9 +147,7 @@ const borrowingEnabled = computed(() =>
     Boolean(panelFeatureSettings.value?.borrowing_enabled),
 );
 const demoAttendanceEnabled = computed(
-    () =>
-        Boolean(panelFeatureSettings.value?.demo_attendance_panel_enabled) &&
-        Boolean(demoAttendancePanelSettings.value?.enabled),
+    () => Boolean(demoAttendancePanelSettings.value?.enabled),
 );
 const demoAttendanceRfids = computed(() => ({
     professorTap: String(
@@ -2268,18 +2266,23 @@ watch(
                         <div class="mt-2 text-sm leading-6 text-slate-600">
                             {{ lastAction }}
                         </div>
-                        <div
-                            class="mt-4 flex items-center justify-between gap-3"
-                        >
+                        <div class="mt-4 flex items-center gap-3">
                             <div
                                 class="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white"
                             >
                                 Last RFID: {{ lastScanned || 'Waiting...' }}
                             </div>
+                        </div>
+                        <div
+                            v-if="demoAttendanceEnabled"
+                            class="mt-4 rounded-2xl border border-blue-100 bg-blue-50/70 p-3"
+                        >
                             <div
-                                v-if="demoAttendanceEnabled"
-                                class="flex flex-wrap justify-end gap-2"
+                                class="mb-2 text-[10px] font-bold tracking-[0.18em] text-blue-500 uppercase"
                             >
+                                Demo Taps
+                            </div>
+                            <div class="flex flex-wrap gap-2">
                                 <button
                                     type="button"
                                     class="rounded-xl bg-[#123456] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#0e2840]"
