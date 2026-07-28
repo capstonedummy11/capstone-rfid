@@ -1,582 +1,777 @@
-# Attendance System: Complete Demonstration Guide and Presentation Script
+# Attendance System: Blank-State Setup and Complete Demonstration Guide
 
-This guide is designed for a live capstone defense, client presentation, or user training session. It follows the behavior implemented in the current system.
+This guide assumes the application and database migrations are already installed, but the database contains only one account: **`root.admin`**. There are no laboratories, strands, sections, subjects, instructors, students, schedules, RFID assignments, face images, emergency types, hotlines, attendance sessions, or reports.
 
-## 1. Demonstration Objective
+The goal is to build a fully usable system from that blank state and then demonstrate the complete attendance lifecycle.
 
-The attendance system records and validates student presence in a scheduled class using RFID, with face verification or an instructor-authorized fallback. It links each attendance event to the student, subject, section, instructor, schedule, room, and attendance session. It also preserves a tap-by-tap audit trail, supports emergency requests, and provides role-based attendance history, reports, and administration.
+## 1. What “Fully Running” Means
 
-The normal attendance journey is:
+The system is ready for attendance only when all of the following exist:
 
-1. A console user opens the attendance panel and selects a laboratory.
-2. The assigned instructor starts the scheduled class using the instructor RFID.
-3. The student verifies their identity.
-4. The student's first valid RFID tap records check-in.
-5. The student's later valid tap records check-out when the checkout rule is satisfied.
-6. The system finalizes the record as Present or Late.
+1. Role accounts for administration, registrar, instructor, console, clinic, student, and optionally parent use.
+2. At least one laboratory.
+3. At least one strand, section, and subject.
+4. An instructor record linked to an instructor user.
+5. At least one active student in the scheduled section.
+6. A schedule linking the subject, section, instructor, laboratory, weekday, start time, and end time.
+7. RFID tags assigned to the instructor and students.
+8. Face images enrolled, or a configured instructor-authorized fallback.
+9. Attendance rules and panel access configured.
+10. Emergency types and hotlines configured.
+11. A console logged into the selected room.
+12. An active class started by the assigned instructor.
 
-## 2. Attendance Rules and Tapping Guidelines
+The setup order matters. A schedule cannot be created correctly until its laboratory, section, subject, and instructor already exist.
 
-### 2.1 Required taps
-
-Two official student taps are normally required:
-
-- First official tap — **Check-in**: records `time_in`, places the student inside the room, and leaves the attendance record Pending until checkout.
-- Second official tap — **Check-out**: records `time_out`, places the student outside the room, and finalizes the record as Present or Late.
-
-Identity verification is required before a student tap is accepted. Depending on configuration, this is a face match or an instructor RFID/fallback authorization.
-
-### 2.2 On-time and late check-in
-
-The default late threshold is **15 minutes after the scheduled class start**. An administrator can change this under System Settings.
-
-- At or before `class start + late threshold`: the check-in classification is Present.
-- After `class start + late threshold`: the check-in classification is Late.
-- A tap before the scheduled start is accepted as an on-time check-in. The exact timestamp is retained; there is no separate final “Early” status.
-
-Example for an 8:00 AM class using the default 15-minute threshold:
-
-- 7:55 AM — accepted early check-in; eligible for final Present.
-- 8:00 AM to 8:15 AM — on-time check-in; eligible for final Present.
-- After 8:15 AM — late check-in; final status remains Late after checkout.
-
-The threshold is exclusive at its upper boundary: exactly 8:15 AM is within the grace period; later than 8:15 AM is Late.
-
-### 2.3 Normal checkout window
-
-The normal checkout window begins **15 minutes before the scheduled class end**.
-
-Example for a class ending at 10:00 AM:
-
-- From 9:45 AM onward, the next valid student tap may be the official check-out.
-- Before 9:45 AM, a normal face-verified tap is treated as a request for temporary movement and requires the assigned instructor's RFID.
-
-An official checkout may also be recorded earlier through:
-
-- **Student Logout mode**, explicitly activated and authorized by the instructor; or
-- An applicable verification fallback accepted by the implementation, such as instructor RFID, disabled face recognition, or an approved camera/recognition fallback.
-
-### 2.4 Early taps and breaks
-
-The system does not use “Early Tap/Break” as a final attendance status.
-
-- An early **first** tap is stored as the actual check-in time and is treated as on time.
-- A tap after check-in but before the checkout window is a **Temporary Exit** or **Temporary Return**, not an official checkout, when authorized with the assigned instructor RFID.
-- Temporary Exit changes room status to Outside.
-- Temporary Return changes room status back to Inside.
-- The main attendance record remains Pending until an official checkout or session finalization.
-- If instructor authorization is not provided, the movement is not recorded and the panel asks for the instructor RFID.
-
-### 2.5 Third and later taps
-
-A third tap is accepted as the official second attendance endpoint when no official checkout exists and the checkout rule is satisfied. A common sequence is:
-
-1. Check-in.
-2. Instructor-authorized Temporary Exit.
-3. Tap during the checkout window, in Student Logout mode, or with an applicable authorized fallback — accepted as Check-out.
-
-If tap 3 occurs before the checkout window under the ordinary flow, it may instead become Temporary Return after instructor authorization. The system therefore evaluates the tap's time, mode, verification method, and current room state—not only its sequence number.
-
-After an official `time_out` exists, all further taps are stored as **Ignored Tap** audit events. They do not change the completed attendance record.
-
-### 2.6 Missing taps
-
-- One valid check-in while the class is active: **Pending**.
-- Check-in without checkout after the class/session ends: displayed as **Incomplete Attendance** in attendance views.
-- When the panel closes or leaves Attendance mode, the current implementation finalizes open check-in logs as `absent` with completion reason `cutting`; the main record is also marked absent. Consequently, the final logs may show **Absent** rather than Incomplete Attendance after panel/session finalization.
-- No valid check-in for a student in the scheduled section after a completed session: a generated **Absent** record appears in the attendance log view.
-
-Presenter note: “Incomplete Attendance” is the display rule for an ended session with `time_in` but no `time_out`. The panel's explicit finalization routine can mark those open records Absent. Mention both behaviors to describe the implementation accurately.
-
-### 2.7 Invalid and duplicate taps
-
-A tap is rejected or marked invalid when, for example:
-
-- The RFID is not assigned to a student.
-- No active attendance session exists in the selected room.
-- The student is not part of the scheduled section.
-- The student's year level does not match the subject, when that restriction is set.
-- Face verification or instructor override is missing or expired.
-- Student Logout is requested for a student who never checked in.
-- A temporary movement tap is attempted without the assigned instructor's RFID.
-
-A tap after completed checkout is an **Ignored Tap**, not a new check-in or checkout. It is still auditable.
-
-### 2.8 Status and outcome reference
-
-| Label shown or recorded | Type | Condition |
-|---|---|---|
-| Checked In | Immediate panel response | First valid tap creates `time_in`; record remains Pending |
-| Pending | Attendance status | Valid check-in exists, no checkout exists, and session is still active |
-| Present | Final attendance status | On-time check-in plus official checkout |
-| Late | Final attendance status | Check-in after the configured grace period plus official checkout |
-| Incomplete Attendance | Displayed attendance status | Check-in exists, no checkout exists, and the session is considered ended |
-| Absent | Final/generated status | Open record finalized by the panel as cutting, or no valid check-in exists for an eligible student in a completed session |
-| Temporary Exit | Tap event | Pre-checkout-window movement from Inside to Outside, authorized by instructor RFID |
-| Temporary Return | Tap event | Pre-checkout-window movement from Outside to Inside, authorized by instructor RFID |
-| Invalid Tap | Tap outcome | Validation fails, including logout without check-in |
-| Ignored Tap | Tap outcome | Official checkout already exists; completed attendance is unchanged |
-
-### 2.9 Decision table
-
-| Current state | Tap condition | System action | Result |
-|---|---|---|---|
-| No record | Valid identity and correct active class | Create check-in | Pending; Present or Late classification retained |
-| No record | Student Logout mode | Log Invalid Tap | No attendance record created |
-| Checked in | At/after 15 minutes before class end | Record check-out | Present or Late |
-| Checked in | Student Logout mode | Record check-out | Present or Late |
-| Checked in | Applicable authorized fallback | Record check-out | Present or Late |
-| Checked in, Inside | Before checkout window, instructor approves | Temporary Exit | Pending; room status Outside |
-| Checked in, Outside | Before checkout window, instructor approves | Temporary Return | Pending; room status Inside |
-| Checked in | Before checkout window, no instructor approval | Reject movement request | No new tap record; attendance unchanged |
-| Checked out | Any later tap | Log Ignored Tap | Completed record unchanged |
-| Checked in only | Session ends | Display Incomplete or finalize as Absent/cutting | No official checkout |
-| No check-in | Completed eligible class session | Generate No Tap record | Absent |
-
-### 2.10 Simple flowchart
+## 2. Recommended Blank-State Build Order
 
 ```text
-Student presents RFID
-        |
-        v
-Active session + correct section/year + valid verification?
-        | No
-        +----> Reject / Invalid Tap; explain validation failure
-        |
-       Yes
-        |
-        v
-Existing attendance record?
-        | No
-        +----> First tap: save check-in
-        |              |
-        |              +----> within grace = Present classification
-        |              +----> after grace  = Late classification
-        |                       (record remains Pending until checkout)
-        |
-       Yes
-        |
-        v
-Official checkout already saved?
-        | Yes
-        +----> Log Ignored Tap; do not change attendance
-        |
-       No
-        |
-        v
-Checkout window / Student Logout / accepted fallback?
-        | Yes
-        +----> Save official checkout -> final Present or Late
-        |
-       No
-        |
-        v
-Assigned instructor RFID authorizes movement?
-        | No
-        +----> Ask for instructor RFID; no movement recorded
-        |
-       Yes
-        +----> Inside -> Temporary Exit
-               Outside -> Temporary Return
-               Attendance remains Pending
+root.admin login
+      |
+      v
+Create role accounts
+      |
+      v
+Configure system rules and panel access
+      |
+      v
+Create laboratories
+      |
+      v
+Create strands -> sections -> subjects
+      |
+      v
+Create instructor profiles and student records
+      |
+      v
+Create schedules
+      |
+      v
+Assign RFID and enroll faces
+      |
+      v
+Configure emergency types and hotlines
+      |
+      v
+Open console -> select room -> start class
+      |
+      v
+Verify students -> check in -> check out
+      |
+      v
+Review logs, portals, reports, and emergency response
 ```
 
-## 3. Pre-Demonstration Checklist
+## 3. Phase 1 — First Root Administrator Login
 
-Before the audience arrives:
+### Step 1. Log in
 
-1. Confirm the database has an admin, console, instructor, clinic, student, and optionally parent account.
-2. Confirm the student belongs to the section used by today's schedule.
-3. Confirm student and instructor RFID tags are enrolled.
-4. Confirm the subject, room, instructor, and schedule times support the scenarios.
-5. Confirm the attendance late threshold under `/admin/settings`.
-6. Confirm face images are enrolled, or prepare the instructor RFID fallback.
-7. Confirm the browser has camera permission if face verification will be shown.
-8. Confirm emergency types and hotlines exist.
-9. For live SMS, confirm Semaphore is enabled, the API key and endpoint are configured, and the chosen active hotline has SMS enabled.
-10. Open a second browser or private window for the clinic dashboard.
-11. Enable clinic alert sound by clicking or pressing a key once on the clinic page.
-12. Use separate demo students or resettable demo data for conflicting scenarios.
+**On screen:** Staff login page.
 
-Suggested example schedule:
+**Presenter action:** Enter the credentials of `root.admin`.
 
-- Subject: Computer Programming 1
-- Section: ICT 11-A
-- Room: Laboratory 1
-- Time: 8:00 AM–10:00 AM
-- Late threshold: 15 minutes
-- Checkout window: 9:45 AM–10:00 AM
+**Presenter explanation:** “The system starts with one protected root administrator. This account establishes ownership and creates the first operational users.”
 
-## 4. Complete Live Presentation Script
+**Expected response:** The administrator dashboard opens. Most counts and tables are empty.
 
-Each step below contains the visible screen, presenter action, suggested explanation, expected response, and important notes.
+**Important rules:**
 
-### Step 1 — Introduce the system
+- Keep at least one root administrator.
+- Only a root administrator can create, promote, update, or delete administrator accounts.
+- Do not use the root account as the daily console or clinic account.
+- Change the initial password and configure profile/security settings before production use.
 
-**On screen:** Landing page or title slide.
-
-**Presenter action:** Point to the major system modules.
-
-**Say:** “This system combines scheduled RFID attendance, identity verification, emergency response, role-based records, notifications, and reports. Each attendance event is validated against the active class rather than accepting an RFID value blindly.”
-
-**Expected response:** No system action yet.
-
-**Important note:** State that RFID identifies the card holder, while face verification or an instructor-authorized fallback strengthens identity validation.
-
-### Step 2 — Log in as the attendance console user
-
-**On screen:** Staff login or `/attendance-control-panel/login`.
-
-**Presenter action:** Enter the console credentials. If panel PIN access is enabled, enter the configured PIN. Select Laboratory 1 when prompted.
-
-**Say:** “The attendance station is a controlled console account. Room selection ties every scan to a physical laboratory and prevents records from being mixed across rooms.”
-
-**Expected response:** The Attendance Control Panel opens and shows the selected room, panel status, schedule area, RFID input/listening state, and emergency controls.
-
-**Important note:** An administrator can monitor active devices, change panel PIN access, or force a panel logout.
-
-### Step 3 — Start the active class
-
-**On screen:** Attendance Control Panel in Online or waiting state.
-
-**Presenter action:** Tap or enter the assigned instructor RFID, then choose/start Attendance mode for the displayed schedule.
-
-**Say:** “The instructor starts the class session. The system resolves today's schedule, subject, section, room, and instructor before accepting student attendance.”
-
-**Expected response:** The panel changes to Attendance mode and displays class details. An attendance session is created or activated.
-
-**Important note:** A student outside the scheduled section is rejected.
-
-### Step 4 — Verify the student
-
-**On screen:** Student lookup/face verification prompt.
-
-**Presenter action:** Present the student's RFID when requested, center the student in the camera, and complete face verification. If the camera or recognition service is unavailable, demonstrate the assigned instructor RFID override.
-
-**Say:** “Before attendance is saved, the student must pass face verification or receive an authorized instructor fallback. This verification grant is short-lived and is consumed by the attendance tap.”
-
-**Expected response:** A verification-success message appears and the system permits the next attendance tap.
-
-**Important note:** Do not claim that face recognition is always active; it is configurable and depends on the recognition service.
-
-### Step 5 — Scenario A: on-time check-in and checkout
-
-**On screen:** Active attendance panel.
-
-**Presenter action:** Use Student A at a simulated time within 8:00–8:15 AM. Complete verification and tap once.
-
-**Say:** “This is the first official tap. It records the actual check-in timestamp. Because it is within the configured 15-minute grace period, the internal check-in classification is Present, but the live record remains Pending until checkout.”
-
-**Expected response:** “Check-in” or “Checked In”; `time_in` is populated, `time_out` is blank, room status is Inside, and attendance is Pending.
-
-**Presenter action:** At or after 9:45 AM, verify Student A again and tap.
-
-**Say:** “The checkout window begins 15 minutes before class ends. This valid tap records the official checkout.”
-
-**Expected response:** “Check-out”; `time_out` is populated, room status becomes Outside, and final status is Present.
-
-### Step 6 — Scenario B: late check-in
-
-**On screen:** Active attendance panel.
-
-**Presenter action:** Use Student B after 8:15 AM, verify, and tap.
-
-**Say:** “The first tap occurred after the configured grace period, so the system marks this check-in as Late. Checkout is still required.”
-
-**Expected response:** Check-in recorded; live status remains Checked In/Pending while the late classification is retained.
-
-**Presenter action:** Complete Student B's valid checkout.
-
-**Expected response:** Final status Late with both timestamps.
-
-**Important note:** Checkout does not convert a Late check-in to Present.
-
-### Step 7 — Scenario C: one tap only or missed checkout
-
-**On screen:** Active panel and Student C's check-in.
-
-**Presenter action:** Verify and check in Student C, then do not tap again.
-
-**Say:** “A single tap is not complete attendance. While class is active the record is Pending. If the session ends without checkout, the system identifies the missing endpoint.”
-
-**Expected response:** During class: Pending. After the session is ended: Incomplete Attendance may be displayed; panel finalization may mark the open record Absent with completion reason cutting.
-
-**Important note:** Explain the precise implementation behavior rather than promising that all ended one-tap records retain one universal label.
-
-### Step 8 — Scenario D: early second tap or break
-
-**On screen:** Student D already checked in before 9:45 AM.
-
-**Presenter action:** Verify Student D and tap before the checkout window.
-
-**Say:** “This is too early for ordinary official checkout. The system treats it as temporary movement and asks for the assigned instructor's RFID.”
-
-**Expected response:** Temporary Movement Authorization Required.
-
-**Presenter action:** Present the assigned instructor RFID.
-
-**Expected response:** Temporary Exit is recorded; room status becomes Outside; attendance stays Pending.
-
-**Presenter action:** Repeat student verification/tap before the checkout window and approve with instructor RFID.
-
-**Expected response:** Temporary Return is recorded; room status becomes Inside; attendance stays Pending.
-
-**Important note:** Temporary Exit/Return are audit events, not final “Early Tap/Break” attendance statuses.
-
-### Step 9 — Scenario E: third tap becomes official checkout
-
-**On screen:** Student E has Check-in as tap 1 and Temporary Exit as tap 2, with no official checkout.
-
-**Presenter action:** At or after the checkout window begins, verify Student E and tap.
-
-**Say:** “Although this is the third physical tap, it is accepted as the official checkout because no checkout exists and the checkout rule is now satisfied. The system evaluates state and timing, not merely tap number.”
-
-**Expected response:** Tap 3 is Check-out; the attendance record gains `time_out` and becomes Present or Late according to tap 1.
-
-### Step 10 — Scenario F: additional taps after completion
-
-**On screen:** Student A or E already has a completed record.
-
-**Presenter action:** Verify and tap the same student again.
-
-**Say:** “Once checkout exists, later taps cannot overwrite the official attendance.”
-
-**Expected response:** Ignored Tap; message indicates attendance is already completed. The extra event is retained in the audit log without changing `time_in`, `time_out`, or final status.
-
-### Step 11 — Scenario G: early first tap
-
-**On screen:** Active session arranged before the scheduled start.
-
-**Presenter action:** Verify Student F and tap at 7:55 AM for the 8:00 AM example class.
-
-**Say:** “An early first tap is recorded with its actual timestamp and counts as an on-time check-in. The current implementation does not assign a separate Early status.”
-
-**Expected response:** Check-in/Checked In; Pending until checkout and eligible for final Present.
-
-### Step 12 — Scenario H: invalid and duplicate behavior
-
-**On screen:** Attendance panel.
-
-**Presenter action:** Demonstrate one or more safe validation failures:
-
-1. Use an unassigned RFID.
-2. Use a student from another section.
-3. Attempt a student tap without completing verification.
-4. Activate Student Logout for a student with no check-in.
-
-**Say:** “Validation protects the integrity of attendance. Failed taps explain the reason and do not create a valid attendance endpoint.”
-
-**Expected response:** Student not found, wrong class/section, verification required, or Invalid Tap as appropriate.
-
-**Important note:** A repeated tap after completed checkout is Ignored, whereas a tap that fails validation is rejected or Invalid.
-
-### Step 13 — Demonstrate Student Logout mode
-
-**On screen:** Attendance Control Panel.
-
-**Presenter action:** Select Student Logout, complete the instructor authorization shown by the panel, then verify and tap a student who has checked in.
-
-**Say:** “Student Logout is an explicit override for official checkout. It is useful when an authorized instructor must release a student outside the normal checkout window.”
-
-**Expected response:** Official Check-out with remarks stating it was recorded by the instructor Student Logout override.
-
-## 5. Attendance Records and Reports Demonstration
-
-### Step 14 — Open attendance logs
-
-**On screen:** `/admin/attendance/logs` as admin, or the same attendance-log page as an instructor.
-
-**Presenter action:** Open Attendance Logs and filter by attendance session, date, subject, instructor, or instructor RFID where allowed.
-
-**Say:** “Attendance data is stored in the database in two complementary levels: the `attendances` table holds the consolidated student-class record, while `attendance_logs` preserves individual tap events. `attendance_sessions` identifies the room/class session.”
-
-**Expected response:** Summary cards show Present, Late, Pending, Incomplete, Absent, and Total Records. Records are grouped by date, room, subject, session time, and instructor.
-
-**Point out on screen:**
-
-- Student and student number
-- Subject, section, and school year
-- Instructor and room
-- Session date and scheduled time
-- Tap timestamp and tap sequence
-- Time in and time out
-- Tap type
-- Room status
-- Validation result and remarks
-- Attendance status
-- Face evidence where access is available
-
-**Important note:** Admin sees wider records; instructor access is scoped to assigned schedules.
-
-### Step 15 — Show total attendance history
-
-**On screen:** Student/Parent portal `/student-parent/attendance`.
-
-**Presenter action:** Log in as a student, or as a parent and select a linked student.
-
-**Say:** “Students and parents can review their permitted attendance history without access to other students' records.”
-
-**Expected response:** The portal displays the selected student's attendance dates, subjects, timestamps, and statuses.
-
-### Step 16 — Generate a report
-
-**On screen:** `/reports`.
-
-**Presenter action:** Select the available date range filters. Review summary cards, status breakdowns, subject breakdowns, attendance trends, and other role-aware charts. Click Export.
-
-**Say:** “Reports are role-aware. Administrators receive system-wide analytics; instructors receive data for their assigned scope; students and parents receive their own or linked-student information.”
-
-**Expected response:** Dashboard metrics update for the selected range. Export downloads a CSV report.
-
-**Important note:** The attendance log page is the detailed audit view; the Reports page is the analytical summary and CSV export point.
-
-## 6. Emergency Features Demonstration
-
-### Step 17 — Emergency Call/Alert
-
-**On screen:** Attendance Control Panel emergency control.
-
-**Presenter action:** Select Emergency Call. Choose an emergency type and, when available, an active hotline. Confirm the request.
-
-**Say:** “An emergency request is created directly from the active attendance panel. It is associated with the room and current class context so responders know where assistance is needed.”
-
-**Expected response:** “Emergency Call Triggered” and a success alert. An `emergency_alerts` database record is created and an activity-log entry is written.
-
-**Information stored or sent includes:**
-
-- Emergency type and subtype
-- Urgent or critical severity
-- Room
-- Subject code and schedule
-- Triggering user/name
-- Emergency message
-- Selected hotline metadata
-- Additional student/context metadata when supplied
-- Timestamp and response status
-
-### Step 18 — Emergency SMS
-
-**On screen:** Same emergency request result.
-
-**Presenter action:** Select a hotline with SMS enabled and submit an alert.
-
-**Say:** “When Semaphore is enabled and correctly configured, the system sends an SMS to the selected active hotline. The text contains the emergency type, room, triggering person, message, and hotline name.”
-
-**Expected response:** The alert itself is saved even if SMS cannot be delivered. The API response reports whether SMS was sent.
-
-**Important notes:**
-
-- SMS requires a selected active hotline, SMS enabled for that hotline, a valid phone number, Semaphore enabled, and a configured API key/endpoint.
-- Do not claim successful external delivery during the defense unless the response confirms `sent: true` and the recipient device receives it.
-- If configuration is missing, explain that the in-app emergency alert remains available to clinic staff.
-
-### Step 19 — Clinic notification and response flow
-
-**On screen:** `/clinic/dashboard` in a second signed-in browser.
-
-**Presenter action:** Refresh or wait for the dashboard polling cycle. If prompted, click or press a key once to enable alert audio. Open the new alert, acknowledge it, dispatch a response, and later mark it resolved.
-
-**Say:** “Clinic personnel receive the emergency alert on their dashboard. Newly received alerts can play the configured emergency sound after browser audio is enabled. Staff can acknowledge, dispatch, monitor, resolve, or cancel the case.”
-
-**Expected response:** New emergency notification appears; sound plays when permitted. Dispatch creates or updates a linked clinic case with monitoring status. Status can move through Open, Acknowledged, Resolved, or Cancelled.
-
-**Expected operational outcome:** Responders obtain the location and emergency details, begin the response, maintain a case record, and close the incident with an auditable status.
-
-## 7. Additional Features Demonstration
-
-### Step 20 — Notifications
-
-**On screen:** `/student-parent/notifications`.
-
-**Presenter action:** Open a notification and mark it read.
-
-**Say:** “The portal centralizes user notifications and tracks read status.”
-
-**Expected response:** The selected notification is displayed and its unread state is cleared.
-
-### Step 21 — User profile management
-
-**On screen:** `/settings/profile` for staff, or `/student-parent/profile` for a student/parent.
-
-**Presenter action:** Edit a safe demonstration field and save it.
-
-**Say:** “Users can maintain permitted profile information. Access and editable fields depend on role.”
-
-**Expected response:** Validation runs and a success confirmation appears.
-
-### Step 22 — Attendance history
-
-**On screen:** `/student-parent/attendance`.
-
-**Presenter action:** Review several dates and statuses.
-
-**Say:** “This gives students and parents transparent access to attendance history, while administrative logs retain the deeper tap-level audit.”
-
-**Expected response:** Historical attendance records appear only for the authorized student or linked students.
-
-### Step 23 — Reports and analytics
-
-**On screen:** `/reports`.
-
-**Presenter action:** Change the date range and point to status distribution, attendance by subject, and trend views.
-
-**Say:** “Analytics turn raw timestamps into decision-support information, such as attendance distributions and trends.”
-
-**Expected response:** Charts, tables, and summary counts reflect the role and selected range.
-
-### Step 24 — Administrator dashboard
+### Step 2. Show the empty state
 
 **On screen:** `/admin/dashboard`.
 
-**Presenter action:** Navigate briefly through Active Devices, Students, Schedules, RFID, Attendance Logs, Reports, Activity Logs, and System Settings.
+**Presenter action:** Open Students, Schedules, Attendance Logs, and Reports briefly.
 
-**Say:** “The administrator manages the academic structure, accounts, schedules, RFID assignments, device access, thresholds, feature switches, emergency sound, records, and audits.”
+**Presenter explanation:** “These pages are empty because the system has no operational data yet. We will create data in dependency order.”
 
-**Expected response:** Each page displays the administrator's system-wide management scope.
+**Expected response:** Zero totals, empty tables, or no-record messages.
 
-### Step 25 — RFID, NFC, QR, and biometric capabilities
+## 4. Phase 2 — Create Required User Accounts
 
-**On screen:** `/admin/rfid`, registrar enrollment pages, and student face-image management.
+Open **Admin > User Management** at `/admin/users`.
 
-**Presenter action:** Show an RFID assignment and enrolled face images; do not alter production data unless planned.
+Create these minimum accounts:
 
-**Say:** “The implemented contactless identifier is RFID. An NFC reader that outputs the enrolled tag value may work at the hardware/interface level, but NFC is not presented as a separately implemented workflow. QR attendance is not implemented in the current source. Biometric support is face recognition, subject to configuration and service availability.”
-
-**Expected response:** RFID owners and tag assignments are visible; face enrollment shows stored student images.
-
-**Important note:** Never claim QR, fingerprint, or generic biometric support unless a corresponding module is added and tested.
-
-## 8. Scenario Results Summary
-
-| Demonstration scenario | Expected tap/result | Final attendance |
+| Account | Role | Purpose |
 |---|---|---|
-| On-time check-in + valid checkout | Check-in, then Check-out | Present |
-| Late check-in + valid checkout | Late-classified Check-in, then Check-out | Late |
-| One tap while session remains active | Check-in only | Pending |
-| Missed checkout after session ends | No `time_out` | Incomplete display or Absent/cutting after panel finalization |
-| Early first tap | Check-in at actual early timestamp | Pending, then Present after valid checkout |
-| Early second tap with instructor approval | Temporary Exit | Pending |
-| Next early movement tap with approval | Temporary Return | Pending |
-| Third tap during checkout window | Check-out if no prior official checkout | Present or Late |
-| Tap after official checkout | Ignored Tap | Existing Present/Late unchanged |
-| Logout without check-in | Invalid Tap | No valid attendance |
-| Unassigned RFID | Rejected | No attendance |
-| Wrong section/year | Rejected | No attendance |
-| Missing identity verification | Verification required | No attendance endpoint |
-| Eligible student never checks in | Generated No Tap record | Absent |
+| Secondary administrator | Admin | Daily configuration and management |
+| Registrar | Registrar | RFID and face enrollment |
+| Instructor | Instructor | Starts class, authorizes fallbacks and movement |
+| Attendance station | Console | Operates the room attendance panel |
+| Clinic responder | Clinic | Receives and manages emergency alerts |
+| Student portal user | Student | Views personal attendance and notifications |
+| Parent user, optional | Parent | Views linked-student information |
 
-## 9. Suggested Closing Script
+For each account:
 
-“This demonstration showed the complete attendance lifecycle: secure role-based access, scheduled class activation, RFID and face-assisted identity validation, on-time and late classification, temporary movement, official checkout, missing-tap handling, detailed audit logs, student and parent history, reports, emergency alerts, optional SMS dispatch, clinic response, notifications, profiles, and administrator controls.
+1. Click **Add User**.
+2. Enter name, email, password, and role.
+3. Enable root administrator only for an intentionally authorized admin.
+4. Save.
+5. Confirm the account appears with the correct role.
 
-The key strength of the system is that it does more than read a card. It validates the student against the active class, preserves every accepted, rejected, temporary, ignored, and completed event, and makes the resulting information available to the correct users for accountability and timely response.”
+**Presenter explanation:** “Role separation prevents the attendance station, registrar, instructor, clinic, and students from receiving unnecessary administrative access.”
 
-## 10. Presenter Recovery Notes
+**Expected response:** User list contains all operational roles.
 
-- If the camera fails, explain the configured fallback and use the assigned instructor RFID.
-- If a tap is rejected, read the visible validation message; it usually identifies the missing session, wrong class, unknown RFID, or required verification.
-- If checkout becomes Temporary Exit, the demonstration time is before the normal checkout window. Use Student Logout mode for an authorized demonstration or adjust the demo schedule.
-- If the clinic alert has no sound, interact with the clinic page once because browsers block autoplay audio.
-- If SMS is not delivered, show that the in-app alert was saved and state the returned SMS reason without claiming delivery.
-- If a status remains Pending, confirm that official checkout—not merely a temporary movement—was recorded.
-- Keep separate students for Present, Late, Pending, Temporary Movement, and Invalid scenarios to avoid one scenario affecting another.
+**Important note:** Creating an instructor user is not the same as completing the instructor's academic profile. The instructor record is configured in the instructor management flow.
+
+## 5. Phase 3 — Configure Core System Settings
+
+Open `/admin/settings`.
+
+### Attendance configuration
+
+1. Set the **late threshold**. The implementation defaults to 15 minutes.
+2. Set the default number of days used when generating absent attendance views.
+3. Enable face recognition only when its service is available and configured.
+4. Configure demo attendance controls only for a controlled presentation environment.
+5. Save settings.
+
+### Panel and device access
+
+Open `/admin/active-devices`.
+
+1. Review panel access settings.
+2. Configure the panel PIN if required.
+3. Confirm the attendance console role can open the panel.
+4. Note that administrators can force-log out a panel later.
+
+### Recommended production values
+
+- Late threshold: institution-approved value, commonly 15 minutes.
+- Face recognition: enabled only after enrollment and service testing.
+- Panel PIN: enabled and protected.
+- Demo RFID controls: disabled outside demonstrations.
+- Emergency sound: select the default or upload an approved sound.
+
+**Expected response:** Settings persist and control the later attendance workflow.
+
+## 6. Phase 4 — Build the Academic Structure
+
+### Step 1. Create a laboratory
+
+Open `/admin/laboratories`.
+
+1. Click **Add Laboratory**.
+2. Enter a name such as `Laboratory 1`.
+3. Enter its building/location and description.
+4. Set it Active.
+5. Save.
+
+**Why first:** The schedule and attendance panel need a valid room.
+
+### Step 2. Create a strand
+
+Open `/admin/strands`.
+
+1. Click **Add Strand**.
+2. Enter a code such as `TVL-ICT`.
+3. Enter the full strand name and department.
+4. Set it Active.
+5. Save.
+
+### Step 3. Create a section
+
+Open `/admin/sections`.
+
+1. Click **Add Section**.
+2. Select the strand.
+3. Enter a section such as `ICT 11-A`.
+4. Set year level, semester, school year, and Active status.
+5. Save.
+
+### Step 4. Create a subject
+
+Open `/admin/subjects`.
+
+1. Click **Add Subject**.
+2. Enter subject code and name.
+3. Select the section and relevant instructor fields if shown.
+4. Set the year level and description.
+5. Save.
+
+**Presenter explanation:** “The hierarchy is strand, section, subject, and schedule. Attendance validation later checks whether the tapped student belongs to the active section and, when configured, the correct year level.”
+
+**Expected response:** Each record becomes available as a selection in downstream forms.
+
+## 7. Phase 5 — Create Instructors, Students, and Parents
+
+### Step 1. Complete the instructor record
+
+Open `/admin/instructors`.
+
+1. Select or create the instructor connected to the instructor user.
+2. Assign an instructor number.
+3. Assign the relevant strand or department.
+4. Set status to Active.
+5. Save.
+
+### Step 2. Create students
+
+Open `/admin/students`.
+
+For each student:
+
+1. Click **Add Student**.
+2. Enter student number and full name.
+3. Select strand and section.
+4. Set year level, school year, and Active status.
+5. Enter contact or portal information supported by the form.
+6. Save.
+
+Create several students for a complete demonstration:
+
+- Student A — on-time scenario
+- Student B — late scenario
+- Student C — missing checkout
+- Student D — temporary exit/return
+- Student E — invalid/wrong-section scenario
+
+### Step 3. Create or link parent accounts
+
+From the student management page:
+
+1. Open the student's parent/guardian controls.
+2. Add or link a parent account.
+3. Confirm the parent is connected to the correct student.
+
+**Expected response:** Student and linked-parent records appear in their authorized portals.
+
+## 8. Phase 6 — Create the Schedule
+
+Open `/admin/schedules`.
+
+1. Click **Add Schedule**.
+2. Select the laboratory.
+3. Select the section.
+4. Select the subject.
+5. Select the assigned instructor.
+6. Choose the active weekdays.
+7. Enter class start and end times.
+8. Save.
+
+Example:
+
+| Field | Demo value |
+|---|---|
+| Laboratory | Laboratory 1 |
+| Section | ICT 11-A |
+| Subject | Computer Programming 1 |
+| Instructor | Assigned demo instructor |
+| Weekday | Current day |
+| Start | 8:00 AM |
+| End | 10:00 AM |
+| Late boundary | 8:15 AM with a 15-minute threshold |
+| Normal checkout start | 9:45 AM |
+
+**Critical checks:**
+
+- The current date's weekday must match the schedule.
+- The room must match the console's selected room.
+- Student section must match schedule section.
+- Subject year level must match the student when year-level validation is set.
+- Instructor RFID must belong to the instructor assigned to this schedule.
+
+## 9. Phase 7 — Enroll RFID and Face Identity
+
+Log out as root admin and log in as the registrar, or use the relevant admin enrollment screens.
+
+### Student RFID and face enrollment
+
+Open `/registrar/biometric-enrollment`.
+
+1. Search for the student.
+2. Scan or enter a unique student RFID.
+3. Save the assignment.
+4. Capture or upload clear face images.
+5. Confirm the student shows an RFID and enrolled face images.
+
+### Instructor RFID and face enrollment
+
+Open `/registrar/instructor-face-enrollment`.
+
+1. Select the instructor user.
+2. Assign a unique instructor RFID.
+3. Capture or upload instructor face images.
+4. Confirm the assignments.
+
+### Enrollment rules
+
+- Never assign one RFID to multiple people.
+- Test the physical reader before the live defense.
+- Capture well-lit, forward-facing images.
+- Instructor RFID is essential: it starts class, authorizes permitted fallbacks, approves temporary movement, and authorizes Student Logout.
+- Face recognition depends on configuration and recognition-service availability.
+- RFID is implemented. QR attendance is not implemented.
+- NFC is not a separate application workflow; compatible hardware may only act as a tag reader if it outputs the enrolled identifier.
+
+## 10. Phase 8 — Configure Emergency Operations
+
+Log in as the clinic account.
+
+### Create emergency types
+
+Open `/clinic/dashboard`.
+
+Create types such as:
+
+- Medical Emergency
+- Injury
+- Fire
+- Earthquake
+- Security Incident
+
+For each type, enter:
+
+1. Name
+2. Category
+3. Default message
+4. Active status
+5. Sort order
+
+Disaster-category alerts are recorded as Critical; other types are generally Urgent.
+
+### Create emergency hotlines
+
+Open `/clinic/emergency-hotlines`.
+
+1. Add the hotline name and category.
+2. Enter phone number and contact person.
+3. Enable SMS only when the recipient has approved it.
+4. Set the hotline Active.
+5. Save.
+
+### Configure live SMS
+
+Live SMS requires:
+
+1. Semaphore enabled in application configuration.
+2. A valid Semaphore API key and endpoint.
+3. An active selected hotline.
+4. SMS enabled for that hotline.
+5. A valid recipient number.
+
+The in-app emergency record is still saved if SMS is unavailable or fails.
+
+## 11. Phase 9 — Open the Attendance Console
+
+Log in as the console account.
+
+1. Open `/attendance-control-panel/login`.
+2. Enter the panel PIN if enabled.
+3. Select `Laboratory 1`.
+4. Confirm the panel is Online and listening.
+5. Present the assigned instructor RFID.
+6. Start Attendance mode for the displayed class.
+
+**Expected response:** The subject, section, instructor, room, and schedule are displayed. An attendance session is active.
+
+If no schedule appears, check the room, weekday, time, instructor assignment, and schedule status.
+
+## 12. Complete Student Tap Rules
+
+### 12.1 Two official attendance endpoints
+
+A complete normal attendance record needs:
+
+1. **Check-in** — first accepted student tap.
+2. **Check-out** — later accepted student tap when a checkout condition is met.
+
+Physical tap count and official endpoint count are not always identical because temporary movement taps can occur between check-in and check-out.
+
+### 12.2 First student tap
+
+Before the tap is recorded, the system validates:
+
+- Active attendance session exists.
+- RFID belongs to a student.
+- Student belongs to the active schedule section.
+- Year level matches when the subject restricts it.
+- Face verification or an accepted instructor fallback is current.
+
+If valid:
+
+- Saves actual `time_in`.
+- Sets room state to Inside.
+- Sets tap sequence to 1.
+- Leaves main status Pending until official checkout.
+- Stores check-in classification as Present or Late.
+
+### 12.3 On-time, late, and early first tap
+
+With an 8:00 AM start and 15-minute threshold:
+
+- Before 8:00 AM: early timestamp is stored; treated as on-time.
+- 8:00 AM through exactly 8:15 AM: on time.
+- Later than 8:15 AM: Late.
+
+There is no separate final **Early Tap** status in the implementation.
+
+### 12.4 Second student tap
+
+The second physical tap can have different results.
+
+#### A. At or after the checkout window
+
+The normal checkout window starts 15 minutes before scheduled class end.
+
+- Second tap is accepted as official Check-out.
+- Saves `time_out`.
+- Sets room state Outside.
+- Final status becomes Present or Late based on the first tap.
+
+#### B. Before the checkout window
+
+Under ordinary face verification:
+
+- It is not immediately accepted as official checkout.
+- Panel requests the assigned instructor RFID.
+- With instructor approval, it becomes Temporary Exit if the student is Inside.
+- Without instructor approval, no movement tap is recorded.
+- Attendance remains Pending.
+
+#### C. Student Logout mode
+
+When the authorized instructor activates Student Logout:
+
+- The next valid checked-in student's tap becomes official Check-out even before the normal window.
+- Remarks identify the instructor logout override.
+- Logout for a student with no check-in becomes Invalid Tap.
+
+#### D. Accepted verification fallback
+
+Certain implemented fallback methods can cause a later tap to be accepted as official checkout, including:
+
+- Instructor RFID verification
+- Face recognition disabled
+- Approved camera-session override
+- Captured image with recognition service unavailable
+
+Use these only according to institutional policy.
+
+### 12.5 Third student tap
+
+A third physical tap is not automatically ignored. The system evaluates the attendance state.
+
+Example 1:
+
+1. Tap 1 — Check-in.
+2. Tap 2 — Temporary Exit before checkout window, instructor approved.
+3. Tap 3 — During checkout window.
+4. Result — Tap 3 becomes official Check-out.
+
+Example 2:
+
+1. Tap 1 — Check-in.
+2. Tap 2 — Temporary Exit.
+3. Tap 3 — Still before checkout window, instructor approved.
+4. Result — Temporary Return; attendance remains Pending.
+
+Example 3:
+
+1. Tap 1 — Check-in.
+2. Tap 2 — Official Check-out.
+3. Tap 3 — Any later time.
+4. Result — Ignored Tap; completed attendance remains unchanged.
+
+### 12.6 Fourth and later taps
+
+Before official checkout:
+
+- Every pre-window, instructor-approved movement alternates room state:
+  - Inside -> Temporary Exit -> Outside
+  - Outside -> Temporary Return -> Inside
+- A tap becomes official checkout once checkout timing, Student Logout, or an accepted fallback satisfies checkout rules.
+
+After official checkout:
+
+- Every additional tap is logged as Ignored Tap.
+- `time_in`, `time_out`, and final Present/Late status do not change.
+- A later tap never starts a second attendance record for the same student, schedule, and date.
+
+### 12.7 Missed checkout
+
+- While the session is active: Check-in without checkout displays Pending.
+- After an ended session: the display logic can show Incomplete Attendance.
+- When the panel explicitly finalizes open attendance while leaving Attendance mode or logging out, open records are marked Absent with completion reason `cutting`.
+- An eligible student with no valid check-in in a completed session appears as Absent/No Tap.
+
+### 12.8 Invalid, rejected, and ignored taps
+
+| Situation | Result |
+|---|---|
+| Unknown/unassigned RFID | Rejected; student not found |
+| No active attendance session | Rejected |
+| Student is in another section | Rejected |
+| Year level mismatch | Rejected |
+| Missing/expired identity verification | Verification required |
+| Temporary movement without assigned instructor RFID | Authorization requested; no movement saved |
+| Student Logout without prior check-in | Invalid Tap |
+| Any tap after official checkout | Ignored Tap |
+
+### 12.9 Complete status and event reference
+
+| Label | Category | Exact meaning |
+|---|---|---|
+| Checked In | Panel response | First valid tap saved |
+| Pending | Attendance status | Check-in exists, active session, no official checkout |
+| Present | Final status | On-time check-in and official checkout |
+| Late | Final status | Late check-in and official checkout |
+| Incomplete Attendance | Display status | Ended session has check-in but no checkout |
+| Absent | Final/generated status | No check-in, or open record finalized as cutting |
+| Temporary Exit | Tap event | Authorized early movement from Inside to Outside |
+| Temporary Return | Tap event | Authorized early movement from Outside to Inside |
+| Invalid Tap | Tap outcome | Validation or logout-state rule failed |
+| Ignored Tap | Tap outcome | Attendance already has official checkout |
+
+### 12.10 Tap decision flowchart
+
+```text
+Student RFID presented
+        |
+        v
+Active session + correct class + valid identity?
+        | No
+        +----> Reject / Invalid; do not create valid endpoint
+        |
+       Yes
+        |
+        v
+Does attendance already exist?
+        | No
+        +----> Check-in -> Pending
+        |       | within grace -> Present classification
+        |       + after grace  -> Late classification
+        |
+       Yes
+        |
+        v
+Official checkout already exists?
+        | Yes
+        +----> Ignored Tap; completed record unchanged
+        |
+       No
+        |
+        v
+Checkout window, Student Logout, or accepted fallback?
+        | Yes
+        +----> Official Check-out -> Present or Late
+        |
+       No
+        |
+        v
+Assigned instructor authorizes temporary movement?
+        | No
+        +----> No movement saved
+        |
+       Yes
+        +----> Inside: Temporary Exit
+               Outside: Temporary Return
+               Status remains Pending
+```
+
+## 13. Live Attendance Demonstration Scenarios
+
+For every student tap, complete the face check or authorized fallback first.
+
+### Scenario A — Normal Present
+
+1. Student A taps within the grace period.
+2. Panel shows Check-in/Checked In and Pending.
+3. Student A taps during checkout window.
+4. Panel records Check-out.
+5. Final status: Present.
+
+### Scenario B — Late
+
+1. Student B first taps after the late boundary.
+2. Panel records late-classified check-in.
+3. Student B completes official checkout.
+4. Final status: Late.
+
+### Scenario C — One tap only
+
+1. Student C checks in.
+2. Do not perform checkout.
+3. While active: Pending.
+4. After session end: Incomplete display or Absent/cutting after explicit panel finalization.
+
+### Scenario D — Second and third movement taps
+
+1. Student D checks in.
+2. Before checkout window, Student D taps again.
+3. Instructor approves: Temporary Exit.
+4. Student D taps a third time before checkout window.
+5. Instructor approves: Temporary Return.
+6. Student D later taps during checkout window.
+7. Official Check-out; final Present or Late.
+
+### Scenario E — Third tap becomes checkout
+
+1. Tap 1: Check-in.
+2. Tap 2: Temporary Exit with instructor approval.
+3. Tap 3: occurs during checkout window.
+4. Tap 3 is official Check-out.
+
+### Scenario F — More taps after completion
+
+1. Complete check-in and checkout.
+2. Tap a third, fourth, or later time.
+3. Each becomes Ignored Tap.
+4. Original official timestamps and final status remain unchanged.
+
+### Scenario G — Invalid and rejected scans
+
+Demonstrate:
+
+- Unassigned RFID
+- Wrong-section student
+- Missing face/instructor verification
+- Student Logout without check-in
+
+Explain that failure messages protect record integrity.
+
+## 14. Attendance Records, History, and Reports
+
+### Administrator or instructor logs
+
+Open `/admin/attendance/logs`.
+
+Show:
+
+- Present, Late, Pending, Incomplete, Absent, and Total summaries
+- Student and student number
+- Subject, section, school year, instructor, and room
+- Session date and time
+- Tap timestamp and sequence
+- Time in and time out
+- Tap type and room status
+- Validation result and remarks
+- Face evidence when available
+
+Data is stored at three levels:
+
+- `attendance_sessions` — active/completed room and class session
+- `attendances` — consolidated student/schedule/date result
+- `attendance_logs` — individual tap audit events
+
+Admin sees broad records. Instructor records are scoped to assigned schedules.
+
+### Student and parent history
+
+Open `/student-parent/attendance`.
+
+- Student sees personal attendance.
+- Parent sees linked-student attendance.
+- Neither role receives system-wide student records.
+
+### Reports
+
+Open `/reports`.
+
+1. Select a date range.
+2. Review summary totals and attendance distribution.
+3. Review subject and attendance-trend views.
+4. Click Export.
+
+**Expected response:** Role-aware charts/tables and a CSV export.
+
+## 15. Emergency Demonstration
+
+### Send an emergency request
+
+From the Attendance Control Panel:
+
+1. Select Emergency Call.
+2. Choose an emergency type.
+3. Choose an active hotline when available.
+4. Confirm.
+
+The saved alert can include:
+
+- Type, subtype, severity, and message
+- Room, subject, and schedule
+- Triggering user/name
+- Hotline metadata
+- Student/context metadata when supplied
+- Timestamp and response status
+
+### SMS behavior
+
+If Semaphore and the selected hotline are fully configured, the SMS contains:
+
+- Emergency type
+- Room
+- Triggering person
+- Emergency message
+- Hotline name
+
+Do not claim delivery unless the service response says `sent: true` and the recipient confirms receipt.
+
+### Clinic response
+
+On `/clinic/dashboard`:
+
+1. Click or press a key once to allow browser audio.
+2. Wait for or refresh the new alert.
+3. Acknowledge it.
+4. Dispatch a response.
+5. Monitor the linked clinic case.
+6. Resolve or cancel it as appropriate.
+
+The alert can move through Open, Acknowledged, Resolved, or Cancelled.
+
+## 16. Additional Feature Walkthrough
+
+| Feature | Demonstration |
+|---|---|
+| Notifications | Open `/student-parent/notifications`; read and mark a message as read |
+| Profile | Open staff `/settings/profile` or student/parent profile; update a permitted field |
+| Attendance history | Open student/parent attendance and review dates/statuses |
+| Reports | Filter `/reports` and export CSV |
+| Administrator dashboard | Review users, devices, academic setup, RFID, attendance, audit logs, and settings |
+| Activity logs | Show that sensitive operational actions are auditable |
+| RFID | Show enrolled student and instructor tags |
+| Face recognition | Demonstrate enrolled images and live verification when configured |
+| QR | State accurately that QR attendance is not implemented |
+| NFC | State accurately that no separate NFC workflow is implemented |
+
+## 17. Presenter-Ready End-to-End Script
+
+Use this short sequence during a capstone defense:
+
+1. **Empty dashboard:** “Only root.admin exists. We will build every dependency from scratch.”
+2. **Users:** “We create separate administrator, registrar, instructor, console, clinic, student, and parent roles.”
+3. **Settings:** “We establish the late threshold, verification mode, panel access, and emergency sound.”
+4. **Academic setup:** “We create the laboratory, strand, section, subject, and then the schedule.”
+5. **People:** “We complete the instructor profile, enroll students, and link parents.”
+6. **Identity:** “The registrar assigns unique RFID tags and face images.”
+7. **Emergency setup:** “Clinic staff define response types and active hotlines.”
+8. **Console:** “The console selects the room; the assigned instructor starts the scheduled attendance session.”
+9. **First tap:** “The first valid student tap is check-in. It retains Present or Late classification but remains Pending.”
+10. **Second tap:** “During the checkout window it completes attendance. Before that window it needs instructor authorization and normally records Temporary Exit.”
+11. **Third or later tap:** “Before checkout, taps can alternate Temporary Return and Exit. Once checkout is allowed, the next valid tap becomes official checkout. All taps after completion are ignored but audited.”
+12. **Records:** “Logs preserve official timestamps, every tap event, validation, room state, and status.”
+13. **Emergency:** “The panel creates a location-aware alert, optionally sends SMS, and notifies clinic responders.”
+14. **Reports:** “Students, parents, instructors, and administrators receive appropriately scoped history and analytics.”
+
+## 18. Closing Statement
+
+“Starting with only the root administrator, we configured users, security rules, academic structure, instructors, students, schedules, identity enrollment, emergency response, and the attendance console. The final system validates who tapped, whether the student belongs to the active class, when the tap occurred, whether movement or checkout is allowed, and how every event should be recorded. It then makes those results available through controlled logs, portals, reports, notifications, and emergency workflows.”
+
+## 19. Live-Demo Recovery Notes
+
+- No schedule shown: verify room, weekday, time, section, subject, and instructor.
+- Student rejected: verify RFID assignment, section/year, active status, and identity verification.
+- Second tap becomes Temporary Exit: the current time is before checkout window; use authorized Student Logout for an early official checkout demonstration.
+- Status remains Pending: no official checkout exists.
+- Face recognition fails: use the institution-approved instructor fallback.
+- No emergency sound: interact with the clinic page once to satisfy browser autoplay restrictions.
+- SMS fails: show the saved in-app alert and report the returned reason accurately.
+- Use different students for Present, Late, Missing Checkout, Movement, and Invalid scenarios.
