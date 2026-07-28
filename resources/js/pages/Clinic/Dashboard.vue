@@ -19,6 +19,14 @@ const props = defineProps({
     emergencyTypes: { type: Array, default: () => [] },
     calendarEvents: { type: Array, default: () => [] },
     emergencyDetails: { type: Array, default: () => [] },
+    emergencySound: {
+        type: Object,
+        default: () => ({
+            selected_id: 'default',
+            selected_url: '/sound/emergency-alert.mp3',
+            sounds: [],
+        }),
+    },
 });
 
 const page = usePage();
@@ -27,10 +35,13 @@ const editingTypeId = ref(null);
 const latestAlertId = ref(0);
 const audioUnlocked = ref(false);
 const processingAlertIds = ref(new Set());
-const emergencyAlertSoundPath = '/sound/emergency-alert.mp3';
 const showAudioNotice = computed(() => !audioUnlocked.value);
 let alertPollInterval = null;
 let alertAudio = null;
+
+const selectedEmergencySoundUrl = computed(
+    () => props.emergencySound?.selected_url || '/sound/emergency-alert.mp3',
+);
 
 const typeForm = useForm({
     name: '',
@@ -122,7 +133,13 @@ const editType = (type) => {
 };
 
 const refreshDashboard = (
-    only = ['alerts', 'emergencyDetails', 'counts', 'calendarEvents'],
+    only = [
+        'alerts',
+        'emergencyDetails',
+        'counts',
+        'calendarEvents',
+        'emergencySound',
+    ],
 ) => {
     router.reload({
         only,
@@ -229,7 +246,7 @@ const highestAlertId = (alerts) =>
 const unlockAlertAudio = () => {
     if (audioUnlocked.value || typeof window === 'undefined') return;
 
-    alertAudio ||= new Audio(emergencyAlertSoundPath);
+    alertAudio ||= new Audio(selectedEmergencySoundUrl.value);
     alertAudio.preload = 'auto';
 
     const previousVolume = alertAudio.volume;
@@ -247,6 +264,16 @@ const unlockAlertAudio = () => {
         });
 };
 
+watch(selectedEmergencySoundUrl, (url) => {
+    if (!alertAudio) return;
+
+    alertAudio.pause();
+    alertAudio = new Audio(url);
+    alertAudio.preload = 'auto';
+    audioUnlocked.value = false;
+    registerAudioUnlockListeners();
+});
+
 const playEmergencySound = () => {
     if (!audioUnlocked.value || !alertAudio) return;
 
@@ -255,6 +282,13 @@ const playEmergencySound = () => {
     alertAudio.play().catch(() => {
         audioUnlocked.value = false;
     });
+};
+
+const registerAudioUnlockListeners = () => {
+    if (typeof window === 'undefined') return;
+
+    window.addEventListener('click', unlockAlertAudio, { once: true });
+    window.addEventListener('keydown', unlockAlertAudio, { once: true });
 };
 
 watch(
@@ -275,12 +309,17 @@ watch(
 );
 
 onMounted(() => {
-    window.addEventListener('click', unlockAlertAudio, { once: true });
-    window.addEventListener('keydown', unlockAlertAudio, { once: true });
+    registerAudioUnlockListeners();
 
     alertPollInterval = window.setInterval(() => {
         router.reload({
-            only: ['alerts', 'emergencyDetails', 'counts', 'calendarEvents'],
+            only: [
+                'alerts',
+                'emergencyDetails',
+                'counts',
+                'calendarEvents',
+                'emergencySound',
+            ],
             preserveScroll: true,
             preserveState: true,
         });

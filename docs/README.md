@@ -231,7 +231,19 @@ Clinic routes support:
 
 SMS/provider dispatch is not confirmed as a live external integration in the current source.
 
-The clinic emergency sound file is served from `public/sound/emergency-alert.mp3` and loaded in the browser as `/sound/emergency-alert.mp3`.
+Clinic emergency sound usage:
+
+1. Log in as an admin.
+2. Open `Settings`.
+3. Find `Clinic Emergency Sound`.
+4. Enter an optional sound name and choose an audio file. Supported upload types are MP3, WAV, OGG, M4A, and AAC.
+5. Click `Upload`. The uploaded sound is saved and selected immediately.
+6. Use the radio button beside any stored sound to choose the one used by the clinic dashboard.
+7. Use the audio preview controls to test a sound before selecting it.
+8. Delete uploaded sounds that are no longer needed. The default emergency sound cannot be deleted.
+9. On the clinic dashboard, click anywhere or press any key once so the browser allows alert audio playback.
+
+Only the selected sound plays when the clinic dashboard receives a new emergency. If the selected uploaded sound is deleted, the system falls back to the default sound at `/sound/emergency-alert.mp3`.
 
 ### Audit Logs
 

@@ -221,6 +221,9 @@ Route::prefix('admin')
             Route::post('/active-devices/{panelSessionId}/force-logout', [ActiveDeviceController::class, 'forceLogout'])->name('active-devices.force-logout');
             Route::get('/settings', [SystemSettingsController::class, 'edit'])->name('settings.edit');
             Route::put('/settings', [SystemSettingsController::class, 'update'])->name('settings.update');
+            Route::post('/settings/emergency-sounds', [SystemSettingsController::class, 'storeEmergencySound'])->name('settings.emergency-sounds.store');
+            Route::put('/settings/emergency-sounds/{id}/select', [SystemSettingsController::class, 'selectEmergencySound'])->name('settings.emergency-sounds.select');
+            Route::delete('/settings/emergency-sounds/{id}', [SystemSettingsController::class, 'destroyEmergencySound'])->name('settings.emergency-sounds.destroy');
             Route::get('/strands', [StrandController::class, 'indexAdmin'])->name('strands.index');
             Route::post('/strands', [StrandController::class, 'store'])->name('strands.store');
             Route::put('/strands/{id}', [StrandController::class, 'update'])->name('strands.update');
@@ -259,6 +262,7 @@ Route::prefix('clinic')
     ->middleware(['auth', 'role:clinic,admin'])
     ->name('clinic.')
     ->group(function () {
+        Route::get('/emergency-sounds/{id}', [SystemSettingsController::class, 'showEmergencySound'])->name('emergency-sounds.show');
         Route::get('/dashboard', [ClinicController::class, 'dashboard'])->name('dashboard');
         Route::get('/case-logs', [ClinicController::class, 'caseLogs'])->name('case-logs');
         Route::post('/case-logs', [ClinicController::class, 'storeCase'])->name('case-logs.store');

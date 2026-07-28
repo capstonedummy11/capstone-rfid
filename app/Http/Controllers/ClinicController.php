@@ -9,6 +9,7 @@ use App\Models\EmergencyType;
 use App\Models\PatientHistory;
 use App\Models\Section;
 use App\Models\Students;
+use App\Models\SystemSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -52,6 +53,7 @@ class ClinicController
             'emergencyDetails' => $this->formatEmergencyDetails($activeAlerts),
             'calendarEvents' => $this->calendarEvents(),
             'emergencyTypes' => $this->emergencyTypes(),
+            'emergencySound' => SystemSetting::clinicEmergencySoundSettings(),
         ]);
     }
 

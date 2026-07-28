@@ -44,6 +44,10 @@ class SystemSetting extends Model
 
     public const SECURITY_QUESTIONS = 'auth.security_questions';
 
+    public const CLINIC_EMERGENCY_SOUND_LIBRARY = 'clinic.emergency_sound_library';
+
+    public const DEFAULT_CLINIC_EMERGENCY_SOUND_ID = 'default';
+
     public const DEFAULT_SECURITY_QUESTIONS = [
         'What was the name of your first school?',
         'What is your mother\'s maiden name?',
@@ -158,6 +162,68 @@ class SystemSetting extends Model
             ->all();
 
         return count($questions) >= 3 ? $questions : static::DEFAULT_SECURITY_QUESTIONS;
+    }
+
+    public static function clinicEmergencySoundSettings(): array
+    {
+        $library = static::array(static::CLINIC_EMERGENCY_SOUND_LIBRARY, []);
+        $uploadedSounds = collect($library['sounds'] ?? [])
+            ->filter(fn ($sound) => is_array($sound) && ! empty($sound['id']) && ! empty($sound['path']))
+            ->map(fn (array $sound) => [
+                'id' => (string) $sound['id'],
+                'name' => trim((string) ($sound['name'] ?? 'Emergency Sound')),
+                'original_name' => trim((string) ($sound['original_name'] ?? '')),
+                'path' => (string) $sound['path'],
+                'size' => (int) ($sound['size'] ?? 0),
+                'uploaded_at' => (string) ($sound['uploaded_at'] ?? ''),
+            ])
+            ->values()
+            ->all();
+
+        $selectedId = (string) ($library['selected_id'] ?? static::DEFAULT_CLINIC_EMERGENCY_SOUND_ID);
+        $knownIds = collect($uploadedSounds)
+            ->pluck('id')
+            ->push(static::DEFAULT_CLINIC_EMERGENCY_SOUND_ID)
+            ->all();
+
+        if (! in_array($selectedId, $knownIds, true)) {
+            $selectedId = static::DEFAULT_CLINIC_EMERGENCY_SOUND_ID;
+        }
+
+        $sounds = collect([
+            [
+                'id' => static::DEFAULT_CLINIC_EMERGENCY_SOUND_ID,
+                'name' => 'Default Emergency Alert',
+                'original_name' => 'emergency-alert.mp3',
+                'url' => '/sound/emergency-alert.mp3',
+                'size' => 0,
+                'uploaded_at' => '',
+                'is_default' => true,
+            ],
+        ])
+            ->merge(collect($uploadedSounds)->map(fn (array $sound) => [
+                ...$sound,
+                'url' => route('clinic.emergency-sounds.show', ['id' => $sound['id']]),
+                'is_default' => false,
+            ]))
+            ->values()
+            ->all();
+
+        $selected = collect($sounds)->firstWhere('id', $selectedId) ?? $sounds[0];
+
+        return [
+            'selected_id' => $selectedId,
+            'selected_url' => $selected['url'],
+            'sounds' => $sounds,
+        ];
+    }
+
+    public static function setClinicEmergencySoundLibrary(array $sounds, string $selectedId): void
+    {
+        static::setArray(static::CLINIC_EMERGENCY_SOUND_LIBRARY, [
+            'selected_id' => $selectedId,
+            'sounds' => array_values($sounds),
+        ]);
     }
 
     public static function setBoolean(string $key, bool $value): void

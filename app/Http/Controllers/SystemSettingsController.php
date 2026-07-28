@@ -7,6 +7,8 @@ use App\Models\SystemSetting;
 use App\Services\AwsFaceRecognitionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class SystemSettingsController
@@ -26,6 +28,7 @@ class SystemSettingsController
             'securitySettings' => [
                 'questions' => SystemSetting::securityQuestions(),
             ],
+            'clinicEmergencySoundSettings' => SystemSetting::clinicEmergencySoundSettings(),
             'title' => 'Settings',
         ]);
     }
@@ -97,5 +100,129 @@ class SystemSettingsController
         ]);
 
         return back()->with('success', $warning ?? 'System settings updated.');
+    }
+
+    public function storeEmergencySound(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => ['nullable', 'string', 'max:80'],
+            'sound' => ['required', 'file', 'mimes:mp3,wav,ogg,m4a,aac', 'max:10240'],
+        ]);
+
+        $file = $validated['sound'];
+        $id = (string) Str::uuid();
+        $extension = strtolower($file->getClientOriginalExtension() ?: 'mp3');
+        $path = $file->storeAs('clinic-emergency-sounds', "{$id}.{$extension}", 'public');
+
+        if (! $path) {
+            return back()->withErrors(['sound' => 'Emergency sound could not be uploaded.']);
+        }
+
+        $settings = SystemSetting::clinicEmergencySoundSettings();
+        $sounds = collect($settings['sounds'])
+            ->reject(fn (array $sound) => (bool) ($sound['is_default'] ?? false))
+            ->map(fn (array $sound) => collect($sound)->only(['id', 'name', 'original_name', 'path', 'size', 'uploaded_at'])->all())
+            ->push([
+                'id' => $id,
+                'name' => trim((string) ($validated['name'] ?? '')) ?: pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME),
+                'original_name' => $file->getClientOriginalName(),
+                'path' => $path,
+                'size' => $file->getSize(),
+                'uploaded_at' => now()->toDateTimeString(),
+            ])
+            ->values()
+            ->all();
+
+        SystemSetting::setClinicEmergencySoundLibrary($sounds, $id);
+
+        ActivityLog::query()->create([
+            'user_id' => Auth::id(),
+            'action' => 'upload',
+            'table_name' => 'system_settings',
+            'description' => 'Uploaded clinic emergency dashboard sound.',
+        ]);
+
+        return back()->with('success', 'Emergency sound uploaded and selected.');
+    }
+
+    public function selectEmergencySound(string $id)
+    {
+        $settings = SystemSetting::clinicEmergencySoundSettings();
+        $sounds = collect($settings['sounds'])
+            ->reject(fn (array $sound) => (bool) ($sound['is_default'] ?? false));
+
+        $exists = $id === SystemSetting::DEFAULT_CLINIC_EMERGENCY_SOUND_ID
+            || $sounds->contains(fn (array $sound) => $sound['id'] === $id);
+
+        if (! $exists) {
+            abort(404);
+        }
+
+        SystemSetting::setClinicEmergencySoundLibrary(
+            $sounds->map(fn (array $sound) => collect($sound)->only(['id', 'name', 'original_name', 'path', 'size', 'uploaded_at'])->all())->values()->all(),
+            $id,
+        );
+
+        ActivityLog::query()->create([
+            'user_id' => Auth::id(),
+            'action' => 'update',
+            'table_name' => 'system_settings',
+            'description' => 'Selected clinic emergency dashboard sound.',
+        ]);
+
+        return back()->with('success', 'Emergency sound selected.');
+    }
+
+    public function destroyEmergencySound(string $id)
+    {
+        if ($id === SystemSetting::DEFAULT_CLINIC_EMERGENCY_SOUND_ID) {
+            return back()->withErrors(['sound' => 'The default emergency sound cannot be deleted.']);
+        }
+
+        $settings = SystemSetting::clinicEmergencySoundSettings();
+        $sounds = collect($settings['sounds'])
+            ->reject(fn (array $sound) => (bool) ($sound['is_default'] ?? false));
+        $sound = $sounds->firstWhere('id', $id);
+
+        if (! $sound) {
+            abort(404);
+        }
+
+        Storage::disk('public')->delete($sound['path']);
+
+        $remainingSounds = $sounds
+            ->reject(fn (array $entry) => $entry['id'] === $id)
+            ->map(fn (array $entry) => collect($entry)->only(['id', 'name', 'original_name', 'path', 'size', 'uploaded_at'])->all())
+            ->values()
+            ->all();
+        $selectedId = $settings['selected_id'] === $id
+            ? SystemSetting::DEFAULT_CLINIC_EMERGENCY_SOUND_ID
+            : $settings['selected_id'];
+
+        SystemSetting::setClinicEmergencySoundLibrary($remainingSounds, $selectedId);
+
+        ActivityLog::query()->create([
+            'user_id' => Auth::id(),
+            'action' => 'delete',
+            'table_name' => 'system_settings',
+            'description' => 'Deleted clinic emergency dashboard sound.',
+        ]);
+
+        return back()->with('success', 'Emergency sound deleted.');
+    }
+
+    public function showEmergencySound(string $id)
+    {
+        abort_if($id === SystemSetting::DEFAULT_CLINIC_EMERGENCY_SOUND_ID, 404);
+
+        $sound = collect(SystemSetting::clinicEmergencySoundSettings()['sounds'])
+            ->firstWhere('id', $id);
+
+        abort_if(! $sound || ! Storage::disk('public')->exists($sound['path']), 404);
+
+        return Storage::disk('public')->response(
+            $sound['path'],
+            $sound['original_name'] ?: 'clinic-emergency-sound',
+        );
     }
 }
