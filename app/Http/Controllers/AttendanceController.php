@@ -269,9 +269,9 @@ class AttendanceController
 
             if (! $attendance) {
                 if ($forceCheckout) {
-                    $logId = $this->insertInvalidAttendanceTapLog($attendanceSession->attendance_id, $student, $scheduleId, $now, 'Invalid Tap', $sequence, $validated['room'], 'Student logout was requested, but the student has no check-in for this class.');
+                    $logId = $this->insertInvalidAttendanceTapLog($attendanceSession->attendance_id, $student, $scheduleId, $now, 'Invalid Tap', $sequence, $validated['room'], 'Dismiss Class checkout was requested, but the student has no check-in for this class.');
 
-                    return [null, $logId, 'invalid_tap', 'Invalid Tap', false, 'Student has no check-in record to log out from this class.', false];
+                    return [null, $logId, 'invalid_tap', 'Invalid Tap', false, 'Student has no check-in record to check out from this dismissed class.', false];
                 }
 
                 $lateThreshold = SystemSetting::integer(SystemSetting::ATTENDANCE_LATE_THRESHOLD_MINUTES, 15);
@@ -321,7 +321,7 @@ class AttendanceController
             if ($isCheckoutTap) {
                 $finalStatus = $attendance->check_in_status === 'late' ? 'late' : 'present';
                 $remarks = $forceCheckout
-                    ? 'Official check-out recorded by instructor student logout override.'
+                    ? 'Official check-out recorded while the instructor Dismiss Class mode was active.'
                     : 'Official check-out recorded.';
 
                 $attendance->update([

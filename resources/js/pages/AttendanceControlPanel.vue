@@ -89,7 +89,7 @@ const scanPulse = ref(false);
 const lastScanned = ref('');
 const activeProfessor = ref(null);
 const activeStudent = ref(null);
-const forceStudentCheckoutNext = ref(false);
+const dismissClassMode = ref(false);
 const defaultTapHeadline = 'Tap RFID';
 const tapHeadline = ref(defaultTapHeadline);
 const lastAction = ref(
@@ -146,8 +146,8 @@ const STUDENT_INFO_VISIBLE_MS =
 const borrowingEnabled = computed(() =>
     Boolean(panelFeatureSettings.value?.borrowing_enabled),
 );
-const demoAttendanceEnabled = computed(
-    () => Boolean(demoAttendancePanelSettings.value?.enabled),
+const demoAttendanceEnabled = computed(() =>
+    Boolean(demoAttendancePanelSettings.value?.enabled),
 );
 const demoAttendanceRfids = computed(() => ({
     professorTap: String(
@@ -427,7 +427,7 @@ const recordStudentTapOnServer = async (student, extra = {}) => {
                 room: selectedRoom.value,
                 subject_code: activeProfessor.value?.subject_code ?? null,
                 schedule_id: activeProfessor.value?.schedule_id ?? null,
-                force_checkout: forceStudentCheckoutNext.value,
+                force_checkout: dismissClassMode.value,
                 ...extra,
             }),
         });
@@ -544,6 +544,7 @@ const persistPanelRuntime = () => {
         isListening: isListening.value,
         activeProfessor: activeProfessor.value,
         lastAction: lastAction.value,
+        dismissClassMode: dismissClassMode.value,
     };
 
     localStorage.setItem(PANEL_RUNTIME_KEY, JSON.stringify(runtime));
@@ -604,7 +605,7 @@ const startAttendanceSession = (professor) => {
     currentMode.value = 'attendance';
     activeProfessor.value = professor;
     activeStudent.value = null;
-    forceStudentCheckoutNext.value = false;
+    dismissClassMode.value = false;
     attendanceRecords.value = [];
     tapHeadline.value = defaultTapHeadline;
     lastAction.value = `${professor.name} started attendance recording for ${professor.subject}.`;
@@ -631,7 +632,7 @@ const endAttendanceSession = () => {
         'Attendance session ended. Waiting for the next instructor RFID tap.';
     activeProfessor.value = null;
     activeStudent.value = null;
-    forceStudentCheckoutNext.value = false;
+    dismissClassMode.value = false;
     attendanceRecords.value = [];
     sessionActive.value = false;
     currentMode.value = 'idle';
@@ -640,22 +641,37 @@ const endAttendanceSession = () => {
     showToast('info', 'Attendance session ended');
 };
 
-const enableStudentLogoutMode = () => {
-    forceStudentCheckoutNext.value = true;
+const enableDismissClassMode = async () => {
+    const confirmation = await Swal.fire({
+        icon: 'warning',
+        title: 'Dismiss Class?',
+        text: 'All student taps will be processed as checkout until the instructor chooses Continue Class. Students without a check-in will receive Invalid Tap.',
+        showCancelButton: true,
+        confirmButtonText: 'Dismiss Class',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#0f766e',
+        cancelButtonColor: '#64748b',
+        reverseButtons: true,
+        allowOutsideClick: false,
+    });
+
+    if (!confirmation.isConfirmed) return;
+
+    dismissClassMode.value = true;
     currentMode.value = 'attendance';
     lastAction.value =
-        'Student logout mode enabled. The next student RFID tap will be recorded as official check-out.';
+        'Class dismissed. All checked-in student RFID taps will be recorded as official check-out.';
     pushHistory(
-        'Student logout mode',
-        'Next student tap will be saved as official check-out instead of temporary exit.',
+        'Class dismissed',
+        'All checked-in student taps will be saved as official check-out until Continue Class is selected.',
         'warning',
     );
-    setTapHeadline('Student Logout Mode', 5000);
+    setTapHeadline('Dismiss Class Mode', 5000);
     syncPanelSessionState('attendance', {
-        student_logout_mode: true,
-        student_logout_mode_started_at: new Date().toISOString(),
+        dismiss_class_mode: true,
+        dismiss_class_mode_started_at: new Date().toISOString(),
     });
-    showToast('info', 'Next student tap will be official checkout');
+    showToast('info', 'All checked-in student taps will be checkout');
 };
 
 const checkStudentFaceForAttendance = async (
@@ -895,9 +911,8 @@ const recordAttendance = async (student) => {
         }
     }
 
-    const wasForceCheckout = forceStudentCheckoutNext.value;
+    const wasDismissClassCheckout = dismissClassMode.value;
     let tapResult = await recordStudentTapOnServer(student);
-    forceStudentCheckoutNext.value = false;
 
     if (tapResult?.requires_temporary_movement_instructor) {
         setTapHeadline('Instructor RFID Required', STUDENT_TOAST_MS);
@@ -975,8 +990,8 @@ const recordAttendance = async (student) => {
         tapResult.accepted === false ? 'warning' : 'success',
     );
     setTapHeadline(
-        wasForceCheckout && tapResult.accepted !== false
-            ? 'Student Logout Recorded'
+        wasDismissClassCheckout && tapResult.accepted !== false
+            ? 'Dismissed Student Checked Out'
             : tapResult.accepted === false
               ? 'Tap ignored'
               : tapType,
@@ -1431,11 +1446,13 @@ const showInstructorOptions = async () => {
     if (currentMode.value === 'borrowing' && borrowingEnabled.value) {
         const result = await Swal.fire({
             title: 'Instructor RFID detected',
-            text: 'Choose the next action for this live class.',
+            text: dismissClassMode.value
+                ? 'Dismiss Class is active. Choose Continue Class to restore normal attendance rules.'
+                : 'Choose the next action for this live class.',
             showConfirmButton: true,
             showDenyButton: true,
             showCancelButton: true,
-            confirmButtonText: 'Student Logout',
+            confirmButtonText: 'Dismiss Class',
             denyButtonText: 'Continue Class',
             cancelButtonText: 'Emergency Call',
             confirmButtonColor: '#0f766e',
@@ -1446,12 +1463,12 @@ const showInstructorOptions = async () => {
         });
 
         if (result.isConfirmed) {
-            enableStudentLogoutMode();
+            await enableDismissClassMode();
             return;
         }
 
         if (result.isDenied) {
-            forceStudentCheckoutNext.value = false;
+            dismissClassMode.value = false;
             currentMode.value = 'attendance';
             lastAction.value = `${activeProfessor.value?.name ?? 'Instructor'} resumed attendance recording.`;
             pushHistory(
@@ -1460,28 +1477,29 @@ const showInstructorOptions = async () => {
                 'success',
             );
             syncPanelSessionState('attendance');
-            showToast('success', 'Attendance mode resumed');
+            showToast('success', 'Class continued; normal tap rules restored');
             return;
         }
 
         if (result.dismiss === Swal.DismissReason.cancel) {
-            forceStudentCheckoutNext.value = false;
             triggerEmergencyCall();
         }
         return;
     }
 
-    let selectedInstructorAction = 'student_logout';
+    let selectedInstructorAction = 'dismiss_class';
     const result = await Swal.fire({
         title: 'Instructor RFID detected again',
-        text: 'Choose the next action for this live session.',
+        text: dismissClassMode.value
+            ? 'Dismiss Class is active. Choose Continue Class to restore normal attendance rules.'
+            : 'Choose the next action for this live session.',
         html: borrowingEnabled.value
             ? '<button type="button" id="instructor-borrowing-mode" class="swal2-styled" style="background:#d97706;">Borrowing Mode</button>'
             : undefined,
         showConfirmButton: true,
         showDenyButton: true,
         showCancelButton: true,
-        confirmButtonText: 'Student Logout',
+        confirmButtonText: 'Dismiss Class',
         denyButtonText: 'Continue Class',
         cancelButtonText: 'Emergency Call',
         confirmButtonColor: '#0f766e',
@@ -1502,12 +1520,12 @@ const showInstructorOptions = async () => {
     });
 
     if (result.isConfirmed) {
-        if (result.value === 'student_logout') {
-            enableStudentLogoutMode();
+        if (result.value === 'dismiss_class') {
+            await enableDismissClassMode();
             return;
         }
 
-        forceStudentCheckoutNext.value = false;
+        dismissClassMode.value = false;
         currentMode.value = 'borrowing';
         lastAction.value = `${activeProfessor.value?.name ?? 'Instructor'} switched the panel to borrow item mode.`;
         pushHistory(
@@ -1521,21 +1539,23 @@ const showInstructorOptions = async () => {
     }
 
     if (result.isDenied) {
-        forceStudentCheckoutNext.value = false;
+        dismissClassMode.value = false;
         currentMode.value = 'attendance';
         lastAction.value = `${activeProfessor.value?.name ?? 'Instructor'} continued the class session.`;
         pushHistory(
             'Class continued',
-            'Attendance recording remains active.',
+            'Dismiss Class mode was disabled and normal attendance tap rules were restored.',
             'success',
         );
-        syncPanelSessionState('attendance');
-        showToast('success', 'Class continued');
+        syncPanelSessionState('attendance', {
+            dismiss_class_mode: false,
+            dismiss_class_mode_ended_at: new Date().toISOString(),
+        });
+        showToast('success', 'Class continued; normal tap rules restored');
         return;
     }
 
     if (result.dismiss === Swal.DismissReason.cancel) {
-        forceStudentCheckoutNext.value = false;
         triggerEmergencyCall();
     }
 };
@@ -1547,7 +1567,7 @@ const logoutPanel = async () => {
     currentMode.value = 'idle';
     activeProfessor.value = null;
     activeStudent.value = null;
-    forceStudentCheckoutNext.value = false;
+    dismissClassMode.value = false;
     attendanceRecords.value = [];
     lastAction.value =
         'Waiting for an instructor RFID tap to begin attendance recording.';
@@ -1596,7 +1616,7 @@ const performForcedPanelLogout = async (
     panelUnlocked.value = false;
     sessionActive.value = false;
     currentMode.value = 'idle';
-    forceStudentCheckoutNext.value = false;
+    dismissClassMode.value = false;
 
     try {
         const xsrfRaw = document.cookie
@@ -1965,6 +1985,7 @@ onMounted(() => {
                     : restoredMode;
             isListening.value = panelRuntime.isListening ?? true;
             activeProfessor.value = panelRuntime.activeProfessor ?? null;
+            dismissClassMode.value = Boolean(panelRuntime.dismissClassMode);
             if (panelRuntime.lastAction) {
                 lastAction.value = panelRuntime.lastAction;
             }
@@ -2002,7 +2023,14 @@ onUnmounted(() => {
 });
 
 watch(
-    [sessionActive, currentMode, activeProfessor, isListening, selectedRoom],
+    [
+        sessionActive,
+        currentMode,
+        activeProfessor,
+        isListening,
+        selectedRoom,
+        dismissClassMode,
+    ],
     () => {
         if (!panelUnlocked.value) return;
         persistPanelRuntime();
@@ -2244,11 +2272,13 @@ watch(
                             {{ statusSubline }}
                         </div>
                         <div
-                            v-if="forceStudentCheckoutNext"
+                            v-if="dismissClassMode"
                             class="mt-4 rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm font-bold text-teal-700"
                         >
-                            Student Logout Mode: next student tap records
-                            official check-out.
+                            Dismiss Class Mode: every checked-in student tap
+                            records official check-out. Tap the instructor RFID
+                            again and choose Continue Class to restore normal
+                            attendance rules.
                         </div>
                     </div>
 

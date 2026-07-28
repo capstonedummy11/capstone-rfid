@@ -286,7 +286,7 @@ Why this matters:
 - Instructor RFID starts attendance sessions.
 - Instructor RFID can approve fallback attendance flows.
 - Instructor RFID can approve temporary exits/returns.
-- Instructor Student Logout mode uses the active instructor flow.
+- Instructor Dismiss Class and Continue Class actions use the active instructor flow.
 
 ## 13. Create Class Schedules
 
@@ -415,16 +415,21 @@ After checkout:
 
 - Extra taps are ignored but still logged.
 
-## 18. Use Instructor Student Logout Mode When Needed
+## 18. Dismiss or Continue a Class
 
-If a student must leave before the normal checkout window:
+If the instructor dismisses the class before the normal checkout window:
 
 1. Instructor taps RFID.
-2. Instructor chooses Student Logout mode.
-3. The student taps RFID.
-4. The system records official checkout for that student.
+2. Instructor chooses Dismiss Class.
+3. A confirmation modal explains that all checked-in student taps will be official checkout.
+4. Instructor confirms Dismiss Class.
+5. Every checked-in student taps RFID.
+6. The system records official checkout for each checked-in student.
+7. Students without check-in receive Invalid Tap; students already checked out receive Ignored Tap.
 
-Use this only when the student is truly ending attendance for the class, not just temporarily leaving.
+Dismiss Class remains active across student taps. If the instructor taps again, the instructor action menu opens. Choosing Continue Class disables Dismiss Class and restores normal check-in, temporary-exit/return, and checkout-window rules.
+
+Use Dismiss Class only when the class is actually being released, not for a temporary student exit.
 
 ## 19. Review Attendance Logs
 
@@ -686,7 +691,7 @@ Use this section as the quick feature map for each role.
 | Root Admin | Admin account control, system settings, full admin management, activity logs, reports. |
 | Admin | Laboratories, academic records, users, instructors, students, parent links, schedules, inventory, attendance logs, online classes, reports, system settings, Messenger. |
 | Registrar | Student RFID enrollment, student face enrollment, instructor RFID enrollment, instructor face enrollment, registrar reports, Messenger. |
-| Instructor | Assigned schedules, instructor verification, attendance session participation, student logout approval, temporary movement approval, attendance logs, online classes, reports, Messenger. |
+| Instructor | Assigned schedules, instructor verification, attendance session participation, Dismiss Class/Continue Class control, temporary movement approval, attendance logs, online classes, reports, Messenger. |
 | Console | Room selection, attendance panel operation, instructor session start support, student RFID tap recording, face/fallback attendance flow, emergency alert creation. |
 | Student | Portal dashboard, attendance history, online classes, excuse letters, messages, notifications, profile updates. |
 | Parent | Linked student dashboard, attendance viewing, excuse letter approval, parent-created excuse letters, messages, notifications, profile updates. |
@@ -808,7 +813,7 @@ Features:
 - Assigned schedule viewing.
 - Attendance session start through instructor RFID at the panel.
 - Instructor approval for temporary student exits and returns.
-- Student Logout mode for official early checkout.
+- Class-wide Dismiss Class mode for official early checkout.
 - Attendance log review for assigned classes.
 - Online class creation and management for assigned schedules.
 - Online class attendance tracking.
@@ -823,7 +828,7 @@ Common tasks:
 4. Create or manage online classes at `/admin/online-classes`.
 5. Start physical attendance by tapping RFID at the attendance panel.
 6. Approve temporary student exits/returns when appropriate.
-7. Use Student Logout mode for official early checkout.
+7. Use Dismiss Class for class-wide official early checkout; tap again and choose Continue Class to restore normal rules.
 8. Review scoped attendance logs at `/admin/attendance/logs`.
 9. Use `/reports` for instructor reports.
 10. Use `/messages` for conversations.
@@ -1015,5 +1020,5 @@ Use this simple flow when presenting the system:
 - Do not expect attendance to work before RFID enrollment.
 - Do not expect face verification to work before face image enrollment.
 - Do not double-book a room, instructor, or section; the current schedule module does not automatically prevent overlaps.
-- Do not use Student Logout mode for temporary exits.
+- Do not use Dismiss Class for temporary exits.
 - Do not put private credentials or passwords in public documentation.

@@ -447,7 +447,7 @@ flowchart TD
     F -- Yes --> H[Late classification; Pending]
     D -- Yes --> I{Official checkout exists?}
     I -- Yes --> J[Ignored Tap; record unchanged]
-    I -- No --> K{Checkout window, Student Logout, or accepted fallback?}
+    I -- No --> K{Checkout window, Dismiss Class, or accepted fallback?}
     K -- Yes --> L[Official Check-out]
     L --> M[Final Present or Late]
     K -- No --> N{Assigned instructor approves movement?}
@@ -489,11 +489,22 @@ The second physical tap is evaluated by time, mode, verification method, and cur
 | At or after 15 minutes before scheduled end | Official Check-out | Final Present or Late |
 | Before checkout window with instructor approval | Temporary Exit | Pending; Outside |
 | Before checkout window without instructor approval | Movement rejected | Unchanged |
-| Student Logout mode with prior check-in | Official Check-out | Final Present or Late |
-| Student Logout without prior check-in | Invalid Tap | No valid attendance |
+| Dismiss Class with prior check-in | Official Check-out | Final Present or Late |
+| Dismiss Class without prior check-in | Invalid Tap | No valid attendance |
 | Accepted configured verification fallback | May record official Check-out | Final Present or Late |
 
 The Late classification comes from the first tap and cannot be changed to Present by checking out.
+
+### Exact Dismiss Class behavior
+
+Dismiss Class changes **all student taps into checkout attempts instead of check-in attempts** while the mode is active:
+
+- Already checked in: official Check-out is recorded, even before the normal checkout window.
+- Never checked in: no check-in is created; the tap is recorded as Invalid Tap.
+- Already checked out: the tap is recorded as Ignored Tap and the completed record is unchanged.
+- The mode remains active for every student.
+- When the instructor taps again, the panel shows the instructor action menu.
+- Choosing Continue Class disables Dismiss Class and restores normal attendance rules.
 
 ## 18. Third Tap Rules
 
@@ -513,7 +524,7 @@ Result: Temporary Return -> Inside -> Pending
 ```text
 Tap 1: Check-in
 Tap 2: Temporary Exit
-Tap 3 during checkout window, Student Logout, or accepted fallback
+Tap 3 during checkout window, Dismiss Class, or accepted fallback
 Result: Official Check-out -> Present or Late
 ```
 
@@ -628,7 +639,7 @@ Demonstrate:
 - Unassigned RFID
 - Wrong-section student
 - Missing verification
-- Student Logout without check-in
+- Dismiss Class checkout without check-in
 
 ## 23. Attendance Data and Review Flow
 

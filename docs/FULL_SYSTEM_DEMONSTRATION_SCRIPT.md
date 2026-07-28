@@ -41,7 +41,7 @@ Talk track:
 - Registrar connects students and instructors to RFID cards.
 - Registrar enrolls face images used for verification.
 - Student RFID is needed for attendance taps.
-- Instructor RFID is needed for class start, fallback approval, temporary movement approval, and Student Logout mode.
+- Instructor RFID is needed for class start, fallback approval, temporary movement approval, Dismiss Class, and Continue Class.
 
 ## 3. Instructor Login Verification Demo
 
@@ -98,7 +98,7 @@ Demo steps:
 6. First valid tap records check-in.
 7. Show late/on-time status.
 8. Demonstrate temporary exit/return with instructor approval if useful.
-9. Demonstrate official checkout or Student Logout mode.
+9. Demonstrate official checkout or Dismiss Class mode, then tap the instructor RFID again and choose Continue Class to restore normal rules.
 
 Talk track:
 

@@ -140,7 +140,7 @@ Explain that attendance needs RFID enrollment before student taps can work.
 - Online class management
 - Attendance participation through RFID
 - Temporary movement approval
-- Student Logout mode
+- Dismiss Class mode
 - Attendance logs
 - Instructor reports
 - Messenger
@@ -189,7 +189,7 @@ Demo script:
 - Student RFID tap recording
 - Instructor fallback approval
 - Temporary exit and return handling
-- Student Logout mode support
+- Class-wide Dismiss Class mode support
 - Emergency alert creation
 - Live attendance log snapshot
 
@@ -212,7 +212,7 @@ Demo script:
 - Late status uses admin late threshold.
 - Temporary exit/return before checkout needs instructor approval.
 - Final checkout window starts 15 minutes before class end.
-- Instructor Student Logout mode records official early checkout.
+- Instructor Dismiss Class mode makes every checked-in student's tap an official early checkout until Continue Class is selected.
 - Extra taps after checkout are ignored but logged.
 - Evidence images display when authorized and available.
 

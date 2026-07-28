@@ -396,7 +396,7 @@ The attendance panel follows strict rules so a tap does not become official atte
 | Audit-only effect            | Temporary Exit and Temporary Return are audit/tap log records and do not decide final attendance status. |
 | No approval                  | Without valid active-instructor approval, the temporary movement is rejected.                            |
 
-#### Checkout And Student Logout Rules
+#### Checkout And Dismiss Class Rules
 
 | Rule                           | Behavior                                                                                                                |
 | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
@@ -406,9 +406,14 @@ The attendance panel follows strict rules so a tap does not become official atte
 | Room status after checkout     | The student room status becomes `Outside`.                                                                              |
 | Final present status           | On-time check-in plus official checkout becomes `Present`.                                                              |
 | Final late status              | Late check-in plus official checkout becomes `Late`.                                                                    |
-| Instructor Student Logout mode | The active instructor can put the panel in one-shot Student Logout mode.                                                |
-| Forced early checkout          | In Student Logout mode, the next valid student tap becomes official `Check-out` even before the normal checkout window. |
-| One-shot override              | Student Logout mode resets after the next student tap.                                                                  |
+| Instructor Dismiss Class mode  | The active instructor can enable persistent class-wide checkout from the instructor action menu.                        |
+| Confirmation                   | A confirmation modal states that all checked-in student taps will be official checkout.                                 |
+| Checkout instead of check-in   | While active, every student tap is processed as a checkout attempt instead of a check-in attempt.                       |
+| Forced early checkout          | If the student already checked in, the tap becomes official `Check-out` even before the normal checkout window.         |
+| No prior check-in              | If the student never checked in, Dismiss Class does not create a check-in; it records `Invalid Tap`.                    |
+| Already checked out            | If official checkout already exists, the Dismiss Class tap is recorded as `Ignored Tap`.                               |
+| Persistent mode                | The mode remains active across all student taps.                                                                         |
+| Continue Class                 | A later instructor tap opens the action menu; choosing Continue Class disables Dismiss Class and restores normal rules. |
 
 #### Duplicate, Incomplete, And Absent Rules
 
@@ -501,14 +506,19 @@ The attendance panel follows strict rules so a tap does not become official atte
 6. If the student checked in on time and checked out, final status becomes `Present`.
 7. If the student checked in late and checked out, final status becomes `Late`.
 
-### 6. Instructor Student Logout Override
+### 6. Instructor Dismiss Class Mode
 
 1. During a live attendance session, the active instructor may tap their RFID again.
 2. The panel opens instructor session actions.
-3. If the instructor chooses `Student Logout`, the panel enters Student Logout Mode.
-4. The next student RFID tap is recorded as official `Check-out` even if the normal checkout window has not started.
-5. This is used when the instructor wants to log the student out of the class instead of recording a `Temporary Exit`.
-6. Student Logout Mode is one-shot: after the next student tap, the panel returns to normal attendance tap rules.
+3. If the instructor chooses `Dismiss Class`, the panel asks for confirmation.
+4. The confirmation states that all checked-in student taps will become official checkout.
+5. After confirmation, every student RFID tap is processed as a checkout attempt instead of a check-in attempt.
+6. If the student already checked in, the tap is official `Check-out` even if the normal checkout window has not started.
+7. If the student never checked in, the system does not create a check-in and records `Invalid Tap`.
+8. If the student already checked out, the system records `Ignored Tap` and preserves the completed record.
+9. Dismiss Class remains active across all student taps.
+10. If the instructor taps again, the instructor action menu appears.
+11. Choosing `Continue Class` disables Dismiss Class and restores normal attendance rules.
 
 ### 7. Ignored Taps
 
@@ -777,7 +787,7 @@ For a complete demonstration, use this sequence:
 5. Console selects a room and opens the attendance panel.
 6. Instructor taps RFID and starts the active class.
 7. Student completes face/fallback verification and taps RFID for check-in.
-8. Instructor approves temporary exit/return or Student Logout when needed.
+8. Instructor approves temporary exit/return or activates Dismiss Class when needed.
 9. Student checks out during the final checkout window.
 10. Admin or instructor opens attendance logs and evidence.
 11. Student or parent opens portal attendance history.

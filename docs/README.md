@@ -141,7 +141,7 @@ Student tap behavior:
 - Before the final checkout window, temporary exit/return taps require instructor RFID approval.
 - The final checkout window begins 15 minutes before scheduled end.
 - The first valid tap during that window records official checkout.
-- Instructor Student Logout mode can force the next student tap to official checkout.
+- Instructor Dismiss Class mode keeps class-wide checkout active: every checked-in student's tap becomes official checkout until the instructor taps again and chooses Continue Class.
 - Taps after official checkout are ignored and logged without changing the completed record.
 - When a live class ends, unfinished attendance is finalized according to the implemented session-ending rules.
 - Demo attendance buttons are disabled by default and can be enabled from admin settings with configurable professor/student RFID values.

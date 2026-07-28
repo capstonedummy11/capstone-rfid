@@ -306,7 +306,7 @@ Open `/registrar/instructor-face-enrollment`.
 - Never assign one RFID to multiple people.
 - Test the physical reader before the live defense.
 - Capture well-lit, forward-facing images.
-- Instructor RFID is essential: it starts class, authorizes permitted fallbacks, approves temporary movement, and authorizes Student Logout.
+- Instructor RFID is essential: it starts class, authorizes permitted fallbacks, approves temporary movement, activates Dismiss Class, and restores Continue Class.
 - Face recognition depends on configuration and recognition-service availability.
 - RFID is implemented. QR attendance is not implemented.
 - NFC is not a separate application workflow; compatible hardware may only act as a tag reader if it outputs the enrolled identifier.
@@ -436,13 +436,17 @@ Under ordinary face verification:
 - Without instructor approval, no movement tap is recorded.
 - Attendance remains Pending.
 
-#### C. Student Logout mode
+#### C. Dismiss Class mode
 
-When the authorized instructor activates Student Logout:
+When the authorized instructor activates Dismiss Class:
 
-- The next valid checked-in student's tap becomes official Check-out even before the normal window.
+- A confirmation modal states that all student taps will be treated as checkout attempts.
+- Every checked-in student's next tap becomes official Check-out, even before the normal checkout window.
+- A student who never checked in does not receive a check-in; the system records Invalid Tap.
+- A student who already checked out receives Ignored Tap and the completed attendance remains unchanged.
+- The mode stays active across student taps.
+- When the instructor taps again, the action menu appears. Choosing Continue Class disables Dismiss Class and restores normal check-in, temporary-movement, and timed-checkout rules.
 - Remarks identify the instructor logout override.
-- Logout for a student with no check-in becomes Invalid Tap.
 
 #### D. Accepted verification fallback
 
@@ -487,7 +491,7 @@ Before official checkout:
 - Every pre-window, instructor-approved movement alternates room state:
   - Inside -> Temporary Exit -> Outside
   - Outside -> Temporary Return -> Inside
-- A tap becomes official checkout once checkout timing, Student Logout, or an accepted fallback satisfies checkout rules.
+- A tap becomes official checkout once checkout timing, Dismiss Class, or an accepted fallback satisfies checkout rules.
 
 After official checkout:
 
@@ -512,7 +516,7 @@ After official checkout:
 | Year level mismatch | Rejected |
 | Missing/expired identity verification | Verification required |
 | Temporary movement without assigned instructor RFID | Authorization requested; no movement saved |
-| Student Logout without prior check-in | Invalid Tap |
+| Dismiss Class tap without prior check-in | Invalid Tap |
 | Any tap after official checkout | Ignored Tap |
 
 ### 12.9 Complete status and event reference
@@ -559,7 +563,7 @@ Official checkout already exists?
        No
         |
         v
-Checkout window, Student Logout, or accepted fallback?
+Checkout window, Dismiss Class, or accepted fallback?
         | Yes
         +----> Official Check-out -> Present or Late
         |
@@ -633,7 +637,7 @@ Demonstrate:
 - Unassigned RFID
 - Wrong-section student
 - Missing face/instructor verification
-- Student Logout without check-in
+- Dismiss Class checkout without check-in
 
 Explain that failure messages protect record integrity.
 
@@ -769,7 +773,7 @@ Use this short sequence during a capstone defense:
 
 - No schedule shown: verify room, weekday, time, section, subject, and instructor.
 - Student rejected: verify RFID assignment, section/year, active status, and identity verification.
-- Second tap becomes Temporary Exit: the current time is before checkout window; use authorized Student Logout for an early official checkout demonstration.
+- Second tap becomes Temporary Exit: the current time is before checkout window; use authorized Dismiss Class for class-wide early checkout.
 - Status remains Pending: no official checkout exists.
 - Face recognition fails: use the institution-approved instructor fallback.
 - No emergency sound: interact with the clinic page once to satisfy browser autoplay restrictions.
