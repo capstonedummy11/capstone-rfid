@@ -203,6 +203,8 @@ Parents can be linked to one or more students and can switch context where the p
 
 When an admin creates a student record from Student Management, the system also creates or syncs a matching student portal account using the student's email. The default student password is the student's first name plus last name with spaces removed, for example `JuanDelaCruz`. Admins can reset a student's portal password back to that default from the Student Management actions.
 
+After a parent signs or approves an excuse letter, the system automatically sends the approved letter details to the instructor accounts assigned to the student's section schedules through Messenger. The original uploaded attachment is included when one exists.
+
 ### Online Classes
 
 Instructors and admins can create, update, cancel, delete, and audit online classes for schedules. Students can join online classes, and attendance is recorded with late/face-verification metadata where required.

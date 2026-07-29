@@ -1985,6 +1985,7 @@ class AttendanceController
             ->values();
 
         $logs = $this->appendAbsentAttendanceLogs($logs, $filters, $isAdmin, $isInstructor, $instructorId, $absentDefaultDays);
+        $logs = $this->combineAttendanceLogRows($logs);
 
         $sessionOptionsQuery = DB::table('attendance_sessions');
         $sessionJoin($sessionOptionsQuery);
@@ -2510,6 +2511,50 @@ class AttendanceController
         }
 
         return $logs->concat($absentLogs)->values();
+    }
+
+    private function combineAttendanceLogRows($logs)
+    {
+        return collect($logs)
+            ->groupBy(fn (array $log) => $log['main_attendance_id']
+                ? 'attendance-'.$log['main_attendance_id']
+                : 'log-'.$log['id'])
+            ->map(function ($items) {
+                $orderedEvents = $items
+                    ->sortBy(fn (array $item) => $item['tap_sequence_number'] ?? 999999)
+                    ->values()
+                    ->map(fn (array $item) => [
+                        'id' => $item['id'],
+                        'tap_type' => $item['tap_type'],
+                        'tap_sequence_number' => $item['tap_sequence_number'],
+                        'time' => $item['time'],
+                        'room_status' => $item['room_status'],
+                        'validation_result' => $item['validation_result'],
+                        'remarks' => $item['remarks'],
+                        'time_in_image_url' => $item['time_in_image_url'],
+                        'time_out_image_url' => $item['time_out_image_url'],
+                    ])
+                    ->all();
+
+                $summary = $items->firstWhere('tap_type', 'Check-out')
+                    ?? $items->firstWhere('tap_type', 'Check-in')
+                    ?? $items->first();
+
+                $timeInEvent = collect($orderedEvents)->first(fn (array $event) => $event['tap_type'] === 'Check-in' && $event['time_in_image_url']);
+                $timeOutEvent = collect($orderedEvents)->first(fn (array $event) => $event['tap_type'] === 'Check-out' && $event['time_out_image_url']);
+
+                $summary['id'] = $summary['main_attendance_id'] ?: $summary['id'];
+                $summary['tap_type'] = 'Attendance';
+                $summary['tap_sequence_number'] = count($orderedEvents);
+                $summary['time'] = count($orderedEvents).' tap'.(count($orderedEvents) === 1 ? '' : 's');
+                $summary['time_in_image_url'] = $timeInEvent['time_in_image_url'] ?? null;
+                $summary['time_out_image_url'] = $timeOutEvent['time_out_image_url'] ?? null;
+                $summary['evidence_events'] = $orderedEvents;
+
+                return $summary;
+            })
+            ->sortByDesc(fn (array $log) => trim(($log['date'] ?? '').' '.($log['time_in'] ?? '').' '.$log['id']))
+            ->values();
     }
 
     private function matchesWeekday(string $weekdays, string $weekdayAbbr, string $weekdayFull): bool

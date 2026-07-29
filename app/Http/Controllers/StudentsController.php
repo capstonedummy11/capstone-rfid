@@ -7,6 +7,7 @@ use App\Models\Instructor;
 use App\Models\Message;
 use App\Models\OnlineClass;
 use App\Models\OnlineClassNotification;
+use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\Strand;
 use App\Models\StudentExcuseLetter;
@@ -606,7 +607,15 @@ class StudentsController
 
         $this->logActivity('create', 'student_excuse_letters', 'Submitted excuse letter '.$letter->student_excuse_letter_id.' for student '.$student->student_number);
 
-        return back()->with('success', 'Excuse letter submitted.');
+        $teacherMessageCount = $role === 'parent'
+            ? $this->sendApprovedExcuseLetterToTeachers($letter->fresh(['student', 'submittedBy', 'parentApprovedBy']), $request->user())
+            : 0;
+
+        return back()->with('success', match (true) {
+            $role !== 'parent' => 'Excuse letter submitted.',
+            $teacherMessageCount > 0 => 'Excuse letter submitted and sent to the teacher.',
+            default => 'Excuse letter submitted, but no assigned teacher was found for this section.',
+        });
     }
 
     public function approvePortalExcuseLetter(Request $request, StudentExcuseLetter $letter)
@@ -637,8 +646,11 @@ class StudentsController
         ]);
 
         $this->logActivity('update', 'student_excuse_letters', 'Parent approved excuse letter '.$letter->student_excuse_letter_id.' for student '.$student->student_number);
+        $teacherMessageCount = $this->sendApprovedExcuseLetterToTeachers($letter->fresh(['student', 'submittedBy', 'parentApprovedBy']), $request->user());
 
-        return back()->with('success', 'Excuse letter approved.');
+        return back()->with('success', $teacherMessageCount > 0
+            ? 'Excuse letter approved and sent to the teacher.'
+            : 'Excuse letter approved, but no assigned teacher was found for this section.');
     }
 
     public function downloadPortalExcuseLetter(Request $request, StudentExcuseLetter $letter)
@@ -924,6 +936,112 @@ class StudentsController
         $password = preg_replace('/\s+/', '', trim($student->first_name.$student->last_name));
 
         return $password !== '' ? $password : (string) $student->student_number;
+    }
+
+    private function sendApprovedExcuseLetterToTeachers(StudentExcuseLetter $letter, User $sender): int
+    {
+        $student = $letter->student;
+        if (! $student) {
+            return 0;
+        }
+
+        $teacherUsers = $this->teacherUsersForStudent($student);
+        if ($teacherUsers->isEmpty()) {
+            $this->logActivity('warning', 'student_excuse_letters', 'Approved excuse letter '.$letter->student_excuse_letter_id.' was not sent because no teacher is assigned to student '.$student->student_number);
+
+            return 0;
+        }
+
+        $subject = 'Approved Excuse Letter: '.$letter->subject;
+        $body = $this->approvedExcuseLetterMessageBody($letter, $student, $sender);
+        $attachmentMime = $this->storedAttachmentMime($letter->attachment_path);
+        $attachmentSize = $this->storedAttachmentSize($letter->attachment_path);
+
+        foreach ($teacherUsers as $teacher) {
+            $message = StudentPortalMessage::query()->create([
+                'student_id' => $student->student_id,
+                'sender_user_id' => $sender->user_id,
+                'recipient_user_id' => $teacher->user_id,
+                'sender_role' => strtolower((string) $sender->role),
+                'instructor_user_id' => $teacher->user_id,
+                'subject' => $subject,
+                'body' => $body,
+                'attachment_path' => $letter->attachment_path,
+                'attachment_name' => $letter->attachment_name,
+                'attachment_mime' => $attachmentMime,
+                'attachment_size' => $attachmentSize,
+            ]);
+
+            Message::query()->create([
+                'instructor_user_id' => $teacher->user_id,
+                'sender_type' => strtolower((string) $sender->role),
+                'sender_name' => $sender->name,
+                'sender_email' => $sender->email,
+                'student_number' => $student->student_number,
+                'subject' => $message->subject,
+                'body' => $message->body,
+                'attachment_path' => $message->attachment_path,
+                'attachment_name' => $message->attachment_name,
+                'attachment_mime' => $message->attachment_mime,
+                'attachment_size' => $message->attachment_size,
+            ]);
+        }
+
+        $this->logActivity('create', 'student_portal_messages', 'Sent approved excuse letter '.$letter->student_excuse_letter_id.' to '.$teacherUsers->count().' teacher account(s).');
+
+        return $teacherUsers->count();
+    }
+
+    private function teacherUsersForStudent(Students $student)
+    {
+        $teacherIds = Schedule::query()
+            ->where('section_id', $student->section_id)
+            ->whereNotNull('instructor_id')
+            ->with('instructor.user:user_id,name,email,role')
+            ->get()
+            ->map(fn (Schedule $schedule) => $schedule->instructor?->user)
+            ->filter(fn (?User $user) => $user && strtolower((string) $user->role) === 'instructor')
+            ->unique('user_id')
+            ->pluck('user_id');
+
+        return User::query()
+            ->whereIn('user_id', $teacherIds)
+            ->orderBy('name')
+            ->get();
+    }
+
+    private function approvedExcuseLetterMessageBody(StudentExcuseLetter $letter, Students $student, User $sender): string
+    {
+        $studentName = trim($student->first_name.' '.$student->last_name);
+        $dateRange = trim(($letter->from_date?->format('Y-m-d') ?? '').' to '.($letter->to_date?->format('Y-m-d') ?? ''));
+        $approvedAt = $letter->parent_approved_at?->format('Y-m-d g:i A') ?? now()->format('Y-m-d g:i A');
+
+        return trim(implode("\n\n", array_filter([
+            'An excuse letter has been signed by a parent and is ready for teacher review.',
+            "Student: {$studentName} ({$student->student_number})",
+            'Section: '.($student->section?->section_name ?? 'N/A'),
+            "Subject: {$letter->subject}",
+            "Covered Dates: {$dateRange}",
+            "Reason:\n{$letter->reason}",
+            "Parent Signature: {$letter->parent_signature}",
+            "Approved By: {$sender->name}",
+            "Approved At: {$approvedAt}",
+            $letter->parent_approval_notes ? "Parent Notes:\n{$letter->parent_approval_notes}" : null,
+        ])));
+    }
+
+    private function storedAttachmentMime(?string $path): ?string
+    {
+        return $path && Storage::disk('public')->exists($path)
+            ? Storage::disk('public')->mimeType($path)
+            : null;
+    }
+
+    private function storedAttachmentSize(?string $path): ?int
+    {
+        return $path && Storage::disk('public')->exists($path)
+            ? Storage::disk('public')->size($path)
+            : null;
     }
 
     private function attendanceQuery(?Students $student)
