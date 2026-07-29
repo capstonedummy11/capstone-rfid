@@ -1,7 +1,8 @@
 <script setup>
 import AuthNavbar from './AuthNavbar.vue';
-import { computed, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { usePage } from '@inertiajs/vue3';
+import { Menu } from 'lucide-vue-next';
 import {
     consumeStaffSavePreference,
     consumeStudentParentSavePreference,
@@ -17,6 +18,8 @@ const userInitial = computed(
     () => currentUser.value?.name?.charAt(0)?.toUpperCase() || '?',
 );
 
+const isNavOpen = ref(false);
+
 watch(
     currentUser,
     (user) => {
@@ -24,22 +27,15 @@ watch(
 
         if (['student', 'parent'].includes(role)) {
             const shouldSave = consumeStudentParentSavePreference(user?.email);
-
-            if (shouldSave === true) {
-                saveStudentParentProfile(user);
-            } else if (shouldSave === false) {
+            if (shouldSave === true) saveStudentParentProfile(user);
+            else if (shouldSave === false)
                 removeSavedStudentParentProfile(user?.email);
-            }
         }
 
         if (['admin', 'instructor', 'registrar', 'clinic'].includes(role)) {
             const shouldSave = consumeStaffSavePreference(user?.email);
-
-            if (shouldSave === true) {
-                saveStaffProfile(user);
-            } else if (shouldSave === false) {
-                removeSavedStaffProfile(user?.email);
-            }
+            if (shouldSave === true) saveStaffProfile(user);
+            else if (shouldSave === false) removeSavedStaffProfile(user?.email);
         }
     },
     { immediate: true },
@@ -48,13 +44,29 @@ watch(
 
 <template>
     <div class="flex h-screen overflow-hidden">
-        <AuthNavbar v-if="$page.props.auth.user" />
+        <AuthNavbar
+            v-if="$page.props.auth.user"
+            v-model:isNavOpen="isNavOpen"
+        />
         <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
             <!-- Top Header -->
             <header
                 class="flex h-20 shrink-0 items-center justify-between gap-4 bg-white p-4 drop-shadow-sm"
             >
-                <h1 class="text-[20px] font-bold">{{ $page.props.title }}</h1>
+                <div class="flex min-w-0 items-center gap-3">
+                    <button
+                        v-if="$page.props.auth.user"
+                        type="button"
+                        @click="isNavOpen = !isNavOpen"
+                        class="shrink-0 rounded-md p-2 text-slate-600 hover:bg-slate-100"
+                    >
+                        <Menu class="h-5 w-5" />
+                    </button>
+                    <h1 class="truncate text-[20px] font-bold text-black">
+                        {{ $page.props.title }}
+                    </h1>
+                </div>
+
                 <div
                     v-if="$page.props.auth.user"
                     class="flex min-w-0 items-center gap-3 rounded-md border border-slate-100 bg-white px-3 py-2"

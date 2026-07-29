@@ -213,7 +213,7 @@
 
                     <div class="overflow-x-auto">
                         <table
-                            class="w-full table-fixed border-collapse text-sm"
+                            class="w-full border-collapse overflow-x-auto text-sm"
                         >
                             <thead>
                                 <tr class="bg-white">

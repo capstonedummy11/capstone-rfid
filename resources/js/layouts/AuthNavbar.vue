@@ -1,6 +1,6 @@
 <script setup>
 import { router, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import {
     Bell,
     FileText,
@@ -26,6 +26,8 @@ import RFID from '@/components/Icon/RFID.vue';
 import Schedule from '@/components/Icon/Schedule.vue';
 import Section from '@/components/Icon/Section.vue';
 import Inventory from '@/components/Icon/Inventory.vue';
+
+const isNavOpen = defineModel('isNavOpen', { default: true });
 
 const page = usePage();
 const currentRole = computed(() =>
@@ -297,11 +299,12 @@ const confirmLogout = async () => {
 
 <template>
     <nav
-        class="flex h-screen w-[250px] shrink-0 flex-col bg-white text-default drop-shadow-xl"
+        class="flex h-screen shrink-0 flex-col bg-white text-default drop-shadow-xl"
+        :class="isNavOpen ? 'w-[250px]' : 'w-0'"
     >
         <div class="min-h-0 flex-1 overflow-y-auto">
             <template v-for="section in visibleSections" :key="section.title">
-                <header class="p-4 text-nav-header">
+                <header class="flex justify-between p-4 text-nav-header">
                     <h1 class="text-[18px]">{{ section.title }}</h1>
                 </header>
 
@@ -310,8 +313,9 @@ const confirmLogout = async () => {
                         v-for="item in section.links"
                         :key="item.text"
                         :icon="item.icon"
-                        :text="item.text"
+                        :text="isNavOpen ? item.text : ''"
                         :route="item.route"
+                        @click="isNavOpen = false"
                     />
                 </div>
             </template>
@@ -319,9 +323,10 @@ const confirmLogout = async () => {
 
         <!-- Logout Button -->
         <button
+            v-if="isNavOpen"
             type="button"
             @click="confirmLogout"
-            class="auth-nav-link group w-full shrink-0 border-t-2 text-left"
+            class="auth-nav-link group w-full shrink-0 cursor-pointer border-t-2 text-left"
         >
             <LogoutIcon class="text-[#A3AED0] group-hover:text-brand" />
             <h1>Logout</h1>
