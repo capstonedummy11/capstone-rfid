@@ -119,6 +119,7 @@ let tapHeadlineTimer = null;
 let demoStudentCursor = 0;
 let captureResetTimer = null;
 let panelStatusTicker = null;
+let pendingInstructorRfidPrompt = null;
 
 const cameraRef = ref(null);
 const capturedPhotoUrl = ref(null);
@@ -341,6 +342,67 @@ const xsrfToken = () => {
     return xsrfRaw ? decodeURIComponent(xsrfRaw) : '';
 };
 
+const resolveInstructorRfidPrompt = (rfid) => {
+    const scannedRfid = String(rfid ?? '').trim();
+    if (!pendingInstructorRfidPrompt || !scannedRfid) return false;
+
+    const input = Swal.getInput();
+    if (input) {
+        input.value = scannedRfid;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    pendingInstructorRfidPrompt(scannedRfid);
+    pendingInstructorRfidPrompt = null;
+    Swal.clickConfirm();
+
+    return true;
+};
+
+const requestInstructorRfidPrompt = ({
+    title = 'Instructor RFID Required',
+    text,
+    input = 'text',
+    inputLabel = 'Instructor RFID',
+    inputPlaceholder = 'Scan instructor RFID',
+    confirmButtonText = 'Verify Instructor',
+    confirmButtonColor = '#2563eb',
+}) =>
+    Swal.fire({
+        icon: 'warning',
+        title,
+        text,
+        input,
+        inputLabel,
+        inputPlaceholder,
+        inputAttributes: {
+            autocomplete: 'off',
+            autocapitalize: 'off',
+        },
+        showCancelButton: true,
+        confirmButtonText,
+        confirmButtonColor,
+        inputValidator: (value) =>
+            String(value ?? '').trim()
+                ? undefined
+                : 'Instructor RFID is required.',
+        didOpen: () => {
+            Swal.getInput()?.focus();
+            pendingInstructorRfidPrompt = (scannedRfid) => {
+                const modalInput = Swal.getInput();
+                if (modalInput) {
+                    modalInput.value = scannedRfid;
+                    modalInput.dispatchEvent(
+                        new Event('input', { bubbles: true }),
+                    );
+                }
+            };
+        },
+        willClose: () => {
+            pendingInstructorRfidPrompt = null;
+        },
+    });
+
 const setTapHeadline = (message, holdMs = 2200) => {
     tapHeadline.value = message;
     if (tapHeadlineTimer) {
@@ -441,21 +503,14 @@ const recordStudentTapOnServer = async (student, extra = {}) => {
 };
 
 const requestInstructorTapForTemporaryMovement = async (student) => {
-    const result = await Swal.fire({
-        icon: 'warning',
+    const result = await requestInstructorRfidPrompt({
         title: 'Instructor RFID Required',
         text: `${student.name} is trying to record a temporary exit or return. Ask the active instructor to tap or enter their RFID.`,
         input: 'password',
         inputLabel: 'Instructor RFID',
         inputPlaceholder: 'Tap or enter instructor RFID',
-        showCancelButton: true,
         confirmButtonText: 'Authorize Movement',
         confirmButtonColor: '#0f766e',
-        cancelButtonText: 'Cancel',
-        inputValidator: (value) =>
-            String(value || '').trim()
-                ? undefined
-                : 'Instructor RFID is required.',
     });
 
     if (!result.isConfirmed) {
@@ -722,33 +777,8 @@ const recordAttendance = async (student) => {
         hour12: true,
     });
 
-    const requestActiveInstructorRfid = async ({
-        title = 'Instructor RFID Required',
-        text,
-        confirmButtonText = 'Verify Instructor',
-        confirmButtonColor = '#2563eb',
-    }) =>
-        Swal.fire({
-            icon: 'warning',
-            title,
-            text,
-            input: 'text',
-            inputPlaceholder: 'Scan instructor RFID',
-            inputAttributes: {
-                autocomplete: 'off',
-                autocapitalize: 'off',
-            },
-            showCancelButton: true,
-            confirmButtonText,
-            confirmButtonColor,
-            inputValidator: (value) =>
-                String(value ?? '').trim()
-                    ? undefined
-                    : 'Instructor RFID is required.',
-        });
-
     if (!student.hasFaceImage) {
-        const instructorApproval = await requestActiveInstructorRfid({
+        const instructorApproval = await requestInstructorRfidPrompt({
             text: `${student.name} has no registered face image. Scan the active instructor's RFID card to approve this attendance.`,
         });
 
@@ -801,7 +831,7 @@ const recordAttendance = async (student) => {
             );
 
             if (!bypassResult?.ok) {
-                const instructorApproval = await requestActiveInstructorRfid({
+                const instructorApproval = await requestInstructorRfidPrompt({
                     title: 'Camera Unavailable',
                     text: "Scan the active instructor's RFID once to continue this scheduled class without camera capture. The bypass ends when the class session ends or the panel logs out.",
                     confirmButtonText: 'Enable Session Bypass',
@@ -849,7 +879,7 @@ const recordAttendance = async (student) => {
             );
 
             if (faceResult?.requires_instructor_rfid) {
-                const instructorApproval = await requestActiveInstructorRfid({
+                const instructorApproval = await requestInstructorRfidPrompt({
                     text:
                         faceResult.message ??
                         'Scan the active instructor RFID to approve this attendance.',
@@ -1823,6 +1853,11 @@ const finalizeScan = () => {
     rfidBuffer = '';
 
     if (!scannedValue) return;
+    if (resolveInstructorRfidPrompt(scannedValue)) {
+        triggerPulse(scannedValue);
+        return;
+    }
+
     handleRfidScan(scannedValue);
 };
 

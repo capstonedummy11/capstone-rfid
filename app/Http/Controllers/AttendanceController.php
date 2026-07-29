@@ -231,10 +231,12 @@ class AttendanceController
             ], 422);
         }
 
-        $verification = $request->session()->pull($this->attendanceVerificationKey(
+        $verificationKey = $this->attendanceVerificationKey(
             (int) $attendanceSession->attendance_id,
             (int) $student->student_id,
-        ));
+        );
+
+        $verification = $request->session()->get($verificationKey);
 
         if (! is_array($verification) || (int) ($verification['expires_at'] ?? 0) < now()->timestamp) {
             return response()->json([
@@ -380,6 +382,8 @@ class AttendanceController
                 'message' => $message,
             ], 428);
         }
+
+        $request->session()->forget($verificationKey);
 
         $displayStatus = $attendance ? $this->attendanceDisplayStatus($attendance, $attendanceSession) : 'Invalid Tap';
 
