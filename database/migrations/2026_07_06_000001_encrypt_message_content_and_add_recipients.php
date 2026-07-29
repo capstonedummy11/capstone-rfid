@@ -85,8 +85,15 @@ return new class extends Migration
             }, 'student_portal_message_id');
 
         Schema::table('student_portal_messages', function (Blueprint $table) {
+            $table->dropForeign(['recipient_user_id']);
+        });
+
+        Schema::table('student_portal_messages', function (Blueprint $table) {
             $table->dropIndex(['recipient_user_id', 'created_at']);
-            $table->dropConstrainedForeignId('recipient_user_id');
+        });
+
+        Schema::table('student_portal_messages', function (Blueprint $table) {
+            $table->dropColumn('recipient_user_id');
             $table->dropColumn(['subject_ciphertext', 'body_ciphertext']);
         });
 

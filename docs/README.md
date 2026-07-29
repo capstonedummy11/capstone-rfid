@@ -65,6 +65,27 @@ Seeder shortcuts:
 - `php artisan db:seed --class=SystemSeeder` seeds system reference records and demo operational data.
 - `php artisan db:seed --class=DataAccountSeeder` seeds login accounts, console accounts, and student/parent portal account links.
 
+Default seeded login accounts:
+
+| Role | Email | Password | Notes |
+| --- | --- | --- | --- |
+| Root admin | `root.admin@sample.com` | `sample` | Root administrator |
+| Admin | `test@example.com` | `password` | Test admin |
+| Admin | `jeromebernante@gmail.com` | `1234` | Demo/dev admin |
+| Admin | `vallecera@gmail.com` | `sample` | Demo/dev admin |
+| Admin | `admin@gmail.com` | `password` | Standard admin |
+| Instructor | `instructor@sample.com` | `sample` | RFID `RFID-INSTRUCTOR-SAMPLE` |
+| Clinic | `clinic@sample.com` | `sample` | Clinic staff |
+| Registrar | `registrar@sample.com` | `sample` | Registrar staff |
+| Console | `comlab1@example.com` | `1234` | COMLAB 1 panel account |
+| Console | `comlab2@example.com` | `1234` | COMLAB 2 panel account |
+| Console | `comlab3@example.com` | `1234` | COMLAB 3 panel account |
+| Console | `comlab4@example.com` | `1234` | COMLAB 4 panel account |
+| Console | `comlab5@example.com` | `1234` | COMLAB 5 panel account |
+| Student | `andrea.santos@student.sample.com` | `sample` | Andrea Santos |
+| Student | `miguel.reyes@student.sample.com` | `sample` | Miguel Reyes |
+| Parent | `parent.andrea.santos@sample.com` | `sample` | Linked to Andrea Santos |
+
 ## Initial Configuration Flow
 
 After the app and database are already running, configure the operational data in this order:
