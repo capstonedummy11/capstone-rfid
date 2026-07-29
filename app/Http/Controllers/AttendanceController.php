@@ -2521,9 +2521,23 @@ class AttendanceController
     private function combineAttendanceLogRows($logs)
     {
         return collect($logs)
-            ->groupBy(fn (array $log) => ($log['main_attendance_id'] ?? null)
-                ? 'attendance-'.$log['main_attendance_id']
-                : 'log-'.$log['id'])
+            ->groupBy(function (array $log) {
+                if ($log['main_attendance_id'] ?? null) {
+                    return 'attendance-'.$log['main_attendance_id'];
+                }
+
+                if (($log['tap_type'] ?? null) !== 'No Tap') {
+                    return implode('|', [
+                        'session',
+                        $log['session_id'] ?? '',
+                        $log['student_number'] ?? $log['student'] ?? '',
+                        $log['date'] ?? '',
+                        $log['subject'] ?? '',
+                    ]);
+                }
+
+                return 'log-'.$log['id'];
+            })
             ->map(function ($items) {
                 $orderedEvents = $items
                     ->sortBy(fn (array $item) => $item['tap_sequence_number'] ?? 999999)
