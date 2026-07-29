@@ -146,7 +146,7 @@ const statusClass = (status) => {
 
             <section class="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
                 <div
-                    class="rounded-md border border-slate-200 bg-white shadow-sm"
+                    class="w-full overflow-auto rounded-md border border-slate-200 bg-white"
                 >
                     <div
                         class="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between"
@@ -171,8 +171,8 @@ const statusClass = (status) => {
                         </Link>
                     </div>
 
-                    <div class="overflow-x-auto">
-                        <table class="w-full min-w-[760px] text-left text-sm">
+                    <div class="w-full">
+                        <table class="overflow-x-auto text-left text-sm">
                             <thead
                                 class="bg-slate-50 text-xs text-slate-500 uppercase"
                             >
@@ -303,7 +303,7 @@ const statusClass = (status) => {
 
             <section class="grid gap-5 xl:grid-cols-[1fr_320px]">
                 <div
-                    class="rounded-md border border-slate-200 bg-white shadow-sm"
+                    class="overflow-x-auto rounded-md border border-slate-200 bg-white shadow-sm"
                 >
                     <div
                         class="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between"
