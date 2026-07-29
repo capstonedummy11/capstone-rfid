@@ -1076,7 +1076,6 @@ class StudentsController
                     'tap_type',
                     'tap_sequence_number',
                     'tap_datetime',
-                    'room_status',
                     'validation_result',
                     'remarks',
                     'time_in_face_path',
@@ -1114,7 +1113,7 @@ class StudentsController
                     'tap_type' => $log->tap_type,
                     'tap_sequence_number' => $log->tap_sequence_number,
                     'time' => $log->tap_datetime ? date('g:i A', strtotime((string) $log->tap_datetime)) : null,
-                    'room_status' => ucfirst((string) ($log->room_status ?? 'outside')),
+                    'room_status' => $this->tapRoomStatus($log->tap_type),
                     'validation_result' => ucfirst((string) ($log->validation_result ?? 'valid')),
                     'remarks' => $log->remarks,
                     'time_in_image_url' => $log->time_in_face_path ? route('attendance.evidence', ['attendanceLog' => $log->id, 'moment' => 'time-in']) : null,
@@ -1205,6 +1204,15 @@ class StudentsController
                 'verification_method' => $faceStatus,
             ]],
         ];
+    }
+
+    private function tapRoomStatus(?string $tapType): string
+    {
+        return match ($tapType) {
+            'Check-in', 'Temporary Return' => 'Inside',
+            'Check-out', 'Temporary Exit' => 'Outside',
+            default => 'Outside',
+        };
     }
 
     private function shortTime($value): ?string
