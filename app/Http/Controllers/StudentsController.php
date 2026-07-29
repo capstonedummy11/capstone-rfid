@@ -489,8 +489,8 @@ class StudentsController
                     ? OnlineClass::query()->where('section_id', $student->section_id)->where('status', 'scheduled')->count()
                     : 0,
             ],
-            'recentAttendance' => $this->attendanceQuery($student)->take(5)->get()->map(fn ($attendance) => $this->attendancePayload($attendance)),
-            'attendance' => $this->attendanceQuery($student)->take(100)->get()->map(fn ($attendance) => $this->attendancePayload($attendance)),
+            'recentAttendance' => $this->combinedAttendancePayloads($student)->take(5),
+            'attendance' => $this->combinedAttendancePayloads($student)->take(100),
             'recentMessages' => $student ? $this->messageQuery($request, $student)->take(5)->get()->map(fn ($message) => $this->messagePayload($message)) : [],
         ]);
     }
@@ -551,7 +551,7 @@ class StudentsController
             'student' => $this->studentPayload($student),
             'linkedStudents' => $this->linkedStudentsPayload($request),
             'selectedStudentId' => $student?->student_id,
-            'attendance' => $this->attendanceQuery($student)->get()->map(fn ($attendance) => $this->attendancePayload($attendance)),
+            'attendance' => $this->combinedAttendancePayloads($student),
         ]);
     }
 
@@ -1060,16 +1060,39 @@ class StudentsController
             ->where('subject_code', $attendance->subject_code)
             ->orderByDesc('attendance_id')
             ->value('attendance_id');
-        $evidence = $sessionId
+        $evidenceLogs = $sessionId
             ? DB::table('attendance_logs')
                 ->where('attendance_id', $sessionId)
                 ->where('student_id', $attendance->student_id)
-                ->orderByDesc('id')
-                ->first(['id', 'time_in_face_path', 'time_out_face_path', 'verification_method'])
-            : null;
+                ->where(function ($query) use ($attendance) {
+                    $query
+                        ->where('main_attendance_id', $attendance->attendance_id)
+                        ->orWhereNull('main_attendance_id');
+                })
+                ->orderBy('tap_sequence_number')
+                ->orderBy('id')
+                ->get([
+                    'id',
+                    'tap_type',
+                    'tap_sequence_number',
+                    'tap_datetime',
+                    'room_status',
+                    'validation_result',
+                    'remarks',
+                    'time_in_face_path',
+                    'time_out_face_path',
+                    'verification_method',
+                ])
+            : collect();
+
+        $timeInEvidence = $evidenceLogs->first(fn ($log) => $log->tap_type === 'Check-in' && $log->time_in_face_path)
+            ?? $evidenceLogs->first(fn ($log) => $log->time_in_face_path);
+        $timeOutEvidence = $evidenceLogs->first(fn ($log) => $log->tap_type === 'Check-out' && $log->time_out_face_path)
+            ?? $evidenceLogs->first(fn ($log) => $log->time_out_face_path);
 
         return [
             'attendance_id' => $attendance->attendance_id,
+            'source' => 'rfid',
             'date' => $attendance->date?->format('Y-m-d'),
             'subject' => $attendance->schedule?->subject?->subject_name ?? $attendance->subject_code,
             'room' => $attendance->room,
@@ -1081,9 +1104,106 @@ class StudentsController
             ]))),
             'duration' => $this->durationLabel($attendance->time_in, $attendance->time_out),
             'status' => $attendance->status,
-            'time_in_image_url' => $evidence?->time_in_face_path ? route('attendance.evidence', ['attendanceLog' => $evidence->id, 'moment' => 'time-in']) : null,
-            'time_out_image_url' => $evidence?->time_out_face_path ? route('attendance.evidence', ['attendanceLog' => $evidence->id, 'moment' => 'time-out']) : null,
-            'verification_method' => $evidence?->verification_method,
+            'sort_time' => (string) ($attendance->time_in ?? $attendance->time_start ?? $attendance->schedule?->time_start ?? '00:00:00'),
+            'time_in_image_url' => $timeInEvidence?->time_in_face_path ? route('attendance.evidence', ['attendanceLog' => $timeInEvidence->id, 'moment' => 'time-in']) : null,
+            'time_out_image_url' => $timeOutEvidence?->time_out_face_path ? route('attendance.evidence', ['attendanceLog' => $timeOutEvidence->id, 'moment' => 'time-out']) : null,
+            'verification_method' => $timeInEvidence?->verification_method ?? $timeOutEvidence?->verification_method,
+            'evidence_events' => $evidenceLogs
+                ->map(fn ($log) => [
+                    'id' => $log->id,
+                    'tap_type' => $log->tap_type,
+                    'tap_sequence_number' => $log->tap_sequence_number,
+                    'time' => $log->tap_datetime ? date('g:i A', strtotime((string) $log->tap_datetime)) : null,
+                    'room_status' => ucfirst((string) ($log->room_status ?? 'outside')),
+                    'validation_result' => ucfirst((string) ($log->validation_result ?? 'valid')),
+                    'remarks' => $log->remarks,
+                    'time_in_image_url' => $log->time_in_face_path ? route('attendance.evidence', ['attendanceLog' => $log->id, 'moment' => 'time-in']) : null,
+                    'time_out_image_url' => $log->time_out_face_path ? route('attendance.evidence', ['attendanceLog' => $log->id, 'moment' => 'time-out']) : null,
+                    'verification_method' => $log->verification_method,
+                ])
+                ->values(),
+        ];
+    }
+
+    private function combinedAttendancePayloads(?Students $student)
+    {
+        if (! $student) {
+            return collect();
+        }
+
+        $rfidAttendance = $this->attendanceQuery($student)
+            ->get()
+            ->map(fn ($attendance) => $this->attendancePayload($attendance));
+
+        $onlineAttendance = DB::table('online_class_attendances')
+            ->join('online_classes', 'online_classes.online_class_id', '=', 'online_class_attendances.online_class_id')
+            ->leftJoin('subjects', 'subjects.subject_code', '=', 'online_classes.subject_code')
+            ->where('online_class_attendances.student_id', $student->student_id)
+            ->whereNotNull('online_class_attendances.joined_at')
+            ->orderByDesc('online_class_attendances.joined_at')
+            ->get([
+                'online_class_attendances.online_class_attendance_id',
+                'online_class_attendances.joined_at',
+                'online_class_attendances.status',
+                'online_class_attendances.is_late',
+                'online_class_attendances.face_required',
+                'online_class_attendances.face_verified',
+                'online_class_attendances.face_verified_at',
+                'online_classes.online_class_id',
+                'online_classes.title',
+                'online_classes.scheduled_date',
+                'online_classes.start_time',
+                'online_classes.end_time',
+                'subjects.subject_name',
+                'online_classes.subject_code',
+            ])
+            ->map(fn ($attendance) => $this->onlineAttendancePayload($attendance));
+
+        return $rfidAttendance
+            ->concat($onlineAttendance)
+            ->sortByDesc(fn (array $attendance) => trim(($attendance['date'] ?? '').' '.($attendance['sort_time'] ?? '')))
+            ->values();
+    }
+
+    private function onlineAttendancePayload(object $attendance): array
+    {
+        $joinedAt = $attendance->joined_at ? \Carbon\Carbon::parse($attendance->joined_at) : null;
+        $faceVerifiedAt = $attendance->face_verified_at ? \Carbon\Carbon::parse($attendance->face_verified_at) : null;
+        $status = $attendance->is_late ? 'late' : (string) $attendance->status;
+        $faceStatus = $attendance->face_required
+            ? ($attendance->face_verified ? 'Face verified' : 'Face required')
+            : 'Face not required';
+
+        return [
+            'attendance_id' => 'online-'.$attendance->online_class_attendance_id,
+            'source' => 'online',
+            'date' => $attendance->scheduled_date ? \Carbon\Carbon::parse($attendance->scheduled_date)->format('Y-m-d') : $joinedAt?->format('Y-m-d'),
+            'subject' => $attendance->subject_name ?? $attendance->subject_code ?? $attendance->title,
+            'room' => 'Online Class',
+            'time_in' => $joinedAt?->format('g:i A'),
+            'time_out' => null,
+            'class_time' => trim(implode(' - ', array_filter([
+                $this->shortTime($attendance->start_time),
+                $this->shortTime($attendance->end_time),
+            ]))),
+            'duration' => null,
+            'status' => $status,
+            'sort_time' => $joinedAt?->format('H:i:s') ?? (string) $attendance->start_time,
+            'time_in_image_url' => null,
+            'time_out_image_url' => null,
+            'verification_method' => $faceStatus,
+            'evidence_events' => [[
+                'id' => 'online-'.$attendance->online_class_attendance_id,
+                'tap_type' => 'Online Join',
+                'tap_sequence_number' => 1,
+                'time' => $joinedAt?->format('g:i A'),
+                'room_status' => 'Online Class',
+                'validation_result' => ucfirst($status),
+                'remarks' => trim($faceStatus.($faceVerifiedAt ? ' at '.$faceVerifiedAt->format('g:i A') : '')),
+                'time_in_image_url' => null,
+                'time_out_image_url' => null,
+                'verification_method' => $faceStatus,
+            ]],
         ];
     }
 

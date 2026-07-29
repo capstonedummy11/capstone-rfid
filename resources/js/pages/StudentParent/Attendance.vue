@@ -13,6 +13,7 @@ const search = ref('');
 const statusFilter = ref('');
 const currentPage = ref(1);
 const evidencePreview = ref(null);
+const expandedEvidenceRows = ref({});
 const pageSize = 10;
 
 const filteredAttendance = computed(() => {
@@ -28,6 +29,7 @@ const filteredAttendance = computed(() => {
                 record.time_in,
                 record.time_out,
                 record.status,
+                record.source,
             ].some((value) =>
                 String(value || '')
                     .toLowerCase()
@@ -65,6 +67,22 @@ const openEvidence = (url, title) => {
 
 const closeEvidence = () => {
     evidencePreview.value = null;
+};
+
+const rowKey = (record) => String(record.attendance_id ?? '');
+
+const hasEvidenceEvents = (record) =>
+    Array.isArray(record.evidence_events) && record.evidence_events.length > 0;
+
+const isEvidenceExpanded = (record) =>
+    expandedEvidenceRows.value[rowKey(record)] === true;
+
+const toggleEvidenceEvents = (record) => {
+    const key = rowKey(record);
+    expandedEvidenceRows.value = {
+        ...expandedEvidenceRows.value,
+        [key]: !expandedEvidenceRows.value[key],
+    };
 };
 </script>
 
@@ -124,79 +142,193 @@ const closeEvidence = () => {
                             <th class="px-3 py-2">Time Out</th>
                             <th class="px-3 py-2">Time In Image</th>
                             <th class="px-3 py-2">Time Out Image</th>
+                            <th class="px-3 py-2">Details</th>
                             <th class="px-3 py-2">Duration</th>
                             <th class="px-3 py-2">Status</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
-                        <tr
+                        <template
                             v-for="record in paginatedAttendance"
                             :key="record.attendance_id"
                         >
-                            <td class="px-3 py-3">{{ record.date }}</td>
-                            <td class="px-3 py-3">{{ record.subject }}</td>
-                            <td class="px-3 py-3">{{ record.room || '-' }}</td>
-                            <td class="px-3 py-3">
-                                {{ record.class_time || '-' }}
-                            </td>
-                            <td class="px-3 py-3">
-                                {{ record.time_in || '-' }}
-                            </td>
-                            <td class="px-3 py-3">
-                                {{ record.time_out || '-' }}
-                            </td>
-                            <td class="px-3 py-3">
-                                <button
-                                    v-if="record.time_in_image_url"
-                                    type="button"
-                                    @click="
-                                        openEvidence(
-                                            record.time_in_image_url,
-                                            `${record.subject} - Time In`,
-                                        )
-                                    "
+                            <tr>
+                                <td class="px-3 py-3">{{ record.date }}</td>
+                                <td class="px-3 py-3">{{ record.subject }}</td>
+                                <td class="px-3 py-3">
+                                    {{ record.room || '-' }}
+                                </td>
+                                <td class="px-3 py-3">
+                                    {{ record.class_time || '-' }}
+                                </td>
+                                <td class="px-3 py-3">
+                                    {{ record.time_in || '-' }}
+                                </td>
+                                <td class="px-3 py-3">
+                                    {{ record.time_out || '-' }}
+                                </td>
+                                <td class="px-3 py-3">
+                                    <button
+                                        v-if="record.time_in_image_url"
+                                        type="button"
+                                        @click="
+                                            openEvidence(
+                                                record.time_in_image_url,
+                                                `${record.subject} - Time In`,
+                                            )
+                                        "
+                                    >
+                                        <img
+                                            :src="record.time_in_image_url"
+                                            alt="Time-in face evidence"
+                                            class="h-12 w-12 rounded-md border border-slate-200 object-cover hover:ring-2 hover:ring-sky-400"
+                                        />
+                                    </button>
+                                    <span v-else class="text-xs text-slate-400"
+                                        >Not captured</span
+                                    >
+                                </td>
+                                <td class="px-3 py-3">
+                                    <button
+                                        v-if="record.time_out_image_url"
+                                        type="button"
+                                        @click="
+                                            openEvidence(
+                                                record.time_out_image_url,
+                                                `${record.subject} - Time Out`,
+                                            )
+                                        "
+                                    >
+                                        <img
+                                            :src="record.time_out_image_url"
+                                            alt="Time-out face evidence"
+                                            class="h-12 w-12 rounded-md border border-slate-200 object-cover hover:ring-2 hover:ring-sky-400"
+                                        />
+                                    </button>
+                                    <span v-else class="text-xs text-slate-400"
+                                        >Not captured</span
+                                    >
+                                </td>
+                                <td class="px-3 py-3">
+                                    <button
+                                        v-if="hasEvidenceEvents(record)"
+                                        type="button"
+                                        class="rounded-md border border-slate-300 px-2 py-1 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                                        @click="toggleEvidenceEvents(record)"
+                                    >
+                                        {{
+                                            isEvidenceExpanded(record)
+                                                ? 'Hide'
+                                                : 'Show'
+                                        }}
+                                    </button>
+                                    <span v-else class="text-xs text-slate-400"
+                                        >None</span
+                                    >
+                                </td>
+                                <td class="px-3 py-3">
+                                    {{ record.duration || '-' }}
+                                </td>
+                                <td
+                                    class="px-3 py-3 font-semibold text-slate-800"
                                 >
-                                    <img
-                                        :src="record.time_in_image_url"
-                                        alt="Time-in face evidence"
-                                        class="h-12 w-12 rounded-md border border-slate-200 object-cover hover:ring-2 hover:ring-sky-400"
-                                    />
-                                </button>
-                                <span v-else class="text-xs text-slate-400"
-                                    >Not captured</span
-                                >
-                            </td>
-                            <td class="px-3 py-3">
-                                <button
-                                    v-if="record.time_out_image_url"
-                                    type="button"
-                                    @click="
-                                        openEvidence(
-                                            record.time_out_image_url,
-                                            `${record.subject} - Time Out`,
-                                        )
-                                    "
-                                >
-                                    <img
-                                        :src="record.time_out_image_url"
-                                        alt="Time-out face evidence"
-                                        class="h-12 w-12 rounded-md border border-slate-200 object-cover hover:ring-2 hover:ring-sky-400"
-                                    />
-                                </button>
-                                <span v-else class="text-xs text-slate-400"
-                                    >Not captured</span
-                                >
-                            </td>
-                            <td class="px-3 py-3">
-                                {{ record.duration || '-' }}
-                            </td>
-                            <td class="px-3 py-3 font-semibold text-slate-800">
-                                {{ record.status }}
-                            </td>
-                        </tr>
+                                    {{ record.status }}
+                                </td>
+                            </tr>
+                            <tr
+                                v-if="isEvidenceExpanded(record)"
+                                class="bg-slate-50"
+                            >
+                                <td colspan="11" class="px-3 py-4">
+                                    <div
+                                        class="grid gap-3 md:grid-cols-2 xl:grid-cols-4"
+                                    >
+                                        <div
+                                            v-for="event in record.evidence_events"
+                                            :key="event.id"
+                                            class="rounded-md border border-slate-200 bg-white p-3"
+                                        >
+                                            <div
+                                                class="text-sm font-semibold text-slate-800"
+                                            >
+                                                {{ event.tap_type }}
+                                            </div>
+                                            <div class="text-xs text-slate-500">
+                                                #{{
+                                                    event.tap_sequence_number
+                                                }}
+                                                | {{ event.time || 'N/A' }}
+                                            </div>
+                                            <p
+                                                class="mt-2 min-h-8 text-xs text-slate-500"
+                                            >
+                                                {{
+                                                    event.remarks ||
+                                                    event.validation_result ||
+                                                    event.room_status ||
+                                                    ''
+                                                }}
+                                            </p>
+                                            <div
+                                                class="mt-3 flex items-center gap-2"
+                                            >
+                                                <button
+                                                    v-if="
+                                                        event.time_in_image_url
+                                                    "
+                                                    type="button"
+                                                    @click="
+                                                        openEvidence(
+                                                            event.time_in_image_url,
+                                                            `${record.subject} - ${event.tap_type}`,
+                                                        )
+                                                    "
+                                                >
+                                                    <img
+                                                        :src="
+                                                            event.time_in_image_url
+                                                        "
+                                                        alt="Tap face evidence"
+                                                        class="h-12 w-12 rounded-md border border-slate-200 object-cover hover:ring-2 hover:ring-sky-400"
+                                                    />
+                                                </button>
+                                                <button
+                                                    v-if="
+                                                        event.time_out_image_url
+                                                    "
+                                                    type="button"
+                                                    @click="
+                                                        openEvidence(
+                                                            event.time_out_image_url,
+                                                            `${record.subject} - ${event.tap_type}`,
+                                                        )
+                                                    "
+                                                >
+                                                    <img
+                                                        :src="
+                                                            event.time_out_image_url
+                                                        "
+                                                        alt="Tap face evidence"
+                                                        class="h-12 w-12 rounded-md border border-slate-200 object-cover hover:ring-2 hover:ring-sky-400"
+                                                    />
+                                                </button>
+                                                <span
+                                                    v-if="
+                                                        !event.time_in_image_url &&
+                                                        !event.time_out_image_url
+                                                    "
+                                                    class="text-xs text-slate-400"
+                                                    >No image</span
+                                                >
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
                         <tr v-if="paginatedAttendance.length === 0">
                             <td
-                                colspan="10"
+                                colspan="11"
                                 class="px-3 py-8 text-center text-slate-400"
                             >
                                 No attendance records found.

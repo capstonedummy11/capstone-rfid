@@ -260,116 +260,260 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr
+                                <template
                                     v-for="log in group.items"
                                     :key="log.id"
-                                    class="hover:bg-slate-50"
                                 >
-                                    <td
-                                        class="border-b border-slate-100 px-4 py-3 align-top"
-                                    >
-                                        <div class="font-medium text-slate-800">
-                                            {{ log.student }}
-                                        </div>
-                                        <div class="text-xs text-slate-500">
-                                            {{ log.student_number || 'N/A' }}
-                                        </div>
-                                    </td>
-                                    <td
-                                        class="border-b border-slate-100 px-4 py-3 align-top"
-                                    >
-                                        {{ log.subject }}
-                                    </td>
-                                    <td
-                                        class="border-b border-slate-100 px-4 py-3 align-top"
-                                    >
-                                        <div
-                                            class="font-semibold text-slate-700"
+                                    <tr class="hover:bg-slate-50">
+                                        <td
+                                            class="border-b border-slate-100 px-4 py-3 align-top"
                                         >
-                                            {{ log.tap_type || 'No Tap' }}
-                                        </div>
-                                        <div class="text-xs text-slate-500">
-                                            #{{
-                                                log.tap_sequence_number || '-'
-                                            }}
-                                            | {{ log.time || 'N/A' }}
-                                        </div>
-                                    </td>
-                                    <td
-                                        class="border-b border-slate-100 px-4 py-3 align-top"
-                                    >
-                                        {{ log.time_in || '-' }}
-                                    </td>
-                                    <td
-                                        class="border-b border-slate-100 px-4 py-3 align-top"
-                                    >
-                                        {{ log.time_out || '-' }}
-                                    </td>
-                                    <td
-                                        class="border-b border-slate-100 px-4 py-3 align-top"
-                                    >
-                                        {{ log.room_status || '-' }}
-                                    </td>
-                                    <td
-                                        class="border-b border-slate-100 px-4 py-3 align-top"
-                                    >
-                                        <div class="flex items-center gap-2">
+                                            <div
+                                                class="font-medium text-slate-800"
+                                            >
+                                                {{ log.student }}
+                                            </div>
+                                            <div class="text-xs text-slate-500">
+                                                {{
+                                                    log.student_number || 'N/A'
+                                                }}
+                                            </div>
+                                        </td>
+                                        <td
+                                            class="border-b border-slate-100 px-4 py-3 align-top"
+                                        >
+                                            {{ log.subject }}
+                                        </td>
+                                        <td
+                                            class="border-b border-slate-100 px-4 py-3 align-top"
+                                        >
+                                            <div
+                                                class="font-semibold text-slate-700"
+                                            >
+                                                {{ log.tap_type || 'No Tap' }}
+                                            </div>
+                                            <div class="text-xs text-slate-500">
+                                                #{{
+                                                    log.tap_sequence_number ||
+                                                    '-'
+                                                }}
+                                                | {{ log.time || 'N/A' }}
+                                            </div>
                                             <button
-                                                v-if="log.time_in_image_url"
+                                                v-if="hasEvidenceEvents(log)"
                                                 type="button"
-                                                class="h-10 w-10 overflow-hidden rounded-md border border-slate-200 hover:ring-2 hover:ring-blue-400"
+                                                class="mt-2 rounded-md border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
                                                 @click="
-                                                    openEvidence(
-                                                        log.time_in_image_url,
-                                                        `${log.student} - Time In`,
-                                                    )
+                                                    toggleEvidenceEvents(log)
                                                 "
                                             >
-                                                <img
-                                                    :src="log.time_in_image_url"
-                                                    alt="Time-in face evidence"
-                                                    class="h-full w-full object-cover"
-                                                />
+                                                {{
+                                                    isEvidenceExpanded(log)
+                                                        ? 'Hide details'
+                                                        : 'Show details'
+                                                }}
                                             </button>
-                                            <button
-                                                v-if="log.time_out_image_url"
-                                                type="button"
-                                                class="h-10 w-10 overflow-hidden rounded-md border border-slate-200 hover:ring-2 hover:ring-blue-400"
-                                                @click="
-                                                    openEvidence(
-                                                        log.time_out_image_url,
-                                                        `${log.student} - Time Out`,
-                                                    )
-                                                "
+                                        </td>
+                                        <td
+                                            class="border-b border-slate-100 px-4 py-3 align-top"
+                                        >
+                                            {{ log.time_in || '-' }}
+                                        </td>
+                                        <td
+                                            class="border-b border-slate-100 px-4 py-3 align-top"
+                                        >
+                                            {{ log.time_out || '-' }}
+                                        </td>
+                                        <td
+                                            class="border-b border-slate-100 px-4 py-3 align-top"
+                                        >
+                                            {{ log.room_status || '-' }}
+                                        </td>
+                                        <td
+                                            class="border-b border-slate-100 px-4 py-3 align-top"
+                                        >
+                                            <div
+                                                class="flex items-center gap-2"
                                             >
-                                                <img
-                                                    :src="
+                                                <button
+                                                    v-if="log.time_in_image_url"
+                                                    type="button"
+                                                    class="h-10 w-10 overflow-hidden rounded-md border border-slate-200 hover:ring-2 hover:ring-blue-400"
+                                                    @click="
+                                                        openEvidence(
+                                                            log.time_in_image_url,
+                                                            `${log.student} - Time In`,
+                                                        )
+                                                    "
+                                                >
+                                                    <img
+                                                        :src="
+                                                            log.time_in_image_url
+                                                        "
+                                                        alt="Time-in face evidence"
+                                                        class="h-full w-full object-cover"
+                                                    />
+                                                </button>
+                                                <button
+                                                    v-if="
                                                         log.time_out_image_url
                                                     "
-                                                    alt="Time-out face evidence"
-                                                    class="h-full w-full object-cover"
-                                                />
-                                            </button>
-                                            <span
-                                                v-if="
-                                                    !log.time_in_image_url &&
-                                                    !log.time_out_image_url
-                                                "
-                                                class="text-xs text-slate-400"
-                                                >Not captured</span
-                                            >
-                                        </div>
-                                    </td>
-                                    <td
-                                        class="border-b border-slate-100 px-4 py-3 align-top"
-                                    >
-                                        <span
-                                            class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold"
-                                            :class="statusClass(log.status)"
-                                            >{{ log.status }}</span
+                                                    type="button"
+                                                    class="h-10 w-10 overflow-hidden rounded-md border border-slate-200 hover:ring-2 hover:ring-blue-400"
+                                                    @click="
+                                                        openEvidence(
+                                                            log.time_out_image_url,
+                                                            `${log.student} - Time Out`,
+                                                        )
+                                                    "
+                                                >
+                                                    <img
+                                                        :src="
+                                                            log.time_out_image_url
+                                                        "
+                                                        alt="Time-out face evidence"
+                                                        class="h-full w-full object-cover"
+                                                    />
+                                                </button>
+                                                <span
+                                                    v-if="
+                                                        !log.time_in_image_url &&
+                                                        !log.time_out_image_url
+                                                    "
+                                                    class="text-xs text-slate-400"
+                                                    >Not captured</span
+                                                >
+                                            </div>
+                                        </td>
+                                        <td
+                                            class="border-b border-slate-100 px-4 py-3 align-top"
                                         >
-                                    </td>
-                                </tr>
+                                            <span
+                                                class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold"
+                                                :class="statusClass(log.status)"
+                                                >{{ log.status }}</span
+                                            >
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        v-if="isEvidenceExpanded(log)"
+                                        class="bg-slate-50/80"
+                                    >
+                                        <td
+                                            colspan="8"
+                                            class="border-b border-slate-100 px-4 py-4"
+                                        >
+                                            <div
+                                                class="grid gap-3 md:grid-cols-2 xl:grid-cols-4"
+                                            >
+                                                <div
+                                                    v-for="event in log.evidence_events"
+                                                    :key="event.id"
+                                                    class="rounded-md border border-slate-200 bg-white p-3"
+                                                >
+                                                    <div
+                                                        class="flex items-start justify-between gap-2"
+                                                    >
+                                                        <div>
+                                                            <div
+                                                                class="text-sm font-semibold text-slate-800"
+                                                            >
+                                                                {{
+                                                                    event.tap_type
+                                                                }}
+                                                            </div>
+                                                            <div
+                                                                class="text-xs text-slate-500"
+                                                            >
+                                                                #{{
+                                                                    event.tap_sequence_number ||
+                                                                    '-'
+                                                                }}
+                                                                |
+                                                                {{
+                                                                    event.time ||
+                                                                    'N/A'
+                                                                }}
+                                                            </div>
+                                                        </div>
+                                                        <span
+                                                            class="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600"
+                                                        >
+                                                            {{
+                                                                event.validation_result ||
+                                                                '-'
+                                                            }}
+                                                        </span>
+                                                    </div>
+                                                    <p
+                                                        class="mt-2 min-h-8 text-xs text-slate-500"
+                                                    >
+                                                        {{
+                                                            event.remarks ||
+                                                            event.room_status ||
+                                                            ''
+                                                        }}
+                                                    </p>
+                                                    <div
+                                                        class="mt-3 flex items-center gap-2"
+                                                    >
+                                                        <button
+                                                            v-if="
+                                                                event.time_in_image_url
+                                                            "
+                                                            type="button"
+                                                            class="h-12 w-12 overflow-hidden rounded-md border border-slate-200 hover:ring-2 hover:ring-blue-400"
+                                                            @click="
+                                                                openEvidence(
+                                                                    event.time_in_image_url,
+                                                                    `${log.student} - ${event.tap_type}`,
+                                                                )
+                                                            "
+                                                        >
+                                                            <img
+                                                                :src="
+                                                                    event.time_in_image_url
+                                                                "
+                                                                alt="Tap face evidence"
+                                                                class="h-full w-full object-cover"
+                                                            />
+                                                        </button>
+                                                        <button
+                                                            v-if="
+                                                                event.time_out_image_url
+                                                            "
+                                                            type="button"
+                                                            class="h-12 w-12 overflow-hidden rounded-md border border-slate-200 hover:ring-2 hover:ring-blue-400"
+                                                            @click="
+                                                                openEvidence(
+                                                                    event.time_out_image_url,
+                                                                    `${log.student} - ${event.tap_type}`,
+                                                                )
+                                                            "
+                                                        >
+                                                            <img
+                                                                :src="
+                                                                    event.time_out_image_url
+                                                                "
+                                                                alt="Tap face evidence"
+                                                                class="h-full w-full object-cover"
+                                                            />
+                                                        </button>
+                                                        <span
+                                                            v-if="
+                                                                !event.time_in_image_url &&
+                                                                !event.time_out_image_url
+                                                            "
+                                                            class="text-xs text-slate-400"
+                                                        >
+                                                            No image
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </template>
                             </tbody>
                         </table>
                     </div>
@@ -454,6 +598,7 @@ const subjectFilter = ref(props.filters.subject ?? '');
 const instructorFilter = ref(props.filters.instructor ?? '');
 const instructorRfidFilter = ref(props.filters.instructor_rfid ?? '');
 const evidencePreview = ref(null);
+const expandedEvidenceRows = ref({});
 
 const openEvidence = (url, title) => {
     evidencePreview.value = { url, title };
@@ -461,6 +606,22 @@ const openEvidence = (url, title) => {
 
 const closeEvidence = () => {
     evidencePreview.value = null;
+};
+
+const rowKey = (record) => String(record.id ?? record.attendance_id ?? '');
+
+const hasEvidenceEvents = (record) =>
+    Array.isArray(record.evidence_events) && record.evidence_events.length > 1;
+
+const isEvidenceExpanded = (record) =>
+    expandedEvidenceRows.value[rowKey(record)] === true;
+
+const toggleEvidenceEvents = (record) => {
+    const key = rowKey(record);
+    expandedEvidenceRows.value = {
+        ...expandedEvidenceRows.value,
+        [key]: !expandedEvidenceRows.value[key],
+    };
 };
 
 const groupedLogs = computed(() => {

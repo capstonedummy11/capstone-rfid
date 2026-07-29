@@ -1957,6 +1957,7 @@ class AttendanceController
                 return [
                     'id' => $log->id,
                     'session_id' => $log->session_id,
+                    'main_attendance_id' => $log->main_attendance_id,
                     'student' => trim(($log->first_name ?? '').' '.($log->last_name ?? '')) ?: 'Unknown Student',
                     'student_number' => $log->student_number,
                     'subject' => $log->subject_name ?? 'N/A',
@@ -2506,6 +2507,10 @@ class AttendanceController
                     'validation_result' => 'Absent',
                     'remarks' => 'No valid check-in tap was recorded for this scheduled class.',
                     'status' => 'Absent',
+                    'time_in_image_url' => null,
+                    'time_out_image_url' => null,
+                    'verification_method' => null,
+                    'evidence_events' => [],
                 ]);
             }
         }
@@ -2516,7 +2521,7 @@ class AttendanceController
     private function combineAttendanceLogRows($logs)
     {
         return collect($logs)
-            ->groupBy(fn (array $log) => $log['main_attendance_id']
+            ->groupBy(fn (array $log) => ($log['main_attendance_id'] ?? null)
                 ? 'attendance-'.$log['main_attendance_id']
                 : 'log-'.$log['id'])
             ->map(function ($items) {
@@ -2531,8 +2536,9 @@ class AttendanceController
                         'room_status' => $item['room_status'],
                         'validation_result' => $item['validation_result'],
                         'remarks' => $item['remarks'],
-                        'time_in_image_url' => $item['time_in_image_url'],
-                        'time_out_image_url' => $item['time_out_image_url'],
+                        'time_in_image_url' => $item['time_in_image_url'] ?? null,
+                        'time_out_image_url' => $item['time_out_image_url'] ?? null,
+                        'verification_method' => $item['verification_method'] ?? null,
                     ])
                     ->all();
 
@@ -2543,7 +2549,7 @@ class AttendanceController
                 $timeInEvent = collect($orderedEvents)->first(fn (array $event) => $event['tap_type'] === 'Check-in' && $event['time_in_image_url']);
                 $timeOutEvent = collect($orderedEvents)->first(fn (array $event) => $event['tap_type'] === 'Check-out' && $event['time_out_image_url']);
 
-                $summary['id'] = $summary['main_attendance_id'] ?: $summary['id'];
+                $summary['id'] = $summary['main_attendance_id'] ?? $summary['id'];
                 $summary['tap_type'] = 'Attendance';
                 $summary['tap_sequence_number'] = count($orderedEvents);
                 $summary['time'] = count($orderedEvents).' tap'.(count($orderedEvents) === 1 ? '' : 's');
