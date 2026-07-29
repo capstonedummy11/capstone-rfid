@@ -131,6 +131,7 @@ Student excuse-letter approval fields:
 - `parent_approval_notes` stores optional parent approval notes.
 - `parent_approved_by_user_id` links to the parent `users` row that approved the letter.
 - `parent_approved_at` stores the approval timestamp.
+- `recipient_user_ids` optionally stores selected teacher recipients. When empty, approved letters are sent to all assigned teachers for the student's section.
 - Student-created letters use `pending_parent_approval` until a linked parent approves them; parent-created letters are saved as `approved`.
 - Excuse-letter attachments are downloaded through an authenticated student/parent route and remain scoped to the selected student.
 

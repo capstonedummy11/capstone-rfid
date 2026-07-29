@@ -565,6 +565,7 @@ class StudentsController
             'linkedStudents' => $this->linkedStudentsPayload($request),
             'selectedStudentId' => $student?->student_id,
             'currentUserRole' => strtolower((string) $request->user()?->role),
+            'recipientSuggestions' => $student ? $this->teacherSuggestionPayload($student) : [],
             'letters' => $student
                 ? $student->excuseLetters()->with(['submittedBy', 'parentApprovedBy'])->latest()->get()->map(fn (StudentExcuseLetter $letter) => $this->letterPayload($letter, $request))
                 : [],
@@ -583,6 +584,8 @@ class StudentsController
             'to_date' => ['required', 'date', 'after_or_equal:from_date'],
             'reason' => ['required', 'string', 'max:5000'],
             'parent_signature' => [Rule::requiredIf($role === 'parent'), 'nullable', 'string', 'max:255'],
+            'recipient_user_ids' => ['nullable', 'array'],
+            'recipient_user_ids.*' => ['integer', 'exists:users,user_id'],
             'attachment' => ['nullable', 'file', 'max:5120', 'mimes:pdf,doc,docx,jpg,jpeg,png'],
         ]);
 
@@ -593,6 +596,7 @@ class StudentsController
         }
         unset($validated['attachment']);
         unset($validated['parent_signature']);
+        $validated['recipient_user_ids'] = $this->validTeacherRecipientIds($student, $validated['recipient_user_ids'] ?? []);
 
         $letter = StudentExcuseLetter::query()->create([
             ...$validated,
@@ -946,6 +950,18 @@ class StudentsController
         }
 
         $teacherUsers = $this->teacherUsersForStudent($student);
+        $selectedRecipientIds = collect($letter->recipient_user_ids ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($selectedRecipientIds->isNotEmpty()) {
+            $teacherUsers = $teacherUsers
+                ->whereIn('user_id', $selectedRecipientIds)
+                ->values();
+        }
+
         if ($teacherUsers->isEmpty()) {
             $this->logActivity('warning', 'student_excuse_letters', 'Approved excuse letter '.$letter->student_excuse_letter_id.' was not sent because no teacher is assigned to student '.$student->student_number);
 
@@ -1008,6 +1024,35 @@ class StudentsController
             ->whereIn('user_id', $teacherIds)
             ->orderBy('name')
             ->get();
+    }
+
+    private function teacherSuggestionPayload(Students $student)
+    {
+        return $this->teacherUsersForStudent($student)
+            ->map(fn (User $teacher) => [
+                'user_id' => $teacher->user_id,
+                'name' => $teacher->name,
+                'email' => $teacher->email,
+                'label' => trim($teacher->name.' <'.$teacher->email.'>'),
+            ])
+            ->values();
+    }
+
+    private function validTeacherRecipientIds(Students $student, array $recipientIds): ?array
+    {
+        $validIds = $this->teacherUsersForStudent($student)
+            ->pluck('user_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $selectedIds = collect($recipientIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn (int $id) => in_array($id, $validIds, true))
+            ->unique()
+            ->values()
+            ->all();
+
+        return $selectedIds === [] ? null : $selectedIds;
     }
 
     private function approvedExcuseLetterMessageBody(StudentExcuseLetter $letter, Students $student, User $sender): string
@@ -1290,6 +1335,7 @@ class StudentsController
             'parent_approval_notes' => $letter->parent_approval_notes,
             'parent_approved_by' => $letter->parentApprovedBy?->name,
             'parent_approved_at' => $letter->parent_approved_at?->toDateTimeString(),
+            'recipient_user_ids' => $letter->recipient_user_ids ?? [],
             'can_parent_approve' => $role === 'parent'
                 && $letter->submitted_by_role === 'student'
                 && $letter->status === 'pending_parent_approval',

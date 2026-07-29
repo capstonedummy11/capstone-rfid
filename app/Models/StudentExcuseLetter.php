@@ -24,12 +24,14 @@ class StudentExcuseLetter extends Model
         'parent_approval_notes',
         'parent_approved_by_user_id',
         'parent_approved_at',
+        'recipient_user_ids',
     ];
 
     protected $casts = [
         'from_date' => 'date',
         'to_date' => 'date',
         'parent_approved_at' => 'datetime',
+        'recipient_user_ids' => 'array',
     ];
 
     public function student(): BelongsTo

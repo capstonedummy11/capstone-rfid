@@ -203,7 +203,7 @@ Parents can be linked to one or more students and can switch context where the p
 
 When an admin creates a student record from Student Management, the system also creates or syncs a matching student portal account using the student's email. The default student password is the student's first name plus last name with spaces removed, for example `JuanDelaCruz`. Admins can reset a student's portal password back to that default from the Student Management actions.
 
-After a parent signs or approves an excuse letter, the system automatically sends the approved letter details to the instructor accounts assigned to the student's section schedules through Messenger. The original uploaded attachment is included when one exists.
+The excuse-letter form suggests teacher recipients from the instructors assigned to the student's section schedules. If no recipient is selected, the approved letter is sent to all assigned teachers. After a parent signs or approves an excuse letter, the system automatically sends the approved letter details through Messenger. The original uploaded attachment is included when one exists.
 
 ### Online Classes
 
