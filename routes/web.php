@@ -230,6 +230,8 @@ Route::prefix('admin')
             Route::delete('/strands/{id}', [StrandController::class, 'destroy'])->name('strands.destroy');
             Route::post('/students', [StudentsController::class, 'store'])->name('students.store');
             Route::put('/students/{id}', [StudentsController::class, 'update'])->name('students.update');
+            Route::put('/students/{id}/password/reset-default', [StudentsController::class, 'resetStudentAccountPassword'])
+                ->name('students.password.reset-default');
             Route::delete('/students/{id}', [StudentsController::class, 'destroy'])->name('students.destroy');
             Route::post('/students/{id}/parents', [StudentsController::class, 'storeParent'])->name('students.parents.store');
             Route::put('/students/{id}/parents/{parent}', [StudentsController::class, 'updateParent'])->name('students.parents.update');

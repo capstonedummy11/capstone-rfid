@@ -195,10 +195,25 @@ class StudentsController
             'status' => 'required|in:active,inactive,graduated,dropped',
         ]);
 
-        $student = Students::create($validated);
+        $existingUser = User::query()
+            ->whereRaw('LOWER(email) = ?', [strtolower($validated['email'])])
+            ->first();
+
+        if ($existingUser && strtolower((string) $existingUser->role) !== 'student') {
+            return back()->withErrors([
+                'email' => 'This email already belongs to a non-student account.',
+            ]);
+        }
+
+        $student = null;
+        DB::transaction(function () use ($validated, &$student, $existingUser) {
+            $student = Students::create($validated);
+            $this->createOrUpdateStudentAccount($student, $existingUser);
+        });
+
         $this->logActivity('create', 'students', 'Created student '.$student->student_number);
 
-        return back()->with('success', 'Student added successfully.');
+        return back()->with('success', 'Student added successfully. Student account created with default password '.$this->defaultStudentPassword($student).'.');
     }
 
     public function show(Students $students)
@@ -232,10 +247,42 @@ class StudentsController
             'status' => 'required|in:active,inactive,graduated,dropped',
         ]);
 
-        $student->update($validated);
+        $existingUser = User::query()
+            ->whereRaw('LOWER(email) = ?', [strtolower($validated['email'])])
+            ->where('role', '!=', 'student')
+            ->first();
+
+        if ($existingUser) {
+            return back()->withErrors([
+                'email' => 'This email already belongs to a non-student account.',
+            ]);
+        }
+
+        $studentUser = $this->studentAccountFor($student);
+
+        DB::transaction(function () use ($student, $validated, $studentUser) {
+            $student->update($validated);
+            $this->createOrUpdateStudentAccount($student, $studentUser);
+        });
+
         $this->logActivity('update', 'students', 'Updated student '.$student->student_number);
 
         return back()->with('success', 'Student updated successfully.');
+    }
+
+    public function resetStudentAccountPassword(int $id)
+    {
+        $student = Students::query()->findOrFail($id);
+        $user = $this->createOrUpdateStudentAccount($student);
+        $password = $this->defaultStudentPassword($student);
+
+        $user->forceFill([
+            'password' => Hash::make($password),
+        ])->save();
+
+        $this->logActivity('update', 'users', 'Reset student portal password for '.$student->student_number);
+
+        return back()->with('success', 'Student account password reset to '.$password.'.');
     }
 
     public function storeParent(Request $request, int $id)
@@ -834,6 +881,49 @@ class StudentsController
             'gender' => $parent->gender,
             'relationship' => $parent->pivot?->relationship ?? 'parent',
         ];
+    }
+
+    private function createOrUpdateStudentAccount(Students $student, ?User $studentUser = null): User
+    {
+        $studentUser ??= $this->studentAccountFor($student);
+
+        $payload = [
+            'name' => trim($student->first_name.' '.$student->last_name),
+            'email' => $student->email,
+            'role' => 'student',
+            'phone' => $student->phone,
+            'gender' => $student->gender,
+            'rfid_tag' => null,
+        ];
+
+        if (! $studentUser) {
+            $payload['password'] = Hash::make($this->defaultStudentPassword($student));
+
+            return User::query()->create($payload);
+        }
+
+        $studentUser->update($payload);
+
+        return $studentUser;
+    }
+
+    private function studentAccountFor(Students $student): ?User
+    {
+        if (blank($student->email)) {
+            return null;
+        }
+
+        return User::query()
+            ->whereRaw('LOWER(email) = ?', [strtolower((string) $student->email)])
+            ->whereRaw('LOWER(role) = ?', ['student'])
+            ->first();
+    }
+
+    private function defaultStudentPassword(Students $student): string
+    {
+        $password = preg_replace('/\s+/', '', trim($student->first_name.$student->last_name));
+
+        return $password !== '' ? $password : (string) $student->student_number;
     }
 
     private function attendanceQuery(?Students $student)

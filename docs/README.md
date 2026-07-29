@@ -201,6 +201,8 @@ The portal includes:
 
 Parents can be linked to one or more students and can switch context where the portal supports linked student selection.
 
+When an admin creates a student record from Student Management, the system also creates or syncs a matching student portal account using the student's email. The default student password is the student's first name plus last name with spaces removed, for example `JuanDelaCruz`. Admins can reset a student's portal password back to that default from the Student Management actions.
+
 ### Online Classes
 
 Instructors and admins can create, update, cancel, delete, and audit online classes for schedules. Students can join online classes, and attendance is recorded with late/face-verification metadata where required.

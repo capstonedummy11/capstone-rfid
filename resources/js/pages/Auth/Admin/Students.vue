@@ -8,10 +8,17 @@
                     <div>
                         <h1 class="text-3xl font-bold">Students Management</h1>
                         <p class="text-sm text-slate-500">
-                            {{ canManageStudents ? 'Manage students using strands, sections, and RFID assignments.' : 'View students from your handled sections.' }}
+                            {{
+                                canManageStudents
+                                    ? 'Manage students using strands, sections, and RFID assignments.'
+                                    : 'View students from your handled sections.'
+                            }}
                         </p>
                     </div>
-                    <div v-if="canManageStudents" class="flex items-center gap-2">
+                    <div
+                        v-if="canManageStudents"
+                        class="flex items-center gap-2"
+                    >
                         <button
                             @click="openAddModal"
                             class="rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
@@ -67,7 +74,13 @@
                             @change="onFilterChange"
                             class="w-full rounded-md border border-slate-300 px-3 py-2"
                         >
-                            <option value="">{{ canManageStudents ? 'All Sections' : 'Select Section' }}</option>
+                            <option value="">
+                                {{
+                                    canManageStudents
+                                        ? 'All Sections'
+                                        : 'Select Section'
+                                }}
+                            </option>
                             <option
                                 v-for="section in sectionOptions"
                                 :key="section.section_id"
@@ -302,11 +315,14 @@
                                             :key="parent.id"
                                             class="text-sm"
                                         >
-                                            <div class="font-medium text-slate-800">
+                                            <div
+                                                class="font-medium text-slate-800"
+                                            >
                                                 {{ parent.name }}
                                             </div>
                                             <div class="text-xs text-slate-500">
-                                                {{ parent.relationship }} - {{ parent.email }}
+                                                {{ parent.relationship }} -
+                                                {{ parent.email }}
                                             </div>
                                         </div>
                                     </div>
@@ -316,8 +332,13 @@
                                         >None</span
                                     >
                                 </td>
-                                <td v-if="canManageStudents" class="border border-gray-300 px-4 py-3">
-                                    <div class="flex flex-wrap items-center gap-2">
+                                <td
+                                    v-if="canManageStudents"
+                                    class="border border-gray-300 px-4 py-3"
+                                >
+                                    <div
+                                        class="flex flex-wrap items-center gap-2"
+                                    >
                                         <button
                                             @click="openEditModal(student)"
                                             class="rounded-md bg-indigo-600 px-3 py-1 text-sm text-white hover:bg-indigo-700"
@@ -329,6 +350,14 @@
                                             class="rounded-md bg-emerald-600 px-3 py-1 text-sm text-white hover:bg-emerald-700"
                                         >
                                             Parents
+                                        </button>
+                                        <button
+                                            @click="
+                                                resetStudentPassword(student)
+                                            "
+                                            class="rounded-md bg-amber-500 px-3 py-1 text-sm text-white hover:bg-amber-600"
+                                        >
+                                            Reset Password
                                         </button>
                                         <button
                                             @click="deleteStudent(student)"
@@ -802,7 +831,11 @@
                     <form @submit.prevent="submitParentForm" class="space-y-4">
                         <div class="flex items-center justify-between">
                             <h3 class="font-semibold text-slate-900">
-                                {{ selectedParent ? 'Edit Parent' : 'Create or Link Parent' }}
+                                {{
+                                    selectedParent
+                                        ? 'Edit Parent'
+                                        : 'Create or Link Parent'
+                                }}
                             </h3>
                             <button
                                 v-if="selectedParent"
@@ -816,7 +849,9 @@
 
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
-                                <label class="mb-1 block text-sm font-medium text-slate-700">
+                                <label
+                                    class="mb-1 block text-sm font-medium text-slate-700"
+                                >
                                     Parent Name *
                                 </label>
                                 <input
@@ -825,12 +860,17 @@
                                     class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                                     required
                                 />
-                                <p v-if="parentForm.errors.name" class="mt-1 text-xs text-rose-600">
+                                <p
+                                    v-if="parentForm.errors.name"
+                                    class="mt-1 text-xs text-rose-600"
+                                >
                                     {{ parentForm.errors.name }}
                                 </p>
                             </div>
                             <div>
-                                <label class="mb-1 block text-sm font-medium text-slate-700">
+                                <label
+                                    class="mb-1 block text-sm font-medium text-slate-700"
+                                >
                                     Email *
                                 </label>
                                 <input
@@ -839,7 +879,10 @@
                                     class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                                     required
                                 />
-                                <p v-if="parentForm.errors.email" class="mt-1 text-xs text-rose-600">
+                                <p
+                                    v-if="parentForm.errors.email"
+                                    class="mt-1 text-xs text-rose-600"
+                                >
                                     {{ parentForm.errors.email }}
                                 </p>
                             </div>
@@ -847,7 +890,9 @@
 
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
                             <div>
-                                <label class="mb-1 block text-sm font-medium text-slate-700">
+                                <label
+                                    class="mb-1 block text-sm font-medium text-slate-700"
+                                >
                                     Relationship *
                                 </label>
                                 <input
@@ -857,12 +902,17 @@
                                     class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                                     required
                                 />
-                                <p v-if="parentForm.errors.relationship" class="mt-1 text-xs text-rose-600">
+                                <p
+                                    v-if="parentForm.errors.relationship"
+                                    class="mt-1 text-xs text-rose-600"
+                                >
                                     {{ parentForm.errors.relationship }}
                                 </p>
                             </div>
                             <div>
-                                <label class="mb-1 block text-sm font-medium text-slate-700">
+                                <label
+                                    class="mb-1 block text-sm font-medium text-slate-700"
+                                >
                                     Phone
                                 </label>
                                 <input
@@ -872,7 +922,9 @@
                                 />
                             </div>
                             <div>
-                                <label class="mb-1 block text-sm font-medium text-slate-700">
+                                <label
+                                    class="mb-1 block text-sm font-medium text-slate-700"
+                                >
                                     Gender
                                 </label>
                                 <select
@@ -885,7 +937,9 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="mb-1 block text-sm font-medium text-slate-700">
+                                <label
+                                    class="mb-1 block text-sm font-medium text-slate-700"
+                                >
                                     Password
                                 </label>
                                 <input
@@ -894,7 +948,10 @@
                                     placeholder="Required for new"
                                     class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                                 />
-                                <p v-if="parentForm.errors.password" class="mt-1 text-xs text-rose-600">
+                                <p
+                                    v-if="parentForm.errors.password"
+                                    class="mt-1 text-xs text-rose-600"
+                                >
                                     {{ parentForm.errors.password }}
                                 </p>
                             </div>
@@ -913,7 +970,11 @@
                                 class="rounded-md bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-700 disabled:opacity-50"
                                 :disabled="parentForm.processing"
                             >
-                                {{ selectedParent ? 'Update Parent' : 'Save Parent' }}
+                                {{
+                                    selectedParent
+                                        ? 'Update Parent'
+                                        : 'Save Parent'
+                                }}
                             </button>
                         </div>
                     </form>
@@ -1015,7 +1076,9 @@ const props = defineProps({
 
 const page = usePage();
 const currentRole = computed(() =>
-    String(props.currentUserRole || page.props.auth?.user?.role || '').toLowerCase(),
+    String(
+        props.currentUserRole || page.props.auth?.user?.role || '',
+    ).toLowerCase(),
 );
 const canManageStudents = computed(
     () => props.canManageStudents || currentRole.value === 'admin',
@@ -1102,7 +1165,14 @@ const filteredStudents = computed<Student[]>(() => {
             selectedStatus.value === '' ||
             student.status === selectedStatus.value;
 
-        return matchesSearch && matchesStrand && matchesSection && matchesYear && matchesSchoolYear && matchesStatus;
+        return (
+            matchesSearch &&
+            matchesStrand &&
+            matchesSection &&
+            matchesYear &&
+            matchesSchoolYear &&
+            matchesStatus
+        );
     });
 });
 
@@ -1117,11 +1187,15 @@ const availableSections = computed<SectionOption[]>(() => {
 
 const availableSchoolYearOptions = computed(() => {
     return Array.from(
-        new Set([
-            ...defaultSchoolYearOptions,
-            ...(props.schoolYearOptions as string[]),
-            ...(props.students as Student[]).map((student) => student.school_year),
-        ].filter(Boolean)),
+        new Set(
+            [
+                ...defaultSchoolYearOptions,
+                ...(props.schoolYearOptions as string[]),
+                ...(props.students as Student[]).map(
+                    (student) => student.school_year,
+                ),
+            ].filter(Boolean),
+        ),
     ).sort();
 });
 
@@ -1301,12 +1375,46 @@ const unlinkParent = (parent: ParentAccount) => {
                                 String(selectedStudent.value?.student_id),
                         );
                         if (refreshed) selectedStudent.value = refreshed;
-                        if (String(selectedParent.value?.id) === String(parent.id)) {
+                        if (
+                            String(selectedParent.value?.id) ===
+                            String(parent.id)
+                        ) {
                             resetParentForm();
                         }
                     },
                 });
             },
+        },
+    );
+};
+
+const defaultStudentPassword = (student: Student) =>
+    `${student.first_name ?? ''}${student.last_name ?? ''}`.replace(
+        /\s+/g,
+        '',
+    ) || String(student.student_number ?? '');
+
+const resetStudentPassword = (student: Student) => {
+    if (!canManageStudents.value) return;
+
+    const password = defaultStudentPassword(student);
+    if (
+        !confirm(
+            `Reset ${student.first_name} ${student.last_name}'s portal password to "${password}"?`,
+        )
+    ) {
+        return;
+    }
+
+    const resetForm = useForm({});
+    resetForm.put(
+        route('admin.students.password.reset-default', {
+            id: student.student_id,
+        }),
+        {
+            preserveState: true,
+            preserveScroll: true,
+            onSuccess: () => router.reload({ only: ['students'] }),
         },
     );
 };
