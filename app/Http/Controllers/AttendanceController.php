@@ -1913,6 +1913,8 @@ class AttendanceController
             ->orderByDesc('attendance_logs.id')
             ->select([
                 'attendance_logs.id',
+                'attendance_logs.student_id',
+                'attendance_logs.schedule_id',
                 'attendance_logs.time_in',
                 'attendance_logs.time_out',
                 'attendance_logs.status',
@@ -1953,11 +1955,13 @@ class AttendanceController
                 'strands.strand_code',
             ])
             ->get()
-            ->map(function ($log) {
+            ->map(function ($log) use ($isInstructor, $absentDefaultDays) {
                 return [
                     'id' => $log->id,
                     'session_id' => $log->session_id,
                     'main_attendance_id' => $log->main_attendance_id,
+                    'student_id' => $log->student_id,
+                    'schedule_id' => $log->schedule_id,
                     'student' => trim(($log->first_name ?? '').' '.($log->last_name ?? '')) ?: 'Unknown Student',
                     'student_number' => $log->student_number,
                     'subject' => $log->subject_name ?? 'N/A',
@@ -1981,6 +1985,10 @@ class AttendanceController
                     'time_in_image_url' => $log->time_in_face_path ? route('attendance.evidence', ['attendanceLog' => $log->id, 'moment' => 'time-in']) : null,
                     'time_out_image_url' => $log->time_out_face_path ? route('attendance.evidence', ['attendanceLog' => $log->id, 'moment' => 'time-out']) : null,
                     'verification_method' => $log->verification_method,
+                    'editable' => $isInstructor && Carbon::parse($log->date)->betweenIncluded(
+                        now()->subDays(max(1, min(365, $absentDefaultDays)) - 1)->startOfDay(),
+                        now()->endOfDay()
+                    ),
                 ];
             })
             ->values();
@@ -2056,6 +2064,7 @@ class AttendanceController
             'currentUserRole' => $role,
             'canInspectAllAttendance' => $isAdmin,
             'absentDefaultDays' => $absentDefaultDays,
+            'canEditAttendance' => $isInstructor,
             'attendanceSessionOptions' => $sessionOptions,
             'subjectOptions' => $subjectOptionsQuery
                 ->when($isInstructor, fn ($subjectQuery) => $subjectQuery->where('schedules.instructor_id', $instructorId ?: 0))
@@ -2091,6 +2100,136 @@ class AttendanceController
                 ])
                 ->values() : [],
         ]);
+    }
+
+    public function updateAttendanceStatus(Request $request)
+    {
+        $validated = $request->validate([
+            'session_id' => ['required', 'integer'],
+            'student_id' => ['required', 'integer', 'exists:students,student_id'],
+            'status' => ['required', 'in:present,late,absent,excused'],
+            'remarks' => ['nullable', 'string', 'max:1000', 'required_if:status,excused'],
+        ]);
+
+        $user = $request->user();
+        abort_unless(strtolower(trim((string) $user?->role)) === 'instructor', 403);
+
+        $instructorId = Instructor::query()->where('user_id', $user->user_id)->value('instructor_id');
+        abort_unless($instructorId, 403, 'No instructor profile is linked to this account.');
+
+        $session = DB::table('attendance_sessions')
+            ->join('schedules', 'schedules.scheduled_id', '=', 'attendance_sessions.schedule_id')
+            ->where('attendance_sessions.attendance_id', $validated['session_id'])
+            ->where('schedules.instructor_id', $instructorId)
+            ->select([
+                'attendance_sessions.attendance_id',
+                'attendance_sessions.schedule_id',
+                'attendance_sessions.subject_code',
+                'attendance_sessions.date',
+                'attendance_sessions.room',
+                'attendance_sessions.time_start',
+                'attendance_sessions.time_end',
+                'schedules.section_id',
+            ])
+            ->first();
+
+        abort_unless($session, 403, 'You may only edit attendance for your assigned sessions.');
+
+        $student = Students::query()
+            ->whereKey($validated['student_id'])
+            ->where('section_id', $session->section_id)
+            ->firstOrFail();
+
+        $editDays = max(1, min(365, SystemSetting::integer(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 15)));
+        $sessionDate = Carbon::parse($session->date)->startOfDay();
+        $earliestEditableDate = now()->subDays($editDays - 1)->startOfDay();
+        abort_if(
+            $sessionDate->lt($earliestEditableDate) || $sessionDate->gt(now()->endOfDay()),
+            422,
+            "Attendance can only be edited within the latest {$editDays} day(s)."
+        );
+
+        DB::transaction(function () use ($request, $validated, $session, $student, $user) {
+            $attendance = Attendance::query()
+                ->where('student_id', $student->student_id)
+                ->where('schedule_id', $session->schedule_id)
+                ->whereDate('date', $session->date)
+                ->first();
+
+            $oldStatus = strtolower((string) ($attendance?->status ?: 'absent'));
+            $remarks = trim((string) ($validated['remarks'] ?? ''));
+            $auditRemark = sprintf(
+                'Instructor %s changed attendance from %s to %s.%s',
+                $user->name,
+                ucfirst($oldStatus),
+                ucfirst($validated['status']),
+                $remarks !== '' ? ' Note: '.$remarks : ''
+            );
+
+            if (! $attendance) {
+                $attendance = Attendance::query()->create([
+                    'student_id' => $student->student_id,
+                    'schedule_id' => $session->schedule_id,
+                    'date' => $session->date,
+                    'time_start' => $session->time_start,
+                    'time_end' => $session->time_end,
+                    'time_in' => null,
+                    'time_out' => null,
+                    'check_in_status' => in_array($validated['status'], ['present', 'late'], true) ? $validated['status'] : null,
+                    'status' => $validated['status'],
+                    'room_status' => 'outside',
+                    'total_taps' => 0,
+                    'remarks' => $remarks !== '' ? $remarks : $auditRemark,
+                    'subject_code' => $session->subject_code,
+                    'room' => $session->room,
+                ]);
+            } else {
+                $attendance->update([
+                    'status' => $validated['status'],
+                    'check_in_status' => in_array($validated['status'], ['present', 'late'], true) ? $validated['status'] : null,
+                    'remarks' => $remarks !== '' ? $remarks : $auditRemark,
+                ]);
+            }
+
+            AttendanceLog::query()->create([
+                'attendance_id' => $session->attendance_id,
+                'main_attendance_id' => $attendance->attendance_id,
+                'student_id' => $student->student_id,
+                'schedule_id' => $session->schedule_id,
+                'status' => $validated['status'],
+                'verification_method' => 'instructor_manual_edit',
+                'is_late' => $validated['status'] === 'late',
+                'tap_datetime' => now(),
+                'tap_type' => 'Manual Edit',
+                'device_scanner_id' => 'Instructor Portal',
+                'location' => $session->room,
+                'validation_result' => 'Manual Override',
+                'remarks' => $auditRemark,
+            ]);
+
+            ActivityLog::query()->create([
+                'event_id' => (string) Str::uuid(),
+                'user_id' => $user->user_id,
+                'user_name' => $user->name,
+                'user_role' => $user->role,
+                'action' => 'attendance_status_changed',
+                'table_name' => 'attendances',
+                'module' => 'attendance',
+                'outcome' => 'success',
+                'severity' => 'info',
+                'subject_type' => 'attendance',
+                'subject_id' => (string) $attendance->attendance_id,
+                'route_name' => $request->route()?->getName(),
+                'http_method' => $request->method(),
+                'ip_address' => $request->ip(),
+                'user_agent' => Str::limit((string) $request->userAgent(), 1000, ''),
+                'status_code' => 200,
+                'description' => $auditRemark.' Student: '.$student->student_number.'.',
+                'created_at' => now(),
+            ]);
+        });
+
+        return back()->with('success', 'Attendance status updated and logged.');
     }
 
     public function evidence(Request $request, AttendanceLog $attendanceLog, string $moment): StreamedResponse
@@ -2333,6 +2472,10 @@ class AttendanceController
             return 'Absent';
         }
 
+        if ($status === 'excused') {
+            return 'Excused';
+        }
+
         if ($timeIn && ! $timeOut) {
             return $this->attendanceSessionHasEnded($attendance, $session) ? 'Incomplete Attendance' : 'Pending';
         }
@@ -2446,6 +2589,7 @@ class AttendanceController
             ->orderByDesc('attendance_sessions.time_start')
             ->select([
                 'attendance_sessions.attendance_id as session_id',
+                'attendance_sessions.schedule_id',
                 'attendance_sessions.date',
                 'attendance_sessions.room',
                 'attendance_sessions.time_start',
@@ -2487,6 +2631,9 @@ class AttendanceController
                 $absentLogs->push([
                     'id' => 'absent-'.$session->session_id.'-'.$student->student_id,
                     'session_id' => $session->session_id,
+                    'main_attendance_id' => null,
+                    'student_id' => $student->student_id,
+                    'schedule_id' => $session->schedule_id,
                     'student' => trim(($student->first_name ?? '').' '.($student->last_name ?? '')) ?: 'Unknown Student',
                     'student_number' => $student->student_number,
                     'subject' => $session->subject_name ?? 'N/A',
@@ -2511,6 +2658,10 @@ class AttendanceController
                     'time_out_image_url' => null,
                     'verification_method' => null,
                     'evidence_events' => [],
+                    'editable' => $isInstructor && Carbon::parse($session->date)->betweenIncluded(
+                        now()->subDays($absentDefaultDays - 1)->startOfDay(),
+                        now()->endOfDay()
+                    ),
                 ]);
             }
         }

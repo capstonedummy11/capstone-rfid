@@ -448,6 +448,9 @@ Use this page to check:
 - Time in.
 - Time out.
 - Late status.
+- Instructors can use **Edit status** on their assigned Attendance Logs while the date is still within the configured **Absent Attendance Days** window.
+- Select Present, Late, Absent, or Excused. Excused requires an explanation.
+- Saving creates a manual attendance event and a system activity entry showing who changed the status and its previous and new values. Once the configured window expires, the row becomes read-only.
 - Temporary exits and returns.
 - Ignored or invalid taps.
 - Face evidence thumbnails when available.

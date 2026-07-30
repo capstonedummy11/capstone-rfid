@@ -565,6 +565,10 @@ Tap log records:
 
 `AttendanceLogs.vue`:
 
+- Instructors may manually correct Present, Late, Absent, or Excused status only for students in their assigned attendance sessions.
+- The editable period uses the admin-configured `attendance.absent_default_days` rolling window. Older and future session dates are rejected by the server.
+- Excused status requires a note. Every accepted correction creates an `attendance_logs` manual-edit event and an `activity_logs` record with the instructor identity and old/new status.
+
 - Admin users can view attendance logs across instructors.
 - Instructor users can view attendance logs only for their assigned classes.
 - The page displays subject, date, instructor, student, tap type, tap sequence, check-in, check-out, room status, and attendance status.

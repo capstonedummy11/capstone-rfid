@@ -164,6 +164,7 @@ Student tap behavior:
 - Face verification or instructor-approved fallback creates a short-lived one-use attendance grant.
 - The first valid student tap records official check-in.
 - Late status is based on `attendance.late_threshold_minutes`, defaulting to 15.
+- Instructors can correct attendance for their own assigned sessions while the record remains inside the rolling `attendance.absent_default_days` window. Available manual statuses are Present, Late, Absent, and Excused; Excused requires a note. Each correction creates an attendance event log and a detailed system activity log containing the instructor and old/new status.
 - A checked-in student is considered inside the room.
 - Before the final checkout window, temporary exit/return taps require instructor RFID approval.
 - The final checkout window begins 15 minutes before scheduled end.

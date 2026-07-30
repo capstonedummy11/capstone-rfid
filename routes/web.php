@@ -172,6 +172,7 @@ Route::prefix('admin')
             Route::get('/dashboard', [DashboardController::class, 'admin'])->name('dashboard');
             Route::get('/attendance/scanner', [AttendanceController::class, 'scanner'])->name('attendance.scanner');
             Route::get('/attendance/logs', [AttendanceController::class, 'logs'])->name('attendance.logs');
+            Route::patch('/attendance/logs/status', [AttendanceController::class, 'updateAttendanceStatus'])->name('attendance.logs.status');
             Route::post('/attendance/scan', [AttendanceController::class, 'scan'])->name('attendance.scan');
             Route::get('/messages', [MessageController::class, 'index'])->name('messages.index');
             Route::post('/messages/{message}/reply', [MessageController::class, 'reply'])->name('messages.reply');
