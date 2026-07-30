@@ -226,6 +226,7 @@ Messenger supports:
 - PDF, Word, image, GIF/WebP, and text file attachments within the configured upload limit.
 - Inline image previews for image attachments, with protected download links for all attachment types.
 - Read-state updates that only the recipient can apply.
+- Gmail email notification when a new message is received. Rapid messages from the same sender to the same recipient are grouped by a configurable cooldown, which defaults to one email per five minutes.
 
 Student/parent portal messages use `student_portal_messages`; staff, student, and parent conversations share the same Messenger page and protected attachment-download route.
 

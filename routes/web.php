@@ -80,6 +80,7 @@ Route::get('/messages/new', [MessageController::class, 'create'])->name('message
 Route::post('/messages', [MessageController::class, 'store'])->name('messages.store');
 Route::middleware(['auth', 'role:admin,instructor,clinic,registrar,student,parent'])->group(function () {
     Route::get('/messages', [MessageController::class, 'index'])->name('messages.index');
+    Route::get('/messages/unread-status', [MessageController::class, 'unreadStatus'])->name('messages.unread-status');
     Route::post('/messages/conversation', [MessageController::class, 'sendConversationMessage'])->name('messages.conversation.store');
     Route::put('/messages/{message}/read', [MessageController::class, 'markRead'])->name('messages.read');
     Route::get('/messages/{message}/attachment', [MessageController::class, 'downloadAttachment'])->name('messages.attachments.show');

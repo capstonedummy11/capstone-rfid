@@ -10,9 +10,13 @@ use App\Models\StudentExcuseLetter;
 use App\Models\StudentPortalMessage;
 use App\Models\Students;
 use App\Models\User;
+use App\Notifications\MessengerMessageReceived;
+use App\Services\MessengerEmailNotificationService;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -231,6 +235,18 @@ test('authenticated users can search recipients and exchange attachment messages
         ->and($message->attachment_name)->toBe('clinic-note.pdf');
 
     $this->actingAs($clinic)
+        ->getJson(route('messages.unread-status'))
+        ->assertOk()
+        ->assertJson([
+            'unread_count' => 1,
+            'latest' => [
+                'id' => $message->student_portal_message_id,
+                'sender' => 'Admin User',
+                'preview' => 'Please review the clinic note.',
+            ],
+        ]);
+
+    $this->actingAs($clinic)
         ->get(route('messages.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
@@ -265,6 +281,51 @@ test('authenticated users can search recipients and exchange attachment messages
     $this->actingAs($registrar)
         ->get(route('messages.attachments.show', $message))
         ->assertForbidden();
+});
+
+test('messenger email notifications are limited per sender and recipient', function () {
+    Notification::fake();
+    config([
+        'cache.default' => 'array',
+        'messenger.email_notification_cooldown_minutes' => 5,
+    ]);
+    Cache::flush();
+
+    $sender = User::factory()->create([
+        'name' => 'Message Sender',
+        'email' => 'message.sender@example.com',
+        'role' => 'student',
+    ]);
+    $recipient = User::factory()->create([
+        'name' => 'Message Recipient',
+        'email' => 'message.recipient@example.com',
+        'role' => 'instructor',
+    ]);
+    $firstMessage = StudentPortalMessage::query()->create([
+        'sender_user_id' => $sender->user_id,
+        'recipient_user_id' => $recipient->user_id,
+        'sender_role' => 'student',
+        'subject' => 'Conversation',
+        'body' => 'First message.',
+    ]);
+    $secondMessage = StudentPortalMessage::query()->create([
+        'sender_user_id' => $sender->user_id,
+        'recipient_user_id' => $recipient->user_id,
+        'sender_role' => 'student',
+        'subject' => 'Conversation',
+        'body' => 'Second message.',
+    ]);
+    $notifier = app(MessengerEmailNotificationService::class);
+
+    expect($notifier->notify($sender, $recipient, $firstMessage))->toBeTrue()
+        ->and($notifier->notify($sender, $recipient, $secondMessage))->toBeFalse();
+
+    Notification::assertSentToTimes($recipient, MessengerMessageReceived::class, 1);
+
+    $this->travel(6)->minutes();
+
+    expect($notifier->notify($sender, $recipient, $secondMessage))->toBeTrue();
+    Notification::assertSentToTimes($recipient, MessengerMessageReceived::class, 2);
 });
 
 test('instructor inbox replies create student portal replies', function () {

@@ -8,6 +8,7 @@ use App\Models\Message;
 use App\Models\StudentPortalMessage;
 use App\Models\Students;
 use App\Models\User;
+use App\Services\MessengerEmailNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -16,6 +17,10 @@ use Inertia\Inertia;
 
 class MessageController
 {
+    public function __construct(
+        private readonly MessengerEmailNotificationService $emailNotifications,
+    ) {}
+
     public function create()
     {
         return Inertia::render('Messages/Create', [
@@ -253,8 +258,35 @@ class MessageController
         ]);
 
         $this->logActivity('create', 'student_portal_messages', 'Sent messenger message '.$message->student_portal_message_id.' from '.$user->email.' to '.$recipient->email);
+        $this->emailNotifications->notify($user, $recipient, $message);
 
         return back()->with('success', 'Message sent.');
+    }
+
+    public function unreadStatus(Request $request)
+    {
+        $latest = StudentPortalMessage::query()
+            ->with('sender:user_id,name')
+            ->where('recipient_user_id', $request->user()->user_id)
+            ->whereNull('read_at')
+            ->latest('created_at')
+            ->first();
+
+        return response()->json([
+            'unread_count' => StudentPortalMessage::query()
+                ->where('recipient_user_id', $request->user()->user_id)
+                ->whereNull('read_at')
+                ->count(),
+            'latest' => $latest ? [
+                'id' => $latest->student_portal_message_id,
+                'sender' => $latest->sender?->name ?: 'Someone',
+                'preview' => str($latest->body ?: $latest->attachment_name ?: 'Attachment')
+                    ->squish()
+                    ->limit(80)
+                    ->toString(),
+                'created_at' => $latest->created_at?->toDateTimeString(),
+            ] : null,
+        ]);
     }
 
     public function markRead(Request $request, StudentPortalMessage $message)
@@ -327,6 +359,10 @@ class MessageController
         }
 
         $this->logActivity('create', 'student_portal_messages', 'Replied to student portal message thread via inbox message '.$message->message_id.' with portal message '.$reply->student_portal_message_id);
+        $recipient = $recipientUserId ? User::query()->find($recipientUserId) : null;
+        if ($recipient) {
+            $this->emailNotifications->notify($user, $recipient, $reply);
+        }
 
         return back()->with('success', 'Reply sent to the student portal.');
     }

@@ -148,6 +148,8 @@ Messenger data behavior:
 - Selecting a recipient clears the search query and closes the search results for every supported role.
 - Messenger attachments are downloaded through an authorized route that allows only the sender or recipient.
 - Image attachments can be served inline for chat preview while still using the same authorization check.
+- Messenger email throttling uses an atomic cache key scoped to sender and recipient. The default five-minute cooldown can be changed with `MESSENGER_EMAIL_NOTIFICATION_COOLDOWN_MINUTES`.
+- Failed email delivery removes the cache key so a subsequent message can retry notification delivery.
 
 Reporting data behavior:
 

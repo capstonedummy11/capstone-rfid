@@ -280,6 +280,9 @@ Routes:
 4. The chat view displays messages as sender/recipient bubbles newest conversation first and thread messages oldest to newest.
 5. A received message can be marked as read only by its recipient.
 6. Attachment-only messages are allowed; the sidebar preview falls back to the attachment name when the text body is empty.
+7. The first message from a sender to a recipient triggers a Gmail notification with a preview and Messenger link.
+8. Further messages in the same sender-to-recipient direction are email-suppressed during the configured cooldown, which defaults to five minutes.
+9. The reverse direction has its own cooldown, and a mail-delivery failure releases the cooldown so a later message can retry.
 
 ### 3. Message Attachments
 

@@ -1,8 +1,9 @@
 <script setup>
 import AuthNavbar from './AuthNavbar.vue';
-import { computed, ref, watch } from 'vue';
-import { usePage } from '@inertiajs/vue3';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { router, usePage } from '@inertiajs/vue3';
 import { Menu } from 'lucide-vue-next';
+import Swal from 'sweetalert2';
 import {
     consumeStaffSavePreference,
     consumeStudentParentSavePreference,
@@ -19,6 +20,60 @@ const userInitial = computed(
 );
 
 const isNavOpen = ref(false);
+const unreadMessageCount = ref(0);
+const latestUnreadMessageId = ref(null);
+let messagePollTimer = null;
+let messagePollingInitialized = false;
+
+const pollUnreadMessages = async (notify = true) => {
+    try {
+        const response = await fetch(route('messages.unread-status'), {
+            headers: { Accept: 'application/json' },
+            credentials: 'same-origin',
+        });
+
+        if (!response.ok) return;
+
+        const status = await response.json();
+        const latest = status.latest;
+        const hasNewMessage =
+            notify &&
+            messagePollingInitialized &&
+            latest?.id &&
+            Number(latest.id) !== Number(latestUnreadMessageId.value);
+
+        unreadMessageCount.value = Number(status.unread_count || 0);
+        latestUnreadMessageId.value = latest?.id ?? null;
+        messagePollingInitialized = true;
+
+        if (hasNewMessage) {
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'info',
+                title: `New message from ${latest.sender}`,
+                text: latest.preview,
+                showConfirmButton: true,
+                confirmButtonText: 'Open Messenger',
+                timer: 8000,
+                timerProgressBar: true,
+            }).then((result) => {
+                if (result.isConfirmed) router.visit(route('messages.index'));
+            });
+        }
+    } catch {
+        // A temporary polling failure must not interrupt the current page.
+    }
+};
+
+onMounted(async () => {
+    await pollUnreadMessages(false);
+    messagePollTimer = window.setInterval(() => pollUnreadMessages(), 10000);
+});
+
+onUnmounted(() => {
+    if (messagePollTimer) window.clearInterval(messagePollTimer);
+});
 
 watch(
     currentUser,
@@ -47,6 +102,7 @@ watch(
         <AuthNavbar
             v-if="$page.props.auth.user"
             v-model:isNavOpen="isNavOpen"
+            :unread-message-count="unreadMessageCount"
         />
         <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
             <!-- Top Header -->

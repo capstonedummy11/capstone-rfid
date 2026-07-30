@@ -16,6 +16,7 @@ use App\Models\Students;
 use App\Models\User;
 use App\Services\CompreFaceService;
 use App\Services\ExcuseLetterPdfService;
+use App\Services\MessengerEmailNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -28,6 +29,10 @@ use Inertia\Inertia;
 
 class StudentsController
 {
+    public function __construct(
+        private readonly MessengerEmailNotificationService $emailNotifications,
+    ) {}
+
     public function index()
     {
         //
@@ -777,6 +782,10 @@ class StudentsController
         ]);
 
         $this->logActivity('create', 'student_portal_messages', 'Sent portal message '.$message->student_portal_message_id.' for student '.$student->student_number.' to instructor user '.$validated['instructor_user_id']);
+        $recipient = User::query()->find($validated['instructor_user_id']);
+        if ($recipient) {
+            $this->emailNotifications->notify($request->user(), $recipient, $message);
+        }
 
         return back()->with('success', 'Message sent.');
     }

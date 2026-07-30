@@ -502,6 +502,8 @@ Basic Messenger flow:
 7. Send the message.
 8. The recipient opens `/messages` to read and reply.
 
+Recipients with valid email addresses receive a Gmail notification containing the sender, a message preview, and a link to Messenger. To avoid email spam, a burst of messages from the same sender to the same recipient produces only one email during the default five-minute cooldown. Every message is still saved and visible in Messenger.
+
 Attachment behavior:
 
 - You can send text-only, attachment-only, or text-plus-attachment messages.

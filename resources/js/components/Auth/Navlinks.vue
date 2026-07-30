@@ -8,6 +8,7 @@ const props = defineProps({
     icon: { type: Object, required: true },
     text: { type: String, required: true },
     route: { type: String, required: false },
+    badge: { type: Number, default: 0 },
 });
 
 const isActive = computed(() => {
@@ -39,6 +40,12 @@ const isActive = computed(() => {
             class="group-hover:text-brand"
             :class="isActive ? 'text-brand' : 'text-[#A3AED0]'"
         />
-        <h1>{{ text }}</h1>
+        <h1 class="min-w-0 flex-1">{{ text }}</h1>
+        <span
+            v-if="badge > 0"
+            class="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white"
+        >
+            {{ badge > 99 ? '99+' : badge }}
+        </span>
     </Link>
 </template>

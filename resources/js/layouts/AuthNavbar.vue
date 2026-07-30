@@ -28,6 +28,9 @@ import Section from '@/components/Icon/Section.vue';
 import Inventory from '@/components/Icon/Inventory.vue';
 
 const isNavOpen = defineModel('isNavOpen', { default: true });
+const props = defineProps({
+    unreadMessageCount: { type: Number, default: 0 },
+});
 
 const page = usePage();
 const currentRole = computed(() =>
@@ -315,6 +318,11 @@ const confirmLogout = async () => {
                         :icon="item.icon"
                         :text="isNavOpen ? item.text : ''"
                         :route="item.route"
+                        :badge="
+                            item.text === 'Messages'
+                                ? props.unreadMessageCount
+                                : 0
+                        "
                         @click="isNavOpen = false"
                     />
                 </div>
