@@ -3,6 +3,7 @@
 use App\Models\Attendance;
 use App\Models\Instructor;
 use App\Models\Message;
+use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\Strand;
 use App\Models\StudentExcuseLetter;
@@ -11,6 +12,7 @@ use App\Models\Students;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
@@ -425,6 +427,47 @@ test('parent-created excuse letter is signed and downloads as pdf', function () 
         ->assertHeader('Content-Type', 'application/pdf');
 
     expect(substr($response->getContent(), 0, 4))->toBe('%PDF');
+});
+
+test('approved excuse letter is sent to instructor messenger with generated pdf', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    Storage::fake('public');
+    $fixture = portalFixture();
+    $instructor = Instructor::query()
+        ->where('user_id', $fixture['instructorUser']->user_id)
+        ->firstOrFail();
+
+    Schedule::query()->create([
+        'instructor_id' => $instructor->instructor_id,
+        'section_id' => $fixture['section']->section_id,
+        'subject_code' => 'PROG1',
+        'weekdays' => 'Monday',
+        'time_start' => '08:00:00',
+        'time_end' => '09:00:00',
+        'room' => 'ICT Lab',
+    ]);
+
+    $this->actingAs($fixture['parentUser'])
+        ->post(route('student-parent.excuse-letters.store', ['student_id' => $fixture['student']->student_id]), [
+            'subject' => 'Programming I',
+            'from_date' => '2026-07-01',
+            'to_date' => '2026-07-02',
+            'reason' => 'Medical appointment.',
+            'parent_signature' => 'Maria Santos',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Excuse letter submitted and sent to the teacher.');
+
+    $letter = StudentExcuseLetter::query()->firstOrFail();
+    $message = StudentPortalMessage::query()->firstOrFail();
+
+    expect($message->recipient_user_id)->toBe($fixture['instructorUser']->user_id)
+        ->and($message->attachment_name)->toBe('excuse-letter-'.$letter->student_excuse_letter_id.'.pdf')
+        ->and($message->attachment_mime)->toBe('application/pdf')
+        ->and($message->attachment_size)->toBeGreaterThan(0);
+
+    Storage::disk('public')->assertExists($message->attachment_path);
+    expect(substr(Storage::disk('public')->get($message->attachment_path), 0, 4))->toBe('%PDF');
 });
 
 test('student can download an approved generated excuse letter pdf', function () {

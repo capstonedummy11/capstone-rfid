@@ -106,6 +106,7 @@ const selectedConversation = computed(
 );
 
 const selectRecipient = (instructor) => {
+    recipientSearch.value = '';
     selectedRecipient.value = instructor;
     selectedConversationKey.value = '';
     form.instructor_user_id = instructor.user_id;
@@ -164,6 +165,7 @@ const sendMessage = () => {
                         class="mt-2 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
                     />
                     <div
+                        v-if="recipientSearch.trim().length > 0"
                         class="mt-2 max-h-44 overflow-y-auto rounded-md border border-slate-100"
                     >
                         <button

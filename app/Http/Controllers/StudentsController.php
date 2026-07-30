@@ -944,6 +944,7 @@ class StudentsController
 
     private function sendApprovedExcuseLetterToTeachers(StudentExcuseLetter $letter, User $sender): int
     {
+        $letter->loadMissing(['student.section', 'submittedBy', 'parentApprovedBy']);
         $student = $letter->student;
         if (! $student) {
             return 0;
@@ -970,8 +971,9 @@ class StudentsController
 
         $subject = 'Approved Excuse Letter: '.$letter->subject;
         $body = $this->approvedExcuseLetterMessageBody($letter, $student, $sender);
-        $attachmentMime = $this->storedAttachmentMime($letter->attachment_path);
-        $attachmentSize = $this->storedAttachmentSize($letter->attachment_path);
+        [$attachmentPath, $attachmentName] = $this->storeApprovedExcuseLetterPdf($letter, $student);
+        $attachmentMime = $this->storedAttachmentMime($attachmentPath);
+        $attachmentSize = $this->storedAttachmentSize($attachmentPath);
 
         foreach ($teacherUsers as $teacher) {
             $message = StudentPortalMessage::query()->create([
@@ -982,8 +984,8 @@ class StudentsController
                 'instructor_user_id' => $teacher->user_id,
                 'subject' => $subject,
                 'body' => $body,
-                'attachment_path' => $letter->attachment_path,
-                'attachment_name' => $letter->attachment_name,
+                'attachment_path' => $attachmentPath,
+                'attachment_name' => $attachmentName,
                 'attachment_mime' => $attachmentMime,
                 'attachment_size' => $attachmentSize,
             ]);
@@ -1006,6 +1008,25 @@ class StudentsController
         $this->logActivity('create', 'student_portal_messages', 'Sent approved excuse letter '.$letter->student_excuse_letter_id.' to '.$teacherUsers->count().' teacher account(s).');
 
         return $teacherUsers->count();
+    }
+
+    private function storeApprovedExcuseLetterPdf(StudentExcuseLetter $letter, Students $student): array
+    {
+        $studentName = trim($student->first_name.' '.$student->last_name);
+        $section = $student->section?->section_name ?: 'Section';
+        $submittedBy = $letter->submittedBy?->name ?: $studentName;
+        $filename = 'excuse-letter-'.$letter->student_excuse_letter_id.'.pdf';
+        $path = 'student-excuse-letters/generated/'.$filename;
+        $pdf = app(ExcuseLetterPdfService::class)->render(
+            $letter,
+            $studentName,
+            $section,
+            $submittedBy,
+        );
+
+        Storage::disk('public')->put($path, $pdf);
+
+        return [$path, $filename];
     }
 
     private function teacherUsersForStudent(Students $student)

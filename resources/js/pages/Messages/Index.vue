@@ -168,6 +168,7 @@ watch(
 );
 
 const selectRecipient = (recipient) => {
+    search.value = '';
     const existingConversation = conversationForUser(recipient.user_id);
     if (existingConversation) {
         selectConversation(existingConversation);
