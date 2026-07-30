@@ -20,6 +20,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -615,6 +617,12 @@ class StudentsController
             ? $this->sendApprovedExcuseLetterToTeachers($letter->fresh(['student', 'submittedBy', 'parentApprovedBy']), $request->user())
             : 0;
 
+        if ($role !== 'parent') {
+            $this->notifyParentsExcuseLetterNeedsApproval(
+                $letter->fresh(['student.parentUsers', 'submittedBy']),
+            );
+        }
+
         return back()->with('success', match (true) {
             $role !== 'parent' => 'Excuse letter submitted.',
             $teacherMessageCount > 0 => 'Excuse letter submitted and sent to the teacher.',
@@ -1003,11 +1011,101 @@ class StudentsController
                 'attachment_mime' => $message->attachment_mime,
                 'attachment_size' => $message->attachment_size,
             ]);
+
+            $this->emailApprovedExcuseLetterToTeacher(
+                $teacher,
+                $letter,
+                $student,
+                $sender,
+                $body,
+                $attachmentPath,
+                $attachmentName,
+            );
         }
 
         $this->logActivity('create', 'student_portal_messages', 'Sent approved excuse letter '.$letter->student_excuse_letter_id.' to '.$teacherUsers->count().' teacher account(s).');
 
         return $teacherUsers->count();
+    }
+
+    private function notifyParentsExcuseLetterNeedsApproval(StudentExcuseLetter $letter): int
+    {
+        $student = $letter->student;
+        if (! $student) {
+            return 0;
+        }
+
+        $studentName = trim($student->first_name.' '.$student->last_name);
+        $approvalUrl = route('student-parent.excuse-letters.index', [
+            'student_id' => $student->student_id,
+        ]);
+        $sent = 0;
+
+        foreach ($student->parentUsers->filter(fn (User $parent) => filter_var($parent->email, FILTER_VALIDATE_EMAIL)) as $parent) {
+            try {
+                Mail::raw(
+                    implode("\n\n", [
+                        "Hello {$parent->name},",
+                        "{$studentName} submitted an excuse letter for {$letter->subject} covering {$letter->from_date?->format('F j, Y')} to {$letter->to_date?->format('F j, Y')}.",
+                        'Please sign in to the parent portal, review the letter, and provide your approval and signature.',
+                        "Review and sign: {$approvalUrl}",
+                    ]),
+                    fn ($message) => $message
+                        ->to($parent->email)
+                        ->subject('Excuse Letter Awaiting Parent Signature'),
+                );
+                $sent++;
+            } catch (\Throwable $exception) {
+                Log::warning('Parent excuse-letter email could not be sent.', [
+                    'letter_id' => $letter->student_excuse_letter_id,
+                    'parent_user_id' => $parent->user_id,
+                    'message' => $exception->getMessage(),
+                ]);
+            }
+        }
+
+        $this->logActivity(
+            $sent > 0 ? 'email' : 'warning',
+            'student_excuse_letters',
+            'Sent parent signature notification for excuse letter '.$letter->student_excuse_letter_id.' to '.$sent.' parent account(s).',
+        );
+
+        return $sent;
+    }
+
+    private function emailApprovedExcuseLetterToTeacher(
+        User $teacher,
+        StudentExcuseLetter $letter,
+        Students $student,
+        User $sender,
+        string $body,
+        string $attachmentPath,
+        string $attachmentName,
+    ): void {
+        if (! filter_var($teacher->email, FILTER_VALIDATE_EMAIL)) {
+            return;
+        }
+
+        try {
+            Mail::raw(
+                $body."\n\nThe signed excuse-letter PDF is attached. You can also review it in Messenger.",
+                fn ($message) => $message
+                    ->to($teacher->email)
+                    ->subject('Approved Excuse Letter: '.$letter->subject)
+                    ->attach(Storage::disk('public')->path($attachmentPath), [
+                        'as' => $attachmentName,
+                        'mime' => 'application/pdf',
+                    ]),
+            );
+        } catch (\Throwable $exception) {
+            Log::warning('Instructor excuse-letter email could not be sent.', [
+                'letter_id' => $letter->student_excuse_letter_id,
+                'student_id' => $student->student_id,
+                'teacher_user_id' => $teacher->user_id,
+                'approved_by_user_id' => $sender->user_id,
+                'message' => $exception->getMessage(),
+            ]);
+        }
     }
 
     private function storeApprovedExcuseLetterPdf(StudentExcuseLetter $letter, Students $student): array

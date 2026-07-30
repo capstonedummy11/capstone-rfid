@@ -221,11 +221,14 @@ Routes:
 
 1. A student submits an excuse letter for their own student record.
 2. The letter is saved with status `pending_parent_approval`.
-3. PDF download is blocked while parent approval is pending.
-4. A linked parent opens the same student's Excuse Letter page.
-5. The parent enters a typed parent signature and optional notes, then approves the letter.
-6. The letter status becomes `approved`, and the parent signature, approver, and approval timestamp are stored.
-7. The student or linked parent can download the generated `.pdf`.
+3. Each linked parent with a valid email address receives an email notification containing a link to the selected student's Excuse Letter page.
+4. PDF download is blocked while parent approval is pending.
+5. A linked parent opens the same student's Excuse Letter page.
+6. The parent enters a typed parent signature and optional notes, then approves the letter.
+7. The letter status becomes `approved`, and the parent signature, approver, and approval timestamp are stored.
+8. The system generates a complete signed PDF and sends the details and protected PDF attachment to the selected teachers, or all assigned teachers when none were selected, through Messenger.
+9. Each recipient instructor with a valid email address also receives an email notification with the signed PDF attached.
+10. The student or linked parent can download the generated `.pdf`.
 
 ### 2. Parent-Created Letter
 
@@ -233,6 +236,7 @@ Routes:
 2. Parent signature is required on submission.
 3. The letter is saved immediately as `approved` with the parent signature and approval timestamp.
 4. The generated `.pdf` includes the letter content and parent approval block.
+5. Selected or assigned instructors receive the approved details and generated PDF through Messenger and email.
 
 ### 3. Excuse Letter Attachments
 
@@ -263,9 +267,10 @@ Routes:
 3. The page loads searchable recipient options from message-capable user accounts except the current user.
 4. Console accounts are excluded from recipient search results.
 5. The user searches by name, email, or role.
-6. Selecting a user opens the existing conversation when previous messages exist, showing both sender and recipient history in the same chat room.
-7. If no previous conversation exists, selecting a user starts a new conversation draft.
-8. Parent accounts keep the selected-student context when a linked student is selected.
+6. Selecting a user clears the search field and closes the recipient result list.
+7. Selecting a user opens the existing conversation when previous messages exist, showing both sender and recipient history in the same chat room.
+8. If no previous conversation exists, selecting a user starts a new conversation draft.
+9. Parent accounts keep the selected-student context when a linked student is selected.
 
 ### 2. Chat Messages
 

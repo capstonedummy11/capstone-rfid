@@ -796,8 +796,10 @@ Console users are excluded. Attachments use protected download routes.
 ### Excuse letters
 
 - Student-created letters require linked-parent approval.
+- Linked parents receive an email link to review and sign student-created letters.
 - Parent-created letters can be approved at submission.
 - Approved letters can be generated as PDF.
+- Selected or assigned instructors receive the signed PDF through Gmail and protected Messenger attachment delivery.
 - Attachments remain access-controlled.
 
 ## 28. Technical Request and Data Flow

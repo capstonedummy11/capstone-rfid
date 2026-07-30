@@ -173,7 +173,7 @@ Demo script:
 3. Show Face Verification option.
 4. Explain that it compares the camera capture with enrolled instructor face image.
 5. Switch to OTP.
-6. Click send OTP and explain the code is emailed if mail is configured.
+6. Click send OTP and explain that Gmail SMTP delivers the six-digit code, which expires after 10 minutes.
 7. Switch to Security Question.
 8. Show setup if questions are not yet saved.
 9. Answer saved question to continue.
@@ -296,8 +296,10 @@ Demo conversation:
 - Parent can create signed excuse letters
 - Approved letter download
 - Student/parent history view
+- Linked parents receive an email link when a student letter needs a signature
+- Selected or assigned instructors receive the signed PDF through email and Messenger
 
-Key demo point: student-created letters are not downloadable until linked parent approval.
+Key demo point: student-created letters are not downloadable until linked parent approval; approval generates and delivers the signed PDF to the instructor.
 
 ## Slide 23: Emergency And Clinic Capabilities
 

@@ -509,6 +509,12 @@ const logout = () => {
                                         : 'Send OTP'
                                 }}
                             </button>
+                            <p
+                                v-if="otpSendForm.errors.otp"
+                                class="text-sm text-red-600"
+                            >
+                                {{ otpSendForm.errors.otp }}
+                            </p>
                             <input
                                 v-model="otpForm.otp"
                                 type="text"

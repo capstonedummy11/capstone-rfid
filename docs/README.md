@@ -2,7 +2,7 @@
 
 RFID Borrowing and Attendance System is a Laravel 12, Inertia, and Vue 3 capstone application for senior high school computer laboratory operations. The repository contains a working web application for attendance, borrowing, inventory, registrar biometric enrollment, student/parent self-service, online classes, clinic records, emergency alerts, messaging, reports, and audit logs.
 
-This README is written from the current source code. It intentionally excludes private AI notes, secrets, passwords, software installation instructions, deployment steps, and infrastructure setup.
+This README is written from the current source code. It intentionally excludes private AI notes, secrets, real production passwords, software installation instructions, deployment steps, and infrastructure setup. Documented default and seeded development passwords are non-production fixtures.
 
 ## Current Status
 
@@ -44,6 +44,8 @@ The root route `/` is the student/parent login entry when the visitor is not aut
 | `student`, `parent`   | `/student-parent/dashboard` |
 
 Staff users authenticate through the configured staff login route. Student and parent users authenticate from the public portal login.
+
+See [DEFAULT_ACCOUNT_PASSWORDS.md](./DEFAULT_ACCOUNT_PASSWORDS.md) for the initial-password rule used by every account-creation path and for development-only seeded credentials.
 
 ## Database Starting Point
 
@@ -203,7 +205,7 @@ Parents can be linked to one or more students and can switch context where the p
 
 When an admin creates a student record from Student Management, the system also creates or syncs a matching student portal account using the student's email. The default student password is the student's first name plus last name with spaces removed, for example `JuanDelaCruz`. Admins can reset a student's portal password back to that default from the Student Management actions.
 
-The excuse-letter form suggests teacher recipients from the instructors assigned to the student's section schedules. If no recipient is selected, the approved letter is sent to all assigned teachers. After a parent signs or approves an excuse letter, the system automatically sends the approved letter details through Messenger. The original uploaded attachment is included when one exists.
+The excuse-letter form suggests teacher recipients from the instructors assigned to the student's section schedules. If no recipient is selected, the approved letter is sent to all assigned teachers. When a student submits a letter, linked parents with valid email addresses receive a Gmail SMTP notification and a link to review and sign it. After a parent signs or approves the letter, the system generates the complete signed PDF and sends it to each selected or assigned instructor through both email and Messenger. The Messenger attachment uses the protected attachment-download route.
 
 ### Online Classes
 
@@ -218,6 +220,7 @@ Admin, instructor, clinic, registrar, student, and parent users can use the unif
 Messenger supports:
 
 - Recipient search by name, email, or role across message-capable users, excluding the current user and console accounts.
+- Recipient search results close and the search input clears as soon as a recipient is selected, consistently across staff, student, and parent accounts.
 - Existing conversation grouping, so both sent and received messages with the same person appear in one chat thread.
 - Text messages, attachment-only messages, or text-plus-attachment messages.
 - PDF, Word, image, GIF/WebP, and text file attachments within the configured upload limit.

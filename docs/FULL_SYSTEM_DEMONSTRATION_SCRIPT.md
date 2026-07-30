@@ -68,9 +68,10 @@ Face verification talk track:
 OTP talk track:
 
 - The instructor requests an OTP.
-- The system stores a hashed OTP in the session and sends an email if mail is configured.
+- The system sends the six-digit OTP through the configured Gmail SMTP account and stores only its hash in the session.
 - The OTP expires after 10 minutes.
 - A valid OTP verifies the instructor session.
+- If email delivery fails, the page shows an error and removes the unusable OTP from the session.
 
 Security question talk track:
 

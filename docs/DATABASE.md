@@ -134,6 +134,8 @@ Student excuse-letter approval fields:
 - `recipient_user_ids` optionally stores selected teacher recipients. When empty, approved letters are sent to all assigned teachers for the student's section.
 - Student-created letters use `pending_parent_approval` until a linked parent approves them; parent-created letters are saved as `approved`.
 - Excuse-letter attachments are downloaded through an authenticated student/parent route and remain scoped to the selected student.
+- Student submission emails each linked parent with a valid email address and a portal link for review and signature.
+- Approval generates an official signed PDF stored under `student-excuse-letters/generated`; the generated file metadata is copied to the instructor Messenger record and the PDF is also attached to the instructor email.
 
 Messenger data behavior:
 
@@ -143,6 +145,7 @@ Messenger data behavior:
 - `attachment_path`, `attachment_name`, `attachment_mime`, and `attachment_size` store optional message attachment metadata.
 - Messenger allows text messages, attachment-only messages, and text-plus-attachment messages.
 - Messenger recipient search includes admin, instructor, clinic, registrar, student, and parent users, but excludes console accounts and the current user.
+- Selecting a recipient clears the search query and closes the search results for every supported role.
 - Messenger attachments are downloaded through an authorized route that allows only the sender or recipient.
 - Image attachments can be served inline for chat preview while still using the same authorization check.
 

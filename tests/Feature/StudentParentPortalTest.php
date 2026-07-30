@@ -12,6 +12,7 @@ use App\Models\Students;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -351,6 +352,7 @@ test('parent profile update does not change linked student phone or gender', fun
 
 test('student-created excuse letter requires parent approval before pdf download', function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
+    Mail::fake();
     $fixture = portalFixture();
 
     $this->actingAs($fixture['studentUser'])
@@ -378,7 +380,7 @@ test('student-created excuse letter requires parent approval before pdf download
             'parent_approval_notes' => 'Approved after checking the appointment.',
         ])
         ->assertRedirect()
-        ->assertSessionHas('success', 'Excuse letter approved.');
+        ->assertSessionHas('success', 'Excuse letter approved, but no assigned teacher was found for this section.');
 
     $letter->refresh();
 
@@ -431,6 +433,7 @@ test('parent-created excuse letter is signed and downloads as pdf', function () 
 
 test('approved excuse letter is sent to instructor messenger with generated pdf', function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
+    Mail::fake();
     Storage::fake('public');
     $fixture = portalFixture();
     $instructor = Instructor::query()

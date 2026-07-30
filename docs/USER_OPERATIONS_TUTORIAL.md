@@ -582,11 +582,13 @@ Student-created excuse letter flow:
 3. Student creates an excuse letter.
 4. Student adds the reason, date details, and attachment if needed.
 5. The letter is saved with parent approval required.
-6. Linked parent logs in.
-7. Parent opens Excuse Letters.
-8. Parent reviews the student-created letter.
-9. Parent approves it with a typed parent signature.
-10. The approved generated letter becomes downloadable.
+6. Linked parents receive an email asking them to review and sign the letter.
+7. The parent follows the email link and logs in.
+8. Parent opens Excuse Letters for the linked student.
+9. Parent reviews the student-created letter.
+10. Parent approves it with a typed parent signature.
+11. The approved generated letter becomes downloadable.
+12. Selected instructors, or all assigned instructors when none were selected, receive the signed PDF through Messenger and email.
 
 Parent-created excuse letter flow:
 
@@ -597,6 +599,7 @@ Parent-created excuse letter flow:
 5. Parent signs it during creation.
 6. The letter is immediately treated as parent-approved.
 7. The generated letter can be downloaded.
+8. Selected or assigned instructors receive the signed PDF through Messenger and email.
 
 Important rule:
 
