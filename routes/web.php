@@ -59,7 +59,7 @@ Route::get('/', function (Request $request) {
 Route::redirect('/home', '/')->name('home');
 Route::inertia('/about', 'About')->name('about');
 Route::redirect('/student-parent-login', '/')->name('studentParentLogin');
-Route::get('/login', fn () => redirect()->route('landingPage'));
+Route::get('/login', fn () => redirect()->route('landingPage'))->name('login');
 Route::get($staffLoginPath, [StaffLoginController::class, 'create'])
     ->name('staff.login');
 if ($staffLoginPath !== '/secure-login') {

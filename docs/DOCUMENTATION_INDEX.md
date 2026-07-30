@@ -20,6 +20,7 @@ Choose the document that matches your task:
 | Understand laboratory and attendance-device management | [Laboratories and Devices](LABORATORIES_AND_DEVICES.md) |
 | Understand every role and its functionality | [Roles and Functionality](ROLES_AND_FUNCTIONALITY.md) |
 | Assign and respond to Clinic dispatches | [Clinic Dispatch Assignment](CLINIC_DISPATCH.md) |
+| Run automated tests and regression checks | [Testing and Regression Guide](TESTING.md) |
 | Prepare a capstone demonstration | [Demonstration Documentation Map](DEMONSTRATION_DOCUMENTATION.md) |
 
 ## Canonical Sources
@@ -38,6 +39,7 @@ When several files discuss the same subject, use these as the source of truth:
 | Laboratory/device relationship, CRUD, PIN, and disable rules | [Laboratories and Devices](LABORATORIES_AND_DEVICES.md) | Summarize room or panel behavior where needed |
 | Role purpose, capabilities, workflows, and boundaries | [Roles and Functionality](ROLES_AND_FUNCTIONALITY.md) | Use short role summaries in other documents |
 | Clinic responder selection, notifications, and assignment rules | [Clinic Dispatch Assignment](CLINIC_DISPATCH.md) | Summarize dispatch behavior in role, flow, and operator documents |
+| Test commands, regression coverage, and failure troubleshooting | [Testing and Regression Guide](TESTING.md) | Reference current verification results without duplicating commands |
 | Demonstration structure and artifact selection | [Demonstration Documentation Map](DEMONSTRATION_DOCUMENTATION.md) | Supply a script, slide outline, or detailed rehearsal |
 
 If a summary conflicts with its canonical source, update the summary and follow the canonical source.

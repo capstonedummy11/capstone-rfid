@@ -26,11 +26,11 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             if ($request->is('admin*', 'clinic*', 'registrar*', 'instructor*')) {
-                return route('login');
+                return route('staff.login');
             }
 
             if ($request->is('user/*', 'email/*', 'two-factor-challenge')) {
-                return route('login');
+                return route('landingPage');
             }
 
             return route('landingPage');

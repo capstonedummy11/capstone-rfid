@@ -414,15 +414,17 @@ tests/                    Pest/PHPUnit feature and unit tests
 
 ## Verification Performed
 
-During this documentation and conflict-resolution pass:
+Use the canonical [Testing and Regression Guide](TESTING.md) for the focused checklist suite, full backend suite, frontend build, coverage map, and troubleshooting.
 
-- Merge conflict markers were searched in source and documentation paths.
-- `private_ai.md` was verified as no longer ignored by `.gitignore`.
-- PHP syntax checks were run on merge-touched controllers.
-- Prettier format checks were run on merge-touched Vue pages.
-- Laravel Pint was run on merge-touched PHP files.
-- Targeted attendance/student-parent feature tests were run.
-- Frontend production build was run.
+Current automated verification includes:
+
+- Instructor email OTP and authentication lifecycle.
+- Excuse-letter approval, notifications, and generated attachments.
+- Messenger email cooldown behavior.
+- Registrar navigation and enrollment separation.
+- Instructor attendance correction windows and audit logs.
+- Clinic responder dispatch and student/patient context.
+- Full Laravel feature coverage and frontend production compilation.
 
 See [REPOSITORY_ANALYSIS_AND_FLOW_REPORT.md](REPOSITORY_ANALYSIS_AND_FLOW_REPORT.md) for the deeper feature inventory, flow verification, limitations, and recommendations.
 
@@ -437,5 +439,5 @@ For a presenter-friendly full demonstration sequence, see [FULL_SYSTEM_DEMONSTRA
 - Add department/course/curriculum modules only if the institution needs them beyond strand/section/subject scheduling.
 - Add a reviewed attendance correction workflow for late administrative corrections.
 - Add live SMS or external emergency dispatch integration if required by clinic policy.
-- Expand notification coverage beyond online class events to include messages, excuse-letter status changes, and critical attendance events.
+- Expand notification coverage to critical attendance events if required by school policy.
 - Keep private notes, credentials, production secrets, and AI scratch files out of public documentation.

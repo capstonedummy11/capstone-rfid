@@ -17,7 +17,7 @@ class LogoutResponse implements LogoutResponseContract
     ]);
 
     if (in_array($role, ['admin', 'clinic', 'registrar', 'instructor'], true)) {
-      return redirect()->route('login');
+      return redirect()->route('staff.login');
     }
 
     return redirect()->route('landingPage');

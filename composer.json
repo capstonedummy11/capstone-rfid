@@ -69,6 +69,9 @@
             "@test:lint",
             "@php artisan test"
         ],
+        "test:requested-features": [
+            "@php artisan test --compact tests/Feature/Auth/AuthenticationTest.php tests/Feature/PasswordLifecycleTest.php tests/Feature/StudentParentPortalTest.php tests/Feature/RegistrarPortalTest.php tests/Feature/AttendancePanelVerificationTest.php tests/Feature/SystemSettingsTest.php tests/Feature/ClinicFlowTest.php tests/Feature/RequestedFeatureUiWiringTest.php"
+        ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"

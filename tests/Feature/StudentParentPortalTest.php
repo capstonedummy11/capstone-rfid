@@ -476,7 +476,7 @@ test('parent-created excuse letter is signed and downloads as pdf', function () 
             'parent_signature' => 'Maria Santos',
         ])
         ->assertRedirect()
-        ->assertSessionHas('success', 'Excuse letter submitted.');
+        ->assertSessionHas('success', 'Excuse letter submitted, but no assigned teacher was found for this section.');
 
     $letter = StudentExcuseLetter::query()->firstOrFail();
 

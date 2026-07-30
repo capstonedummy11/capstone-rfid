@@ -92,6 +92,6 @@ const form = useForm({
 });
 
 const submit = () => {
-    form.post(route('login.store'));
+    form.post(route('student-parent.login.store'));
 };
 </script>

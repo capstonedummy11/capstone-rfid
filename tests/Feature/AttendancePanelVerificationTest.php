@@ -110,6 +110,63 @@ test('direct student tap cannot record attendance without server-side verificati
     $this->assertDatabaseCount('attendance_logs', 0);
 });
 
+test('instructor can manually change assigned student attendance inside configured edit window', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    $fixture = attendanceVerificationFixture();
+    SystemSetting::setInteger(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 5);
+
+    $this->actingAs($fixture['instructorUser'])
+        ->withSession(['instructor_verified' => true])
+        ->patch(route('admin.attendance.logs.status'), [
+            'session_id' => $fixture['attendanceSessionId'],
+            'student_id' => $fixture['student']->student_id,
+            'status' => 'excused',
+            'remarks' => 'Approved medical excuse.',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    $this->assertDatabaseHas('attendances', [
+        'student_id' => $fixture['student']->student_id,
+        'schedule_id' => $fixture['schedule']->scheduled_id,
+        'status' => 'excused',
+        'remarks' => 'Approved medical excuse.',
+    ]);
+    $this->assertDatabaseHas('attendance_logs', [
+        'student_id' => $fixture['student']->student_id,
+        'verification_method' => 'instructor_manual_edit',
+        'tap_type' => 'Manual Edit',
+    ]);
+    $this->assertDatabaseHas('activity_logs', [
+        'user_id' => $fixture['instructorUser']->user_id,
+        'action' => 'attendance_status_changed',
+        'table_name' => 'attendances',
+    ]);
+});
+
+test('instructor cannot manually change attendance outside configured edit window', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    $fixture = attendanceVerificationFixture();
+    SystemSetting::setInteger(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 3);
+    DB::table('attendance_sessions')
+        ->where('attendance_id', $fixture['attendanceSessionId'])
+        ->update(['date' => now()->subDays(3)->toDateString()]);
+
+    $this->actingAs($fixture['instructorUser'])
+        ->withSession(['instructor_verified' => true])
+        ->patch(route('admin.attendance.logs.status'), [
+            'session_id' => $fixture['attendanceSessionId'],
+            'student_id' => $fixture['student']->student_id,
+            'status' => 'present',
+        ])
+        ->assertStatus(422);
+
+    $this->assertDatabaseMissing('attendances', [
+        'student_id' => $fixture['student']->student_id,
+        'schedule_id' => $fixture['schedule']->scheduled_id,
+    ]);
+});
+
 test('attendance panel room remains unlocked on refresh until panel logout', function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
     $fixture = attendanceVerificationFixture();

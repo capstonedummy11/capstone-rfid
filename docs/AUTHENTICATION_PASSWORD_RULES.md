@@ -12,6 +12,12 @@ All role login and password-lifecycle screens display the shared `logo-only.jpg`
 - Admin, Instructor, Registrar, and Clinic: configured secure staff login route
 - Console: `/attendance-control-panel/login`
 
+The compatibility path `/login` redirects to the public Student/Parent entry point. Protected Admin, Instructor, Registrar, and Clinic pages redirect unauthenticated users to the secure staff login instead of the public portal.
+
+## Instructor Email OTP
+
+After successful staff authentication, an Instructor is sent to the Instructor Verification screen. The Instructor can request a six-digit OTP through the registered email address. The OTP expires after 10 minutes and is stored only as a hash in the session. Face verification and configured security questions remain alternative Instructor verification methods.
+
 ## Forgot Password
 
 Forgot Password is available to Admin, Instructor, Registrar, Clinic, Student, and Parent accounts.
