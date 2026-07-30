@@ -257,7 +257,7 @@ const sections = [
             },
             {
                 icon: Graduation,
-                text: 'Biometric Enrollment',
+                text: 'Student Biometric Enrollment',
                 route: route('registrar.biometric-enrollment'),
                 roles: ['registrar'],
             },

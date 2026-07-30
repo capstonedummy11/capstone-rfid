@@ -86,7 +86,9 @@ test('registrar can view dashboard and biometric enrollment pages', function () 
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('Registrar/BiometricEnrollment')
-            ->has('people', 2)
+            ->has('people', 1)
+            ->where('people.0.type', 'student')
+            ->where('stats.faculty', 0)
         );
 
     $this->actingAs($fixture['registrar'])

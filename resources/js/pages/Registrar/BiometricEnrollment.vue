@@ -1,5 +1,5 @@
 <script setup>
-import { Link, useForm, usePage } from '@inertiajs/vue3';
+import { useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import { Camera, CreditCard, Users } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
@@ -12,7 +12,6 @@ const props = defineProps({
         default: () => ({
             total: 0,
             students: 0,
-            faculty: 0,
             missing_face: 0,
             missing_rfid: 0,
             complete: 0,
@@ -23,7 +22,6 @@ const props = defineProps({
 const page = usePage();
 const selectedPerson = ref(null);
 const search = ref('');
-const typeFilter = ref('');
 const statusFilter = ref('missing');
 
 const rfidForm = useForm({ rfid_tag: '' });
@@ -39,8 +37,6 @@ const filteredPeople = computed(() => {
     const term = search.value.trim().toLowerCase();
 
     return props.people.filter((person) => {
-        const matchesType =
-            !typeFilter.value || person.type === typeFilter.value;
         const matchesStatus =
             statusFilter.value === 'all' ||
             (statusFilter.value === 'missing' &&
@@ -61,7 +57,7 @@ const filteredPeople = computed(() => {
                 .filter(Boolean)
                 .some((value) => String(value).toLowerCase().includes(term));
 
-        return matchesType && matchesStatus && matchesSearch;
+        return matchesStatus && matchesSearch;
     });
 });
 
@@ -74,9 +70,9 @@ const openPerson = (person) => {
 
 const rfidRoute = computed(() => {
     if (!selectedPerson.value) return '';
-    return selectedPerson.value.type === 'student'
-        ? route('registrar.students.rfid', { student: selectedPerson.value.id })
-        : route('registrar.faculty.rfid', { user: selectedPerson.value.id });
+    return route('registrar.students.rfid', {
+        student: selectedPerson.value.id,
+    });
 });
 
 const faceRoute = computed(() => {
@@ -186,11 +182,11 @@ const toast = (title) => {
                     >
                         <div>
                             <h1 class="text-2xl font-bold text-slate-900">
-                                Biometric Enrollment
+                                Student Biometric Enrollment
                             </h1>
                             <p class="text-sm text-slate-500">
                                 Submit face images and assign RFID cards for
-                                students and faculty.
+                                students.
                             </p>
                         </div>
                         <p
@@ -202,7 +198,7 @@ const toast = (title) => {
                     </div>
                 </section>
 
-                <section class="grid grid-cols-1 gap-3 md:grid-cols-5">
+                <section class="grid grid-cols-1 gap-3 md:grid-cols-4">
                     <div
                         class="rounded-md border border-slate-200 bg-white p-4 shadow-sm"
                     >
@@ -225,18 +221,6 @@ const toast = (title) => {
                         </p>
                         <p class="mt-1 text-2xl font-bold text-brand">
                             {{ stats.students }}
-                        </p>
-                    </div>
-                    <div
-                        class="rounded-md border border-slate-200 bg-white p-4 shadow-sm"
-                    >
-                        <p
-                            class="text-xs font-semibold text-slate-400 uppercase"
-                        >
-                            Faculty
-                        </p>
-                        <p class="mt-1 text-2xl font-bold text-slate-700">
-                            {{ stats.faculty }}
                         </p>
                     </div>
                     <div class="rounded-md border border-red-200 bg-red-50 p-4">
@@ -265,7 +249,7 @@ const toast = (title) => {
                     class="rounded-md border border-slate-200 bg-white shadow-sm"
                 >
                     <div
-                        class="grid grid-cols-1 gap-3 border-b border-slate-100 p-4 md:grid-cols-[1fr_160px_160px]"
+                        class="grid grid-cols-1 gap-3 border-b border-slate-100 p-4 md:grid-cols-[1fr_160px]"
                     >
                         <input
                             v-model="search"
@@ -273,14 +257,6 @@ const toast = (title) => {
                             placeholder="Search name, number, RFID..."
                             class="rounded-md border border-slate-300 px-3 py-2 text-sm"
                         />
-                        <select
-                            v-model="typeFilter"
-                            class="rounded-md border border-slate-300 px-3 py-2 text-sm"
-                        >
-                            <option value="">All Types</option>
-                            <option value="student">Students</option>
-                            <option value="faculty">Faculty</option>
-                        </select>
                         <select
                             v-model="statusFilter"
                             class="rounded-md border border-slate-300 px-3 py-2 text-sm"
@@ -298,7 +274,6 @@ const toast = (title) => {
                             >
                                 <tr>
                                     <th class="px-4 py-3">Name</th>
-                                    <th class="px-4 py-3">Type</th>
                                     <th class="px-4 py-3">Number</th>
                                     <th class="px-4 py-3">Group</th>
                                     <th class="px-4 py-3">Face</th>
@@ -316,11 +291,6 @@ const toast = (title) => {
                                         class="px-4 py-3 font-semibold text-slate-800"
                                     >
                                         {{ person.name }}
-                                    </td>
-                                    <td
-                                        class="px-4 py-3 text-slate-600 capitalize"
-                                    >
-                                        {{ person.type }}
                                     </td>
                                     <td class="px-4 py-3 text-slate-600">
                                         {{ person.number || '-' }}
@@ -426,7 +396,6 @@ const toast = (title) => {
                     </form>
 
                     <form
-                        v-if="selectedPerson.type === 'student'"
                         class="rounded-md border border-slate-200 p-4"
                         @submit.prevent="uploadFace"
                     >
@@ -573,26 +542,6 @@ const toast = (title) => {
                         </p>
                     </form>
 
-                    <div v-else class="rounded-md border border-slate-200 p-4">
-                        <div
-                            class="flex items-center gap-2 text-sm font-bold text-slate-800"
-                        >
-                            <Camera class="h-4 w-4 text-brand" />
-                            Instructor Face Image
-                        </div>
-                        <p class="mt-2 text-sm text-slate-500">
-                            Instructor face images are managed from the
-                            dedicated enrollment page.
-                        </p>
-                        <Link
-                            :href="
-                                route('registrar.instructor-face-enrollment')
-                            "
-                            class="mt-3 block rounded-md bg-slate-800 px-4 py-2 text-center text-sm font-bold text-white"
-                        >
-                            Open Instructor Face Enrollment
-                        </Link>
-                    </div>
                 </div>
 
                 <div
@@ -601,7 +550,7 @@ const toast = (title) => {
                 >
                     <Users class="mb-3 h-10 w-10 text-slate-300" />
                     <p class="font-semibold">
-                        Select a person to manage RFID and face images.
+                        Select a student to manage RFID and face images.
                     </p>
                 </div>
             </aside>

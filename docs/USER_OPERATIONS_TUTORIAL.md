@@ -254,7 +254,7 @@ You can create a new parent account or link an existing parent account, dependin
 Login as registrar, then go to:
 
 ```text
-/registrar/biometric-enrollment
+/registrar/biometric-enrollment (Student Biometric Enrollment)
 ```
 
 For each student, enroll:

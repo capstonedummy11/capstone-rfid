@@ -643,7 +643,7 @@ Registrar enrollment connects physical identifiers to system records.
 
 ```mermaid
 flowchart TD
-    Registrar[Registrar Login] --> StudentEnroll[/registrar/biometric-enrollment]
+    Registrar[Registrar Login] --> StudentEnroll[Student Biometric Enrollment<br/>/registrar/biometric-enrollment]
     Registrar --> FacultyEnroll[/registrar/instructor-face-enrollment]
     StudentEnroll --> StudentRfid[Assign student RFID]
     StudentEnroll --> StudentFace[Upload/capture student face images]

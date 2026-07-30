@@ -31,7 +31,7 @@ This README is written from the current source code. It intentionally excludes p
 - `student`: uses the student/parent portal for attendance, online classes, excuse letters, messages, notifications, and profile updates.
 - `parent`: uses linked student portal views and approves student-created excuse letters.
 
-The standalone admin RFID navigation shortcut is intentionally hidden because RFID tags can be assigned from Student and Instructor Management. Registrar navigation continues to expose Biometric Enrollment and Instructor Faces because those pages also handle face-image enrollment; there is no separate registrar-only RFID navigation item.
+The standalone admin RFID navigation shortcut is intentionally hidden because RFID tags can be assigned from Student and Instructor Management. Registrar navigation separates **Student Biometric Enrollment**, which only lists students, from **Instructor Faces**, which only lists instructors. There is no separate registrar-only RFID navigation item.
 
 ## First Access Flow
 
