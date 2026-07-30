@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use App\Models\Attendance;
 use App\Models\ClinicCase;
 use App\Models\EmergencyAlert;
 use App\Models\EmergencyType;
@@ -10,6 +11,7 @@ use App\Models\PatientHistory;
 use App\Models\Section;
 use App\Models\Students;
 use App\Models\SystemSetting;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -54,13 +56,26 @@ class ClinicController
             'calendarEvents' => $this->calendarEvents(),
             'emergencyTypes' => $this->emergencyTypes(),
             'emergencySound' => SystemSetting::clinicEmergencySoundSettings(),
+            'clinicAccounts' => User::query()
+                ->whereRaw('LOWER(role) = ?', ['clinic'])
+                ->orderBy('name')
+                ->get(['user_id', 'name', 'email'])
+                ->values(),
+            'assignedDispatches' => ClinicCase::query()
+                ->with(['alert.type', 'assignedResponder'])
+                ->where('handled_by_user_id', $currentUser?->user_id)
+                ->whereIn('status', ['open', 'monitoring'])
+                ->latest('clinic_case_id')
+                ->get()
+                ->map(fn (ClinicCase $case) => $this->dispatchAssignmentPayload($case))
+                ->values(),
         ]);
     }
 
     public function caseLogs()
     {
         return Inertia::render('Clinic/CaseLogs', [
-            'cases' => ClinicCase::with('alert.type')->latest('clinic_case_id')->get()->map(fn (ClinicCase $case) => $this->casePayload($case))->values(),
+            'cases' => ClinicCase::with(['alert.type', 'assignedResponder'])->latest('clinic_case_id')->get()->map(fn (ClinicCase $case) => $this->casePayload($case))->values(),
             'emergencyTypes' => $this->emergencyTypes(),
         ]);
     }
@@ -304,6 +319,47 @@ class ClinicController
         })->values();
     }
 
+    private function dispatchAssignmentPayload(ClinicCase $case): array
+    {
+        $history = $case->student_id
+            ? PatientHistory::query()
+                ->where('student_id', $case->student_id)
+                ->latest('occurred_at')
+                ->take(3)
+                ->get()
+                ->map(fn (PatientHistory $record) => [
+                    'date' => optional($record->occurred_at)->format('Y-m-d'),
+                    'summary' => $record->summary,
+                ])
+                ->values()
+            : collect();
+        $attendance = $case->student_id
+            ? Attendance::query()
+                ->where('student_id', $case->student_id)
+                ->latest('date')
+                ->take(3)
+                ->get()
+                ->map(fn (Attendance $record) => [
+                    'date' => optional($record->date)->format('Y-m-d'),
+                    'status' => ucfirst((string) $record->status),
+                ])
+                ->values()
+            : collect();
+
+        return [
+            'case_id' => $case->clinic_case_id,
+            'patient_name' => $case->patient_name,
+            'assigned_responder_name' => $case->assignedResponder?->name,
+            'assigned_responder_email' => $case->assignedResponder?->email,
+            'case_type' => $case->case_type,
+            'symptoms' => $case->symptoms,
+            'location' => $case->alert?->room ?: 'No location provided',
+            'assigned_at' => optional($case->occurred_at)->format('Y-m-d g:i A'),
+            'history' => $history,
+            'attendance' => $attendance,
+        ];
+    }
+
     private function studentForAlert(EmergencyAlert $alert, ?ClinicCase $case): ?Students
     {
         if ($case?->student_id) {
@@ -395,6 +451,8 @@ class ClinicController
             'student_id' => $case->student_id,
             'user_id' => $case->user_id,
             'patient_name' => $case->patient_name,
+            'assigned_responder_name' => $case->assignedResponder?->name,
+            'assigned_responder_email' => $case->assignedResponder?->email,
             'patient_type' => $case->patient_type,
             'case_type' => $case->case_type,
             'symptoms' => $case->symptoms,

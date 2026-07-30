@@ -17,12 +17,14 @@ This README is written from the current source code. It intentionally excludes p
 | Borrowing and inventory                | Implemented                           | Borrow, item, inventory, laboratory controllers/pages/models.                                                                                        |
 | Student/parent portal                  | Implemented                           | Dashboard, profile, attendance, online classes, excuse letters, messages, notifications.                                                             |
 | Unified Messenger                      | Implemented for all non-console roles | Admin, instructor, clinic, registrar, student, and parent users can search recipients, chat, send attachments, and preview image attachments inline. |
-| Clinic and emergency                   | Implemented                           | Clinic dashboard/cases/patient histories/reports; emergency types/hotlines/alerts; clinic dashboard MP3 alert sound for newly received emergencies.  |
+| Clinic and emergency                   | Implemented                           | Clinic dashboard/cases/patient histories/reports; emergency types/hotlines/alerts; explicit Clinic responder assignment with email and recent student context; clinic dashboard MP3 alert sound for newly received emergencies.  |
 | Shared reports                         | Implemented as CSV exports            | Role-specific report payloads and stream downloads.                                                                                                  |
 | Schedule conflict detection            | Missing                               | Schedule CRUD validates data but does not reject overlapping schedules.                                                                              |
 | Full term/department/course management | Partial                               | Strands, sections, subjects, schedules, and school year fields exist; no dedicated term closing, department, curriculum, or course lifecycle module. |
 
 ## Primary Roles
+
+Canonical reference: [Roles and Functionality](ROLES_AND_FUNCTIONALITY.md). The list below is a short overview; the linked document explains each role's purpose, complete functionality, boundaries, login entry, and daily workflow.
 
 - `admin`: manages the system, academics, laboratories, users, devices, borrowing, inventory, online class logs, reports, and settings.
 - `root admin`: an admin flagged as root; can manage admin accounts that normal admins cannot manage.
@@ -82,6 +84,7 @@ Default seeded login accounts:
 | Admin | `admin@gmail.com` | `password` | Standard admin |
 | Instructor | `instructor@sample.com` | `sample` | RFID `RFID-INSTRUCTOR-SAMPLE` |
 | Clinic | `clinic@sample.com` | `sample` | Clinic staff |
+| Clinic responder | `clinic.responder@sample.com` | `sample` | Assignable Clinic responder |
 | Registrar | `registrar@sample.com` | `sample` | Registrar staff |
 | Console | `comlab1@example.com` | `1234` | COMLAB 1 panel account |
 | Console | `comlab2@example.com` | `1234` | COMLAB 2 panel account |

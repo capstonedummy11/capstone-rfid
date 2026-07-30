@@ -281,6 +281,7 @@ Other available seeders not called by default:
 | Admin | `admin@gmail.com` | `password` | Standard admin |
 | Instructor | `instructor@sample.com` | `sample` | RFID `RFID-INSTRUCTOR-SAMPLE` |
 | Clinic | `clinic@sample.com` | `sample` | Clinic staff |
+| Clinic responder | `clinic.responder@sample.com` | `sample` | Assignable Clinic responder |
 | Registrar | `registrar@sample.com` | `sample` | Registrar staff |
 
 `EmergencySeeder` creates:

@@ -19,6 +19,8 @@ const props = defineProps({
     emergencyTypes: { type: Array, default: () => [] },
     calendarEvents: { type: Array, default: () => [] },
     emergencyDetails: { type: Array, default: () => [] },
+    clinicAccounts: { type: Array, default: () => [] },
+    assignedDispatches: { type: Array, default: () => [] },
     emergencySound: {
         type: Object,
         default: () => ({
@@ -35,6 +37,7 @@ const editingTypeId = ref(null);
 const latestAlertId = ref(0);
 const audioUnlocked = ref(false);
 const processingAlertIds = ref(new Set());
+const selectedClinicByAlert = ref({});
 const showAudioNotice = computed(() => !audioUnlocked.value);
 let alertPollInterval = null;
 let alertAudio = null;
@@ -139,6 +142,7 @@ const refreshDashboard = (
         'counts',
         'calendarEvents',
         'emergencySound',
+        'assignedDispatches',
     ],
 ) => {
     router.reload({
@@ -210,11 +214,13 @@ const updateAlert = (id, status) => {
 };
 
 const dispatchAlert = (id) => {
+    const clinicUserId = selectedClinicByAlert.value[id];
+    if (!clinicUserId) return;
     setAlertProcessing(id, true);
 
     router.post(
         route('clinic.emergency-alerts.dispatch', { id }),
-        {},
+        { clinic_user_id: clinicUserId },
         {
             preserveScroll: true,
             onSuccess: () => refreshDashboard(),
@@ -516,6 +522,25 @@ onBeforeUnmount(() => {
 
             <section class="grid gap-5 xl:grid-cols-[1fr_390px]">
                 <div class="rounded-md bg-white p-4 shadow-sm">
+                    <div v-if="assignedDispatches.length" class="mb-5 rounded-md border border-blue-200 bg-blue-50 p-4">
+                        <h2 class="text-sm font-black uppercase tracking-wide text-blue-800">My Dispatch Assignments</h2>
+                        <article v-for="assignment in assignedDispatches" :key="assignment.case_id" class="mt-3 rounded-md bg-white p-3 shadow-sm">
+                            <p class="font-black text-slate-900">{{ assignment.patient_name }} · {{ assignment.case_type }}</p>
+                            <p class="mt-1 text-sm font-semibold text-blue-700">
+                                Responder sent: {{ assignment.assigned_responder_name || 'Not assigned' }}
+                            </p>
+                            <p class="mt-1 text-sm font-semibold text-rose-700">Proceed to: {{ assignment.location }}</p>
+                            <p class="mt-1 text-sm text-slate-600">{{ assignment.symptoms }}</p>
+                            <div v-if="assignment.history.length || assignment.attendance.length" class="mt-2 border-t border-slate-100 pt-2 text-xs text-slate-500">
+                                <p v-for="record in assignment.history" :key="`history-${assignment.case_id}-${record.date}-${record.summary}`">
+                                    Clinic history: {{ record.date }} · {{ record.summary }}
+                                </p>
+                                <p v-for="record in assignment.attendance" :key="`attendance-${assignment.case_id}-${record.date}`">
+                                    Attendance: {{ record.date }} · {{ record.status }}
+                                </p>
+                            </div>
+                        </article>
+                    </div>
                     <h2
                         class="mb-3 text-sm font-black tracking-wide text-slate-500 uppercase"
                     >
@@ -571,10 +596,21 @@ onBeforeUnmount(() => {
                                     {{ detail.category }}
                                 </span>
                             </div>
-                            <div class="mt-3 flex gap-2">
+                            <div class="mt-3">
+                                <select
+                                    v-model="selectedClinicByAlert[detail.id]"
+                                    class="mb-2 w-full rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold"
+                                >
+                                    <option value="">Assign Clinic responder</option>
+                                    <option v-for="account in clinicAccounts" :key="account.user_id" :value="account.user_id">
+                                        {{ account.name }} · {{ account.email }}
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="flex gap-2">
                                 <button
                                     class="flex-1 rounded-md bg-rose-500 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                                    :disabled="isAlertProcessing(detail.id)"
+                                    :disabled="isAlertProcessing(detail.id) || !selectedClinicByAlert[detail.id]"
                                     @click="dispatchAlert(detail.id)"
                                 >
                                     {{

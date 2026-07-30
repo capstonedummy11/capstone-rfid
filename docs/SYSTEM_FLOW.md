@@ -39,6 +39,8 @@ flowchart TD
 
 Canonical password flow: [Authentication and Password Rules](AUTHENTICATION_PASSWORD_RULES.md). Non-Console users can recover passwords by email, and new non-Console accounts are intercepted by server middleware until their temporary password is changed.
 
+Canonical role definitions: [Roles and Functionality](ROLES_AND_FUNCTIONALITY.md).
+
 The public root route `/` is the student/parent login page for guests. Authenticated users are redirected by role.
 
 ```mermaid
@@ -758,7 +760,7 @@ Clinic dashboard sound behavior:
 Clinic dashboard emergency action rules:
 
 - The Emergency Details panel shows only `open` emergency alerts so it behaves as the active clinic response queue.
-- Dispatch updates the alert to `acknowledged`, creates or updates the linked clinic case, refreshes dashboard counts, and removes the card from the active queue.
+- Dispatch requires a selected Clinic responder, updates the alert to `acknowledged`, creates or updates the linked clinic case with that responder as handler, emails the responder the location and available recent student history, refreshes dashboard assignments and counts, and removes the card from the active queue. See [Clinic Dispatch Assignment](CLINIC_DISPATCH.md) for the canonical rules.
 - Ignore updates the alert to `cancelled`, refreshes dashboard counts, and removes the card from the active queue.
 - The Emergency Types form can add, edit, soft-delete, sort, and activate/deactivate emergency type records used by the attendance panel and clinic flows.
 

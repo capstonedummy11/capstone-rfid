@@ -18,6 +18,8 @@ Choose the document that matches your task:
 | Find account-creation password rules | [Default Account Passwords](DEFAULT_ACCOUNT_PASSWORDS.md) |
 | Understand login, recovery, and first-login enforcement | [Authentication and Password Rules](AUTHENTICATION_PASSWORD_RULES.md) |
 | Understand laboratory and attendance-device management | [Laboratories and Devices](LABORATORIES_AND_DEVICES.md) |
+| Understand every role and its functionality | [Roles and Functionality](ROLES_AND_FUNCTIONALITY.md) |
+| Assign and respond to Clinic dispatches | [Clinic Dispatch Assignment](CLINIC_DISPATCH.md) |
 | Prepare a capstone demonstration | [Demonstration Documentation Map](DEMONSTRATION_DOCUMENTATION.md) |
 
 ## Canonical Sources
@@ -34,6 +36,8 @@ When several files discuss the same subject, use these as the source of truth:
 | Installation and daily startup | [Running the System](RUNNING_THE_SYSTEM.md) | Provide links or short setup summaries |
 | Login, forgot password, and first-login password changes | [Authentication and Password Rules](AUTHENTICATION_PASSWORD_RULES.md) | Summarize role-specific access where needed |
 | Laboratory/device relationship, CRUD, PIN, and disable rules | [Laboratories and Devices](LABORATORIES_AND_DEVICES.md) | Summarize room or panel behavior where needed |
+| Role purpose, capabilities, workflows, and boundaries | [Roles and Functionality](ROLES_AND_FUNCTIONALITY.md) | Use short role summaries in other documents |
+| Clinic responder selection, notifications, and assignment rules | [Clinic Dispatch Assignment](CLINIC_DISPATCH.md) | Summarize dispatch behavior in role, flow, and operator documents |
 | Demonstration structure and artifact selection | [Demonstration Documentation Map](DEMONSTRATION_DOCUMENTATION.md) | Supply a script, slide outline, or detailed rehearsal |
 
 If a summary conflicts with its canonical source, update the summary and follow the canonical source.
@@ -62,12 +66,15 @@ If a summary conflicts with its canonical source, update the summary and follow 
 
 ### Setup and technical reference
 
+- [CLINIC_DISPATCH.md](CLINIC_DISPATCH.md) — Canonical Clinic responder assignment, email notification, student-context, and case-ownership rules.
+
 - [RUNNING_THE_SYSTEM.md](RUNNING_THE_SYSTEM.md) — Complete setup, environment, database, development server, production build, and troubleshooting instructions.
 - [INSTALLATION_LINKS.md](INSTALLATION_LINKS.md) — Short list of external installation resources. Use together with Running the System.
 - [DATABASE.md](DATABASE.md) — Database setup commands, migration groups, key relationships, attendance data model, system settings, seeder order, and caveats.
 - [DEFAULT_ACCOUNT_PASSWORDS.md](DEFAULT_ACCOUNT_PASSWORDS.md) — Default-password rules for newly created accounts and seeded development accounts. Treat this as sensitive operational documentation and require password changes.
 - [AUTHENTICATION_PASSWORD_RULES.md](AUTHENTICATION_PASSWORD_RULES.md) — Canonical role login, forgot-password, Console exclusion, and mandatory first-login password-change behavior.
 - [LABORATORIES_AND_DEVICES.md](LABORATORIES_AND_DEVICES.md) — Canonical relationship and ownership rules for physical rooms and their managed attendance devices.
+- [ROLES_AND_FUNCTIONALITY.md](ROLES_AND_FUNCTIONALITY.md) — Canonical explanation of Root Admin, Admin, Instructor, Registrar, Clinic, Console, Student, and Parent responsibilities and access boundaries.
 - [REUSABLE_LANDING_ROUTES.md](REUSABLE_LANDING_ROUTES.md) — Developer reference for reusable landing-page routes and components.
 
 ## Recommended Reading Paths

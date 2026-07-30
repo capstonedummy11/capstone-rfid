@@ -7,9 +7,15 @@ use App\Models\EmergencyAlert;
 use App\Models\EmergencyHotline;
 use App\Models\EmergencyType;
 use App\Services\SemaphoreSmsService;
+use App\Models\PatientHistory;
+use App\Models\Attendance;
+use App\Models\User;
+use App\Notifications\ClinicDispatchAssigned;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class EmergencyController
@@ -191,7 +197,15 @@ class EmergencyController
 
     public function dispatchAlert(Request $request, int $id)
     {
+        $validated = $request->validate([
+            'clinic_user_id' => [
+                'required',
+                'integer',
+                Rule::exists('users', 'user_id')->where(fn ($query) => $query->whereRaw('LOWER(role) = ?', ['clinic'])->whereNull('deleted_at')),
+            ],
+        ]);
         $alert = EmergencyAlert::with('type')->findOrFail($id);
+        $assignedClinic = User::query()->findOrFail($validated['clinic_user_id']);
         $metadata = $alert->metadata ?? [];
         $student = null;
 
@@ -211,14 +225,14 @@ class EmergencyController
 
         $alert->update(['status' => 'acknowledged']);
 
-        \App\Models\ClinicCase::updateOrCreate(
+        $clinicCase = \App\Models\ClinicCase::updateOrCreate(
             [
                 'emergency_alert_id' => $alert->emergency_alert_id,
                 'patient_name' => $patientName,
             ],
             [
                 'student_id' => $student?->student_id,
-                'handled_by_user_id' => $request->user()?->user_id,
+                'handled_by_user_id' => $assignedClinic->user_id,
                 'patient_type' => $student ? 'student' : 'user',
                 'case_type' => $alert->type?->name ?? 'Emergency',
                 'symptoms' => $metadata['symptoms'] ?? $alert->message,
@@ -229,9 +243,44 @@ class EmergencyController
             ],
         );
 
-        $this->logActivity($request, 'create', 'clinic_cases', 'Dispatched clinic response for emergency alert '.$alert->emergency_alert_id.'.');
+        $historySummary = $this->studentDispatchHistory($student);
+        try {
+            $assignedClinic->notify(new ClinicDispatchAssigned($alert, $clinicCase, $historySummary));
+        } catch (\Throwable $exception) {
+            Log::warning('Clinic dispatch assignment email could not be sent.', [
+                'alert_id' => $alert->emergency_alert_id,
+                'clinic_user_id' => $assignedClinic->user_id,
+                'error' => $exception->getMessage(),
+            ]);
+        }
 
-        return back()->with('success', 'Emergency response dispatched.');
+        $this->logActivity($request, 'create', 'clinic_cases', 'Assigned clinic response for emergency alert '.$alert->emergency_alert_id.' to '.$assignedClinic->name.'.');
+
+        return back()->with('success', 'Emergency response assigned to '.$assignedClinic->name.'.');
+    }
+
+    private function studentDispatchHistory($student): array
+    {
+        if (! $student) {
+            return ['No linked student history was found for this alert.'];
+        }
+
+        $history = PatientHistory::query()
+            ->where('student_id', $student->student_id)
+            ->latest('occurred_at')
+            ->take(3)
+            ->get()
+            ->map(fn (PatientHistory $record) => 'Clinic history: '.optional($record->occurred_at)->format('Y-m-d').' - '.$record->summary)
+            ->all();
+        $attendance = Attendance::query()
+            ->where('student_id', $student->student_id)
+            ->latest('date')
+            ->take(3)
+            ->get()
+            ->map(fn (Attendance $record) => 'Attendance: '.optional($record->date)->format('Y-m-d').' - '.ucfirst((string) $record->status))
+            ->all();
+
+        return array_values([...$history, ...$attendance]) ?: ['No previous clinic or attendance history was found.'];
     }
 
     private function validateHotline(Request $request): array

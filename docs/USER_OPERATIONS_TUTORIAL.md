@@ -649,7 +649,11 @@ Emergency alert flow from the panel:
 5. If the clinic dashboard is already open, it refreshes alert data automatically and plays the emergency alert sound for a newly received alert.
 6. If the browser has not enabled audio yet, the clinic dashboard shows a small note asking the user to click anywhere or press any key once. After audio is enabled, the note disappears.
 7. Clinic reviews the room, type, message, patient/student details when available, and status.
-8. Clinic updates the alert status as it is handled.
+8. Clinic selects an active Clinic responder and chooses **Dispatch**.
+9. The selected responder receives an email with the location, emergency details, and available recent student Clinic and attendance history.
+10. The responder opens **My Dispatch Assignments**, verifies the displayed **Responder sent** name, proceeds to the location, and continues the record in Clinic Case Logs. Case Logs also retain the responder name beside the student/patient.
+
+See [Clinic Dispatch Assignment](CLINIC_DISPATCH.md) for the exact responder and notification rules.
 
 Emergency alert sound:
 
@@ -705,6 +709,8 @@ Clinic reporting:
 Use clinic reports for case summaries, emergency alert counts, trends, and CSV export.
 
 ## 26. Role-Based Daily Use Guide
+
+Canonical reference: [Roles and Functionality](ROLES_AND_FUNCTIONALITY.md). This tutorial provides operational steps, while the linked document defines the authoritative purpose, capabilities, and boundaries of every role.
 
 Use this section as the quick feature map for each role.
 

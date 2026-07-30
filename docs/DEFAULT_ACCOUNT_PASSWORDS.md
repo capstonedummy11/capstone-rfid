@@ -65,6 +65,7 @@ The standard database seeders create these demonstration accounts:
 | Admin | `admin@gmail.com` | `password` |
 | Instructor | `instructor@sample.com` | `sample` |
 | Clinic | `clinic@sample.com` | `sample` |
+| Clinic responder | `clinic.responder@sample.com` | `sample` |
 | Registrar | `registrar@sample.com` | `sample` |
 | Console | `comlab1@example.com` through `comlab5@example.com` | `1234` |
 | Student | `andrea.santos@student.sample.com` | `sample` |

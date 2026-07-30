@@ -63,6 +63,12 @@ class UserSeeder extends Seeder
                 'role' => 'clinic',
             ],
             [
+                'name' => 'Clinic Responder',
+                'email' => 'clinic.responder@sample.com',
+                'password' => Hash::make('sample'),
+                'role' => 'clinic',
+            ],
+            [
                 'name' => 'Registrar Staff',
                 'email' => 'registrar@sample.com',
                 'password' => Hash::make('sample'),
