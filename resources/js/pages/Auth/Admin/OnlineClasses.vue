@@ -2,6 +2,7 @@
 import { useForm, usePage, router } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import Swal from 'sweetalert2';
+import SearchableSelect from '@/components/SearchableSelect.vue';
 
 const props = defineProps({
     onlineClasses: { type: Array, default: () => [] },
@@ -33,6 +34,12 @@ const form = useForm({
 const flashSuccess = computed(() => page.props.flash?.success);
 const faceAvailable = computed(() => Boolean(props.faceRecognitionAvailability?.available));
 const faceUnavailableMessage = computed(() => props.faceRecognitionAvailability?.message || 'Face recognition is unavailable.');
+const scheduleSearchOptions = computed(() =>
+    props.scheduleOptions.map((schedule) => ({
+        value: String(schedule.scheduled_id),
+        label: schedule.label,
+    })),
+);
 
 const resetForm = () => {
     editing.value = null;
@@ -112,12 +119,12 @@ const deleteClass = (onlineClass) => {
                 <form class="mt-4 flex flex-col gap-3" @submit.prevent="saveClass">
                     <label class="text-sm font-semibold text-slate-700">
                         Class / Subject
-                        <select v-model="form.schedule_id" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" required>
-                            <option value="">Select assigned class</option>
-                            <option v-for="schedule in scheduleOptions" :key="schedule.scheduled_id" :value="schedule.scheduled_id">
-                                {{ schedule.label }}
-                            </option>
-                        </select>
+                        <SearchableSelect
+                            v-model="form.schedule_id"
+                            :options="scheduleSearchOptions"
+                            placeholder="Search assigned classes..."
+                            empty-text="No matching classes"
+                        />
                     </label>
                     <label class="text-sm font-semibold text-slate-700">
                         Title

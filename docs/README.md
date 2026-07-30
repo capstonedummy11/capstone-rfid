@@ -151,6 +151,8 @@ Sections store school year and semester information. Subjects also store semeste
 
 Schedules connect sections, subjects, instructors, rooms/laboratories, weekdays, and time windows. Admins can create, update, delete, and filter schedules. Instructors can view their assigned schedules.
 
+Admin forms use searchable autosuggestion fields for large relationship lists. Schedule instructor, subject, and section fields can be searched by their visible names or identifiers; subject assignment can search sections and instructors; online-class creation can search assigned schedules. Results are limited initially for responsiveness, while typing searches the complete list.
+
 Current limitation: schedule CRUD validates required fields and foreign keys, but it does not currently block overlapping schedules for the same room, instructor, section, or time range.
 
 ### Attendance Control Panel

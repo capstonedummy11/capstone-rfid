@@ -127,24 +127,31 @@
         <form @submit.prevent="submitForm" class="space-y-4 px-6 py-5">
           <div>
             <label class="mb-1 block text-sm font-medium text-slate-700">Instructor</label>
-            <select v-model="form.instructor_id" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
-              <option value="">Select instructor</option>
-              <option v-for="inst in props.instructorOptions" :key="inst.instructor_id" :value="String(inst.instructor_id)">{{ inst.name }}</option>
-            </select>
+            <SearchableSelect
+              v-model="form.instructor_id"
+              :options="instructorSearchOptions"
+              placeholder="Search instructor name..."
+              empty-text="No instructors found."
+              clearable
+            />
           </div>
           <div>
             <label class="mb-1 block text-sm font-medium text-slate-700">Subject <span class="text-rose-500">*</span></label>
-            <select v-model="form.subject_code" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100" required>
-              <option value="">Select subject</option>
-              <option v-for="sub in props.subjectOptions" :key="sub.subject_code" :value="sub.subject_code">{{ sub.subject_code }} - {{ sub.subject_name }}</option>
-            </select>
+            <SearchableSelect
+              v-model="form.subject_code"
+              :options="subjectSearchOptions"
+              placeholder="Search subject code or name..."
+              empty-text="No subjects found."
+            />
           </div>
           <div>
             <label class="mb-1 block text-sm font-medium text-slate-700">Section <span class="text-rose-500">*</span></label>
-            <select v-model="form.section_id" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100" required>
-              <option value="">Select section</option>
-              <option v-for="sec in props.sectionOptions" :key="sec.section_id" :value="String(sec.section_id)">{{ sec.label }}</option>
-            </select>
+            <SearchableSelect
+              v-model="form.section_id"
+              :options="sectionSearchOptions"
+              placeholder="Search section, grade, or school year..."
+              empty-text="No sections found."
+            />
           </div>
           <div>
             <label class="mb-2 block text-sm font-medium text-slate-700">Weekdays <span class="text-rose-500">*</span></label>
@@ -189,6 +196,7 @@
 <script setup lang="ts">
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import SearchableSelect from '@/components/SearchableSelect.vue';
 
 // â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -253,6 +261,29 @@ const currentRole = computed(() =>
   String(props.currentUserRole || page.props.auth?.user?.role || '').toLowerCase(),
 );
 const isAdmin = computed(() => props.canManageSchedules || currentRole.value === 'admin');
+
+const instructorSearchOptions = computed(() =>
+  props.instructorOptions.map((instructor) => ({
+    value: String(instructor.instructor_id),
+    label: instructor.name,
+  })),
+);
+
+const subjectSearchOptions = computed(() =>
+  props.subjectOptions.map((subject) => ({
+    value: subject.subject_code,
+    label: `${subject.subject_code} - ${subject.subject_name}`,
+    keywords: `${subject.subject_code} ${subject.subject_name}`,
+  })),
+);
+
+const sectionSearchOptions = computed(() =>
+  props.sectionOptions.map((section) => ({
+    value: String(section.section_id),
+    label: section.label,
+    keywords: `${section.section_name} ${section.year_level ?? ''} ${section.school_year ?? ''}`,
+  })),
+);
 
 // â”€â”€â”€ Days / time config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 

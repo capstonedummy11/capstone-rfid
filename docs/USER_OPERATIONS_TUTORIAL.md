@@ -152,6 +152,8 @@ For each subject, prepare:
 - Semester.
 - Optional section or assigned user if your workflow uses it.
 
+The Section and Instructor fields support autosuggestion. Click the field and type part of a section or instructor name to narrow a large list. Use the clear button to leave an optional assignment unassigned.
+
 Examples:
 
 - CP101 - Computer Programming
@@ -307,6 +309,8 @@ For each schedule, select:
 - Weekday.
 - Start time.
 - End time.
+
+Instructor, Section, and Subject are searchable autosuggestion fields. Start typing a name, subject code, grade, or school year, then select the matching result. When more than 50 choices exist, the initial list stays short and typing searches all available choices.
 
 Example setup:
 

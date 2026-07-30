@@ -204,6 +204,7 @@ Routes:
 1. Admin Section add/edit uses the same School Year dropdown: `2025-2026` through `2030-2031`, plus existing saved values.
 2. Subject and Schedule add/edit modals do not store school year directly.
 3. Subject and Schedule modals display section choices with section name, grade, and school year so admins can select the intended academic year.
+4. Large admin relationship lists use searchable autosuggestion: schedule instructor/subject/section, subject instructor/section, and online-class schedule. The component displays at most 50 initial matches and searches the full supplied list as the admin types.
 
 ## Student/Parent Excuse Letter Flow
 

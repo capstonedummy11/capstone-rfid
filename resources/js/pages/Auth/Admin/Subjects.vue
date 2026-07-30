@@ -117,19 +117,25 @@
               </div>
               <div>
                 <label class="mb-1 block text-sm font-medium text-slate-700">Section</label>
-                <select v-model="form.section_id" class="w-full rounded-md border border-slate-300 px-3 py-2">
-                  <option value="">Unassigned</option>
-                  <option v-for="section in props.sectionOptions" :key="section.section_id" :value="String(section.section_id)">{{ section.label }}</option>
-                </select>
+                <SearchableSelect
+                  v-model="form.section_id"
+                  :options="sectionSearchOptions"
+                  placeholder="Search sections..."
+                  empty-text="No matching sections"
+                  clearable
+                />
               </div>
             </div>
 
             <div>
               <label class="mb-1 block text-sm font-medium text-slate-700">Instructor</label>
-              <select v-model="form.user_id" class="w-full rounded-md border border-slate-300 px-3 py-2">
-                <option value="">Unassigned</option>
-                <option v-for="instructor in instructors" :key="instructor.user_id" :value="String(instructor.user_id)">{{ instructor.name }}</option>
-              </select>
+              <SearchableSelect
+                v-model="form.user_id"
+                :options="instructorSearchOptions"
+                placeholder="Search instructors..."
+                empty-text="No matching instructors"
+                clearable
+              />
             </div>
 
             <div class="flex justify-end gap-2 border-t pt-4">
@@ -146,6 +152,7 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import SearchableSelect from '@/components/SearchableSelect.vue';
 
 interface Subject {
   subject_id: string | number;
@@ -208,6 +215,21 @@ const instructors = computed(() => {
     return role === '' || role === 'instructor' || role === 'teacher';
   });
 });
+
+const sectionSearchOptions = computed(() =>
+  props.sectionOptions.map((section) => ({
+    value: String(section.section_id),
+    label: section.label,
+    keywords: `${section.section_name} ${section.year_level ?? ''} ${section.school_year ?? ''}`,
+  })),
+);
+
+const instructorSearchOptions = computed(() =>
+  instructors.value.map((instructor) => ({
+    value: String(instructor.user_id),
+    label: instructor.name,
+  })),
+);
 
 const form = useForm({
   section_id: '',
