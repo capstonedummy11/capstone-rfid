@@ -22,7 +22,7 @@ import Graduation from '@/components/Icon/Graduation.vue';
 import Instructor from '@/components/Icon/Instructor.vue';
 import LogoutIcon from '@/components/Icon/LogoutIcon.vue';
 import Reports from '@/components/Icon/Reports.vue';
-import RFID from '@/components/Icon/RFID.vue';
+// import RFID from '@/components/Icon/RFID.vue';
 import Schedule from '@/components/Icon/Schedule.vue';
 import Section from '@/components/Icon/Section.vue';
 import Inventory from '@/components/Icon/Inventory.vue';
@@ -241,12 +241,14 @@ const sections = [
                 route: route('clinic.emergency-hotlines.index'),
                 roles: ['clinic'],
             },
-            {
-                icon: RFID,
-                text: 'RFID',
-                route: route('admin.rfid'),
-                roles: ['admin'],
-            },
+            // RFID assignment is handled inside Student and Instructor
+            // Management, so the standalone admin navigation item is hidden.
+            // {
+            //     icon: RFID,
+            //     text: 'RFID',
+            //     route: route('admin.rfid'),
+            //     roles: ['admin'],
+            // },
             {
                 icon: Settings,
                 text: 'Settings',
