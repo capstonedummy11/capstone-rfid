@@ -5,6 +5,7 @@ defineOptions({
 
 import { computed, onMounted, ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
+import logo from '@/assets/images/logo-only.jpg';
 
 const props = defineProps({
     rooms: {
@@ -156,31 +157,11 @@ onMounted(() => {
     >
         <div class="w-full max-w-2xl">
             <div class="mb-10 text-center">
-                <div
-                    class="inline-flex h-20 w-20 items-center justify-center rounded-3xl bg-[#123456] text-white shadow-lg"
-                >
-                    <svg
-                        class="h-10 w-10"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.8"
-                        viewBox="0 0 24 24"
-                    >
-                        <rect
-                            x="3"
-                            y="11"
-                            width="18"
-                            height="11"
-                            rx="2"
-                            stroke-width="1.8"
-                        />
-                        <path
-                            stroke-linecap="round"
-                            stroke-width="1.8"
-                            d="M7 11V7a5 5 0 0 1 10 0v4"
-                        />
-                    </svg>
-                </div>
+                <img
+                    :src="logo"
+                    alt="Pasay City South High School seal"
+                    class="mx-auto h-20 w-20 rounded-full object-cover shadow-lg"
+                />
                 <h1 class="mt-5 text-3xl font-extrabold text-slate-900">
                     Panel Access
                 </h1>

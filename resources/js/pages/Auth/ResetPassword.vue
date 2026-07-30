@@ -1,5 +1,6 @@
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3';
+import logo from '@/assets/images/logo-only.jpg';
 
 const props = defineProps({
     email: { type: String, default: '' },
@@ -20,6 +21,7 @@ const submit = () => form.post(route('password.update'));
     <Head title="Reset Password" />
     <main class="flex min-h-screen items-center justify-center bg-slate-100 p-4">
         <section class="w-full max-w-md rounded-xl bg-white p-6 shadow-lg">
+            <img :src="logo" alt="Pasay City South High School seal" class="mx-auto mb-4 h-20 w-20 rounded-full object-cover shadow" />
             <h1 class="text-2xl font-bold text-slate-900">Create a new password</h1>
             <p class="mt-2 text-sm text-slate-600">Choose a secure password for {{ form.email }}.</p>
             <form class="mt-5 space-y-4" @submit.prevent="submit">

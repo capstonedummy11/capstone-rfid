@@ -1,5 +1,5 @@
 <script setup>
-import logo from '@/assets/images/logo.png';
+import logo from '@/assets/images/logo-only.jpg';
 import philsca from '@/assets/images/philsca.png';
 import featureImage from '@/assets/images/Container.png';
 import featureImage2 from '@/assets/images/Container 2.png';
@@ -161,7 +161,11 @@ onMounted(() => {
                 class="mx-auto flex w-full max-w-[1400px] items-center justify-between px-5 py-4 md:px-12"
             >
                 <a href="/" class="flex items-center gap-3">
-                    <img :src="logo" alt="RFID logo" class="h-auto w-[170px]" />
+                    <img
+                        :src="logo"
+                        alt="Pasay City South High School seal"
+                        class="h-16 w-16 rounded-full object-cover"
+                    />
                 </a>
 
                 <div

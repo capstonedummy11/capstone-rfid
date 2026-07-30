@@ -6,6 +6,8 @@ This is the canonical reference for login entry points, password recovery, tempo
 
 ## Role Login Entry Points
 
+All role login and password-lifecycle screens display the shared `logo-only.jpg` school seal for consistent authentication branding.
+
 - Student and Parent: public portal `/`
 - Admin, Instructor, Registrar, and Clinic: configured secure staff login route
 - Console: `/attendance-control-panel/login`
@@ -51,4 +53,3 @@ Default-password formulas and account provisioning details are documented in [De
 - Password-reset requests do not reveal whether an account exists.
 - Login and mutating password requests remain subject to throttling and system activity middleware.
 - The first-login requirement is database-backed and enforced server-side.
-

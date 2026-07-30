@@ -1,5 +1,6 @@
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3';
+import logo from '@/assets/images/logo-only.jpg';
 
 const form = useForm({
     password: '',
@@ -13,6 +14,7 @@ const submit = () => form.put(route('password.first-login.update'));
     <Head title="Change Temporary Password" />
     <main class="flex min-h-screen items-center justify-center bg-slate-100 p-4">
         <section class="w-full max-w-md rounded-xl border-t-4 border-blue-600 bg-white p-6 shadow-lg">
+            <img :src="logo" alt="Pasay City South High School seal" class="mx-auto mb-4 h-20 w-20 rounded-full object-cover shadow" />
             <h1 class="text-2xl font-bold text-slate-900">Create your private password</h1>
             <p class="mt-2 text-sm text-slate-600">
                 This is a new account using a temporary password. You must replace it before accessing the system.

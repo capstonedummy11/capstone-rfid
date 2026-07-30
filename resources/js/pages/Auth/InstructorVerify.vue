@@ -1,6 +1,6 @@
 <script setup>
 import CameraCapture from '@/components/CameraCapture.vue';
-import logo from '@/assets/images/logo.png';
+import logo from '@/assets/images/logo-only.jpg';
 import schoolPhoto from '@/assets/images/philsca.png';
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import {
