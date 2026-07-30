@@ -1,5 +1,5 @@
 <script setup>
-import logo from '@/assets/images/logo-only.jpg';
+import logo from '@/assets/images/logo.png';
 import philsca from '@/assets/images/philsca.png';
 import featureImage from '@/assets/images/Container.png';
 import featureImage2 from '@/assets/images/Container 2.png';
@@ -163,8 +163,8 @@ onMounted(() => {
                 <a href="/" class="flex items-center gap-3">
                     <img
                         :src="logo"
-                        alt="Pasay City South High School seal"
-                        class="h-16 w-16 rounded-full object-cover"
+                        alt="Pasay City South High School"
+                        class="h-auto w-[170px]"
                     />
                 </a>
 
