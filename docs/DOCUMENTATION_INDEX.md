@@ -17,6 +17,7 @@ Choose the document that matches your task:
 | Understand database tables and migrations | [Database Documentation](DATABASE.md) |
 | Find account-creation password rules | [Default Account Passwords](DEFAULT_ACCOUNT_PASSWORDS.md) |
 | Understand login, recovery, and first-login enforcement | [Authentication and Password Rules](AUTHENTICATION_PASSWORD_RULES.md) |
+| Understand laboratory and attendance-device management | [Laboratories and Devices](LABORATORIES_AND_DEVICES.md) |
 | Prepare a capstone demonstration | [Demonstration Documentation Map](DEMONSTRATION_DOCUMENTATION.md) |
 
 ## Canonical Sources
@@ -32,6 +33,7 @@ When several files discuss the same subject, use these as the source of truth:
 | Schema, migrations, relationships, and seeding | [Database Documentation](DATABASE.md) | Mention only the data relevant to a feature |
 | Installation and daily startup | [Running the System](RUNNING_THE_SYSTEM.md) | Provide links or short setup summaries |
 | Login, forgot password, and first-login password changes | [Authentication and Password Rules](AUTHENTICATION_PASSWORD_RULES.md) | Summarize role-specific access where needed |
+| Laboratory/device relationship, CRUD, PIN, and disable rules | [Laboratories and Devices](LABORATORIES_AND_DEVICES.md) | Summarize room or panel behavior where needed |
 | Demonstration structure and artifact selection | [Demonstration Documentation Map](DEMONSTRATION_DOCUMENTATION.md) | Supply a script, slide outline, or detailed rehearsal |
 
 If a summary conflicts with its canonical source, update the summary and follow the canonical source.
@@ -65,6 +67,7 @@ If a summary conflicts with its canonical source, update the summary and follow 
 - [DATABASE.md](DATABASE.md) — Database setup commands, migration groups, key relationships, attendance data model, system settings, seeder order, and caveats.
 - [DEFAULT_ACCOUNT_PASSWORDS.md](DEFAULT_ACCOUNT_PASSWORDS.md) — Default-password rules for newly created accounts and seeded development accounts. Treat this as sensitive operational documentation and require password changes.
 - [AUTHENTICATION_PASSWORD_RULES.md](AUTHENTICATION_PASSWORD_RULES.md) — Canonical role login, forgot-password, Console exclusion, and mandatory first-login password-change behavior.
+- [LABORATORIES_AND_DEVICES.md](LABORATORIES_AND_DEVICES.md) — Canonical relationship and ownership rules for physical rooms and their managed attendance devices.
 - [REUSABLE_LANDING_ROUTES.md](REUSABLE_LANDING_ROUTES.md) — Developer reference for reusable landing-page routes and components.
 
 ## Recommended Reading Paths

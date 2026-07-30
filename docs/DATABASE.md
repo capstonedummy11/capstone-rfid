@@ -102,6 +102,8 @@ Panel PIN behavior:
 
 ## Key Relationships
 
+`panel_devices.laboratory_id` links one managed device to one physical laboratory. See [Laboratories and Devices](LABORATORIES_AND_DEVICES.md) for CRUD and operational ownership.
+
 - `users.role` controls dashboard access and major account behavior.
 - `students.section_id` links students to `sections`.
 - `students.strand_id` links students to `strands`.

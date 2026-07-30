@@ -9,12 +9,15 @@ This is the canonical reference for RFID tapping behavior on the Attendance Cont
 A student tap can become official attendance only when:
 
 - A console account is signed in and a room/laboratory is selected.
+- If the laboratory has a managed device, that device must be enabled and its device-specific PIN must authenticate the panel. The live session records the managed device label.
 - An assigned instructor has started the matching scheduled session.
 - The current date, weekday, room, instructor, and time match the schedule.
 - The student is active and belongs to the scheduled section.
 - Required face verification or an allowed instructor-approved fallback succeeds.
 
 A failed prerequisite produces a rejected or invalid event; it does not create valid attendance.
+
+Laboratory/device ownership and fallback behavior are defined in [Laboratories and Devices](LABORATORIES_AND_DEVICES.md).
 
 ## 2. Status and Location State
 

@@ -55,7 +55,7 @@ class AttendanceController
         if (! $session) {
             $session = new RfidPanelSession;
             $session->room = $validated['room'];
-            $session->panel_id = SystemSetting::string(SystemSetting::PANEL_DEVICE_LABEL, 'Attendance Console');
+            $session->panel_id = $this->panelLabelForRoom($validated['room']);
         }
 
         $status = $validated['status'];
@@ -1324,11 +1324,20 @@ class AttendanceController
         $pinHash = '';
         $room = trim((string) ($validated['room'] ?? ''));
         if ($room !== '') {
+            $assignedDevice = PanelDevice::query()
+                ->whereHas('laboratory', fn ($query) => $query->where('name', $room))
+                ->first();
+            if ($assignedDevice && ! $assignedDevice->is_active) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'The attendance device assigned to this laboratory is disabled.',
+                ], 403);
+            }
             $latestSession = RfidPanelSession::query()
                 ->where('room', $room)
                 ->orderByDesc('panel_session_id')
                 ->first();
-            $panelLabel = trim((string) ($latestSession?->panel_id ?? ''));
+            $panelLabel = trim((string) ($assignedDevice?->label ?? $latestSession?->panel_id ?? ''));
 
             if ($panelLabel !== '') {
                 $pinHash = (string) PanelDevice::query()
@@ -1511,7 +1520,7 @@ class AttendanceController
         if (! $session) {
             $session = new RfidPanelSession;
             $session->room = $room;
-            $session->panel_id = SystemSetting::string(SystemSetting::PANEL_DEVICE_LABEL, 'Attendance Console');
+            $session->panel_id = $this->panelLabelForRoom($room);
         }
 
         $session->status = 'online';
@@ -1596,6 +1605,14 @@ class AttendanceController
             'studentToastSeconds' => config('panel.student_toast_seconds', 15),
             'studentInfoVisibleSeconds' => config('panel.student_info_visible_seconds', 10),
         ];
+    }
+
+    private function panelLabelForRoom(string $room): string
+    {
+        return (string) (PanelDevice::query()
+            ->whereHas('laboratory', fn ($query) => $query->where('name', $room))
+            ->value('label')
+            ?: SystemSetting::string(SystemSetting::PANEL_DEVICE_LABEL, 'Attendance Console'));
     }
 
     private function panelRooms(): array

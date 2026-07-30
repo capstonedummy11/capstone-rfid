@@ -69,6 +69,8 @@ Recommended first value:
 
 ## 3. Create Laboratories Or Rooms
 
+Canonical reference: [Laboratories and Devices](LABORATORIES_AND_DEVICES.md). A laboratory stores physical room details. After creating it, add its managed attendance device, set the device PIN, and enable it. Use device actions—not laboratory status—to change PINs, disable panel access, remotely log out, or delete panel configuration.
+
 Go to:
 
 ```text

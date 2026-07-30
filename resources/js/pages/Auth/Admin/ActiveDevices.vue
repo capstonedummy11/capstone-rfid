@@ -1,7 +1,7 @@
 <script setup>
 import { router, useForm } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 const props = defineProps({
     devices: {
@@ -43,6 +43,15 @@ const labForm = useForm({
     location: '',
     status: 'active',
 });
+const editingLabId = ref(null);
+const deviceForm = useForm({
+    laboratory_id: '',
+    label: '',
+    description: '',
+    pin: '',
+    is_active: true,
+});
+const editingDeviceId = ref(null);
 const deleteLabForm = useForm({});
 
 const activeCount = computed(
@@ -134,6 +143,7 @@ const savePanelAccess = async () => {
 };
 
 const resetLabForm = () => {
+    editingLabId.value = null;
     labForm.name = '';
     labForm.description = '';
     labForm.location = '';
@@ -142,7 +152,7 @@ const resetLabForm = () => {
 };
 
 const saveLaboratory = () => {
-    labForm.post(route('admin.laboratories.store'), {
+    const options = {
         preserveScroll: true,
         onSuccess: () => {
             resetLabForm();
@@ -151,13 +161,79 @@ const saveLaboratory = () => {
                 toast: true,
                 position: 'top-end',
                 icon: 'success',
-                title: 'Laboratory added',
+                title: editingLabId.value ? 'Laboratory updated' : 'Laboratory saved',
                 showConfirmButton: false,
                 timer: 1600,
                 timerProgressBar: true,
             });
         },
+    };
+    if (editingLabId.value) {
+        labForm.put(route('admin.laboratories.update', { id: editingLabId.value }), options);
+    } else {
+        labForm.post(route('admin.laboratories.store'), options);
+    }
+};
+
+const editLaboratory = (laboratory) => {
+    editingLabId.value = laboratory.laboratory_id;
+    labForm.name = laboratory.name;
+    labForm.description = laboratory.description ?? '';
+    labForm.location = laboratory.location ?? '';
+    labForm.status = laboratory.status ?? 'active';
+};
+
+const resetDeviceForm = () => {
+    editingDeviceId.value = null;
+    deviceForm.reset();
+    deviceForm.is_active = true;
+    deviceForm.clearErrors();
+};
+
+const saveDevice = () => {
+    const options = {
+        preserveScroll: true,
+        onSuccess: () => {
+            resetDeviceForm();
+            router.reload({ only: ['devices'] });
+        },
+    };
+    if (editingDeviceId.value) {
+        deviceForm.put(route('admin.active-devices.update', { device: editingDeviceId.value }), options);
+    } else {
+        deviceForm.post(route('admin.active-devices.store'), options);
+    }
+};
+
+const editDevice = (device) => {
+    editingDeviceId.value = device.panel_device_id;
+    deviceForm.laboratory_id = String(device.laboratory_id ?? '');
+    deviceForm.label = device.device_label;
+    deviceForm.description = device.description ?? '';
+    deviceForm.pin = '';
+    deviceForm.is_active = Boolean(device.is_enabled);
+};
+
+const toggleDevice = (device) => {
+    router.put(route('admin.active-devices.update', { device: device.panel_device_id }), {
+        laboratory_id: device.laboratory_id,
+        label: device.device_label,
+        description: device.description ?? '',
+        is_active: !device.is_enabled,
+    }, { preserveScroll: true });
+};
+
+const deleteDevice = async (device) => {
+    const result = await Swal.fire({
+        title: `Delete ${device.device_label}?`,
+        text: 'The device configuration and its PIN will be removed. Historical attendance logs remain.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Delete device',
+        confirmButtonColor: '#dc2626',
     });
+    if (!result.isConfirmed) return;
+    router.delete(route('admin.active-devices.destroy', { device: device.panel_device_id }), { preserveScroll: true });
 };
 
 const setLaboratoryStatus = (laboratory, status) => {
@@ -263,8 +339,6 @@ const forceLogout = async (device) => {
 };
 
 const changePanelPin = async (device) => {
-    if (!device.panel_session_id) return;
-
     const result = await Swal.fire({
         title: `Change PIN for ${device.device_label}`,
         input: 'password',
@@ -299,7 +373,7 @@ const changePanelPin = async (device) => {
 
         const response = await fetch(
             route('admin.active-devices.pin.update', {
-                panelSessionId: device.panel_session_id,
+                device: device.panel_device_id,
             }),
             {
                 method: 'PUT',
@@ -353,8 +427,9 @@ const changePanelPin = async (device) => {
                             Laboratories & Devices
                         </h1>
                         <p class="text-sm text-slate-500">
-                            Manage laboratory rooms, panel access, and active
-                            attendance devices.
+                            Laboratories are physical rooms. Devices are the
+                            attendance panels assigned to those rooms and own
+                            their PIN and enabled state.
                         </p>
                     </div>
                     <div class="grid grid-cols-3 gap-3 text-sm">
@@ -468,6 +543,13 @@ const changePanelPin = async (device) => {
                                             <div class="flex justify-end gap-2">
                                                 <button
                                                     type="button"
+                                                    class="rounded-md border border-blue-200 px-3 py-2 text-xs font-bold text-blue-700 transition hover:bg-blue-50"
+                                                    @click="editLaboratory(laboratory)"
+                                                >
+                                                    Edit
+                                                </button>
+                                                <button
+                                                    type="button"
                                                     class="rounded-md border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50"
                                                     @click="
                                                         setLaboratoryStatus(
@@ -518,7 +600,7 @@ const changePanelPin = async (device) => {
                         @submit.prevent="saveLaboratory"
                     >
                         <h3 class="text-sm font-black text-slate-900">
-                            Add Laboratory
+                            {{ editingLabId ? 'Edit Laboratory' : 'Add Laboratory' }}
                         </h3>
                         <label class="mt-4 block">
                             <span
@@ -587,8 +669,18 @@ const changePanelPin = async (device) => {
                             {{
                                 labForm.processing
                                     ? 'Saving...'
-                                    : 'Add Laboratory'
+                                    : editingLabId
+                                      ? 'Update Laboratory'
+                                      : 'Add Laboratory'
                             }}
+                        </button>
+                        <button
+                            v-if="editingLabId"
+                            type="button"
+                            class="mt-2 w-full rounded-md border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700"
+                            @click="resetLabForm"
+                        >
+                            Cancel editing
                         </button>
                     </form>
                 </div>
@@ -605,8 +697,8 @@ const changePanelPin = async (device) => {
                             Panel Devices
                         </h2>
                         <p class="text-sm text-slate-500">
-                            Monitor attendance panels and close a panel
-                            remotely.
+                            Create and assign devices, change each device PIN,
+                            enable or disable access, and manage live panels.
                         </p>
                     </div>
                     <div
@@ -620,6 +712,57 @@ const changePanelPin = async (device) => {
                         </a>
                     </div>
                 </div>
+            </section>
+
+            <section
+                class="rounded-md border border-slate-200 bg-white p-5 shadow-sm"
+            >
+                <div class="mb-4">
+                    <h3 class="font-bold text-slate-900">
+                        {{ editingDeviceId ? 'Edit Device' : 'Add Device' }}
+                    </h3>
+                    <p class="text-sm text-slate-500">
+                        Assign one managed device to each laboratory. Its PIN is used when opening that laboratory's attendance panel.
+                    </p>
+                </div>
+                <form class="grid gap-4 md:grid-cols-2 xl:grid-cols-5" @submit.prevent="saveDevice">
+                    <label class="block">
+                        <span class="text-xs font-bold uppercase text-slate-500">Laboratory</span>
+                        <select v-model="deviceForm.laboratory_id" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+                            <option value="">Select laboratory</option>
+                            <option v-for="laboratory in laboratories" :key="laboratory.laboratory_id" :value="String(laboratory.laboratory_id)">
+                                {{ laboratory.name }}
+                            </option>
+                        </select>
+                    </label>
+                    <label class="block">
+                        <span class="text-xs font-bold uppercase text-slate-500">Device label</span>
+                        <input v-model="deviceForm.label" required placeholder="LAB-1 Panel" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+                    </label>
+                    <label class="block">
+                        <span class="text-xs font-bold uppercase text-slate-500">Description</span>
+                        <input v-model="deviceForm.description" placeholder="Front desk terminal" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+                    </label>
+                    <label v-if="!editingDeviceId" class="block">
+                        <span class="text-xs font-bold uppercase text-slate-500">Initial PIN</span>
+                        <input v-model="deviceForm.pin" type="password" required minlength="4" placeholder="At least 4 characters" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+                    </label>
+                    <label class="flex items-center gap-2 self-end rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold">
+                        <input v-model="deviceForm.is_active" type="checkbox" />
+                        Device enabled
+                    </label>
+                    <div class="flex items-end gap-2 md:col-span-2 xl:col-span-5">
+                        <button type="submit" :disabled="deviceForm.processing" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-60">
+                            {{ editingDeviceId ? 'Update device' : 'Add device' }}
+                        </button>
+                        <button v-if="editingDeviceId" type="button" class="rounded-md border border-slate-300 px-4 py-2 text-sm font-bold" @click="resetDeviceForm">
+                            Cancel
+                        </button>
+                    </div>
+                    <p v-if="Object.keys(deviceForm.errors).length" class="text-sm text-red-600 md:col-span-2 xl:col-span-5">
+                        {{ Object.values(deviceForm.errors)[0] }}
+                    </p>
+                </form>
             </section>
 
             <section
@@ -662,15 +805,21 @@ const changePanelPin = async (device) => {
             </section>
 
             <section
-                class="rounded-md border border-slate-200 bg-white p-5 shadow-sm"
+                class="rounded-md border border-amber-200 bg-amber-50 p-5 shadow-sm"
             >
+                <div class="mb-3">
+                    <h3 class="font-bold text-amber-900">Unassigned-panel fallback</h3>
+                    <p class="text-sm text-amber-800">
+                        Used only when a laboratory has no managed device. Normally, change PINs from the device table below.
+                    </p>
+                </div>
                 <form
                     class="grid gap-4 lg:grid-cols-[1fr_220px_auto]"
                     @submit.prevent="savePanelAccess"
                 >
                     <label class="block">
                         <span class="block text-sm font-bold text-slate-900">
-                            Device Label
+                            Fallback Device Label
                         </span>
                         <input
                             v-model="panelAccessForm.device_label"
@@ -681,7 +830,7 @@ const changePanelPin = async (device) => {
                     </label>
                     <label class="block">
                         <span class="block text-sm font-bold text-slate-900">
-                            New PIN
+                            Fallback PIN
                         </span>
                         <input
                             v-model="panelAccessForm.pin"
@@ -697,7 +846,7 @@ const changePanelPin = async (device) => {
                             class="w-full rounded-md bg-brand px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
                             :disabled="!panelAccessForm.device_label"
                         >
-                            Save Access
+                            Save Fallback
                         </button>
                     </div>
                 </form>
@@ -724,7 +873,7 @@ const changePanelPin = async (device) => {
                         <tbody class="divide-y divide-slate-100">
                             <tr
                                 v-for="device in devices"
-                                :key="device.room"
+                                :key="device.panel_device_id"
                                 class="hover:bg-slate-50"
                             >
                                 <td class="px-4 py-3 font-bold text-slate-900">
@@ -762,6 +911,20 @@ const changePanelPin = async (device) => {
                                     <div class="flex justify-end gap-2">
                                         <button
                                             type="button"
+                                            class="rounded-md border border-blue-200 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-50"
+                                            @click="editDevice(device)"
+                                        >
+                                            Edit
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="rounded-md border border-slate-300 px-3 py-2 text-xs font-bold"
+                                            @click="toggleDevice(device)"
+                                        >
+                                            {{ device.is_enabled ? 'Disable' : 'Enable' }}
+                                        </button>
+                                        <button
+                                            type="button"
                                             class="rounded-md border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50"
                                             @click="changePanelPin(device)"
                                         >
@@ -774,6 +937,13 @@ const changePanelPin = async (device) => {
                                             @click="forceLogout(device)"
                                         >
                                             Log out panel
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="rounded-md border border-red-200 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50"
+                                            @click="deleteDevice(device)"
+                                        >
+                                            Delete
                                         </button>
                                     </div>
                                 </td>

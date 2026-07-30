@@ -129,6 +129,8 @@ Admin routes under `/admin` cover:
 - Instructors.
 - Users for admin, clinic, and registrar roles.
 - Strands, sections, subjects, schedules, and laboratories.
+
+Laboratory and panel ownership is defined in [Laboratories and Devices](LABORATORIES_AND_DEVICES.md): laboratories own physical room information, while assigned devices own their label, PIN, enabled state, live logout, and device lifecycle.
 - Inventory, items, borrowing, returned items, and availability.
 - Active devices and attendance panel access controls.
 - System settings.

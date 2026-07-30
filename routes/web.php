@@ -225,8 +225,11 @@ Route::prefix('admin')
             Route::get('/online-class-logs', [OnlineClassController::class, 'logs'])->name('online-class-logs.index');
             Route::get('/online-class-logs/export', [OnlineClassController::class, 'exportLogs'])->name('online-class-logs.export');
             Route::get('/active-devices', [ActiveDeviceController::class, 'index'])->name('active-devices.index');
+            Route::post('/active-devices', [ActiveDeviceController::class, 'store'])->name('active-devices.store');
             Route::put('/active-devices/panel-access', [ActiveDeviceController::class, 'updatePanelAccess'])->name('active-devices.panel-access.update');
-            Route::put('/active-devices/{panelSessionId}/pin', [ActiveDeviceController::class, 'updatePanelDevicePin'])->name('active-devices.pin.update');
+            Route::put('/active-devices/{device}', [ActiveDeviceController::class, 'update'])->name('active-devices.update');
+            Route::delete('/active-devices/{device}', [ActiveDeviceController::class, 'destroy'])->name('active-devices.destroy');
+            Route::put('/active-devices/{device}/pin', [ActiveDeviceController::class, 'updatePanelDevicePin'])->name('active-devices.pin.update');
             Route::post('/active-devices/{panelSessionId}/force-logout', [ActiveDeviceController::class, 'forceLogout'])->name('active-devices.force-logout');
             Route::get('/settings', [SystemSettingsController::class, 'edit'])->name('settings.edit');
             Route::put('/settings', [SystemSettingsController::class, 'update'])->name('settings.update');

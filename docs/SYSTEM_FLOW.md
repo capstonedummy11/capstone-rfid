@@ -65,6 +65,8 @@ Role access is controlled mostly through route middleware:
 
 ## Setup Dependency Flow
 
+For the room-to-panel relationship, see [Laboratories and Devices](LABORATORIES_AND_DEVICES.md). Create the physical laboratory first, then assign its managed device and device-specific PIN.
+
 The system has important setup dependencies. Creating records in this order prevents missing dropdowns, failed schedule creation, and failed attendance scans.
 
 ```mermaid
