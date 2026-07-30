@@ -2,6 +2,8 @@
 
 Documentation home: [Documentation Index and Source-of-Truth Map](DOCUMENTATION_INDEX.md).
 
+Login recovery and mandatory first-login behavior are defined in [Authentication and Password Rules](AUTHENTICATION_PASSWORD_RULES.md).
+
 This document describes how the application assigns an initial password when each type of account is created.
 
 > Security notice: Default and seeded passwords are intended only for first access or local demonstration. Change them immediately, never reuse them in production, and do not add real production credentials to this repository.

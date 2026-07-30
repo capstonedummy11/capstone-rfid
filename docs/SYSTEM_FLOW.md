@@ -37,6 +37,8 @@ flowchart TD
 
 ## Role Entry And Redirect Flow
 
+Canonical password flow: [Authentication and Password Rules](AUTHENTICATION_PASSWORD_RULES.md). Non-Console users can recover passwords by email, and new non-Console accounts are intercepted by server middleware until their temporary password is changed.
+
 The public root route `/` is the student/parent login page for guests. Authenticated users are redirected by role.
 
 ```mermaid

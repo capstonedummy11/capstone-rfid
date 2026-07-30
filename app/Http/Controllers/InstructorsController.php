@@ -125,6 +125,7 @@ class InstructorsController
             'gender' => $validated['gender'] ?? null,
             'rfid_tag' => $validated['rfid_tag'] ?? null,
             'password' => bcrypt('password'), // Default password
+            'must_change_password' => true,
             'role' => 'instructor',
         ]);
 

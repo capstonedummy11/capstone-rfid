@@ -36,6 +36,7 @@ class User extends Authenticatable
         'email',
         'email_verified_at',
         'password',
+        'must_change_password',
         'role',
         'is_root_admin',
         'phone',
@@ -74,6 +75,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'two_factor_confirmed_at' => 'datetime',
             'is_root_admin' => 'boolean',
+            'must_change_password' => 'boolean',
             'face_images' => 'array',
             'security_questions' => 'array',
         ];

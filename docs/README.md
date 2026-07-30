@@ -116,6 +116,8 @@ For a full click-by-click operating tutorial, see [USER_OPERATIONS_TUTORIAL.md](
 
 ### Authentication And Authorization
 
+Canonical password behavior: [Authentication and Password Rules](AUTHENTICATION_PASSWORD_RULES.md). All roles except Console can request an emailed password-reset link. Newly created non-Console accounts must replace their temporary password before accessing any role dashboard.
+
 The application uses Laravel authentication with role middleware and Inertia pages. Admin, instructor, clinic, registrar, console, student, and parent users are routed to separate dashboards. Instructor routes can require an extra verification step through face, OTP, or security questions.
 
 ### Admin Dashboard And Master Data

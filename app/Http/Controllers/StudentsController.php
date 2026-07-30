@@ -286,6 +286,7 @@ class StudentsController
 
         $user->forceFill([
             'password' => Hash::make($password),
+            'must_change_password' => true,
         ])->save();
 
         $this->logActivity('update', 'users', 'Reset student portal password for '.$student->student_number);
@@ -326,6 +327,7 @@ class StudentsController
                 'name' => $validated['name'],
                 'email' => $validated['email'],
                 'password' => Hash::make($validated['password']),
+                'must_change_password' => true,
                 'role' => 'parent',
                 'phone' => $validated['phone'] ?? null,
                 'gender' => $validated['gender'] ?? null,
@@ -931,6 +933,7 @@ class StudentsController
 
         if (! $studentUser) {
             $payload['password'] = Hash::make($this->defaultStudentPassword($student));
+            $payload['must_change_password'] = true;
 
             return User::query()->create($payload);
         }

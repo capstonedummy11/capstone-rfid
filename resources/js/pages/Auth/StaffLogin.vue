@@ -408,6 +408,12 @@ onUnmounted(() => {
                     >
                         {{ form.errors.password }}
                     </p>
+                    <Link
+                        :href="route('password.request')"
+                        class="mt-3 inline-block text-sm font-semibold text-blue-600 hover:text-blue-700"
+                    >
+                        Forgot password?
+                    </Link>
 
                     <div class="mt-10 flex items-center justify-between gap-4">
                         <button

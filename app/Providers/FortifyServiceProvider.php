@@ -42,6 +42,11 @@ class FortifyServiceProvider extends ServiceProvider
         );
 
         $this->app->singleton(
+            \Laravel\Fortify\Contracts\PasswordResetResponse::class,
+            \App\Http\Responses\PasswordResetResponse::class,
+        );
+
+        $this->app->singleton(
             \Laravel\Fortify\Contracts\EmailVerificationNotificationSentResponse::class,
             \App\Http\Responses\EmailVerificationNotificationSentResponse::class,
         );
@@ -70,12 +75,12 @@ class FortifyServiceProvider extends ServiceProvider
             'status' => $request->session()->get('status'),
         ]));
 
-        Fortify::resetPasswordView(fn(Request $request) => Inertia::render('auth/ResetPassword', [
+        Fortify::resetPasswordView(fn(Request $request) => Inertia::render('Auth/ResetPassword', [
             'email' => $request->email,
             'token' => $request->route('token'),
         ]));
 
-        Fortify::requestPasswordResetLinkView(fn(Request $request) => Inertia::render('auth/ForgotPassword', [
+        Fortify::requestPasswordResetLinkView(fn(Request $request) => Inertia::render('Auth/ForgotPassword', [
             'status' => $request->session()->get('status'),
         ]));
 

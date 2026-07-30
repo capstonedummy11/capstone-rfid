@@ -27,6 +27,7 @@ use App\Http\Controllers\StudentParentLoginController;
 use App\Http\Controllers\StudentsController;
 use App\Http\Controllers\SubjectController;
 use App\Http\Controllers\SystemSettingsController;
+use App\Http\Controllers\FirstLoginPasswordController;
 use App\Models\SystemSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -76,6 +77,12 @@ Route::post($staffLoginPath, [StaffLoginController::class, 'store'])
         config('fortify.limiters.login') ? 'throttle:'.config('fortify.limiters.login') : null,
     ]))
     ->name('staff.login.store');
+Route::middleware('auth')->group(function () {
+    Route::get('/first-login/password', [FirstLoginPasswordController::class, 'edit'])->name('password.first-login');
+    Route::put('/first-login/password', [FirstLoginPasswordController::class, 'update'])
+        ->middleware('throttle:6,1')
+        ->name('password.first-login.update');
+});
 Route::get('/messages/new', [MessageController::class, 'create'])->name('messages.create');
 Route::post('/messages', [MessageController::class, 'store'])->name('messages.store');
 Route::middleware(['auth', 'role:admin,instructor,clinic,registrar,student,parent'])->group(function () {

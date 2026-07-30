@@ -13,7 +13,7 @@ import {
     removeSavedStudentParentProfile,
     setStudentParentSavePreference,
 } from '@/composables/useSavedStudentParentProfiles';
-import { useForm } from '@inertiajs/vue3';
+import { Link, useForm } from '@inertiajs/vue3';
 import { ArrowRight, Eye, EyeOff, Trash2 } from 'lucide-vue-next';
 import { computed, onMounted, ref } from 'vue';
 
@@ -473,6 +473,12 @@ onMounted(() => {
                             >
                                 {{ form.errors.password }}
                             </p>
+                            <Link
+                                :href="route('password.request')"
+                                class="mt-3 inline-block text-sm font-semibold text-blue-600 hover:text-blue-700"
+                            >
+                                Forgot password?
+                            </Link>
 
                             <div
                                 class="mt-8 flex items-center justify-between gap-4"

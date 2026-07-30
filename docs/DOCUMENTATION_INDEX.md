@@ -16,6 +16,7 @@ Choose the document that matches your task:
 | Apply exact attendance tapping behavior | [Attendance Control Panel Tapping Rules](ATTENDANCE_CONTROL_PANEL_TAPPING_RULES.md) |
 | Understand database tables and migrations | [Database Documentation](DATABASE.md) |
 | Find account-creation password rules | [Default Account Passwords](DEFAULT_ACCOUNT_PASSWORDS.md) |
+| Understand login, recovery, and first-login enforcement | [Authentication and Password Rules](AUTHENTICATION_PASSWORD_RULES.md) |
 | Prepare a capstone demonstration | [Demonstration Documentation Map](DEMONSTRATION_DOCUMENTATION.md) |
 
 ## Canonical Sources
@@ -30,6 +31,7 @@ When several files discuss the same subject, use these as the source of truth:
 | Human operating procedure | [User Operations Tutorial](USER_OPERATIONS_TUTORIAL.md) | Reference selected steps for demonstrations |
 | Schema, migrations, relationships, and seeding | [Database Documentation](DATABASE.md) | Mention only the data relevant to a feature |
 | Installation and daily startup | [Running the System](RUNNING_THE_SYSTEM.md) | Provide links or short setup summaries |
+| Login, forgot password, and first-login password changes | [Authentication and Password Rules](AUTHENTICATION_PASSWORD_RULES.md) | Summarize role-specific access where needed |
 | Demonstration structure and artifact selection | [Demonstration Documentation Map](DEMONSTRATION_DOCUMENTATION.md) | Supply a script, slide outline, or detailed rehearsal |
 
 If a summary conflicts with its canonical source, update the summary and follow the canonical source.
@@ -62,6 +64,7 @@ If a summary conflicts with its canonical source, update the summary and follow 
 - [INSTALLATION_LINKS.md](INSTALLATION_LINKS.md) — Short list of external installation resources. Use together with Running the System.
 - [DATABASE.md](DATABASE.md) — Database setup commands, migration groups, key relationships, attendance data model, system settings, seeder order, and caveats.
 - [DEFAULT_ACCOUNT_PASSWORDS.md](DEFAULT_ACCOUNT_PASSWORDS.md) — Default-password rules for newly created accounts and seeded development accounts. Treat this as sensitive operational documentation and require password changes.
+- [AUTHENTICATION_PASSWORD_RULES.md](AUTHENTICATION_PASSWORD_RULES.md) — Canonical role login, forgot-password, Console exclusion, and mandatory first-login password-change behavior.
 - [REUSABLE_LANDING_ROUTES.md](REUSABLE_LANDING_ROUTES.md) — Developer reference for reusable landing-page routes and components.
 
 ## Recommended Reading Paths
@@ -106,4 +109,3 @@ For every feature update:
 4. Update System Flow if business logic or data movement changed.
 5. Update demonstration summaries only when the visible demonstration changes.
 6. Add new documents to this index and state whether they are canonical, procedural, analytical, or presentation-oriented.
-

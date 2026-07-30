@@ -31,6 +31,10 @@ The reason for this order is simple: schedules need sections, subjects, instruct
 
 ## 1. Login As Admin
 
+For all roles, see the canonical [Authentication and Password Rules](AUTHENTICATION_PASSWORD_RULES.md). Admin, Instructor, Registrar, Clinic, Student, and Parent users can select **Forgot password?** and recover through their registered email. Console accounts are excluded.
+
+When an account is new or an administrator has restored a temporary/default password, login opens **Create your private password** first. Enter and confirm a different password before continuing to the dashboard.
+
 Start with an admin or root admin account.
 
 After login, admin users are redirected to:
