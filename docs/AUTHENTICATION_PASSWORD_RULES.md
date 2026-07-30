@@ -14,6 +14,8 @@ All role login and password-lifecycle screens display the shared `logo-only.jpg`
 
 The compatibility path `/login` redirects to the public Student/Parent entry point. Protected Admin, Instructor, Registrar, and Clinic pages redirect unauthenticated users to the secure staff login instead of the public portal.
 
+The public Student/Parent interface does not display the secure staff login. The shared Forgot Password page has one context-aware back button: when opened from the secure Staff login it returns there; otherwise it returns to the Student/Parent login. After a successful staff password reset, the system redirects that account to the secure staff login.
+
 ## Instructor Email OTP
 
 After successful staff authentication, an Instructor is sent to the Instructor Verification screen. The Instructor can request a six-digit OTP through the registered email address. The OTP expires after 10 minutes and is stored only as a hash in the session. Face verification and configured security questions remain alternative Instructor verification methods.

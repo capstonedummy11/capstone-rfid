@@ -38,7 +38,7 @@ The command is defined in `composer.json` and explicitly runs the relevant featu
 | Parent and Instructor excuse-letter notifications | `tests/Feature/StudentParentPortalTest.php` |
 | Instructor Messenger text and generated PDF attachment | `tests/Feature/StudentParentPortalTest.php` |
 | Five-minute Messenger email cooldown per sender–recipient pair | `tests/Feature/StudentParentPortalTest.php` |
-| Standalone RFID navigation hidden | `tests/Feature/RequestedFeatureUiWiringTest.php` |
+| Standalone RFID navigation hidden and Forgot Password back-button context | `tests/Feature/RequestedFeatureUiWiringTest.php`, `tests/Feature/Auth/PasswordResetTest.php` |
 | Student Biometric Enrollment naming and separation | `tests/Feature/RequestedFeatureUiWiringTest.php`, `tests/Feature/RegistrarPortalTest.php` |
 | Instructor attendance status editing and configured date window | `tests/Feature/AttendancePanelVerificationTest.php`, `tests/Feature/SystemSettingsTest.php` |
 | First-login password replacement | `tests/Feature/PasswordLifecycleTest.php` |

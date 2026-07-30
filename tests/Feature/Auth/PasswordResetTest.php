@@ -3,13 +3,27 @@
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\Notification;
+use Inertia\Testing\AssertableInertia as Assert;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
 test('reset password link screen can be rendered', function () {
     $response = $this->get(route('password.request'));
 
-    $response->assertOk();
+    $response->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Auth/ForgotPassword')
+            ->where('backUrl', route('landingPage'))
+            ->where('backLabel', 'Back to Student / Parent login'));
+});
+
+test('forgot password opened from secure login returns to secure login', function () {
+    $this->get(route('password.request', ['from' => 'staff']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Auth/ForgotPassword')
+            ->where('backUrl', route('staff.login'))
+            ->where('backLabel', 'Back to Staff login'));
 });
 
 test('reset password link can be requested', function () {

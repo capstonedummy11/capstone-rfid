@@ -26,3 +26,12 @@ test('large admin relationship inputs use searchable autosuggestion controls', f
         ->toContain("import SearchableSelect from '@/components/SearchableSelect.vue'")
         ->toContain('<SearchableSelect');
 });
+
+test('public student and parent recovery page does not expose staff login', function () {
+    $forgotPassword = file_get_contents(resource_path('js/pages/Auth/ForgotPassword.vue'));
+
+    expect($forgotPassword)
+        ->toContain('Student / Parent login')
+        ->not->toContain("route('staff.login')")
+        ->not->toContain('>Staff login<');
+});

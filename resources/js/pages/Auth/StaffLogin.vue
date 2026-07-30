@@ -409,7 +409,7 @@ onUnmounted(() => {
                         {{ form.errors.password }}
                     </p>
                     <Link
-                        :href="route('password.request')"
+                        :href="route('password.request', { from: 'staff' })"
                         class="mt-3 inline-block text-sm font-semibold text-blue-600 hover:text-blue-700"
                     >
                         Forgot password?

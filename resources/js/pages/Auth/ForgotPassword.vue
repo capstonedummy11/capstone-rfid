@@ -2,7 +2,14 @@
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import logo from '@/assets/images/logo-only.jpg';
 
-defineProps({ status: { type: String, default: '' } });
+defineProps({
+    status: { type: String, default: '' },
+    backUrl: { type: String, default: '/' },
+    backLabel: {
+        type: String,
+        default: 'Back to Student / Parent login',
+    },
+});
 
 const form = useForm({ email: '' });
 const submit = () => form.post(route('password.email'));
@@ -30,9 +37,13 @@ const submit = () => form.post(route('password.email'));
                     {{ form.processing ? 'Sending...' : 'Send reset link' }}
                 </button>
             </form>
-            <div class="mt-5 flex justify-between text-sm font-semibold">
-                <Link href="/" class="text-blue-600">Student / Parent login</Link>
-                <Link :href="route('staff.login')" class="text-blue-600">Staff login</Link>
+            <div class="mt-5">
+                <Link
+                    :href="backUrl"
+                    class="block w-full rounded-md border border-slate-300 px-4 py-2 text-center text-sm font-bold text-slate-700 transition hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700"
+                >
+                    ← {{ backLabel }}
+                </Link>
             </div>
         </section>
     </main>
