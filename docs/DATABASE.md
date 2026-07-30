@@ -1,5 +1,7 @@
 # Database Documentation
 
+Documentation home: [Documentation Index and Source-of-Truth Map](DOCUMENTATION_INDEX.md).
+
 This project uses Laravel migrations and seeders to build a MySQL-ready database for the RFID Attendance Monitoring, Borrowing, Inventory, Clinic, Registrar, Online Class, and Student/Parent Portal system.
 
 ## Setup Commands

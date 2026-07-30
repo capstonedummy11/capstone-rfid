@@ -1,5 +1,7 @@
 # System Flow
 
+Documentation home: [Documentation Index and Source-of-Truth Map](DOCUMENTATION_INDEX.md).
+
 This document is the detailed operating flow for the RFID Borrowing and Attendance System. It connects the user roles, setup records, attendance panel, registrar enrollment, student/parent portal, clinic workflows, reports, and audit records into one readable sequence.
 
 ## Whole-System Flow Overview
@@ -328,6 +330,8 @@ Routes:
 4. The Download CSV button exports the same filtered report rows shown in the detail table.
 
 ## Attendance Panel Flow
+
+Canonical reference: [Attendance Control Panel Tapping Rules](ATTENDANCE_CONTROL_PANEL_TAPPING_RULES.md). This section describes the broader flow; the linked file controls exact RFID tapping rules.
 
 Page names:
 

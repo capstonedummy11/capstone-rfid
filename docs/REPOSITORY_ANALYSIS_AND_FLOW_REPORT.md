@@ -1,5 +1,9 @@
 # Repository Analysis And Flow Verification Report
 
+Documentation home: [Documentation Index and Source-of-Truth Map](DOCUMENTATION_INDEX.md).
+
+For exact RFID attendance behavior, refer to [Attendance Control Panel Tapping Rules](ATTENDANCE_CONTROL_PANEL_TAPPING_RULES.md); this report summarizes that workflow.
+
 Generated for the current merged repository state.
 
 ## Scope

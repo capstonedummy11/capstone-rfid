@@ -1,5 +1,7 @@
 # RFID Borrowing and Attendance System
 
+Documentation home: [Documentation Index and Source-of-Truth Map](DOCUMENTATION_INDEX.md).
+
 RFID Borrowing and Attendance System is a Laravel 12, Inertia, and Vue 3 capstone application for senior high school computer laboratory operations. The repository contains a working web application for attendance, borrowing, inventory, registrar biometric enrollment, student/parent self-service, online classes, clinic records, emergency alerts, messaging, reports, and audit logs.
 
 This README is written from the current source code. It intentionally excludes private AI notes, secrets, real production passwords, software installation instructions, deployment steps, and infrastructure setup. Documented default and seeded development passwords are non-production fixtures.
@@ -156,6 +158,8 @@ Admin forms use searchable autosuggestion fields for large relationship lists. S
 Current limitation: schedule CRUD validates required fields and foreign keys, but it does not currently block overlapping schedules for the same room, instructor, section, or time range.
 
 ### Attendance Control Panel
+
+Canonical reference: [Attendance Control Panel Tapping Rules](ATTENDANCE_CONTROL_PANEL_TAPPING_RULES.md). The following is only a summary; use the linked file for exact tap behavior.
 
 The attendance panel is used by a `console` account in a selected room. A live attendance session is tied to the current schedule, subject, section, instructor, room, and date.
 

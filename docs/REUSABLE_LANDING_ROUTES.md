@@ -1,5 +1,7 @@
 # Reusable Landing Pages
 
+Documentation home: [Documentation Index and Source-of-Truth Map](DOCUMENTATION_INDEX.md).
+
 These files are intended to be stashed and moved to another branch:
 
 - `resources/js/pages/ReusableLandingIndex.vue`

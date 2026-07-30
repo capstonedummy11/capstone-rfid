@@ -1,5 +1,7 @@
 # Attendance System: Blank-State Setup and Complete Demonstration Guide
 
+Documentation home: [Documentation Index](DOCUMENTATION_INDEX.md). Demonstration family: [Demonstration Documentation Map](DEMONSTRATION_DOCUMENTATION.md).
+
 This guide assumes the application and database migrations are already installed, but the database contains only one account: **`root.admin`**. There are no laboratories, strands, sections, subjects, instructors, students, schedules, RFID assignments, face images, emergency types, hotlines, attendance sessions, or reports.
 
 The goal is to build a fully usable system from that blank state and then demonstrate the complete attendance lifecycle.
@@ -375,6 +377,8 @@ Log in as the console account.
 If no schedule appears, check the room, weekday, time, instructor assignment, and schedule status.
 
 ## 12. Complete Student Tap Rules
+
+Canonical reference: [Attendance Control Panel Tapping Rules](ATTENDANCE_CONTROL_PANEL_TAPPING_RULES.md). This section remains as demonstration guidance; follow the canonical file if wording differs.
 
 ### 12.1 Two official attendance endpoints
 

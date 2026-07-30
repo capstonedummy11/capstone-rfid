@@ -1,5 +1,7 @@
 # Step-By-Step System Use Tutorial
 
+Documentation home: [Documentation Index and Source-of-Truth Map](DOCUMENTATION_INDEX.md).
+
 This guide explains the practical order for using the system after it is already opened and you can log in. It does not cover software installation, server setup, or deployment.
 
 ## Big Picture Setup Order
@@ -366,6 +368,8 @@ Why this comes after laboratories and schedules:
 This step is only for inventory setup, item visibility, and status checking.
 
 ## 15. Open The Attendance Panel
+
+Before operating the panel, read the canonical [Attendance Control Panel Tapping Rules](ATTENDANCE_CONTROL_PANEL_TAPPING_RULES.md). The tutorial steps below are an operational summary.
 
 Login using a console account, then open:
 

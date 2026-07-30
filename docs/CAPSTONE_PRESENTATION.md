@@ -1,5 +1,9 @@
 # Full System Capabilities Presentation And Demonstration
 
+Documentation home: [Documentation Index](DOCUMENTATION_INDEX.md). Demonstration family: [Demonstration Documentation Map](DEMONSTRATION_DOCUMENTATION.md).
+
+Attendance-panel statements in this presentation summarize the canonical [Attendance Control Panel Tapping Rules](ATTENDANCE_CONTROL_PANEL_TAPPING_RULES.md).
+
 This file mirrors the generated editable PowerPoint at `capstone-rfid-system-presentation.pptx`.
 
 ## Slide 1: RFID Attendance And School Operations System

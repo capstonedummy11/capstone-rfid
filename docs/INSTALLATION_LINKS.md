@@ -1,5 +1,7 @@
 # Installation Links
 
+Documentation home: [Documentation Index and Source-of-Truth Map](DOCUMENTATION_INDEX.md). For complete instructions, see [Running the System](RUNNING_THE_SYSTEM.md).
+
 Use these official links for required software:
 
 1. XAMPP (PHP + MySQL): https://www.apachefriends.org/index.html

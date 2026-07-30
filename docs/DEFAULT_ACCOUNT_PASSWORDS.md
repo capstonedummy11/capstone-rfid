@@ -1,5 +1,7 @@
 # Default Account Passwords
 
+Documentation home: [Documentation Index and Source-of-Truth Map](DOCUMENTATION_INDEX.md).
+
 This document describes how the application assigns an initial password when each type of account is created.
 
 > Security notice: Default and seeded passwords are intended only for first access or local demonstration. Change them immediately, never reuse them in production, and do not add real production credentials to this repository.
@@ -75,4 +77,3 @@ Seeder passwords are development fixtures and do not override the operational ac
 - Staff accounts can update passwords through the applicable account-management or password-reset flow.
 - Instructor email OTP is a temporary verification code, not an account password. It expires after 10 minutes.
 - The attendance panel PIN is separate from the generated runtime console-account password.
-

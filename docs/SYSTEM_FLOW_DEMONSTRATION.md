@@ -1,5 +1,7 @@
 # System Flow Demonstration
 
+Documentation home: [Documentation Index](DOCUMENTATION_INDEX.md). Demonstration family: [Demonstration Documentation Map](DEMONSTRATION_DOCUMENTATION.md).
+
 This document combines the whole-system operating flow from `SYSTEM_FLOW.md` with the blank-state setup and detailed attendance behavior from `ATTENDANCE_SYSTEM_DEMONSTRATION_GUIDE.md`.
 
 It is intended for:
@@ -458,6 +460,8 @@ flowchart TD
 ```
 
 ## 16. First Tap Rules
+
+Canonical reference for this and all later-tap sections: [Attendance Control Panel Tapping Rules](ATTENDANCE_CONTROL_PANEL_TAPPING_RULES.md). The content below is presentation-oriented.
 
 The first valid student tap:
 

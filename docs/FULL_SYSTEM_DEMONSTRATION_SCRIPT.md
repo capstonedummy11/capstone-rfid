@@ -1,5 +1,9 @@
 # Full System Demonstration Script
 
+Documentation home: [Documentation Index](DOCUMENTATION_INDEX.md). Demonstration family: [Demonstration Documentation Map](DEMONSTRATION_DOCUMENTATION.md).
+
+For attendance-panel demonstrations, use [Attendance Control Panel Tapping Rules](ATTENDANCE_CONTROL_PANEL_TAPPING_RULES.md) as the canonical behavior reference.
+
 Use this as the presenter script for demonstrating the complete system capabilities. It assumes the app is already open, users can log in, and demo data is available.
 
 ## 1. Admin Setup Demo
