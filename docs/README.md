@@ -189,6 +189,21 @@ Student tap behavior:
 
 Attendance records keep the main state. Attendance logs keep per-tap evidence, sequence, room/location, validation result, verification method, and remarks.
 
+### Attendance Analytics Workspace
+
+Admin and Instructor users open Attendance from `/admin/attendance/logs`.
+
+- Instructors see only subjects assigned through their schedules. If exactly one subject is assigned, its dashboard opens automatically; otherwise the system presents subject cards.
+- Administrators see all scheduled subjects and can filter by school year, semester/term, department, section, and instructor.
+- Each subject dashboard shows total students, sessions, and every status currently present in physical or online attendance data.
+- The first dashboard card opens Student Attendance Summary with search, status filtering, sortable columns, attendance rates, and per-student session history.
+- Present, Absent, Late, Excused, Unexcused, and Online Class columns always remain visible and show `0` when no matching record exists.
+- A successful online-class join counts in both the Online Class participation column and the cumulative Present total.
+- Document-style session cards open searchable and filterable individual attendance sheets.
+- Admin and Instructor users can make audited corrections within the configured edit window and permitted role scope.
+- Student summaries and attendance sheets export as professionally headed PDF or Excel `.xlsx` reports.
+- Export generation uses `barryvdh/laravel-dompdf` and `phpoffice/phpspreadsheet`.
+
 ### Face Verification And Evidence
 
 Student attendance can use AWS Rekognition against registrar-enrolled reference images. Successful camera captures are stored separately as attendance evidence and do not replace registrar reference images.

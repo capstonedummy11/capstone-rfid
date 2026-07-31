@@ -575,6 +575,15 @@ Tap log records:
 
 `AttendanceLogs.vue`:
 
+Attendance navigation is now subject-centered:
+
+1. Instructor users receive only subjects assigned to their schedules. One subject opens directly; multiple subjects appear as selectable cards.
+2. Admin users receive all scheduled subjects with school-year, semester, department, section, and instructor filters.
+3. Selecting a subject opens its Attendance Dashboard with dynamic status totals and document-style session cards.
+4. The first card always opens Student Attendance Summary, which aggregates every roster student's physical-session status and online-class participation.
+5. Selecting a student opens their complete dated session history. Selecting a session opens its attendance sheet.
+6. Summary and session pages export PDF and Excel `.xlsx` files with contextual report headers and dynamic status totals.
+
 - Instructors may manually correct Present, Late, Absent, or Excused status only for students in their assigned attendance sessions.
 - The editable period uses the admin-configured `attendance.absent_default_days` rolling window. Older and future session dates are rejected by the server.
 - Excused status requires a note. Every accepted correction creates an `attendance_logs` manual-edit event and an `activity_logs` record with the instructor identity and old/new status.

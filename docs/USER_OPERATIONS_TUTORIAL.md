@@ -453,7 +453,16 @@ Admin or instructor can review:
 /admin/attendance/logs
 ```
 
-Use this page to check:
+Attendance opens by subject:
+
+1. An Instructor with one assigned subject goes directly to its Attendance Dashboard.
+2. An Instructor with multiple assigned subjects selects one from the subject cards.
+3. An Administrator can browse every scheduled subject and filter by school year, semester, department, section, or instructor.
+4. Open **Student Attendance Summary** for cumulative totals, attendance rates, status filters, sortable columns, and individual student history.
+5. Open a dated document card for that session's complete attendance sheet.
+6. Use **Export PDF** or **Export Excel** on summary and session pages for a professionally headed report.
+
+Use the session page to check:
 
 - Time in.
 - Time out.
@@ -465,6 +474,7 @@ Use this page to check:
 - Ignored or invalid taps.
 - Face evidence thumbnails when available.
 - Final attendance status.
+- Additional attendance statuses stored by the system, including online-class participation in cumulative summaries.
 
 Instructor view is scoped to instructor assignments. Admin view is broader.
 

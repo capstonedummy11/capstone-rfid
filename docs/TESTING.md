@@ -41,6 +41,7 @@ The command is defined in `composer.json` and explicitly runs the relevant featu
 | Standalone RFID navigation hidden and Forgot Password back-button context | `tests/Feature/RequestedFeatureUiWiringTest.php`, `tests/Feature/Auth/PasswordResetTest.php` |
 | Student Biometric Enrollment naming and separation | `tests/Feature/RequestedFeatureUiWiringTest.php`, `tests/Feature/RegistrarPortalTest.php` |
 | Instructor attendance status editing and configured date window | `tests/Feature/AttendancePanelVerificationTest.php`, `tests/Feature/SystemSettingsTest.php` |
+| Attendance subject selection, role scope, administrator browsing/editing, summaries, session drill-down, and PDF/XLSX exports | `tests/Feature/AttendancePanelVerificationTest.php` |
 | First-login password replacement | `tests/Feature/PasswordLifecycleTest.php` |
 | Forgot Password and password reset, with Console exclusion | `tests/Feature/PasswordLifecycleTest.php`, `tests/Feature/Auth/AuthenticationTest.php` |
 | Searchable autosuggestions in large Admin relationship fields | `tests/Feature/RequestedFeatureUiWiringTest.php` |

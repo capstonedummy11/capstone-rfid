@@ -2129,15 +2129,18 @@ class AttendanceController
         ]);
 
         $user = $request->user();
-        abort_unless(strtolower(trim((string) $user?->role)) === 'instructor', 403);
+        $editorRole = strtolower(trim((string) $user?->role));
+        abort_unless(in_array($editorRole, ['admin', 'instructor'], true), 403);
 
-        $instructorId = Instructor::query()->where('user_id', $user->user_id)->value('instructor_id');
-        abort_unless($instructorId, 403, 'No instructor profile is linked to this account.');
+        $instructorId = $editorRole === 'instructor'
+            ? Instructor::query()->where('user_id', $user->user_id)->value('instructor_id')
+            : null;
+        abort_if($editorRole === 'instructor' && ! $instructorId, 403, 'No instructor profile is linked to this account.');
 
         $session = DB::table('attendance_sessions')
             ->join('schedules', 'schedules.scheduled_id', '=', 'attendance_sessions.schedule_id')
             ->where('attendance_sessions.attendance_id', $validated['session_id'])
-            ->where('schedules.instructor_id', $instructorId)
+            ->when($editorRole === 'instructor', fn ($query) => $query->where('schedules.instructor_id', $instructorId))
             ->select([
                 'attendance_sessions.attendance_id',
                 'attendance_sessions.schedule_id',
@@ -2150,7 +2153,7 @@ class AttendanceController
             ])
             ->first();
 
-        abort_unless($session, 403, 'You may only edit attendance for your assigned sessions.');
+        abort_unless($session, 403, 'You may only edit attendance within your permitted subject scope.');
 
         $student = Students::query()
             ->whereKey($validated['student_id'])
@@ -2176,7 +2179,8 @@ class AttendanceController
             $oldStatus = strtolower((string) ($attendance?->status ?: 'absent'));
             $remarks = trim((string) ($validated['remarks'] ?? ''));
             $auditRemark = sprintf(
-                'Instructor %s changed attendance from %s to %s.%s',
+                '%s %s changed attendance from %s to %s.%s',
+                ucfirst(strtolower((string) $user->role)),
                 $user->name,
                 ucfirst($oldStatus),
                 ucfirst($validated['status']),

@@ -11,9 +11,9 @@ use App\Models\SystemSetting;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Carbon;
 use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
@@ -165,6 +165,133 @@ test('instructor cannot manually change attendance outside configured edit windo
         'student_id' => $fixture['student']->student_id,
         'schedule_id' => $fixture['schedule']->scheduled_id,
     ]);
+});
+
+test('instructor attendance module skips subject selection when exactly one subject is assigned', function () {
+    $fixture = attendanceVerificationFixture();
+    $subject = Subject::query()->where('subject_code', 'ATT-SEC-101')->firstOrFail();
+
+    $this->actingAs($fixture['instructorUser'])
+        ->withSession(['instructor_verified' => true])
+        ->get(route('admin.attendance.logs'))
+        ->assertRedirect(route('admin.attendance.subject', $subject));
+});
+
+test('administrator can browse all attendance subjects and open subject analytics', function () {
+    $fixture = attendanceVerificationFixture();
+    $admin = User::factory()->create(['role' => 'admin']);
+    $subject = Subject::query()->where('subject_code', 'ATT-SEC-101')->firstOrFail();
+
+    $this->actingAs($admin)
+        ->get(route('admin.attendance.logs'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Attendance/SubjectSelection')
+            ->has('subjects', 1)
+            ->where('subjects.0.id', $subject->subject_id)
+            ->where('currentUserRole', 'admin'));
+
+    $this->actingAs($admin)
+        ->get(route('admin.attendance.subject', $subject))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Attendance/Dashboard')
+            ->where('subject.id', $subject->subject_id)
+            ->where('overview.total_students', 1)
+            ->where('overview.total_sessions', 1)
+            ->has('sessions', 1));
+
+    $this->actingAs($admin)
+        ->get(route('admin.attendance.summary', $subject))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Attendance/Summary')
+            ->where('statuses', ['Present', 'Absent', 'Late', 'Excused', 'Unexcused', 'Online Class'])
+            ->has('rows', 1)
+            ->where('rows.0.student_id', $fixture['student']->student_id));
+});
+
+test('online class participation is counted as online class and present attendance', function () {
+    $fixture = attendanceVerificationFixture();
+    $admin = User::factory()->create(['role' => 'admin']);
+    $subject = Subject::query()->where('subject_code', 'ATT-SEC-101')->firstOrFail();
+    $onlineClassId = DB::table('online_classes')->insertGetId([
+        'schedule_id' => $fixture['schedule']->scheduled_id,
+        'instructor_id' => $fixture['schedule']->instructor_id,
+        'section_id' => $fixture['student']->section_id,
+        'subject_code' => $subject->subject_code,
+        'title' => 'Online Attendance',
+        'meeting_link' => 'https://example.test/meeting',
+        'scheduled_date' => now()->toDateString(),
+        'start_time' => '08:00:00',
+        'end_time' => '09:00:00',
+        'status' => 'completed',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+    DB::table('online_class_attendances')->insert([
+        'online_class_id' => $onlineClassId,
+        'student_id' => $fixture['student']->student_id,
+        'joined_at' => now(),
+        'status' => 'joined',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.attendance.summary', $subject))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('rows.0.counts.Online Class', 1)
+            ->where('rows.0.counts.Present', 1)
+            ->where('rows.0.attendance_rate', 50));
+});
+
+test('instructor cannot open attendance for an unassigned subject', function () {
+    $fixture = attendanceVerificationFixture();
+    $otherSubject = Subject::query()->create([
+        'section_id' => $fixture['student']->section_id,
+        'user_id' => $fixture['instructorUser']->user_id,
+        'subject_name' => 'Unassigned Subject',
+        'subject_code' => 'UNASSIGNED-101',
+        'department' => 'SHS',
+        'semester' => '1st Semester',
+    ]);
+
+    $this->actingAs($fixture['instructorUser'])
+        ->withSession(['instructor_verified' => true])
+        ->get(route('admin.attendance.subject', $otherSubject))
+        ->assertForbidden();
+});
+
+test('administrator can edit attendance and export subject reports', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    $fixture = attendanceVerificationFixture();
+    $admin = User::factory()->create(['role' => 'admin', 'name' => 'Attendance Administrator']);
+    $subject = Subject::query()->where('subject_code', 'ATT-SEC-101')->firstOrFail();
+
+    $this->actingAs($admin)
+        ->patch(route('admin.attendance.logs.status'), [
+            'session_id' => $fixture['attendanceSessionId'],
+            'student_id' => $fixture['student']->student_id,
+            'status' => 'present',
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('attendances', [
+        'student_id' => $fixture['student']->student_id,
+        'status' => 'present',
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.attendance.summary.export', [$subject, 'xlsx']))
+        ->assertOk()
+        ->assertDownload('student-attendance-summary.xlsx');
+
+    $this->actingAs($admin)
+        ->get(route('admin.attendance.session.export', [$subject, $fixture['attendanceSessionId'], 'pdf']))
+        ->assertOk()
+        ->assertDownload();
 });
 
 test('attendance panel room remains unlocked on refresh until panel logout', function () {
