@@ -588,6 +588,14 @@ Student flow:
 6. Complete face verification if required.
 7. The system records online class attendance.
 
+Online attendance timing:
+
+- Attendance remains Pending before the scheduled class end when the student has not joined.
+- Joining successfully before the end time records participation.
+- After the scheduled end, joining is closed.
+- Once the class has ended, joined students display as Present and non-joined section students display as Absent.
+- Attendance pages label Online Class sessions separately from normal in-person sessions while retaining the Online Class summary column.
+
 Admin audit flow:
 
 ```text

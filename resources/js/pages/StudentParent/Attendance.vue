@@ -121,6 +121,7 @@ const toggleEvidenceEvents = (record) => {
                     <option value="present">Present</option>
                     <option value="late">Late</option>
                     <option value="absent">Absent</option>
+                    <option value="pending">Pending</option>
                 </select>
                 <button
                     class="rounded-md border border-slate-300 px-3 py-2 text-sm font-bold text-slate-600"
@@ -135,6 +136,7 @@ const toggleEvidenceEvents = (record) => {
                     <thead class="bg-slate-50 text-xs text-slate-500 uppercase">
                         <tr>
                             <th class="px-3 py-2">Date</th>
+                            <th class="px-3 py-2">Class Type</th>
                             <th class="px-3 py-2">Subject</th>
                             <th class="px-3 py-2">Room</th>
                             <th class="px-3 py-2">Class Time</th>
@@ -152,8 +154,30 @@ const toggleEvidenceEvents = (record) => {
                             v-for="record in paginatedAttendance"
                             :key="record.attendance_id"
                         >
-                            <tr>
+                            <tr
+                                :class="
+                                    record.source === 'online'
+                                        ? 'bg-violet-50/60'
+                                        : ''
+                                "
+                            >
                                 <td class="px-3 py-3">{{ record.date }}</td>
+                                <td class="px-3 py-3">
+                                    <span
+                                        class="rounded-full px-2 py-1 text-[10px] font-black uppercase"
+                                        :class="
+                                            record.source === 'online'
+                                                ? 'bg-violet-100 text-violet-700'
+                                                : 'bg-blue-50 text-blue-700'
+                                        "
+                                    >
+                                        {{
+                                            record.source === 'online'
+                                                ? 'Online'
+                                                : 'In Person'
+                                        }}
+                                    </span>
+                                </td>
                                 <td class="px-3 py-3">{{ record.subject }}</td>
                                 <td class="px-3 py-3">
                                     {{ record.room || '-' }}
@@ -239,7 +263,7 @@ const toggleEvidenceEvents = (record) => {
                                 v-if="isEvidenceExpanded(record)"
                                 class="bg-slate-50"
                             >
-                                <td colspan="11" class="px-3 py-4">
+                                <td colspan="12" class="px-3 py-4">
                                     <div
                                         class="grid gap-3 md:grid-cols-2 xl:grid-cols-4"
                                     >

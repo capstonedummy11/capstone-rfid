@@ -136,11 +136,26 @@ defineProps({
                                 session.id,
                             ])
                         "
-                        class="group min-h-52 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-blue-300 hover:shadow-xl"
+                        class="group min-h-52 rounded-2xl border bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
+                        :class="
+                            session.type === 'online'
+                                ? 'border-violet-200 bg-gradient-to-br from-white to-violet-50 hover:border-violet-400'
+                                : 'border-slate-200 hover:border-blue-300'
+                        "
                     >
                         <div class="flex h-full flex-col justify-between">
                             <div class="flex items-start justify-between">
-                                <span class="text-4xl">📄</span>
+                                <span
+                                    class="grid h-12 w-12 place-items-center rounded-xl text-2xl"
+                                    :class="
+                                        session.type === 'online'
+                                            ? 'bg-violet-600 text-white'
+                                            : 'bg-blue-50 text-blue-700'
+                                    "
+                                    >{{
+                                        session.type === 'online' ? '🌐' : '📄'
+                                    }}</span
+                                >
                                 <span
                                     class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600"
                                     >{{ session.completion }}% complete</span
@@ -148,22 +163,31 @@ defineProps({
                             </div>
                             <div>
                                 <p
-                                    class="text-xs font-bold tracking-wide text-blue-700 uppercase"
+                                    class="text-xs font-bold tracking-wide uppercase"
+                                    :class="
+                                        session.type === 'online'
+                                            ? 'text-violet-700'
+                                            : 'text-blue-700'
+                                    "
                                 >
-                                    Attendance session
+                                    {{ session.type_label }}
                                 </p>
                                 <h3
                                     class="mt-2 text-xl font-black text-slate-900"
                                 >
-                                    {{ session.date_label }}
+                                    {{
+                                        session.type === 'online'
+                                            ? session.title
+                                            : session.date_label
+                                    }}
                                 </h3>
                                 <p class="mt-2 text-sm text-slate-500">
-                                    {{ session.schedule }} ·
-                                    {{ subject.section }}
+                                    {{ session.date_label }} ·
+                                    {{ session.schedule }}
                                 </p>
                                 <p class="mt-1 text-xs text-slate-400">
-                                    {{ session.total_students }} students ·
-                                    {{ session.room }}
+                                    {{ subject.section }} ·
+                                    {{ session.total_students }} students
                                 </p>
                             </div>
                         </div>

@@ -705,6 +705,14 @@ flowchart TD
 
 Online class records are connected to schedules, instructors, sections, attendance rows, notifications, attachments, and audit logs. The actual video meeting is external through the meeting link; the system records class metadata, join activity, attendance state, and notification/audit history.
 
+Online attendance finalization is time-derived:
+
+- Before the scheduled end time, a student without a join record is Pending.
+- The join endpoint rejects new attendance after the scheduled end time.
+- After the end time, a student with a successful join record is Present and also contributes to the separate Online Class participation count.
+- After the end time, an eligible section student without a successful join record is Absent.
+- Online sessions appear as distinct session cards and attendance-history rows but participate in the same subject summary, student drill-down, session details, and PDF/XLSX exports.
+
 ## Student And Parent Portal Handoff
 
 The portal reads official records created by admin, registrar, attendance, online-class, messenger, and excuse-letter workflows.

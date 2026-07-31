@@ -74,10 +74,18 @@ const save = () =>
                     <p
                         class="text-xs font-bold tracking-widest text-blue-300 uppercase"
                     >
-                        {{ subject.code }} · {{ subject.section }}
+                        {{ subject.code }} · {{ subject.section }} ·
+                        {{ session.type_label }}
                     </p>
-                    <h1 class="mt-2 text-3xl font-black">Attendance Sheet</h1>
+                    <h1 class="mt-2 text-3xl font-black">
+                        {{
+                            session.type === 'online'
+                                ? 'Online Class Attendance'
+                                : 'Attendance Sheet'
+                        }}
+                    </h1>
                     <p class="mt-2 text-sm text-slate-300">
+                        <span v-if="session.title">{{ session.title }} · </span>
                         {{ session.date_label }} · {{ session.schedule }} ·
                         {{ session.room }}
                     </p>

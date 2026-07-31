@@ -215,6 +215,19 @@ test('online class participation is counted as online class and present attendan
     $fixture = attendanceVerificationFixture();
     $admin = User::factory()->create(['role' => 'admin']);
     $subject = Subject::query()->where('subject_code', 'ATT-SEC-101')->firstOrFail();
+    $absentStudent = Students::query()->create([
+        'section_id' => $fixture['student']->section_id,
+        'strand_id' => $fixture['student']->strand_id,
+        'student_number' => 'STU-ATT-ONLINE-ABSENT',
+        'first_name' => 'Online',
+        'last_name' => 'Zzz Absent',
+        'gender' => 'female',
+        'email' => 'online.absent@example.com',
+        'year_level' => 11,
+        'semester' => '1st Semester',
+        'school_year' => '2026-2027',
+        'status' => 'active',
+    ]);
     $onlineClassId = DB::table('online_classes')->insertGetId([
         'schedule_id' => $fixture['schedule']->scheduled_id,
         'instructor_id' => $fixture['schedule']->instructor_id,
@@ -222,7 +235,7 @@ test('online class participation is counted as online class and present attendan
         'subject_code' => $subject->subject_code,
         'title' => 'Online Attendance',
         'meeting_link' => 'https://example.test/meeting',
-        'scheduled_date' => now()->toDateString(),
+        'scheduled_date' => now()->subDay()->toDateString(),
         'start_time' => '08:00:00',
         'end_time' => '09:00:00',
         'status' => 'completed',
@@ -244,7 +257,73 @@ test('online class participation is counted as online class and present attendan
         ->assertInertia(fn (Assert $page) => $page
             ->where('rows.0.counts.Online Class', 1)
             ->where('rows.0.counts.Present', 1)
-            ->where('rows.0.attendance_rate', 50));
+            ->where('rows.0.attendance_rate', 50)
+            ->where('rows.1.student_id', $absentStudent->student_id)
+            ->where('rows.1.counts.Absent', 2));
+
+    $this->actingAs($admin)
+        ->get(route('admin.attendance.subject', $subject))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('overview.total_sessions', 2)
+            ->where('overview.statuses.Online Class', 1)
+            ->where('sessions.0.type', 'physical')
+            ->where('sessions.1.type', 'online')
+            ->where('sessions.1.title', 'Online Attendance'));
+
+    $this->actingAs($admin)
+        ->get(route('admin.attendance.session', [$subject, 'online-'.$onlineClassId]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Attendance/SessionDetails')
+            ->where('session.type', 'online')
+            ->where('statusTotals.Present', 1)
+            ->where('statusTotals.Absent', 1));
+
+    $studentUser = User::factory()->create([
+        'role' => 'student',
+        'email' => $fixture['student']->email,
+    ]);
+    $this->actingAs($studentUser)
+        ->get(route('student-parent.attendance'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('StudentParent/Attendance')
+            ->where('attendance.0.source', 'online')
+            ->where('attendance.0.status', 'present'));
+});
+
+test('students cannot record online attendance after the scheduled end time', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    $fixture = attendanceVerificationFixture();
+    $studentUser = User::factory()->create([
+        'role' => 'student',
+        'email' => $fixture['student']->email,
+    ]);
+    $onlineClassId = DB::table('online_classes')->insertGetId([
+        'schedule_id' => $fixture['schedule']->scheduled_id,
+        'instructor_id' => $fixture['schedule']->instructor_id,
+        'section_id' => $fixture['student']->section_id,
+        'subject_code' => 'ATT-SEC-101',
+        'title' => 'Closed Online Class',
+        'meeting_link' => 'https://example.test/closed',
+        'scheduled_date' => now()->subDay()->toDateString(),
+        'start_time' => '08:00:00',
+        'end_time' => '09:00:00',
+        'require_face_recognition' => false,
+        'status' => 'completed',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $this->actingAs($studentUser)
+        ->post(route('student-parent.online-classes.join', $onlineClassId))
+        ->assertStatus(422);
+
+    $this->assertDatabaseMissing('online_class_attendances', [
+        'online_class_id' => $onlineClassId,
+        'student_id' => $fixture['student']->student_id,
+    ]);
 });
 
 test('instructor cannot open attendance for an unassigned subject', function () {

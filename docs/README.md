@@ -198,7 +198,10 @@ Admin and Instructor users open Attendance from `/admin/attendance/logs`.
 - Each subject dashboard shows total students, sessions, and every status currently present in physical or online attendance data.
 - The first dashboard card opens Student Attendance Summary with search, status filtering, sortable columns, attendance rates, and per-student session history.
 - Present, Absent, Late, Excused, Unexcused, and Online Class columns always remain visible and show `0` when no matching record exists.
-- A successful online-class join counts in both the Online Class participation column and the cumulative Present total.
+- Online attendance remains Pending until the scheduled class ends. After the end time, a successful join counts as Present and Online Class participation; an eligible student who did not join is shown as Absent.
+- The student portal attendance history includes completed and pending online sessions, labels them separately from in-person classes, and applies the same Present/Absent rule.
+- Online-class joining is closed after the configured end time.
+- Online sessions appear as visually distinct violet/globe cards beside in-person attendance-session document cards.
 - Document-style session cards open searchable and filterable individual attendance sheets.
 - Admin and Instructor users can make audited corrections within the configured edit window and permitted role scope.
 - Student summaries and attendance sheets export as professionally headed PDF or Excel `.xlsx` reports.

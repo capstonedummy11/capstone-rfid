@@ -183,8 +183,13 @@ const verifyFaceAndJoin = async () => {
                                 Attendance:
                                 {{
                                     onlineClass.attendance_status ||
-                                    'Not joined'
+                                    (onlineClass.has_ended
+                                        ? 'Absent'
+                                        : 'Pending')
                                 }}
+                                <span v-if="onlineClass.joined_late">
+                                    (joined late)
+                                </span>
                                 | Face:
                                 {{
                                     onlineClass.require_face_recognition
@@ -202,10 +207,22 @@ const verifyFaceAndJoin = async () => {
                                 Open Link
                             </a>
                             <button
-                                class="rounded-md bg-brand px-3 py-2 text-sm font-bold text-white"
+                                class="rounded-md px-3 py-2 text-sm font-bold text-white"
+                                :class="
+                                    onlineClass.can_join
+                                        ? 'bg-brand'
+                                        : 'cursor-not-allowed bg-slate-400'
+                                "
+                                :disabled="!onlineClass.can_join"
                                 @click="joinClass(onlineClass)"
                             >
-                                Join
+                                {{
+                                    onlineClass.has_ended
+                                        ? 'Attendance Closed'
+                                        : onlineClass.status === 'cancelled'
+                                          ? 'Cancelled'
+                                          : 'Join'
+                                }}
                             </button>
                         </div>
                     </div>

@@ -54,6 +54,11 @@ defineProps({
                         >
                             <td class="px-4 py-3 font-bold text-slate-900">
                                 {{ item.date_label }}
+                                <span
+                                    v-if="item.session_type === 'online'"
+                                    class="ml-2 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-black text-violet-700 uppercase"
+                                    >Online</span
+                                >
                             </td>
                             <td class="px-4 py-3 text-slate-600">
                                 {{ item.schedule }}<br /><span

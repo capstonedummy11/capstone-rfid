@@ -1310,12 +1310,20 @@ class StudentsController
             ->get()
             ->map(fn ($attendance) => $this->attendancePayload($attendance));
 
-        $onlineAttendance = DB::table('online_class_attendances')
-            ->join('online_classes', 'online_classes.online_class_id', '=', 'online_class_attendances.online_class_id')
-            ->leftJoin('subjects', 'subjects.subject_code', '=', 'online_classes.subject_code')
-            ->where('online_class_attendances.student_id', $student->student_id)
-            ->whereNotNull('online_class_attendances.joined_at')
-            ->orderByDesc('online_class_attendances.joined_at')
+        $onlineAttendance = DB::table('online_classes')
+            ->leftJoin('online_class_attendances', function ($join) use ($student) {
+                $join->on('online_class_attendances.online_class_id', '=', 'online_classes.online_class_id')
+                    ->where('online_class_attendances.student_id', '=', $student->student_id);
+            })
+            ->leftJoin('subjects', function ($join) {
+                $join->on('subjects.subject_code', '=', 'online_classes.subject_code')
+                    ->on('subjects.section_id', '=', 'online_classes.section_id');
+            })
+            ->where('online_classes.section_id', $student->section_id)
+            ->where('online_classes.status', '!=', 'cancelled')
+            ->whereNull('online_classes.deleted_at')
+            ->orderByDesc('online_classes.scheduled_date')
+            ->orderByDesc('online_classes.start_time')
             ->get([
                 'online_class_attendances.online_class_attendance_id',
                 'online_class_attendances.joined_at',
@@ -1344,13 +1352,14 @@ class StudentsController
     {
         $joinedAt = $attendance->joined_at ? \Carbon\Carbon::parse($attendance->joined_at) : null;
         $faceVerifiedAt = $attendance->face_verified_at ? \Carbon\Carbon::parse($attendance->face_verified_at) : null;
-        $status = $attendance->is_late ? 'late' : (string) $attendance->status;
+        $hasEnded = \Carbon\Carbon::parse($attendance->scheduled_date.' '.$attendance->end_time)->isPast();
+        $status = $joinedAt ? 'present' : ($hasEnded ? 'absent' : 'pending');
         $faceStatus = $attendance->face_required
             ? ($attendance->face_verified ? 'Face verified' : 'Face required')
             : 'Face not required';
 
         return [
-            'attendance_id' => 'online-'.$attendance->online_class_attendance_id,
+            'attendance_id' => 'online-'.$attendance->online_class_id,
             'source' => 'online',
             'date' => $attendance->scheduled_date ? \Carbon\Carbon::parse($attendance->scheduled_date)->format('Y-m-d') : $joinedAt?->format('Y-m-d'),
             'subject' => $attendance->subject_name ?? $attendance->subject_code ?? $attendance->title,
@@ -1366,15 +1375,17 @@ class StudentsController
             'sort_time' => $joinedAt?->format('H:i:s') ?? (string) $attendance->start_time,
             'time_in_image_url' => null,
             'time_out_image_url' => null,
-            'verification_method' => $faceStatus,
+            'verification_method' => $joinedAt ? $faceStatus : 'Online attendance',
             'evidence_events' => [[
-                'id' => 'online-'.$attendance->online_class_attendance_id,
-                'tap_type' => 'Online Join',
-                'tap_sequence_number' => 1,
+                'id' => 'online-'.$attendance->online_class_id,
+                'tap_type' => $joinedAt ? 'Online Join' : ($hasEnded ? 'Online Absence' : 'Online Pending'),
+                'tap_sequence_number' => $joinedAt ? 1 : null,
                 'time' => $joinedAt?->format('g:i A'),
                 'room_status' => 'Online Class',
                 'validation_result' => ucfirst($status),
-                'remarks' => trim($faceStatus.($faceVerifiedAt ? ' at '.$faceVerifiedAt->format('g:i A') : '')),
+                'remarks' => $joinedAt
+                    ? trim($faceStatus.($faceVerifiedAt ? ' at '.$faceVerifiedAt->format('g:i A') : '').($attendance->is_late ? '; joined after start time' : ''))
+                    : ($hasEnded ? 'Did not join before the online class ended.' : 'Online attendance is still open.'),
                 'time_in_image_url' => null,
                 'time_out_image_url' => null,
                 'verification_method' => $faceStatus,

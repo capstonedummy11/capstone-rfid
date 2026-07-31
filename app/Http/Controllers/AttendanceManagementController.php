@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Attendance;
 use App\Models\Instructor;
+use App\Models\OnlineClass;
 use App\Models\OnlineClassAttendance;
 use App\Models\Students;
 use App\Models\Subject;
@@ -55,18 +56,24 @@ class AttendanceManagementController extends Controller
     {
         $context = $this->authorizeSubject($request, $subject);
         $sessions = $this->sessionsFor($subject, $context['instructor_id'])->get();
+        $onlineClasses = $this->onlineClassesFor($subject, $context['instructor_id'])->get();
         $students = $this->studentsFor($subject)->get();
-        $summary = $this->summaryRows($subject, $sessions, $students);
+        $summary = $this->summaryRows($subject, $sessions, $onlineClasses, $students);
         $statusTotals = $this->statusTotals($summary);
+        $sessionCards = $sessions
+            ->map(fn ($session) => $this->sessionCard($session, $students->count()))
+            ->merge($onlineClasses->map(fn (OnlineClass $onlineClass) => $this->onlineSessionCard($onlineClass, $students->count())))
+            ->sortByDesc('sort_at')
+            ->values();
 
         return Inertia::render('Attendance/Dashboard', [
             'subject' => $this->subjectMeta($subject, $context['instructor_id']),
             'overview' => [
                 'total_students' => $students->count(),
-                'total_sessions' => $sessions->count(),
+                'total_sessions' => $sessions->count() + $onlineClasses->count(),
                 'statuses' => $statusTotals,
             ],
-            'sessions' => $sessions->map(fn ($session) => $this->sessionCard($session, $students->count()))->values(),
+            'sessions' => $sessionCards,
             'currentUserRole' => $context['role'],
         ]);
     }
@@ -75,13 +82,14 @@ class AttendanceManagementController extends Controller
     {
         $context = $this->authorizeSubject($request, $subject);
         $sessions = $this->sessionsFor($subject, $context['instructor_id'])->get();
-        $rows = $this->summaryRows($subject, $sessions, $this->studentsFor($subject)->get());
+        $onlineClasses = $this->onlineClassesFor($subject, $context['instructor_id'])->get();
+        $rows = $this->summaryRows($subject, $sessions, $onlineClasses, $this->studentsFor($subject)->get());
 
         return Inertia::render('Attendance/Summary', [
             'subject' => $this->subjectMeta($subject, $context['instructor_id']),
             'statuses' => $this->statusNames($rows),
             'rows' => $rows->values(),
-            'totalSessions' => $sessions->count(),
+            'totalSessions' => $sessions->count() + $onlineClasses->count(),
         ]);
     }
 
@@ -99,6 +107,7 @@ class AttendanceManagementController extends Controller
 
             return [
                 'session_id' => $session->attendance_id,
+                'session_type' => 'physical',
                 'date' => Carbon::parse($session->date)->toDateString(),
                 'date_label' => Carbon::parse($session->date)->format('F j, Y'),
                 'schedule' => $this->timeRange($session->time_start, $session->time_end),
@@ -108,7 +117,29 @@ class AttendanceManagementController extends Controller
                 'time_out' => $this->formatTime($attendance?->time_out),
                 'remarks' => $attendance?->remarks,
             ];
-        });
+        })->merge(
+            $this->onlineClassesFor($subject, $context['instructor_id'])
+                ->with(['attendances' => fn ($query) => $query->where('student_id', $student->student_id)])
+                ->get()
+                ->map(function (OnlineClass $onlineClass) {
+                    $attendance = $onlineClass->attendances->first();
+
+                    return [
+                        'session_id' => 'online-'.$onlineClass->online_class_id,
+                        'session_type' => 'online',
+                        'date' => $onlineClass->scheduled_date->toDateString(),
+                        'date_label' => $onlineClass->scheduled_date->format('F j, Y'),
+                        'schedule' => $this->timeRange($onlineClass->start_time, $onlineClass->end_time),
+                        'room' => 'Online Class',
+                        'status' => $this->onlineStudentStatus($onlineClass, $attendance),
+                        'time_in' => $attendance?->joined_at?->format('g:i A'),
+                        'time_out' => null,
+                        'remarks' => $attendance
+                            ? ($attendance->is_late ? 'Joined online class after the scheduled start time.' : 'Joined online class.')
+                            : ($this->onlineClassEnded($onlineClass) ? 'Did not join before the online class ended.' : null),
+                    ];
+                })
+        )->sortByDesc('date')->values();
 
         return Inertia::render('Attendance/StudentHistory', [
             'subject' => $this->subjectMeta($subject, $context['instructor_id']),
@@ -121,9 +152,24 @@ class AttendanceManagementController extends Controller
         ]);
     }
 
-    public function session(Request $request, Subject $subject, int $session): Response
+    public function session(Request $request, Subject $subject, string $session): Response
     {
         $context = $this->authorizeSubject($request, $subject);
+        if (str_starts_with($session, 'online-')) {
+            $onlineClass = $this->onlineClassForSubject($subject, (int) str_replace('online-', '', $session), $context['instructor_id']);
+            $rows = $this->onlineSessionRows($subject, $onlineClass);
+
+            return Inertia::render('Attendance/SessionDetails', [
+                'subject' => $this->subjectMeta($subject, $context['instructor_id']),
+                'session' => $this->onlineSessionMeta($onlineClass),
+                'statuses' => $rows->pluck('status')->unique()->sort()->values(),
+                'statusTotals' => $rows->countBy('status')->sortKeys(),
+                'rows' => $rows->values(),
+                'canEditAttendance' => false,
+                'absentDefaultDays' => 0,
+            ]);
+        }
+
         $attendanceSession = $this->sessionForSubject($subject, $session, $context['instructor_id']);
         $rows = $this->sessionRows($subject, $attendanceSession);
 
@@ -142,11 +188,12 @@ class AttendanceManagementController extends Controller
     {
         $context = $this->authorizeSubject($request, $subject);
         $sessions = $this->sessionsFor($subject, $context['instructor_id'])->get();
-        $rows = $this->summaryRows($subject, $sessions, $this->studentsFor($subject)->get());
+        $onlineClasses = $this->onlineClassesFor($subject, $context['instructor_id'])->get();
+        $rows = $this->summaryRows($subject, $sessions, $onlineClasses, $this->studentsFor($subject)->get());
         $statuses = $this->statusNames($rows);
         $meta = $this->reportMeta($request, $subject, $context['instructor_id'], 'Student Attendance Summary', [
             'Total Students' => $rows->count(),
-            'Total Attendance Sessions' => $sessions->count(),
+            'Total Attendance Sessions' => $sessions->count() + $onlineClasses->count(),
         ]);
         $headings = collect(['Student Number', 'Student Name'])->merge($statuses)->push('Attendance Rate (%)')->all();
         $data = $rows->map(function ($row) use ($statuses) {
@@ -159,9 +206,36 @@ class AttendanceManagementController extends Controller
         return $this->export($format, 'student-attendance-summary', $meta, $headings, $data, $this->statusTotals($rows));
     }
 
-    public function exportSession(Request $request, Subject $subject, int $session, string $format): SymfonyResponse
+    public function exportSession(Request $request, Subject $subject, string $session, string $format): SymfonyResponse
     {
         $context = $this->authorizeSubject($request, $subject);
+        if (str_starts_with($session, 'online-')) {
+            $onlineClass = $this->onlineClassForSubject($subject, (int) str_replace('online-', '', $session), $context['instructor_id']);
+            $rows = $this->onlineSessionRows($subject, $onlineClass);
+            $meta = $this->reportMeta($request, $subject, $context['instructor_id'], 'Online Class Attendance Sheet', [
+                'Attendance Date' => $onlineClass->scheduled_date->format('F j, Y'),
+                'Class Schedule' => $this->timeRange($onlineClass->start_time, $onlineClass->end_time),
+                'Session Type' => 'Online Class',
+            ]);
+            $data = $rows->map(fn ($row) => [
+                $row['student_number'],
+                $row['student_name'],
+                $row['status'],
+                $row['time_in'] ?? '',
+                '',
+                $row['remarks'] ?? '',
+            ]);
+
+            return $this->export(
+                $format,
+                'online-attendance-sheet-'.$onlineClass->scheduled_date->format('Y-m-d'),
+                $meta,
+                ['Student Number', 'Student Name', 'Status', 'Joined At', 'Time Out', 'Remarks'],
+                $data,
+                $rows->countBy('status')->sortKeys()
+            );
+        }
+
         $attendanceSession = $this->sessionForSubject($subject, $session, $context['instructor_id']);
         $rows = $this->sessionRows($subject, $attendanceSession);
         $meta = $this->reportMeta($request, $subject, $context['instructor_id'], 'Attendance Sheet', [
@@ -254,6 +328,17 @@ class AttendanceManagementController extends Controller
             ->orderByDesc('attendance_sessions.time_start');
     }
 
+    private function onlineClassesFor(Subject $subject, ?int $instructorId): Builder
+    {
+        return OnlineClass::query()
+            ->where('section_id', $subject->section_id)
+            ->where('subject_code', $subject->subject_code)
+            ->where('status', '!=', 'cancelled')
+            ->when($instructorId, fn ($query) => $query->where('instructor_id', $instructorId))
+            ->orderByDesc('scheduled_date')
+            ->orderByDesc('start_time');
+    }
+
     private function studentsFor(Subject $subject): Builder
     {
         return Students::query()
@@ -265,7 +350,7 @@ class AttendanceManagementController extends Controller
             ->orderBy('first_name');
     }
 
-    private function summaryRows(Subject $subject, Collection $sessions, Collection $students): Collection
+    private function summaryRows(Subject $subject, Collection $sessions, Collection $onlineClasses, Collection $students): Collection
     {
         $physical = Attendance::query()
             ->whereIn('schedule_id', $sessions->pluck('schedule_id')->filter()->unique())
@@ -273,25 +358,13 @@ class AttendanceManagementController extends Controller
             ->get()
             ->keyBy(fn (Attendance $attendance) => $attendance->student_id.'|'.$attendance->schedule_id.'|'.$attendance->date?->toDateString());
 
-        $onlineCounts = OnlineClassAttendance::query()
+        $onlineAttendances = OnlineClassAttendance::query()
             ->whereIn('student_id', $students->pluck('student_id'))
-            ->whereHas('onlineClass', fn ($query) => $query
-                ->where('section_id', $subject->section_id)
-                ->where('subject_code', $subject->subject_code))
-            ->where(function ($query) {
-                $query->whereNotNull('joined_at')
-                    ->orWhereIn(DB::raw('LOWER(status)'), ['joined', 'attended', 'present', 'late']);
-            })
-            ->select('student_id', DB::raw('COUNT(*) as total'))
-            ->groupBy('student_id')
-            ->pluck('total', 'student_id');
-        $onlineSessionCount = DB::table('online_classes')
-            ->where('section_id', $subject->section_id)
-            ->where('subject_code', $subject->subject_code)
-            ->whereNull('deleted_at')
-            ->count();
+            ->whereIn('online_class_id', $onlineClasses->pluck('online_class_id'))
+            ->get()
+            ->keyBy(fn (OnlineClassAttendance $attendance) => $attendance->student_id.'|'.$attendance->online_class_id);
 
-        return $students->map(function (Students $student) use ($sessions, $physical, $onlineCounts, $onlineSessionCount) {
+        return $students->map(function (Students $student) use ($sessions, $onlineClasses, $physical, $onlineAttendances) {
             $counts = collect();
             foreach ($sessions as $session) {
                 $key = $student->student_id.'|'.$session->schedule_id.'|'.Carbon::parse($session->date)->toDateString();
@@ -299,13 +372,16 @@ class AttendanceManagementController extends Controller
                 $status = $attendance ? $this->displayStatus($attendance, $session) : $this->missingStatus($session);
                 $counts[$status] = ($counts[$status] ?? 0) + 1;
             }
-            if (($onlineCounts[$student->student_id] ?? 0) > 0) {
-                $onlinePresent = (int) $onlineCounts[$student->student_id];
-                $counts['Online Class'] = $onlinePresent;
-                $counts['Present'] = ($counts['Present'] ?? 0) + $onlinePresent;
+            foreach ($onlineClasses as $onlineClass) {
+                $attendance = $onlineAttendances->get($student->student_id.'|'.$onlineClass->online_class_id);
+                $status = $this->onlineStudentStatus($onlineClass, $attendance);
+                $counts[$status] = ($counts[$status] ?? 0) + 1;
+                if ($attendance?->joined_at) {
+                    $counts['Online Class'] = ($counts['Online Class'] ?? 0) + 1;
+                }
             }
             $completed = (int) ($counts['Present'] ?? 0) + (int) ($counts['Late'] ?? 0) + (int) ($counts['Excused'] ?? 0);
-            $rateBase = max(1, $sessions->count() + $onlineSessionCount);
+            $rateBase = max(1, $sessions->count() + $onlineClasses->count());
 
             return [
                 'student_id' => $student->student_id,
@@ -344,6 +420,31 @@ class AttendanceManagementController extends Controller
         });
     }
 
+    private function onlineSessionRows(Subject $subject, OnlineClass $onlineClass): Collection
+    {
+        $attendances = OnlineClassAttendance::query()
+            ->where('online_class_id', $onlineClass->online_class_id)
+            ->get()
+            ->keyBy('student_id');
+
+        return $this->studentsFor($subject)->get()->map(function (Students $student) use ($attendances, $onlineClass) {
+            $attendance = $attendances->get($student->student_id);
+
+            return [
+                'student_id' => $student->student_id,
+                'student_number' => $student->student_number,
+                'student_name' => trim($student->first_name.' '.$student->last_name),
+                'status' => $this->onlineStudentStatus($onlineClass, $attendance),
+                'time_in' => $attendance?->joined_at?->format('g:i A'),
+                'time_out' => null,
+                'remarks' => $attendance
+                    ? ($attendance->is_late ? 'Joined online class after the scheduled start time.' : 'Joined online class.')
+                    : ($this->onlineClassEnded($onlineClass) ? 'Did not join before the online class ended.' : 'Online attendance is still open.'),
+                'editable' => false,
+            ];
+        });
+    }
+
     private function sessionForSubject(Subject $subject, int $session, ?int $instructorId): object
     {
         $record = $this->sessionsFor($subject, $instructorId)
@@ -352,6 +453,16 @@ class AttendanceManagementController extends Controller
         abort_unless($record, 404);
 
         return $record;
+    }
+
+    private function onlineClassForSubject(Subject $subject, int $onlineClassId, ?int $instructorId): OnlineClass
+    {
+        $onlineClass = $this->onlineClassesFor($subject, $instructorId)
+            ->whereKey($onlineClassId)
+            ->first();
+        abort_unless($onlineClass, 404);
+
+        return $onlineClass;
     }
 
     private function displayStatus(Attendance $attendance, object $session): string
@@ -367,6 +478,20 @@ class AttendanceManagementController extends Controller
     private function missingStatus(object $session): string
     {
         return $this->sessionEnded($session) ? 'Absent' : 'Pending';
+    }
+
+    private function onlineStudentStatus(OnlineClass $onlineClass, ?OnlineClassAttendance $attendance): string
+    {
+        if ($attendance?->joined_at) {
+            return 'Present';
+        }
+
+        return $this->onlineClassEnded($onlineClass) ? 'Absent' : 'Pending';
+    }
+
+    private function onlineClassEnded(OnlineClass $onlineClass): bool
+    {
+        return Carbon::parse($onlineClass->scheduled_date->format('Y-m-d').' '.$onlineClass->end_time)->isPast();
     }
 
     private function sessionEnded(object $session): bool
@@ -454,15 +579,49 @@ class AttendanceManagementController extends Controller
         ];
     }
 
+    private function onlineSessionCard(OnlineClass $onlineClass, int $studentCount): array
+    {
+        $joined = OnlineClassAttendance::query()
+            ->where('online_class_id', $onlineClass->online_class_id)
+            ->whereNotNull('joined_at')
+            ->count();
+
+        return $this->onlineSessionMeta($onlineClass) + [
+            'total_students' => $studentCount,
+            'completion' => $this->onlineClassEnded($onlineClass) && $studentCount > 0
+                ? 100
+                : ($studentCount > 0 ? round(($joined / $studentCount) * 100) : 0),
+            'sort_at' => $onlineClass->scheduled_date->format('Y-m-d').' '.$onlineClass->start_time,
+        ];
+    }
+
     private function sessionMeta(object $session): array
     {
         return [
             'id' => $session->attendance_id,
+            'type' => 'physical',
+            'type_label' => 'In-Person Class',
             'date' => Carbon::parse($session->date)->toDateString(),
             'date_label' => Carbon::parse($session->date)->format('F j, Y'),
             'schedule' => $this->timeRange($session->time_start, $session->time_end),
             'room' => $session->room,
             'status' => ucfirst((string) $session->status),
+            'sort_at' => Carbon::parse($session->date)->format('Y-m-d').' '.$session->time_start,
+        ];
+    }
+
+    private function onlineSessionMeta(OnlineClass $onlineClass): array
+    {
+        return [
+            'id' => 'online-'.$onlineClass->online_class_id,
+            'type' => 'online',
+            'type_label' => 'Online Class',
+            'title' => $onlineClass->title,
+            'date' => $onlineClass->scheduled_date->toDateString(),
+            'date_label' => $onlineClass->scheduled_date->format('F j, Y'),
+            'schedule' => $this->timeRange($onlineClass->start_time, $onlineClass->end_time),
+            'room' => 'Online Class',
+            'status' => $this->onlineClassEnded($onlineClass) ? 'Completed' : 'Open',
         ];
     }
 

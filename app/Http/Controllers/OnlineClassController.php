@@ -172,6 +172,8 @@ class OnlineClassController
         $student = $this->currentStudent($request);
         abort_unless($student && (int) $student->section_id === (int) $onlineClass->section_id, 403);
         abort_if($onlineClass->status === 'cancelled', 422, 'This online class is cancelled.');
+        $scheduledEnd = Carbon::parse($onlineClass->scheduled_date->format('Y-m-d').' '.$onlineClass->end_time);
+        abort_if(now()->greaterThan($scheduledEnd), 422, 'This online class has ended. Attendance is already closed.');
 
         $validated = $request->validate([
             'face_verified' => ['nullable', 'boolean'],
@@ -321,6 +323,10 @@ class OnlineClassController
     private function classPayload(OnlineClass $onlineClass, ?Students $student = null): array
     {
         $attendance = $student ? $onlineClass->attendances->first() : null;
+        $hasEnded = Carbon::parse($onlineClass->scheduled_date->format('Y-m-d').' '.$onlineClass->end_time)->isPast();
+        $attendanceStatus = $attendance?->joined_at
+            ? 'present'
+            : ($hasEnded && $onlineClass->status !== 'cancelled' ? 'absent' : null);
 
         return [
             'online_class_id' => $onlineClass->online_class_id,
@@ -335,8 +341,11 @@ class OnlineClassController
             'start_time' => substr((string) $onlineClass->start_time, 0, 5),
             'end_time' => substr((string) $onlineClass->end_time, 0, 5),
             'require_face_recognition' => $onlineClass->require_face_recognition,
-            'status' => $onlineClass->status,
-            'attendance_status' => $attendance?->status,
+            'status' => $onlineClass->status === 'cancelled' ? 'cancelled' : ($hasEnded ? 'completed' : $onlineClass->status),
+            'has_ended' => $hasEnded,
+            'can_join' => ! $hasEnded && $onlineClass->status !== 'cancelled',
+            'attendance_status' => $attendanceStatus,
+            'joined_late' => (bool) $attendance?->is_late,
             'face_verified' => $attendance?->face_verified,
             'attachments' => $onlineClass->attachments->map(fn ($attachment) => [
                 'name' => $attachment->file_name,
