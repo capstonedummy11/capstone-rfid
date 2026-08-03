@@ -198,10 +198,13 @@ Admin and Instructor users open Attendance from `/admin/attendance/logs`.
 - Each subject dashboard shows total students, sessions, and every status currently present in physical or online attendance data.
 - The first dashboard card opens Student Attendance Summary with search, status filtering, sortable columns, attendance rates, and per-student session history.
 - Present, Absent, Late, Excused, Unexcused, and Online Class columns always remain visible and show `0` when no matching record exists.
-- Online attendance remains Pending until the scheduled class ends. After the end time, a successful join counts as Present and Online Class participation; an eligible student who did not join is shown as Absent.
+- Online attendance remains Pending until the scheduled class ends. A successful join is Present when it occurs within the configured attendance late threshold and Late after that threshold; either result also counts as Online Class participation. An eligible student who did not join is shown as Absent after class end.
+- Admin and assigned Instructor users can correct online Present, Late, Absent, or Excused results within the same configured Attendance Days edit window used by physical attendance. Corrections are activity-logged.
 - The student portal attendance history includes completed and pending online sessions, labels them separately from in-person classes, and applies the same Present/Absent rule.
 - Online-class joining is closed after the configured end time.
 - Online sessions appear as visually distinct violet/globe cards beside in-person attendance-session document cards.
+- Each Instructor/Admin Online Classes row provides **View Attendance**, opening the live roster sheet so the assigned instructor can see Present, Late, Pending, Absent, and Excused students during and after the class.
+- Subject colors are assigned from a stable subject identity. They vary across subjects but remain unchanged after logout, login, refresh, or device change.
 - Document-style session cards open searchable and filterable individual attendance sheets.
 - Admin and Instructor users can make audited corrections within the configured edit window and permitted role scope.
 - Student summaries and attendance sheets export as professionally headed PDF or Excel `.xlsx` reports.

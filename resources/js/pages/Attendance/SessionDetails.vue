@@ -47,13 +47,24 @@ const openEdit = (row) => {
 };
 const save = () =>
     router.patch(
-        route('admin.attendance.logs.status'),
-        {
-            session_id: props.session.id,
-            student_id: editing.value.student_id,
-            status: editStatus.value,
-            remarks: remarks.value,
-        },
+        props.session.type === 'online'
+            ? route('admin.attendance.online.status')
+            : route('admin.attendance.logs.status'),
+        props.session.type === 'online'
+            ? {
+                  online_class_id: Number(
+                      String(props.session.id).replace('online-', ''),
+                  ),
+                  student_id: editing.value.student_id,
+                  status: editStatus.value,
+                  remarks: remarks.value,
+              }
+            : {
+                  session_id: props.session.id,
+                  student_id: editing.value.student_id,
+                  status: editStatus.value,
+                  remarks: remarks.value,
+              },
         { preserveScroll: true, onSuccess: () => (editing.value = null) },
     );
 </script>

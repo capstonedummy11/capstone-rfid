@@ -280,6 +280,36 @@ test('online class participation is counted as online class and present attendan
             ->where('statusTotals.Present', 1)
             ->where('statusTotals.Absent', 1));
 
+    $this->actingAs($admin)
+        ->get(route('admin.online-classes.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Auth/Admin/OnlineClasses')
+            ->where('onlineClasses.0.attendance_subject_id', $subject->subject_id)
+            ->where(
+                'onlineClasses.0.attendance_url',
+                route('admin.attendance.session', [$subject, 'online-'.$onlineClassId]),
+            ));
+
+    $this->actingAs($admin)
+        ->patch(route('admin.attendance.online.status'), [
+            'online_class_id' => $onlineClassId,
+            'student_id' => $absentStudent->student_id,
+            'status' => 'excused',
+            'remarks' => 'Approved online-class excuse.',
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('online_class_attendances', [
+        'online_class_id' => $onlineClassId,
+        'student_id' => $absentStudent->student_id,
+        'status' => 'excused',
+    ]);
+    $this->assertDatabaseHas('activity_logs', [
+        'user_id' => $admin->user_id,
+        'action' => 'online_attendance_status_changed',
+    ]);
+
     $studentUser = User::factory()->create([
         'role' => 'student',
         'email' => $fixture['student']->email,
@@ -291,6 +321,43 @@ test('online class participation is counted as online class and present attendan
             ->component('StudentParent/Attendance')
             ->where('attendance.0.source', 'online')
             ->where('attendance.0.status', 'present'));
+});
+
+test('online class uses the configured late threshold', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    $fixture = attendanceVerificationFixture();
+    SystemSetting::setInteger(SystemSetting::ATTENDANCE_LATE_THRESHOLD_MINUTES, 15);
+    $studentUser = User::factory()->create([
+        'role' => 'student',
+        'email' => $fixture['student']->email,
+    ]);
+    $now = now()->startOfMinute();
+    $onlineClassId = DB::table('online_classes')->insertGetId([
+        'schedule_id' => $fixture['schedule']->scheduled_id,
+        'instructor_id' => $fixture['schedule']->instructor_id,
+        'section_id' => $fixture['student']->section_id,
+        'subject_code' => 'ATT-SEC-101',
+        'title' => 'Late Threshold Online Class',
+        'meeting_link' => 'https://example.test/late',
+        'scheduled_date' => $now->toDateString(),
+        'start_time' => $now->copy()->subMinutes(16)->format('H:i:s'),
+        'end_time' => $now->copy()->addHour()->format('H:i:s'),
+        'require_face_recognition' => false,
+        'status' => 'scheduled',
+        'created_at' => $now,
+        'updated_at' => $now,
+    ]);
+
+    $this->actingAs($studentUser)
+        ->post(route('student-parent.online-classes.join', $onlineClassId))
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('online_class_attendances', [
+        'online_class_id' => $onlineClassId,
+        'student_id' => $fixture['student']->student_id,
+        'status' => 'late',
+        'is_late' => true,
+    ]);
 });
 
 test('students cannot record online attendance after the scheduled end time', function () {

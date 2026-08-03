@@ -199,7 +199,10 @@ class OnlineClassController
         }
 
         $joinedAt = now();
-        $isLate = $joinedAt->greaterThan(Carbon::parse($onlineClass->scheduled_date->format('Y-m-d').' '.$onlineClass->start_time));
+        $lateThreshold = max(0, SystemSetting::integer(SystemSetting::ATTENDANCE_LATE_THRESHOLD_MINUTES, 15));
+        $lateBoundary = Carbon::parse($onlineClass->scheduled_date->format('Y-m-d').' '.$onlineClass->start_time)
+            ->addMinutes($lateThreshold);
+        $isLate = $joinedAt->greaterThan($lateBoundary);
         $attendance = OnlineClassAttendance::query()->updateOrCreate(
             [
                 'online_class_id' => $onlineClass->online_class_id,
@@ -323,13 +326,21 @@ class OnlineClassController
     private function classPayload(OnlineClass $onlineClass, ?Students $student = null): array
     {
         $attendance = $student ? $onlineClass->attendances->first() : null;
+        $attendanceSubjectId = \App\Models\Subject::query()
+            ->where('section_id', $onlineClass->section_id)
+            ->where('subject_code', $onlineClass->subject_code)
+            ->value('subject_id');
         $hasEnded = Carbon::parse($onlineClass->scheduled_date->format('Y-m-d').' '.$onlineClass->end_time)->isPast();
         $attendanceStatus = $attendance?->joined_at
-            ? 'present'
+            ? ($attendance->is_late ? 'late' : 'present')
             : ($hasEnded && $onlineClass->status !== 'cancelled' ? 'absent' : null);
 
         return [
             'online_class_id' => $onlineClass->online_class_id,
+            'attendance_subject_id' => $attendanceSubjectId,
+            'attendance_url' => $attendanceSubjectId
+                ? route('admin.attendance.session', [$attendanceSubjectId, 'online-'.$onlineClass->online_class_id])
+                : null,
             'schedule_id' => $onlineClass->schedule_id,
             'section_name' => $onlineClass->section?->section_name,
             'subject_name' => $onlineClass->subject?->subject_name ?? $onlineClass->subject_code,

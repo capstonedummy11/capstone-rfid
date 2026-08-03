@@ -7,6 +7,15 @@ defineProps({
     sessions: { type: Array, default: () => [] },
     currentUserRole: { type: String, required: true },
 });
+
+const headerThemes = {
+    emerald: 'from-slate-950 via-emerald-950 to-emerald-700',
+    blue: 'from-slate-950 via-blue-950 to-blue-700',
+    amber: 'from-slate-950 via-amber-950 to-amber-700',
+    rose: 'from-slate-950 via-rose-950 to-rose-700',
+    violet: 'from-slate-950 via-violet-950 to-violet-700',
+    cyan: 'from-slate-950 via-cyan-950 to-cyan-700',
+};
 </script>
 
 <template>
@@ -19,7 +28,8 @@ defineProps({
                 >← All subjects</Link
             >
             <header
-                class="mt-4 rounded-3xl bg-gradient-to-r from-slate-950 via-blue-950 to-blue-700 p-7 text-white shadow-xl sm:p-9"
+                class="mt-4 rounded-3xl bg-gradient-to-r p-7 text-white shadow-xl sm:p-9"
+                :class="headerThemes[subject.color_theme] ?? headerThemes.blue"
             >
                 <div class="flex flex-wrap items-end justify-between gap-5">
                     <div>

@@ -572,6 +572,7 @@ Instructor/admin flow:
 5. Choose whether face recognition is required when the setting/provider allows it.
 6. Save the online class.
 7. Students assigned to the section can see the class in their portal.
+8. Select **View Attendance** on the online-class row to monitor the complete roster. During class, joined students show Present or Late and students who have not joined show Pending. After the end time, remaining Pending students become Absent.
 
 Student flow:
 
@@ -593,7 +594,8 @@ Online attendance timing:
 - Attendance remains Pending before the scheduled class end when the student has not joined.
 - Joining successfully before the end time records participation.
 - After the scheduled end, joining is closed.
-- Once the class has ended, joined students display as Present and non-joined section students display as Absent.
+- Joined students display as Present within the configured grace period or Late after it; non-joined section students display as Absent after class end.
+- Admin or the assigned Instructor can edit the online result from the online attendance-session card while the date remains inside the configured Attendance Days correction window.
 - Attendance pages label Online Class sessions separately from normal in-person sessions while retaining the Online Class summary column.
 
 Admin audit flow:

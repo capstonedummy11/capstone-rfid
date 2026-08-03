@@ -1353,7 +1353,10 @@ class StudentsController
         $joinedAt = $attendance->joined_at ? \Carbon\Carbon::parse($attendance->joined_at) : null;
         $faceVerifiedAt = $attendance->face_verified_at ? \Carbon\Carbon::parse($attendance->face_verified_at) : null;
         $hasEnded = \Carbon\Carbon::parse($attendance->scheduled_date.' '.$attendance->end_time)->isPast();
-        $status = $joinedAt ? 'present' : ($hasEnded ? 'absent' : 'pending');
+        $savedStatus = strtolower((string) $attendance->status);
+        $status = in_array($savedStatus, ['present', 'late', 'absent', 'excused'], true)
+            ? $savedStatus
+            : ($joinedAt ? ($attendance->is_late ? 'late' : 'present') : ($hasEnded ? 'absent' : 'pending'));
         $faceStatus = $attendance->face_required
             ? ($attendance->face_verified ? 'Face verified' : 'Face required')
             : 'Face not required';

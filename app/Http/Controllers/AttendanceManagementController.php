@@ -2,18 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\Attendance;
 use App\Models\Instructor;
 use App\Models\OnlineClass;
 use App\Models\OnlineClassAttendance;
 use App\Models\Students;
 use App\Models\Subject;
+use App\Models\SystemSetting;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
@@ -165,8 +168,8 @@ class AttendanceManagementController extends Controller
                 'statuses' => $rows->pluck('status')->unique()->sort()->values(),
                 'statusTotals' => $rows->countBy('status')->sortKeys(),
                 'rows' => $rows->values(),
-                'canEditAttendance' => false,
-                'absentDefaultDays' => 0,
+                'canEditAttendance' => in_array($context['role'], ['admin', 'instructor'], true),
+                'absentDefaultDays' => SystemSetting::integer(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 15),
             ]);
         }
 
@@ -204,6 +207,80 @@ class AttendanceManagementController extends Controller
         });
 
         return $this->export($format, 'student-attendance-summary', $meta, $headings, $data, $this->statusTotals($rows));
+    }
+
+    public function updateOnlineAttendanceStatus(Request $request): SymfonyResponse
+    {
+        $validated = $request->validate([
+            'online_class_id' => ['required', 'integer', 'exists:online_classes,online_class_id'],
+            'student_id' => ['required', 'integer', 'exists:students,student_id'],
+            'status' => ['required', 'in:present,late,absent,excused'],
+            'remarks' => ['nullable', 'string', 'max:1000', 'required_if:status,excused'],
+        ]);
+
+        $onlineClass = OnlineClass::query()->findOrFail($validated['online_class_id']);
+        $subject = Subject::query()
+            ->where('section_id', $onlineClass->section_id)
+            ->where('subject_code', $onlineClass->subject_code)
+            ->firstOrFail();
+        $context = $this->authorizeSubject($request, $subject);
+        if ($context['role'] === 'instructor') {
+            abort_unless((int) $onlineClass->instructor_id === (int) $context['instructor_id'], 403);
+        }
+
+        $student = $this->studentsFor($subject)->whereKey($validated['student_id'])->firstOrFail();
+        $editDays = max(1, min(365, SystemSetting::integer(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 15)));
+        $classDate = $onlineClass->scheduled_date->copy()->startOfDay();
+        abort_if(
+            $classDate->lt(now()->subDays($editDays - 1)->startOfDay()) || $classDate->gt(now()->endOfDay()),
+            422,
+            "Attendance can only be edited within the latest {$editDays} day(s).",
+        );
+
+        $attendance = OnlineClassAttendance::query()->firstOrNew([
+            'online_class_id' => $onlineClass->online_class_id,
+            'student_id' => $student->student_id,
+        ]);
+        $oldStatus = $this->onlineStudentStatus($onlineClass, $attendance->exists ? $attendance : null);
+        $attendance->status = $validated['status'];
+        $attendance->is_late = $validated['status'] === 'late';
+        if (in_array($validated['status'], ['present', 'late'], true) && ! $attendance->joined_at) {
+            $attendance->joined_at = Carbon::parse($onlineClass->scheduled_date->format('Y-m-d').' '.$onlineClass->start_time);
+        }
+        if (in_array($validated['status'], ['absent', 'excused'], true)) {
+            $attendance->joined_at = null;
+        }
+        $attendance->save();
+
+        ActivityLog::query()->create([
+            'event_id' => (string) Str::uuid(),
+            'user_id' => $request->user()->user_id,
+            'user_name' => $request->user()->name,
+            'user_role' => $request->user()->role,
+            'action' => 'online_attendance_status_changed',
+            'table_name' => 'online_class_attendances',
+            'module' => 'attendance',
+            'outcome' => 'success',
+            'severity' => 'info',
+            'subject_type' => 'online_class_attendance',
+            'subject_id' => (string) $attendance->online_class_attendance_id,
+            'route_name' => $request->route()?->getName(),
+            'http_method' => $request->method(),
+            'ip_address' => $request->ip(),
+            'user_agent' => Str::limit((string) $request->userAgent(), 1000, ''),
+            'status_code' => 200,
+            'description' => sprintf(
+                '%s changed online attendance for %s from %s to %s.%s',
+                $request->user()->name,
+                $student->student_number,
+                $oldStatus,
+                ucfirst($validated['status']),
+                empty($validated['remarks']) ? '' : ' Note: '.trim($validated['remarks']),
+            ),
+            'created_at' => now(),
+        ]);
+
+        return back()->with('success', 'Online attendance status updated and logged.');
     }
 
     public function exportSession(Request $request, Subject $subject, string $session, string $format): SymfonyResponse
@@ -440,7 +517,10 @@ class AttendanceManagementController extends Controller
                 'remarks' => $attendance
                     ? ($attendance->is_late ? 'Joined online class after the scheduled start time.' : 'Joined online class.')
                     : ($this->onlineClassEnded($onlineClass) ? 'Did not join before the online class ended.' : 'Online attendance is still open.'),
-                'editable' => false,
+                'editable' => $onlineClass->scheduled_date->betweenIncluded(
+                    now()->subDays(max(1, SystemSetting::integer(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 15)) - 1)->startOfDay(),
+                    now()->endOfDay(),
+                ),
             ];
         });
     }
@@ -482,8 +562,12 @@ class AttendanceManagementController extends Controller
 
     private function onlineStudentStatus(OnlineClass $onlineClass, ?OnlineClassAttendance $attendance): string
     {
+        $savedStatus = strtolower((string) $attendance?->status);
+        if (in_array($savedStatus, ['present', 'late', 'absent', 'excused'], true)) {
+            return ucfirst($savedStatus);
+        }
         if ($attendance?->joined_at) {
-            return 'Present';
+            return $attendance->is_late ? 'Late' : 'Present';
         }
 
         return $this->onlineClassEnded($onlineClass) ? 'Absent' : 'Pending';
@@ -562,7 +646,16 @@ class AttendanceManagementController extends Controller
             'school_year' => $subject->section?->school_year,
             'strand' => $subject->section?->strand?->strand_code,
             'instructor' => $instructorNames ?: 'Unassigned Instructor',
+            'color_theme' => $this->subjectColorTheme($subject),
         ];
+    }
+
+    private function subjectColorTheme(Subject $subject): string
+    {
+        $themes = ['emerald', 'blue', 'amber', 'rose', 'violet', 'cyan'];
+        $stableKey = $subject->subject_id.'|'.$subject->subject_code.'|'.$subject->section_id;
+
+        return $themes[abs(crc32($stableKey)) % count($themes)];
     }
 
     private function sessionCard(object $session, int $studentCount): array

@@ -709,8 +709,9 @@ Online attendance finalization is time-derived:
 
 - Before the scheduled end time, a student without a join record is Pending.
 - The join endpoint rejects new attendance after the scheduled end time.
-- After the end time, a student with a successful join record is Present and also contributes to the separate Online Class participation count.
+- A successful join within the configured late threshold is Present; a join after that threshold is Late. Both contribute to the separate Online Class participation count.
 - After the end time, an eligible section student without a successful join record is Absent.
+- Admin and assigned Instructor users can correct online attendance within `attendance.absent_default_days`, using the same Present, Late, Absent, and Excused choices and an audited activity record.
 - Online sessions appear as distinct session cards and attendance-history rows but participate in the same subject summary, student drill-down, session details, and PDF/XLSX exports.
 
 ## Student And Parent Portal Handoff

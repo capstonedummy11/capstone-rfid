@@ -18,6 +18,47 @@ const filters = reactive({
     instructor: props.filters.instructor ?? '',
 });
 
+const subjectThemes = {
+    emerald: {
+        strip: 'from-emerald-700 to-emerald-400',
+        badge: 'bg-emerald-50 text-emerald-700',
+        arrow: 'text-emerald-700',
+        hover: 'hover:border-emerald-300',
+    },
+    blue: {
+        strip: 'from-blue-700 to-cyan-400',
+        badge: 'bg-blue-50 text-blue-700',
+        arrow: 'text-blue-700',
+        hover: 'hover:border-blue-300',
+    },
+    amber: {
+        strip: 'from-amber-600 to-yellow-400',
+        badge: 'bg-amber-50 text-amber-700',
+        arrow: 'text-amber-700',
+        hover: 'hover:border-amber-300',
+    },
+    rose: {
+        strip: 'from-rose-700 to-pink-400',
+        badge: 'bg-rose-50 text-rose-700',
+        arrow: 'text-rose-700',
+        hover: 'hover:border-rose-300',
+    },
+    violet: {
+        strip: 'from-violet-700 to-purple-400',
+        badge: 'bg-violet-50 text-violet-700',
+        arrow: 'text-violet-700',
+        hover: 'hover:border-violet-300',
+    },
+    cyan: {
+        strip: 'from-cyan-700 to-sky-400',
+        badge: 'bg-cyan-50 text-cyan-700',
+        arrow: 'text-cyan-700',
+        hover: 'hover:border-cyan-300',
+    },
+};
+const themeFor = (subject) =>
+    subjectThemes[subject.color_theme] ?? subjectThemes.blue;
+
 const applyFilters = () =>
     router.get(route('admin.attendance.logs'), filters, {
         preserveState: true,
@@ -179,7 +220,8 @@ const resetFilters = () => {
                 <button
                     v-for="subject in subjects"
                     :key="subject.id"
-                    class="group min-h-56 overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:border-blue-300 hover:shadow-xl"
+                    class="group min-h-56 overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
+                    :class="themeFor(subject).hover"
                     @click="
                         router.visit(
                             route('admin.attendance.subject', subject.id),
@@ -187,16 +229,19 @@ const resetFilters = () => {
                     "
                 >
                     <div
-                        class="h-2 bg-gradient-to-r from-blue-700 to-cyan-400"
+                        class="h-2 bg-gradient-to-r"
+                        :class="themeFor(subject).strip"
                     ></div>
                     <div class="p-6">
                         <div class="flex items-start justify-between gap-3">
                             <span
-                                class="rounded-lg bg-blue-50 px-3 py-1 text-xs font-black tracking-wide text-blue-700"
+                                class="rounded-lg px-3 py-1 text-xs font-black tracking-wide"
+                                :class="themeFor(subject).badge"
                                 >{{ subject.code }}</span
                             >
                             <span
-                                class="text-2xl text-blue-700 transition group-hover:translate-x-1"
+                                class="text-2xl transition group-hover:translate-x-1"
+                                :class="themeFor(subject).arrow"
                                 >→</span
                             >
                         </div>
