@@ -151,7 +151,7 @@ class OnlineClassController
         $this->attendanceFinalizer->finalizeEnded();
         $student = $this->currentStudent($request);
         abort_unless($student, 403);
-        $selectedYearId = $request->integer('academic_year_id') ?: \App\Models\AcademicYear::active()?->academic_year_id;
+        $selectedYearId = $request->integer('academic_year_id') ?: \App\Models\AcademicYear::currentOrLatest()?->academic_year_id;
         if ($selectedYearId) {
             abort_unless($student->enrollments()->where('academic_year_id', $selectedYearId)->exists(), 404);
         }

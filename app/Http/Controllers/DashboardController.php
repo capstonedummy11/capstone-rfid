@@ -26,7 +26,7 @@ class DashboardController extends Controller
         $instructorId = $isInstructor
             ? Instructor::query()->where('user_id', $user?->user_id)->value('instructor_id')
             : null;
-        $academicYearId = $request->integer('academic_year_id') ?: AcademicYear::active()?->academic_year_id;
+        $academicYearId = $request->integer('academic_year_id') ?: AcademicYear::currentOrLatest()?->academic_year_id;
 
         $sectionIds = $this->scheduleQuery($isInstructor, $instructorId, $academicYearId)
             ->whereNotNull('section_id')

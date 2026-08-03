@@ -386,7 +386,7 @@ class ReportController
             return 'all';
         }
 
-        $yearId = is_numeric($requested) ? (int) $requested : AcademicYear::active()?->academic_year_id;
+        $yearId = is_numeric($requested) ? (int) $requested : AcademicYear::currentOrLatest()?->academic_year_id;
         if (! $yearId) {
             return 'all';
         }

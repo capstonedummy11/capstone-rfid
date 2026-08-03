@@ -49,6 +49,10 @@
           <h1 class="text-xl font-bold text-slate-800">{{ pageTitle }}</h1>
           <p class="text-xs text-slate-400">{{ isAdmin ? 'Weekly schedule overview by room' : 'Your assigned weekly schedule' }}</p>
         </div>
+        <select v-model="selectedAcademicYearId" @change="changeAcademicYear" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
+          <option value="all">All Academic Years</option>
+          <option v-for="year in academicYears" :key="year.academic_year_id" :value="year.academic_year_id">{{ year.name }} ({{ year.status }})</option>
+        </select>
         <button
           v-if="isAdmin"
           @click="openAddModal"
@@ -248,6 +252,7 @@ declare function route(name: string, params?: Record<string, unknown>): string;
 const props = defineProps({
   schedules: { type: Array as () => Schedule[], default: () => [] },
   filters: { type: Object, default: () => ({ laboratory_id: null }) },
+  academicYears: { type: Array as () => Array<{ academic_year_id: number; name: string; status: string }>, default: () => [] },
   laboratories: { type: Array as () => Laboratory[], default: () => [] },
   sectionOptions: { type: Array as () => SectionOption[], default: () => [] },
   subjectOptions: { type: Array as () => SubjectOption[], default: () => [] },
@@ -313,6 +318,12 @@ const timeSlots: string[] = Array.from({ length: 14 }, (_, i) => {
 // â”€â”€â”€ Sidebar state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const selectedLaboratoryId = ref<number | null>(props.filters.laboratory_id ?? null);
+const selectedAcademicYearId = ref<string | number>(props.filters.academic_year_id ?? '');
+
+const changeAcademicYear = () => router.get(route('admin.schedules.index'), {
+  academic_year_id: selectedAcademicYearId.value,
+  laboratory_id: selectedLaboratoryId.value ?? undefined,
+}, { preserveState: true, preserveScroll: true, replace: true });
 
 const selectedLaboratory = computed(() =>
   selectedLaboratoryId.value === null
@@ -335,7 +346,7 @@ const selectLaboratory = (id: number | null) => {
   selectedLaboratoryId.value = id;
   router.get(
     route('admin.schedules.index'),
-    id !== null ? { laboratory_id: id } : {},
+    { laboratory_id: id ?? undefined, academic_year_id: selectedAcademicYearId.value },
     { preserveState: true, preserveScroll: true, replace: true },
   );
 };

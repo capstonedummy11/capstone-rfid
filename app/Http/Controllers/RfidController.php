@@ -18,7 +18,7 @@ class RfidController
             'type' => trim((string) $request->input('type', 'all')),
         ];
 
-        $activeYearId = AcademicYear::active()?->academic_year_id;
+        $activeYearId = AcademicYear::currentOrLatest()?->academic_year_id;
         $studentQuery = Students::query()->with(['enrollments' => fn ($query) => $query
             ->when($activeYearId, fn ($year) => $year->where('academic_year_id', $activeYearId))->with(['strand', 'section'])]);
 

@@ -60,9 +60,12 @@ class StudentsController
         $isAdmin = $role === 'admin';
         $isInstructor = $role === 'instructor';
         $handledSectionIds = collect();
-        $selectedAcademicYear = $filters['school_year'] !== ''
+        $selectedAcademicYear = ! in_array($filters['school_year'], ['', 'all'], true)
             ? AcademicYear::query()->where('name', $filters['school_year'])->first()
-            : AcademicYear::active();
+            : ($filters['school_year'] === 'all' ? null : AcademicYear::currentOrLatest());
+        if ($filters['school_year'] === '' && $selectedAcademicYear) {
+            $filters['school_year'] = $selectedAcademicYear->name;
+        }
 
         if ($isInstructor) {
             $instructorId = Instructor::query()
@@ -125,7 +128,7 @@ class StudentsController
                 : $query->where('year_level', $filters['year']);
         }
 
-        if ($filters['school_year'] !== '') {
+        if (! in_array($filters['school_year'], ['', 'all'], true)) {
             if (! $selectedAcademicYear) {
                 $query->where('school_year', $filters['school_year']);
             }
@@ -944,7 +947,7 @@ class StudentsController
             return (clone $query)->where('academic_year_id', (int) $request->input('academic_year_id'))->latest('student_enrollment_id')->firstOrFail();
         }
 
-        $activeYearId = AcademicYear::active()?->academic_year_id;
+        $activeYearId = AcademicYear::currentOrLatest()?->academic_year_id;
 
         return ($activeYearId ? (clone $query)->where('academic_year_id', $activeYearId)->latest('student_enrollment_id')->first() : null)
             ?? $query->latest('student_enrollment_id')->first();

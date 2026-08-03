@@ -30,6 +30,10 @@ class SectionController
             'status' => trim((string) $request->input('status', '')),
             'academic_year' => trim((string) $request->input('academic_year', '')),
         ];
+        $defaultAcademicYear = AcademicYear::currentOrLatest();
+        if ($filters['academic_year'] === '' && $defaultAcademicYear) {
+            $filters['academic_year'] = (string) $defaultAcademicYear->academic_year_id;
+        }
 
         $query = Section::query()->with(['strand', 'academicYear']);
 
@@ -50,7 +54,7 @@ class SectionController
             $query->where('status', $filters['status']);
         }
 
-        if ($filters['academic_year'] !== '') {
+        if (! in_array($filters['academic_year'], ['', 'all'], true)) {
             $query->where('academic_year_id', $filters['academic_year']);
         }
 
@@ -90,7 +94,7 @@ class SectionController
                 ->orderByDesc('starts_on')
                 ->get(['academic_year_id', 'name', 'status'])
                 ->values(),
-            'activeAcademicYearId' => AcademicYear::active()?->academic_year_id,
+            'activeAcademicYearId' => $defaultAcademicYear?->academic_year_id,
         ]);
     }
 

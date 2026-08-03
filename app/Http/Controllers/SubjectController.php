@@ -22,9 +22,15 @@ class SubjectController
         $filters = [
             'search' => trim((string) $request->input('search', '')),
             'semester' => trim((string) $request->input('semester', '')),
+            'academic_year_id' => $request->input('academic_year_id'),
         ];
+        $defaultYearId = AcademicYear::currentOrLatest()?->academic_year_id;
+        $yearId = $filters['academic_year_id'] === 'all' ? null : ($request->integer('academic_year_id') ?: $defaultYearId);
+        $filters['academic_year_id'] = $filters['academic_year_id'] === 'all' ? 'all' : $yearId;
 
-        $query = Subject::query()->with(['section', 'user', 'offerings.academicYear', 'offerings.section', 'offerings.instructor.user']);
+        $query = Subject::query()->with(['section', 'user', 'offerings' => fn ($offerings) => $offerings
+            ->when($yearId, fn ($yearQuery) => $yearQuery->where('academic_year_id', $yearId))
+            ->with(['academicYear', 'section', 'instructor.user'])]);
 
         if ($filters['search'] !== '') {
             $term = strtolower($filters['search']);
@@ -86,7 +92,8 @@ class SubjectController
                 ])
                 ->values(),
             'instructorOptions' => User::query()->where('role', 'instructor')->orderBy('name')->get(['user_id', 'name', 'role'])->values(),
-            'activeAcademicYearId' => AcademicYear::active()?->academic_year_id,
+            'activeAcademicYearId' => AcademicYear::currentOrLatest()?->academic_year_id,
+            'academicYears' => AcademicYear::query()->orderByDesc('starts_on')->get(['academic_year_id', 'name', 'status']),
         ]);
     }
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use App\Models\AcademicYear;
 use App\Models\Attendance;
 use App\Models\Instructor;
 use App\Models\OnlineClass;
@@ -43,6 +44,12 @@ class AttendanceManagementController extends Controller
 
     public function index(Request $request): Response|SymfonyResponse
     {
+        $defaultYear = AcademicYear::currentOrLatest();
+        $schoolYear = trim((string) $request->input('school_year', ''));
+        if ($schoolYear === '' && $defaultYear) {
+            $schoolYear = $defaultYear->name;
+            $request->merge(['school_year' => $schoolYear]);
+        }
         [$role, $instructorId] = $this->actor($request);
         $subjects = $this->subjectsFor($role, $instructorId, $request)->get();
 
@@ -388,7 +395,7 @@ class AttendanceManagementController extends Controller
                     $query->where('schedules.instructor_id', $request->integer('instructor'));
                 }
             })
-            ->when($request->filled('school_year'), fn ($q) => $q->whereHas('section', fn ($s) => $s->where('school_year', $request->input('school_year'))))
+            ->when($request->filled('school_year') && $request->input('school_year') !== 'all', fn ($q) => $q->whereHas('section', fn ($s) => $s->where('school_year', $request->input('school_year'))))
             ->when($request->filled('semester'), fn ($q) => $q->where(function ($s) use ($request) {
                 $s->where('semester', $request->input('semester'))
                     ->orWhereHas('section', fn ($section) => $section->where('semester', $request->input('semester')));

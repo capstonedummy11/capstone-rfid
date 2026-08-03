@@ -72,7 +72,7 @@ class Students extends Model
 
     public function currentEnrollment(): ?StudentEnrollment
     {
-        $activeYearId = AcademicYear::active()?->academic_year_id;
+        $activeYearId = AcademicYear::currentOrLatest()?->academic_year_id;
 
         if ($activeYearId) {
             return $this->enrollments()

@@ -37,7 +37,7 @@ class Schedule extends Model
 
     public function scopeForActiveAcademicYear(Builder $query): Builder
     {
-        $activeYearId = AcademicYear::active()?->academic_year_id;
+        $activeYearId = AcademicYear::currentOrLatest()?->academic_year_id;
 
         return $activeYearId
             ? $query->where($query->qualifyColumn('academic_year_id'), $activeYearId)

@@ -18,7 +18,7 @@
           <div>
             <label class="mb-1 block text-xs font-medium text-slate-600">Academic Year</label>
             <select v-model="selectedAcademicYear" @change="onFilterChange" class="w-full rounded-md border border-slate-300 px-3 py-2">
-              <option value="">All Academic Years</option>
+              <option value="all">All Academic Years</option>
               <option v-for="year in academicYearOptions" :key="year.academic_year_id" :value="String(year.academic_year_id)">{{ year.name }} ({{ year.status }})</option>
             </select>
           </div>
@@ -221,7 +221,7 @@ const showModal = ref(false);
 const isEditing = ref(false);
 const selectedSection = ref<Section | null>(null);
 const defaultSchoolYearOptions = Array.from({ length: 6 }, (_, index) => {
-  const startYear = 2025 + index;
+  const startYear = new Date().getFullYear() - 1 + index;
   return `${startYear}-${startYear + 1}`;
 });
 

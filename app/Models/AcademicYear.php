@@ -45,6 +45,13 @@ class AcademicYear extends Model
         return static::query()->where('status', self::STATUS_ACTIVE)->first();
     }
 
+    /** Resolve the operational default: the active year, or the newest stored year. */
+    public static function currentOrLatest(): ?self
+    {
+        return static::active()
+            ?? static::query()->orderByDesc('starts_on')->orderByDesc('academic_year_id')->first();
+    }
+
     public function isWritable(): bool
     {
         return in_array($this->status, [self::STATUS_DRAFT, self::STATUS_ACTIVE], true);

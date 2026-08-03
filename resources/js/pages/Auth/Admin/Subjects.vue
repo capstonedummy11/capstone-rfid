@@ -12,7 +12,7 @@
       </section>
 
       <section class="mb-6 rounded-lg bg-white p-6 shadow-lg">
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
           <div>
             <label class="mb-1 block text-xs font-medium text-slate-600">Search</label>
             <input
@@ -29,6 +29,13 @@
               <option value="">All Semesters</option>
               <option value="1st Semester">1st Semester</option>
               <option value="2nd Semester">2nd Semester</option>
+            </select>
+          </div>
+          <div>
+            <label class="mb-1 block text-xs font-medium text-slate-600">Academic Year</label>
+            <select v-model="selectedAcademicYear" @change="onFilterChange" class="w-full rounded-md border border-slate-300 px-3 py-2">
+              <option value="all">All Academic Years</option>
+              <option v-for="year in academicYears" :key="year.academic_year_id" :value="year.academic_year_id">{{ year.name }} ({{ year.status }})</option>
             </select>
           </div>
           <div class="flex items-end justify-end">
@@ -260,10 +267,12 @@ const props = defineProps({
     type: Array as () => InstructorOption[],
     default: () => [],
   },
+  academicYears: { type: Array as () => Array<{ academic_year_id: number; name: string; status: string }>, default: () => [] },
 });
 
 const search = ref(props.filters.search ?? '');
 const selectedSemester = ref(props.filters.semester ?? '');
+const selectedAcademicYear = ref(props.filters.academic_year_id ?? '');
 const showModal = ref(false);
 const isEditing = ref(false);
 const selectedSubject = ref<Subject | null>(null);
@@ -313,6 +322,7 @@ const onFilterChange = () => {
   router.get(route('admin.subjects.index'), {
     search: search.value,
     semester: selectedSemester.value,
+    academic_year_id: selectedAcademicYear.value,
   }, {
     preserveState: true,
     preserveScroll: true,
@@ -323,6 +333,7 @@ const onFilterChange = () => {
 const resetFilters = () => {
   search.value = '';
   selectedSemester.value = '';
+  selectedAcademicYear.value = props.academicYears.find((year) => year.status === 'active')?.academic_year_id ?? props.academicYears[0]?.academic_year_id ?? '';
   onFilterChange();
 };
 

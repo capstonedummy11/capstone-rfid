@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use App\Models\AcademicYear;
 use App\Models\Instructor;
 use App\Models\Laboratory;
 use App\Models\Schedule;
@@ -26,8 +27,12 @@ class ScheduleController
             ? Instructor::query()->where('user_id', $user?->user_id)->value('instructor_id')
             : null;
         $laboratoryId = $isAdmin && $request->input('laboratory_id') ? (int) $request->input('laboratory_id') : null;
+        $defaultYearId = AcademicYear::currentOrLatest()?->academic_year_id;
+        $requestedYear = $request->input('academic_year_id');
+        $academicYearId = $requestedYear === 'all' ? null : ($request->integer('academic_year_id') ?: $defaultYearId);
 
         $query = Schedule::query()->with(['laboratory', 'instructor.user', 'section', 'subject', 'academicYear', 'subjectOffering']);
+        $query->when($academicYearId, fn ($yearQuery) => $yearQuery->where('academic_year_id', $academicYearId));
 
         if ($isInstructor) {
             $query->where('instructor_id', $instructorId ?: 0);
@@ -62,7 +67,8 @@ class ScheduleController
                 'time_end'       => $schedule->time_end,
                 'room'           => $schedule->room,
             ])->values(),
-            'filters' => ['laboratory_id' => $laboratoryId],
+            'filters' => ['laboratory_id' => $laboratoryId, 'academic_year_id' => $requestedYear === 'all' ? 'all' : $academicYearId],
+            'academicYears' => AcademicYear::query()->orderByDesc('starts_on')->get(['academic_year_id', 'name', 'status']),
             'currentUserRole' => $role,
             'canManageSchedules' => $isAdmin,
             'laboratories' => $isAdmin

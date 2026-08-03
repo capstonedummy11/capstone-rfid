@@ -115,7 +115,7 @@
                             @change="onFilterChange"
                             class="w-full rounded-md border border-slate-300 px-3 py-2"
                         >
-                            <option value="">All School Years</option>
+                            <option value="all">All School Years</option>
                             <option
                                 v-for="schoolYear in availableSchoolYearOptions"
                                 :key="schoolYear"
@@ -1158,7 +1158,7 @@ const showParentModal = ref(false);
 const showEnrollmentModal = ref(false);
 const selectedParent = ref<ParentAccount | null>(null);
 const defaultSchoolYearOptions = Array.from({ length: 6 }, (_, index) => {
-    const startYear = 2025 + index;
+    const startYear = new Date().getFullYear() - 1 + index;
     return `${startYear}-${startYear + 1}`;
 });
 
