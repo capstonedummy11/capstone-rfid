@@ -582,6 +582,30 @@ onBeforeUnmount(() => {
                                     <p class="mt-2 text-sm text-slate-600">
                                         {{ detail.symptoms }}
                                     </p>
+                                    <p v-if="detail.response_seconds !== null" class="mt-1 text-xs font-bold text-emerald-700">
+                                        Dispatched in {{ detail.response_seconds }} seconds
+                                    </p>
+                                    <div
+                                        v-if="detail.patients?.length > 1"
+                                        class="mt-3 space-y-2"
+                                    >
+                                        <div
+                                            v-for="patient in detail.patients"
+                                            :key="patient.student_id || patient.student_number"
+                                            class="flex items-center gap-2 rounded-md bg-slate-50 p-2"
+                                        >
+                                            <img
+                                                v-if="patient.photo"
+                                                :src="patient.photo"
+                                                :alt="patient.name"
+                                                class="h-8 w-8 rounded-full object-cover"
+                                            />
+                                            <div class="text-xs">
+                                                <p class="font-black text-slate-800">{{ patient.name }}</p>
+                                                <p class="text-slate-500">{{ patient.student_number }} · {{ patient.section || 'No section' }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                                 <span
                                     class="rounded-full px-2 py-1 text-[10px] font-black uppercase"
@@ -600,17 +624,21 @@ onBeforeUnmount(() => {
                                 <select
                                     v-model="selectedClinicByAlert[detail.id]"
                                     class="mb-2 w-full rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold"
+                                    :disabled="clinicAccounts.length === 0"
                                 >
-                                    <option value="">Assign Clinic responder</option>
+                                    <option value="">{{ clinicAccounts.length ? 'Assign Clinic responder' : 'No active Clinic responder available' }}</option>
                                     <option v-for="account in clinicAccounts" :key="account.user_id" :value="account.user_id">
                                         {{ account.name }} · {{ account.email }}
                                     </option>
                                 </select>
+                                <p v-if="clinicAccounts.length === 0" class="mb-2 rounded-md bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
+                                    Alert remains Open and queued. Activate or create a Clinic responder before dispatching.
+                                </p>
                             </div>
                             <div class="flex gap-2">
                                 <button
                                     class="flex-1 rounded-md bg-rose-500 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                                    :disabled="isAlertProcessing(detail.id) || !selectedClinicByAlert[detail.id]"
+                                    :disabled="isAlertProcessing(detail.id) || clinicAccounts.length === 0 || !selectedClinicByAlert[detail.id]"
                                     @click="dispatchAlert(detail.id)"
                                 >
                                     {{

@@ -666,8 +666,12 @@ Clinic users manage emergency records from:
 Emergency alert flow from the panel:
 
 1. Console account opens the attendance panel.
-2. User selects or enters the emergency type/details.
-3. User submits the emergency alert.
+2. Instructor selects **Emergency Call** and chooses the emergency type.
+3. Fire/disaster emergencies continue as **Everyone / area-wide** without asking for students. Their optional incident/location-details modal continues automatically after 15 seconds of no action; typing pauses the timer. For other types, the single **Who needs assistance?** modal contains **Specific person(s)**, **Everyone / area-wide**, and Cancel.
+4. Choosing **Specific person(s)** reveals RFID/name/student-number selection in that same modal. Repeat to add multiple students. Choosing **Everyone / area-wide** hides student selection.
+5. Enter optional symptoms or short notes. The panel automatically selects the single hotline whose configured type matches the emergency; if several matching hotlines exist, select one from the filtered choices.
+6. Review the modal showing the student details or area-wide scope, emergency type, room, notes, and routed hotline. Cancel if anything is wrong; otherwise it sends automatically after five seconds.
+7. The system submits the emergency alert.
 4. Clinic dashboard receives the alert.
 5. If the clinic dashboard is already open, it refreshes alert data automatically and plays the emergency alert sound for a newly received alert.
 6. If the browser has not enabled audio yet, the clinic dashboard shows a small note asking the user to click anywhere or press any key once. After audio is enabled, the note disappears.

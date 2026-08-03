@@ -72,6 +72,8 @@ Clinic and emergency tables:
 - `emergency_alerts` - alerts triggered from the attendance panel or clinic flows.
 - `emergency_hotlines` - clinic-managed emergency hotline/contact records.
 - `clinic_cases` - clinic case logs.
+
+Emergency response metrics are stored on `emergency_alerts` as `acknowledged_at`, `dispatched_at`, and `response_seconds`. Multi-student alerts retain their selected students in metadata and create one linked `clinic_cases` row per student when dispatched.
 - `patient_histories` - patient history records.
 
 Messaging and portal tables:

@@ -1602,6 +1602,27 @@ class AttendanceController
                 ])
                 ->values()
                 ->all(),
+            'emergencyStudents' => Students::query()
+                ->with(['section:section_id,section_name', 'strand:strand_id,strand_code'])
+                ->where('status', 'active')
+                ->orderBy('last_name')
+                ->orderBy('first_name')
+                ->get()
+                ->map(function (Students $student) {
+                    $faceImages = array_values(array_filter($student->face_images ?? []));
+
+                    return [
+                        'id' => $student->student_id,
+                        'student_number' => $student->student_number,
+                        'name' => trim($student->first_name.' '.($student->middle_name ? $student->middle_name.' ' : '').$student->last_name),
+                        'rfid' => $student->rfid_tag,
+                        'section' => $student->section?->section_name,
+                        'strand' => $student->strand?->strand_code,
+                        'photo' => isset($faceImages[0]) ? Storage::url($faceImages[0]) : null,
+                    ];
+                })
+                ->values()
+                ->all(),
             'studentToastSeconds' => config('panel.student_toast_seconds', 15),
             'studentInfoVisibleSeconds' => config('panel.student_info_visible_seconds', 10),
         ];
