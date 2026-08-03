@@ -56,6 +56,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    emergencyStudents: {
+        type: Array,
+        default: () => [],
+    },
     studentToastSeconds: {
         type: Number,
         default: 15,
@@ -1365,38 +1369,247 @@ const triggerEmergencyCall = async (
         );
     }
 
-    let emergencyHotline = selectedHotline;
-    if (!emergencyHotline && (props.emergencyHotlines ?? []).length > 0) {
-        const hotlineOptions = {
-            none: 'No specific hotline',
-        };
-        (props.emergencyHotlines ?? []).forEach((hotline) => {
-            hotlineOptions[hotline.emergency_hotline_id] =
-                `${hotline.name} - ${hotline.phone_number}`;
-        });
-
-        const hotlineResult = await Swal.fire({
-            icon: 'warning',
-            title: 'Select Hotline',
-            input: 'select',
-            inputOptions: hotlineOptions,
-            inputValue: 'none',
-            showCancelButton: true,
-            confirmButtonText: 'Send Emergency Text',
-            confirmButtonColor: '#dc2626',
-        });
-
-        if (!hotlineResult.isConfirmed) return;
-        emergencyHotline = (props.emergencyHotlines ?? []).find(
-            (hotline) =>
-                String(hotline.emergency_hotline_id) ===
-                String(hotlineResult.value),
-        );
-    }
-
     if (!emergencyType) {
         showToast('warning', 'No emergency type selected');
         return;
+    }
+
+    const selectedStudents = new Map();
+    const studentDirectory = props.emergencyStudents ?? [];
+    let emergencyHotline = selectedHotline;
+    let symptoms = '';
+    const typeName = String(emergencyType.name ?? '').toLowerCase();
+    const typeCategory = String(emergencyType.category ?? 'general').toLowerCase();
+    const isAreaWideType = typeName.includes('fire') || typeCategory === 'disaster';
+    let emergencyScope = isAreaWideType ? 'all' : 'people';
+
+    if (!emergencyHotline) {
+        const routingKeys = new Set([typeCategory]);
+        typeName.split(/[^a-z0-9]+/).filter(Boolean).forEach((key) => routingKeys.add(key));
+        if (typeName.includes('fire')) routingKeys.add('fire');
+        if (typeCategory === 'clinic' || typeName.match(/medical|injury|faint|seizure|asthma|allergy|bleed/)) {
+            routingKeys.add('clinic');
+            routingKeys.add('medical');
+            routingKeys.add('medic');
+        }
+        const matchingHotlines = (props.emergencyHotlines ?? []).filter((hotline) =>
+            routingKeys.has(String(hotline.category ?? '').trim().toLowerCase()),
+        );
+
+        if (matchingHotlines.length === 1) {
+            [emergencyHotline] = matchingHotlines;
+        } else if (matchingHotlines.length > 1) {
+            const hotlineOptions = {};
+            matchingHotlines.forEach((hotline) => {
+                hotlineOptions[hotline.emergency_hotline_id] = `${hotline.name} - ${hotline.phone_number}`;
+            });
+            const hotlineResult = await Swal.fire({
+                icon: 'question',
+                title: `Select ${emergencyType.name} hotline`,
+                input: 'select',
+                inputOptions: hotlineOptions,
+                inputPlaceholder: 'Choose the hotline to contact',
+                showCancelButton: true,
+                confirmButtonText: 'Continue',
+                confirmButtonColor: '#dc2626',
+            });
+            if (!hotlineResult.isConfirmed) return;
+            emergencyHotline = matchingHotlines.find(
+                (hotline) => String(hotline.emergency_hotline_id) === String(hotlineResult.value),
+            );
+        }
+
+        if (matchingHotlines.length === 0) {
+            const unmatchedResult = await Swal.fire({
+                icon: 'warning',
+                title: 'No matching hotline configured',
+                text: `Clinic has no active hotline matching ${emergencyType.name}. The in-app alert can still be sent, but no hotline SMS will be attempted.`,
+                showCancelButton: true,
+                confirmButtonText: 'Continue without hotline',
+                cancelButtonText: 'Cancel alert',
+                confirmButtonColor: '#dc2626',
+            });
+            if (!unmatchedResult.isConfirmed) return;
+        }
+    }
+    const renderSelectedStudents = () => {
+        if (selectedStudents.size === 0) {
+            return '<div style="padding:12px; color:#64748b; text-align:center;">No student selected yet.</div>';
+        }
+
+        return Array.from(selectedStudents.values())
+            .map(
+                (student) => `<div style="display:flex; align-items:center; gap:10px; padding:8px; border-bottom:1px solid #e2e8f0;">
+                    <img src="${escapeHtml(student.photo || `https://api.dicebear.com/7.x/personas/svg?seed=${encodeURIComponent(student.name)}`)}" alt="" style="width:36px; height:36px; border-radius:999px; object-fit:cover;" />
+                    <div style="min-width:0; flex:1; text-align:left;">
+                        <div style="font-weight:800; color:#0f172a;">${escapeHtml(student.name)}</div>
+                        <div style="font-size:11px; color:#64748b;">${escapeHtml(student.student_number)} · ${escapeHtml(student.section || 'No section')}</div>
+                    </div>
+                    <button type="button" data-remove-student="${student.id}" style="border:0; background:#fee2e2; color:#b91c1c; border-radius:8px; padding:5px 8px; font-weight:800; cursor:pointer;">Remove</button>
+                </div>`,
+            )
+            .join('');
+    };
+    const renderMatches = (query) => {
+        const normalized = String(query ?? '').trim().toLowerCase();
+        if (!normalized) return '';
+
+        return studentDirectory
+            .filter(
+                (student) =>
+                    !selectedStudents.has(String(student.id)) &&
+                    [student.name, student.student_number, student.rfid]
+                        .filter(Boolean)
+                        .some((value) =>
+                            String(value).toLowerCase().includes(normalized),
+                        ),
+            )
+            .slice(0, 8)
+            .map(
+                (student) => `<button type="button" data-add-student="${student.id}" style="display:block; width:100%; border:0; border-bottom:1px solid #e2e8f0; background:white; padding:9px; text-align:left; cursor:pointer;">
+                    <strong>${escapeHtml(student.name)}</strong><br><span style="font-size:11px; color:#64748b;">${escapeHtml(student.student_number)} · ${escapeHtml(student.section || 'No section')} · RFID ${escapeHtml(student.rfid || 'not enrolled')}</span>
+                </button>`,
+            )
+            .join('');
+    };
+    let assistanceResult = { isConfirmed: true };
+    if (!isAreaWideType) assistanceResult = await Swal.fire({
+        icon: 'warning',
+        title: 'Who needs assistance?',
+        width: 680,
+        html: `<div style="text-align:left;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px;">
+                <label style="display:flex; gap:8px; align-items:flex-start; padding:10px; border:1px solid #fecaca; border-radius:8px; cursor:pointer;">
+                    <input type="radio" name="emergency-scope" value="people" checked />
+                    <span><strong>Specific person(s)</strong><br><small>Identify one or more students.</small></span>
+                </label>
+                <label style="display:flex; gap:8px; align-items:flex-start; padding:10px; border:1px solid #fed7aa; border-radius:8px; cursor:pointer;">
+                    <input type="radio" name="emergency-scope" value="all" />
+                    <span><strong>Everyone / area-wide</strong><br><small>Continue without student information.</small></span>
+                </label>
+            </div>
+            <div id="emergency-specific-people">
+                <label for="emergency-student-search" style="display:block; margin-bottom:6px; font-size:12px; font-weight:800; color:#334155;">Scan RFID or type a student name</label>
+                <input id="emergency-student-search" class="swal2-input" style="width:100%; margin:0;" autocomplete="off" placeholder="RFID, name, or student number" />
+                <div id="emergency-student-matches" style="max-height:180px; overflow:auto; border:1px solid #e2e8f0; border-top:0;"></div>
+                <div style="margin-top:12px; font-size:12px; font-weight:800; color:#334155;">Selected students (multiple allowed)</div>
+                <div id="emergency-selected-students" style="margin-top:5px; max-height:190px; overflow:auto; border:1px solid #e2e8f0; border-radius:8px;">${renderSelectedStudents()}</div>
+            </div>
+            <label for="emergency-symptoms" style="display:block; margin:12px 0 6px; font-size:12px; font-weight:800; color:#334155;">Symptoms or short notes</label>
+            <textarea id="emergency-symptoms" class="swal2-textarea" style="width:100%; margin:0;" maxlength="1000" placeholder="Describe what happened or the assistance needed"></textarea>
+        </div>`,
+        showCancelButton: true,
+        confirmButtonText: 'Review Emergency',
+        confirmButtonColor: '#dc2626',
+        focusConfirm: false,
+        didOpen: () => {
+            const search = document.getElementById('emergency-student-search');
+            const matches = document.getElementById('emergency-student-matches');
+            const selected = document.getElementById('emergency-selected-students');
+            const specificPeople = document.getElementById('emergency-specific-people');
+            document.querySelectorAll('input[name="emergency-scope"]').forEach((radio) => {
+                radio.addEventListener('change', () => {
+                    emergencyScope = radio.checked ? radio.value : emergencyScope;
+                    specificPeople.style.display = emergencyScope === 'people' ? 'block' : 'none';
+                    if (emergencyScope === 'people') search.focus();
+                });
+            });
+            const refresh = () => {
+                matches.innerHTML = renderMatches(search.value);
+                selected.innerHTML = renderSelectedStudents();
+            };
+            search.addEventListener('input', refresh);
+            search.addEventListener('keydown', (event) => {
+                if (event.key !== 'Enter') return;
+                event.preventDefault();
+                const exact = studentDirectory.find(
+                    (student) =>
+                        String(student.rfid ?? '').toLowerCase() ===
+                        search.value.trim().toLowerCase(),
+                );
+                if (exact) {
+                    selectedStudents.set(String(exact.id), exact);
+                    search.value = '';
+                    refresh();
+                }
+            });
+            matches.addEventListener('click', (event) => {
+                const button = event.target.closest('[data-add-student]');
+                if (!button) return;
+                const student = studentDirectory.find(
+                    (item) => String(item.id) === button.dataset.addStudent,
+                );
+                if (student) selectedStudents.set(String(student.id), student);
+                search.value = '';
+                refresh();
+                search.focus();
+            });
+            selected.addEventListener('click', (event) => {
+                const button = event.target.closest('[data-remove-student]');
+                if (!button) return;
+                selectedStudents.delete(button.dataset.removeStudent);
+                refresh();
+            });
+            search.focus();
+        },
+        preConfirm: () => {
+            emergencyScope = document.querySelector('input[name="emergency-scope"]:checked')?.value ?? 'people';
+            if (emergencyScope === 'people' && selectedStudents.size === 0) {
+                Swal.showValidationMessage('Scan or select at least one student.');
+                return false;
+            }
+            if (emergencyScope === 'all') selectedStudents.clear();
+            symptoms = document.getElementById('emergency-symptoms').value.trim();
+            return true;
+        },
+    });
+
+    if (!assistanceResult.isConfirmed) return;
+    if (isAreaWideType) {
+        let areaWideDetails = '';
+        const detailsResult = await Swal.fire({
+            icon: isAreaWideType ? 'warning' : 'info',
+            title: `${emergencyType.name} details`,
+            html: `<div style="text-align:left;">
+                <label for="area-wide-emergency-details" style="display:block; margin-bottom:6px; font-size:12px; font-weight:800; color:#334155;">Optional details or instructions</label>
+                <textarea id="area-wide-emergency-details" class="swal2-textarea" style="width:100%; margin:0;" maxlength="1000" placeholder="Describe the affected area or what happened"></textarea>
+                <div id="area-wide-details-timer" style="margin-top:12px; border-radius:8px; background:#fff7ed; padding:9px; text-align:center; font-weight:800; color:#9a3412;">Continuing automatically in 15 seconds if no action is taken.</div>
+            </div>`,
+            showCancelButton: true,
+            confirmButtonText: 'Review Emergency',
+            confirmButtonColor: '#dc2626',
+            timer: 15000,
+            timerProgressBar: true,
+            allowOutsideClick: false,
+            didOpen: () => {
+                const detailsInput = document.getElementById('area-wide-emergency-details');
+                const timerText = document.getElementById('area-wide-details-timer');
+                const interval = window.setInterval(() => {
+                    const seconds = Math.max(0, Math.ceil((Swal.getTimerLeft() ?? 0) / 1000));
+                    if (timerText && Swal.getTimerLeft() !== null) {
+                        timerText.textContent = `Continuing automatically in ${seconds} second${seconds === 1 ? '' : 's'} if no action is taken.`;
+                    }
+                }, 200);
+                Swal.getPopup().dataset.detailsTimerInterval = String(interval);
+                detailsInput.addEventListener('input', () => {
+                    areaWideDetails = detailsInput.value.trim();
+                    Swal.stopTimer();
+                    if (timerText) timerText.textContent = 'Automatic continuation paused while details are being entered.';
+                });
+                detailsInput.focus();
+            },
+            preConfirm: () => {
+                areaWideDetails = document.getElementById('area-wide-emergency-details').value.trim();
+                return true;
+            },
+            willClose: () => {
+                areaWideDetails = document.getElementById('area-wide-emergency-details')?.value.trim() ?? areaWideDetails;
+                const interval = Number(Swal.getPopup()?.dataset.detailsTimerInterval);
+                if (interval) window.clearInterval(interval);
+            },
+        });
+        if (!detailsResult.isConfirmed && detailsResult.dismiss !== Swal.DismissReason.timer) return;
+        symptoms = areaWideDetails;
     }
 
     const professorName = activeProfessor.value?.name ?? 'Instructor';
@@ -1407,7 +1620,50 @@ const triggerEmergencyCall = async (
         ? ` Hotline: ${emergencyHotline.name} ${emergencyHotline.phone_number}.`
         : '';
     const panelMessage = `${emergencyMessage}${hotlineNote}`;
+    const people = Array.from(selectedStudents.values());
+    let countdown = 5;
+    const confirmationResult = await Swal.fire({
+        icon: 'warning',
+        title: 'Emergency Alert Confirmation',
+        width: 720,
+        html: `<div style="text-align:left;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
+                <div><strong>Emergency type</strong><br>${escapeHtml(emergencyType.name)}</div>
+                <div><strong>Laboratory/room</strong><br>${escapeHtml(selectedRoom.value || 'Not assigned')}</div>
+                <div><strong>Symptoms/notes</strong><br>${escapeHtml(symptoms || 'No notes supplied')}</div>
+                <div><strong>Selected hotline</strong><br>${escapeHtml(emergencyHotline ? `${emergencyHotline.name} - ${emergencyHotline.phone_number}` : 'No specific hotline')}</div>
+            </div>
+            ${emergencyScope === 'people'
+                ? `<div style="font-weight:800; margin-bottom:5px;">Students needing assistance</div><div style="max-height:220px; overflow:auto; border:1px solid #e2e8f0; border-radius:8px;">${renderSelectedStudents()}</div>`
+                : '<div style="padding:12px; border-radius:8px; background:#fff7ed; color:#9a3412; font-weight:800; text-align:center;">Everyone / area-wide emergency — student details are not required.</div>'}
+            <div id="emergency-countdown" style="margin-top:14px; padding:10px; border-radius:8px; background:#fef2f2; color:#b91c1c; text-align:center; font-weight:900;">Sending automatically in 5 seconds…</div>
+        </div>`,
+        showCancelButton: true,
+        showConfirmButton: false,
+        cancelButtonText: 'Cancel Alert',
+        allowOutsideClick: false,
+        allowEscapeKey: true,
+        timer: 5000,
+        timerProgressBar: true,
+        didOpen: () => {
+            const countdownElement = document.getElementById('emergency-countdown');
+            const interval = window.setInterval(() => {
+                countdown = Math.max(0, Math.ceil((Swal.getTimerLeft() ?? 0) / 1000));
+                if (countdownElement) {
+                    countdownElement.textContent = `Sending automatically in ${countdown} second${countdown === 1 ? '' : 's'}…`;
+                }
+            }, 200);
+            Swal.getPopup().dataset.countdownInterval = String(interval);
+        },
+        willClose: () => {
+            const interval = Number(Swal.getPopup()?.dataset.countdownInterval);
+            if (interval) window.clearInterval(interval);
+        },
+    });
 
+    if (confirmationResult.dismiss !== Swal.DismissReason.timer) return;
+
+    let alertResult = null;
     try {
         const xsrfRaw = document.cookie
             .split('; ')
@@ -1435,6 +1691,18 @@ const triggerEmergencyCall = async (
                     metadata: {
                         panel: 'attendance-control-panel',
                         mode: currentMode.value,
+                        emergency_scope: emergencyScope,
+                        student_id: people[0]?.id ?? null,
+                        student_rfid: people[0]?.rfid ?? null,
+                        symptoms: symptoms || null,
+                        students: people.map((student) => ({
+                            student_id: student.id,
+                            student_rfid: student.rfid,
+                            student_number: student.student_number,
+                            student_name: student.name,
+                            section: student.section,
+                            photo: student.photo,
+                        })),
                         emergency_hotline_id:
                             emergencyHotline?.emergency_hotline_id ?? null,
                         emergency_hotline_name: emergencyHotline?.name ?? null,
@@ -1450,6 +1718,7 @@ const triggerEmergencyCall = async (
         if (!response.ok) {
             throw new Error('Unable to save emergency alert.');
         }
+        alertResult = await response.json();
     } catch {
         showToast('error', 'Emergency alert could not be saved');
         return;
@@ -1464,10 +1733,19 @@ const triggerEmergencyCall = async (
         emergency_hotline: emergencyHotline?.name ?? null,
         emergency_called_at: new Date().toISOString(),
     });
+    const smsStatus = alertResult?.duplicate
+        ? 'Duplicate alert suppressed; the existing open alert remains active.'
+        : alertResult?.sms?.sent
+          ? 'Hotline SMS: sent successfully.'
+          : emergencyHotline
+            ? `Hotline SMS: not sent (${String(alertResult?.sms?.reason ?? 'unavailable').replaceAll('_', ' ')}).`
+            : 'Hotline SMS: not attempted because no hotline was selected.';
     Swal.fire({
-        icon: 'warning',
-        title: `${emergencyType.name} Sent`,
-        text: panelMessage,
+        icon: alertResult?.duplicate ? 'info' : 'warning',
+        title: alertResult?.duplicate
+            ? 'Existing Emergency Alert Kept'
+            : `${emergencyType.name} Sent`,
+        html: `<p>${escapeHtml(panelMessage)}</p><p style="margin-top:10px; font-weight:800;">${escapeHtml(smsStatus)}</p>`,
         confirmButtonColor: '#dc2626',
     });
 };

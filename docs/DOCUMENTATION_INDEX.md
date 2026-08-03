@@ -20,6 +20,7 @@ Choose the document that matches your task:
 | Understand laboratory and attendance-device management | [Laboratories and Devices](LABORATORIES_AND_DEVICES.md) |
 | Understand every role and its functionality | [Roles and Functionality](ROLES_AND_FUNCTIONALITY.md) |
 | Assign and respond to Clinic dispatches | [Clinic Dispatch Assignment](CLINIC_DISPATCH.md) |
+| Follow the complete emergency and Clinic response flow | [Emergency Alert and Clinic Response Flow](EMERGENCY_FLOW.md) |
 | Run automated tests and regression checks | [Testing and Regression Guide](TESTING.md) |
 | Plan and implement academic-year lifecycle support | [Academic Year Implementation Plan](ACADEMIC_YEAR_IMPLEMENTATION_PLAN.md) |
 | Audit deprecated academic assignment fields and rollback safety | [Legacy Academic Dependency Audit](LEGACY_ACADEMIC_DEPENDENCY_AUDIT.md) |
@@ -44,6 +45,7 @@ When several files discuss the same subject, use these as the source of truth:
 | Laboratory/device relationship, CRUD, PIN, and disable rules | [Laboratories and Devices](LABORATORIES_AND_DEVICES.md) | Summarize room or panel behavior where needed |
 | Role purpose, capabilities, workflows, and boundaries | [Roles and Functionality](ROLES_AND_FUNCTIONALITY.md) | Use short role summaries in other documents |
 | Clinic responder selection, notifications, and assignment rules | [Clinic Dispatch Assignment](CLINIC_DISPATCH.md) | Summarize dispatch behavior in role, flow, and operator documents |
+| Emergency panel flow, scope, timers, hotlines, Clinic cases, and status charts | [Emergency Alert and Clinic Response Flow](EMERGENCY_FLOW.md) | Summarize emergency behavior in tutorials and demonstrations |
 | Test commands, regression coverage, and failure troubleshooting | [Testing and Regression Guide](TESTING.md) | Reference current verification results without duplicating commands |
 | Demonstration structure and artifact selection | [Demonstration Documentation Map](DEMONSTRATION_DOCUMENTATION.md) | Supply a script, slide outline, or detailed rehearsal |
 
@@ -74,6 +76,7 @@ If a summary conflicts with its canonical source, update the summary and follow 
 ### Setup and technical reference
 
 - [CLINIC_DISPATCH.md](CLINIC_DISPATCH.md) — Canonical Clinic responder assignment, email notification, student-context, and case-ownership rules.
+- [EMERGENCY_FLOW.md](EMERGENCY_FLOW.md) — Canonical end-to-end emergency flow with hotline, scope, timer, Clinic Case, status, and Clinic response charts.
 
 - [RUNNING_THE_SYSTEM.md](RUNNING_THE_SYSTEM.md) — Complete setup, environment, database, development server, production build, and troubleshooting instructions.
 - [INSTALLATION_LINKS.md](INSTALLATION_LINKS.md) — Short list of external installation resources. Use together with Running the System.

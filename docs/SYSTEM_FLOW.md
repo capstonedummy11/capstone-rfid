@@ -743,6 +743,19 @@ Student portal visibility:
 
 Emergency alerts can originate from the console attendance panel and are handled from the clinic module.
 
+The exact panel sequence is:
+
+1. Instructor chooses **Emergency Call** and selects the emergency type.
+2. Before any assistance/details modal opens, the system resolves the hotline. One match is automatic; multiple matches open a filtered hotline-selection prompt; no match opens a continue-without-SMS warning.
+3. Fire/disaster types follow branch **3A** and use **Everyone / area-wide** automatically. Other types follow branch **3B** and open one **Who needs assistance?** modal containing **Specific person(s)**, **Everyone / area-wide**, Cancel, and optional details.
+4. Specific-person scope reveals RFID/name/student-number selection for multiple students. Area-wide scope hides student selection. Details are optional in both branches.
+5. **Review Emergency** opens the confirmation with the hotline already resolved.
+6. Unless cancelled, the alert sends after a visible five-second countdown.
+
+The alert metadata retains the selected scope and complete student list. On dispatch, Clinic creates one linked Clinic Case per selected student. An area-wide alert instead creates one generic case named **Everyone / Area-wide**, with patient type `area_wide` and no student ID.
+
+Clinic hotline types use a controlled list to prevent routing mismatches. When no active hotline matches, the panel gives an explicit warning and allows the in-app alert to continue without SMS. Repeated alerts with the same type and room inside ten seconds reuse the existing open alert. The result modal reports whether hotline SMS was sent, unavailable/failed, omitted, or suppressed with a duplicate. Dispatch records acknowledgement time, dispatch time, and response seconds. If no active Clinic responder is available, Dispatch remains disabled and the alert stays Open in the queue until a responder can be assigned; no dispatch timestamp or response duration is written prematurely.
+
 ```mermaid
 sequenceDiagram
     participant P as Attendance Panel
@@ -768,6 +781,8 @@ Clinic outputs:
 - `patient_histories` preserve longer-term medical history.
 - `emergency_hotlines` and `emergency_types` support clinic configuration.
 - Clinic reports aggregate alerts, cases, patient histories, response states, and severity/case-type data.
+
+For automatic area-wide fire/disaster handling, the optional incident/location-details modal has a visible 15-second idle countdown. If no action is taken, it continues automatically with empty details. Typing in the field pauses automatic continuation so unfinished information is not discarded.
 
 Clinic dashboard sound behavior:
 

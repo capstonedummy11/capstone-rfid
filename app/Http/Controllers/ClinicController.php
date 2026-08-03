@@ -45,10 +45,10 @@ class ClinicController
                 'clinicCases' => $clinicCases,
                 'patientHistories' => PatientHistory::count(),
                 'totalResponds' => $totalResponds,
-                'casesSubtitle' => $clinicCases . ' CASES RECORDED',
-                'respondsSubtitle' => $totalResponds . ' RESPONSES SENT',
-                'pendingSubtitle' => $openAlerts . ' OPEN ALERTS',
-                'todaySubtitle' => $todayAlerts . ' TODAY',
+                'casesSubtitle' => $clinicCases.' CASES RECORDED',
+                'respondsSubtitle' => $totalResponds.' RESPONSES SENT',
+                'pendingSubtitle' => $openAlerts.' OPEN ALERTS',
+                'todaySubtitle' => $todayAlerts.' TODAY',
                 'yearRange' => $this->yearRange(),
             ],
             'alerts' => $this->formatAlerts($alerts),
@@ -293,8 +293,23 @@ class ClinicController
         return $alerts->map(function (EmergencyAlert $alert) {
             $case = $alert->cases->sortByDesc('clinic_case_id')->first();
             $student = $this->studentForAlert($alert, $case);
-            $patientName = $case?->patient_name
-                ?: ($student ? trim($student->first_name . ' ' . $student->last_name) : ($alert->triggered_by_name ?: 'Unknown Patient'));
+            $metadata = $alert->metadata ?? [];
+            $patients = collect($metadata['students'] ?? [])
+                ->filter(fn ($person) => is_array($person) && ! empty($person['student_name']))
+                ->map(fn ($person) => [
+                    'student_id' => $person['student_id'] ?? null,
+                    'student_number' => $person['student_number'] ?? null,
+                    'name' => $person['student_name'],
+                    'section' => $person['section'] ?? null,
+                    'photo' => $person['photo'] ?? null,
+                ])
+                ->values();
+            $patientName = $patients->isNotEmpty()
+                ? $patients->pluck('name')->implode(', ')
+                : (($metadata['emergency_scope'] ?? null) === 'all'
+                    ? 'Everyone / Area-wide'
+                    : ($case?->patient_name
+                    ?: ($student ? trim($student->first_name.' '.$student->last_name) : ($alert->triggered_by_name ?: 'Unknown Patient'))));
             $severity = strtolower((string) $alert->severity);
             $status = strtolower((string) $alert->status);
             $category = match (true) {
@@ -307,13 +322,17 @@ class ClinicController
                 'id' => $alert->emergency_alert_id,
                 'patient_name' => $patientName,
                 'patient_avatar' => $this->studentAvatar($student),
+                'patients' => $patients,
                 'location' => $alert->room ?: 'No room assigned',
                 'department' => $alert->type?->category ?: 'General',
                 'category' => $category,
-                'symptoms' => $case?->symptoms ?: $alert->message,
+                'symptoms' => $metadata['symptoms'] ?? $case?->symptoms ?: $alert->message,
                 'symptoms_color' => $category,
                 'phone' => $student?->phone,
                 'time_sent' => optional($alert->created_at)->format('g:i A'),
+                'acknowledged_at' => optional($alert->acknowledged_at)->format('g:i A'),
+                'dispatched_at' => optional($alert->dispatched_at)->format('g:i A'),
+                'response_seconds' => $alert->response_seconds,
                 'email' => $student?->email,
             ];
         })->values();
@@ -410,7 +429,7 @@ class ClinicController
 
         $year = now()->year;
 
-        return $year . ' - ' . ($year + 1);
+        return $year.' - '.($year + 1);
     }
 
     private function validatedCase(Request $request): array
