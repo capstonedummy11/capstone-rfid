@@ -52,14 +52,14 @@ Hotline routing happens immediately after emergency-type selection and before **
 
 ```mermaid
 flowchart TD
-    Type[Instructor selects emergency type] --> Match{Matching active hotlines}
-    Match -->|One| Auto[Select hotline automatically]
-    Match -->|Multiple| Choose[Instructor selects one matching hotline]
-    Choose -->|Cancel| Stop[Cancel entire emergency flow]
-    Match -->|None| Warn[Warn that no matching hotline exists]
-    Warn -->|Continue| NoSms[Continue with in-app alert only]
+    Type["Instructor selects emergency type"] --> Match{"Matching active hotlines"}
+    Match -->|One| Auto["Select hotline automatically"]
+    Match -->|Multiple| Choose["Instructor selects one matching hotline"]
+    Choose -->|Cancel| Stop["Cancel entire emergency flow"]
+    Match -->|None| Warn["Warn that no matching hotline exists"]
+    Warn -->|Continue| NoSms["Continue with in-app alert only"]
     Warn -->|Cancel| Stop
-    Auto --> Scope[Determine emergency scope]
+    Auto --> Scope["Determine emergency scope"]
     Choose --> Scope
     NoSms --> Scope
 ```
@@ -115,15 +115,15 @@ When **Everyone / area-wide** is selected:
 
 ```mermaid
 flowchart TD
-    Scope{Emergency scope}
-    Scope -->|Fire or disaster| Area[Everyone / area-wide]
-    Area --> Details[Optional details with 15-second idle advance]
-    Scope -->|Other type| Modal[Who needs assistance modal]
-    Modal -->|Specific person(s)| People[RFID or name/number search]
-    People --> Many[Add one or more students]
-    Modal -->|Everyone / area-wide| NoPeople[Hide student selection]
-    Modal -->|Cancel| Stop[Cancel entire emergency flow]
-    Details --> Review[Final confirmation]
+    Scope{"Emergency scope"}
+    Scope -->|"Fire or disaster"| Area["Everyone / area-wide"]
+    Area --> Details["Optional details with 15-second idle advance"]
+    Scope -->|"Other type"| Modal["Who needs assistance modal"]
+    Modal -->|"Specific person(s)"| People["RFID or name/number search"]
+    People --> Many["Add one or more students"]
+    Modal -->|"Everyone / area-wide"| NoPeople["Hide student selection"]
+    Modal -->|Cancel| Stop["Cancel entire emergency flow"]
+    Details --> Review["Final confirmation"]
     Many --> Review
     NoPeople --> Review
 ```
@@ -154,26 +154,26 @@ Alerts with the same emergency type and room inside ten seconds reuse the existi
 
 ```mermaid
 flowchart TD
-    Alert[Open emergency alert arrives] --> Dashboard[Clinic dashboard refreshes]
-    Dashboard --> Sound[Play emergency sound after browser audio is enabled]
-    Dashboard --> Review[Review type, room, scope, people, and details]
-    Review --> Available{Clinic responder available?}
-    Available -->|No| Queue[Keep alert Open and queued]
+    Alert["Open emergency alert arrives"] --> Dashboard["Clinic dashboard refreshes"]
+    Dashboard --> Sound["Play emergency sound after browser audio is enabled"]
+    Dashboard --> Review["Review type, room, scope, people, and details"]
+    Review --> Available{"Clinic responder available?"}
+    Available -->|No| Queue["Keep alert Open and queued"]
     Queue --> Available
-    Available -->|Yes| Select[Select Clinic responder]
-    Select --> Dispatch[Dispatch]
-    Dispatch --> Ack[Status becomes Acknowledged]
-    Ack --> Metrics[Save acknowledgement, dispatch, and response metrics]
-    Metrics --> CaseRule{Alert scope}
-    CaseRule -->|Specific students| StudentCases[Create one Clinic Case per student]
-    CaseRule -->|Area-wide| GenericCase[Create one Everyone / Area-wide incident case]
-    StudentCases --> Assign[Assign responder]
+    Available -->|Yes| Select["Select Clinic responder"]
+    Select --> Dispatch["Dispatch"]
+    Dispatch --> Ack["Status becomes Acknowledged"]
+    Ack --> Metrics["Save acknowledgement, dispatch, and response metrics"]
+    Metrics --> CaseRule{"Alert scope"}
+    CaseRule -->|"Specific students"| StudentCases["Create one Clinic Case per student"]
+    CaseRule -->|"Area-wide"| GenericCase["Create one Everyone / Area-wide incident case"]
+    StudentCases --> Assign["Assign responder"]
     GenericCase --> Assign
-    Assign --> Notify[Attempt responder email notification]
-    Notify --> Logs[Continue in Case Logs and Patient History]
-    Logs --> Finish{Response complete?}
-    Finish -->|Yes| Resolve[Resolve alert]
-    Finish -->|Invalid or cancelled| Cancel[Cancel alert]
+    Assign --> Notify["Attempt responder email notification"]
+    Notify --> Logs["Continue in Case Logs and Patient History"]
+    Logs --> Finish{"Response complete?"}
+    Finish -->|Yes| Resolve["Resolve alert"]
+    Finish -->|"Invalid or cancelled"| Cancel["Cancel alert"]
 ```
 
 ### No Responder Available
@@ -251,4 +251,3 @@ An emergency alert can retain:
 - Browser emergency audio requires the Clinic user to interact with the page once.
 - Physical RFID behavior must be verified with the deployed reader.
 - A separate Clinic acknowledgement action before responder dispatch is not currently implemented.
-
