@@ -358,6 +358,55 @@ test('online class uses the configured late threshold', function () {
         'status' => 'late',
         'is_late' => true,
     ]);
+
+    $firstAttendance = DB::table('online_class_attendances')
+        ->where('online_class_id', $onlineClassId)
+        ->where('student_id', $fixture['student']->student_id)
+        ->first();
+    Carbon::setTestNow($now->copy()->addMinutes(20));
+    $this->actingAs($studentUser)
+        ->post(route('student-parent.online-classes.join', $onlineClassId))
+        ->assertRedirect();
+    $repeatedAttendance = DB::table('online_class_attendances')
+        ->where('online_class_id', $onlineClassId)
+        ->where('student_id', $fixture['student']->student_id)
+        ->first();
+    expect($repeatedAttendance->joined_at)->toBe($firstAttendance->joined_at)
+        ->and($repeatedAttendance->status)->toBe('late');
+    Carbon::setTestNow();
+});
+
+test('students cannot record online attendance before the scheduled start time', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    $fixture = attendanceVerificationFixture();
+    $studentUser = User::factory()->create([
+        'role' => 'student',
+        'email' => $fixture['student']->email,
+    ]);
+    $onlineClassId = DB::table('online_classes')->insertGetId([
+        'schedule_id' => $fixture['schedule']->scheduled_id,
+        'instructor_id' => $fixture['schedule']->instructor_id,
+        'section_id' => $fixture['student']->section_id,
+        'subject_code' => 'ATT-SEC-101',
+        'title' => 'Future Online Class',
+        'meeting_link' => 'https://example.test/future',
+        'scheduled_date' => now()->addDay()->toDateString(),
+        'start_time' => '08:00:00',
+        'end_time' => '09:00:00',
+        'require_face_recognition' => false,
+        'status' => 'scheduled',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $this->actingAs($studentUser)
+        ->post(route('student-parent.online-classes.join', $onlineClassId))
+        ->assertStatus(422);
+
+    $this->assertDatabaseMissing('online_class_attendances', [
+        'online_class_id' => $onlineClassId,
+        'student_id' => $fixture['student']->student_id,
+    ]);
 });
 
 test('students cannot record online attendance after the scheduled end time', function () {
@@ -383,13 +432,18 @@ test('students cannot record online attendance after the scheduled end time', fu
         'updated_at' => now(),
     ]);
 
+    $this->artisan('online-classes:finalize-attendance')
+        ->expectsOutput('Created 1 online-class absence record(s).')
+        ->assertSuccessful();
+
     $this->actingAs($studentUser)
         ->post(route('student-parent.online-classes.join', $onlineClassId))
         ->assertStatus(422);
 
-    $this->assertDatabaseMissing('online_class_attendances', [
+    $this->assertDatabaseHas('online_class_attendances', [
         'online_class_id' => $onlineClassId,
         'student_id' => $fixture['student']->student_id,
+        'status' => 'absent',
     ]);
 });
 

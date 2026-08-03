@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Services\CompreFaceService;
 use App\Services\ExcuseLetterPdfService;
 use App\Services\MessengerEmailNotificationService;
+use App\Services\OnlineClassAttendanceFinalizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -31,6 +32,7 @@ class StudentsController
 {
     public function __construct(
         private readonly MessengerEmailNotificationService $emailNotifications,
+        private readonly OnlineClassAttendanceFinalizer $onlineAttendanceFinalizer,
     ) {}
 
     public function index()
@@ -1305,6 +1307,8 @@ class StudentsController
         if (! $student) {
             return collect();
         }
+
+        $this->onlineAttendanceFinalizer->finalizeEnded();
 
         $rfidAttendance = $this->attendanceQuery($student)
             ->get()

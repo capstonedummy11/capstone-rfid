@@ -2,10 +2,18 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+Artisan::command('online-classes:finalize-attendance', function (\App\Services\OnlineClassAttendanceFinalizer $finalizer) {
+    $created = $finalizer->finalizeEnded();
+    $this->info("Created {$created} online-class absence record(s).");
+})->purpose('Persist Absent attendance for students who did not join ended online classes');
+
+Schedule::command('online-classes:finalize-attendance')->everyMinute()->withoutOverlapping();
 
 Artisan::command('db:schema-notes', function () {
     $descriptions = [
@@ -25,7 +33,7 @@ Artisan::command('db:schema-notes', function () {
     foreach (\Illuminate\Support\Facades\DB::select('SHOW TABLES') as $row) {
         $table = array_values((array) $row)[0];
         $this->newLine();
-        $this->line("<info>{$table}</info> - " . ($descriptions[$table] ?? 'Application data table.'));
+        $this->line("<info>{$table}</info> - ".($descriptions[$table] ?? 'Application data table.'));
 
         foreach (\Illuminate\Support\Facades\Schema::getColumns($table) as $column) {
             $nullable = ($column['nullable'] ?? false) ? 'nullable' : 'required';

@@ -10,6 +10,7 @@ use App\Models\OnlineClassAttendance;
 use App\Models\Students;
 use App\Models\Subject;
 use App\Models\SystemSetting;
+use App\Services\OnlineClassAttendanceFinalizer;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -37,6 +38,8 @@ class AttendanceManagementController extends Controller
         'Unexcused',
         'Online Class',
     ];
+
+    public function __construct(private readonly OnlineClassAttendanceFinalizer $attendanceFinalizer) {}
 
     public function index(Request $request): Response|SymfonyResponse
     {
@@ -407,6 +410,8 @@ class AttendanceManagementController extends Controller
 
     private function onlineClassesFor(Subject $subject, ?int $instructorId): Builder
     {
+        $this->attendanceFinalizer->finalizeEnded();
+
         return OnlineClass::query()
             ->where('section_id', $subject->section_id)
             ->where('subject_code', $subject->subject_code)

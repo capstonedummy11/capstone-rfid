@@ -142,6 +142,14 @@ npm run dev
 Open:
 - App: `http://127.0.0.1:8000`
 
+For automatic online-class absence finalization in production, keep Laravel's scheduler running. On a development machine, you can run this in another terminal:
+
+```bash
+php artisan schedule:work
+```
+
+The relevant application pages also run the same idempotent finalizer, so normal local demonstrations remain correct even when `schedule:work` is not open.
+
 ## Step 8: Default Troubleshooting
 
 ### Problem: `php` command not found

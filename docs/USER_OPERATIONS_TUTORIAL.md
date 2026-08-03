@@ -592,11 +592,14 @@ Student flow:
 Online attendance timing:
 
 - Attendance remains Pending before the scheduled class end when the student has not joined.
+- Students cannot record attendance before the scheduled start time.
 - Joining successfully before the end time records participation.
 - After the scheduled end, joining is closed.
+- Repeated Join clicks preserve the first recorded join time and status.
 - Joined students display as Present within the configured grace period or Late after it; non-joined section students display as Absent after class end.
 - Admin or the assigned Instructor can edit the online result from the online attendance-session card while the date remains inside the configured Attendance Days correction window.
 - Attendance pages label Online Class sessions separately from normal in-person sessions while retaining the Online Class summary column.
+- After class end, the system permanently creates Absent online-attendance rows for active section students who never joined. Production should run Laravel's scheduler; attendance and online-class pages also finalize safely during local use.
 
 Admin audit flow:
 

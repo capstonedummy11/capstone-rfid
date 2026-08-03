@@ -11,6 +11,7 @@ use App\Models\Schedule;
 use App\Models\Students;
 use App\Models\SystemSetting;
 use App\Services\AwsFaceRecognitionService;
+use App\Services\OnlineClassAttendanceFinalizer;
 use App\Services\OnlineClassAuditLogger;
 use App\Services\OnlineClassNotificationService;
 use Illuminate\Http\Request;
@@ -24,10 +25,12 @@ class OnlineClassController
     public function __construct(
         private OnlineClassAuditLogger $auditLogger,
         private OnlineClassNotificationService $notificationService,
+        private OnlineClassAttendanceFinalizer $attendanceFinalizer,
     ) {}
 
     public function index(Request $request)
     {
+        $this->attendanceFinalizer->finalizeEnded();
         $user = $request->user();
         $role = strtolower(trim((string) $user?->role));
         $instructorId = $this->instructorId($user?->user_id);
@@ -145,6 +148,7 @@ class OnlineClassController
 
     public function studentIndex(Request $request)
     {
+        $this->attendanceFinalizer->finalizeEnded();
         $student = $this->currentStudent($request);
         abort_unless($student, 403);
 
@@ -172,8 +176,21 @@ class OnlineClassController
         $student = $this->currentStudent($request);
         abort_unless($student && (int) $student->section_id === (int) $onlineClass->section_id, 403);
         abort_if($onlineClass->status === 'cancelled', 422, 'This online class is cancelled.');
+        $scheduledStart = Carbon::parse($onlineClass->scheduled_date->format('Y-m-d').' '.$onlineClass->start_time);
         $scheduledEnd = Carbon::parse($onlineClass->scheduled_date->format('Y-m-d').' '.$onlineClass->end_time);
-        abort_if(now()->greaterThan($scheduledEnd), 422, 'This online class has ended. Attendance is already closed.');
+        abort_if(now()->lessThan($scheduledStart), 422, 'Online attendance opens at the scheduled class start time.');
+        if (now()->greaterThan($scheduledEnd)) {
+            $this->attendanceFinalizer->finalize($onlineClass);
+            abort(422, 'This online class has ended. Attendance is already closed.');
+        }
+
+        $existingAttendance = OnlineClassAttendance::query()
+            ->where('online_class_id', $onlineClass->online_class_id)
+            ->where('student_id', $student->student_id)
+            ->first();
+        if ($existingAttendance && ($existingAttendance->joined_at || in_array(strtolower((string) $existingAttendance->status), ['present', 'late', 'absent', 'excused'], true))) {
+            return back()->with('success', 'Online class attendance was already recorded.');
+        }
 
         $validated = $request->validate([
             'face_verified' => ['nullable', 'boolean'],
@@ -200,8 +217,7 @@ class OnlineClassController
 
         $joinedAt = now();
         $lateThreshold = max(0, SystemSetting::integer(SystemSetting::ATTENDANCE_LATE_THRESHOLD_MINUTES, 15));
-        $lateBoundary = Carbon::parse($onlineClass->scheduled_date->format('Y-m-d').' '.$onlineClass->start_time)
-            ->addMinutes($lateThreshold);
+        $lateBoundary = $scheduledStart->copy()->addMinutes($lateThreshold);
         $isLate = $joinedAt->greaterThan($lateBoundary);
         $attendance = OnlineClassAttendance::query()->updateOrCreate(
             [

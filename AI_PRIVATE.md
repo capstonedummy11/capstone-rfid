@@ -35,6 +35,7 @@ Add newest entries at the top.
 
 | Date | Prompt / Request | Files Changed | Summary |
 | --- | --- | --- | --- |
+| 2026-08-03 | Fix early online joins, repeat-join status changes, and non-persisted automatic absences. | Online attendance finalizer service, online/attendance/student controllers, console schedule, tests and docs | Enforced the exact class join window, made successful joins idempotent, and added scheduled plus lazy idempotent persistence of Absent rows for ended online classes. |
 | 2026-08-03 | Keep each subject color stable across logins. | Attendance management controller, subject selection/dashboard pages, README | Assigned colors deterministically from subject identity so a green subject remains green across logins and devices. |
 | 2026-08-03 | Let instructors see who is Present, Absent, and other statuses during an online class. | `OnlineClassController`, Admin Online Classes page, README/tutorial | Added a direct View Attendance link from each manageable online class to its live full-roster attendance sheet with Present, Late, Pending, Absent, and Excused states. |
 | 2026-08-03 | Make online attendance Late like the panel and editable within Attendance Days. | Online/attendance controllers, online session editor route, attendance tests and docs | Applied the configured late threshold to online joins, preserved Late as the final result, and added scoped audited online attendance corrections for Present, Late, Absent, and Excused within the normal edit window. |
