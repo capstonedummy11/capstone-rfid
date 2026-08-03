@@ -21,6 +21,11 @@ Choose the document that matches your task:
 | Understand every role and its functionality | [Roles and Functionality](ROLES_AND_FUNCTIONALITY.md) |
 | Assign and respond to Clinic dispatches | [Clinic Dispatch Assignment](CLINIC_DISPATCH.md) |
 | Run automated tests and regression checks | [Testing and Regression Guide](TESTING.md) |
+| Plan and implement academic-year lifecycle support | [Academic Year Implementation Plan](ACADEMIC_YEAR_IMPLEMENTATION_PLAN.md) |
+| Audit deprecated academic assignment fields and rollback safety | [Legacy Academic Dependency Audit](LEGACY_ACADEMIC_DEPENDENCY_AUDIT.md) |
+| Run final academic-year reconciliation and release checks | [Academic Year Final Verification](ACADEMIC_YEAR_FINAL_VERIFICATION.md) |
+| Review academic-year file and database impact | [Academic Year Implementation Impact Map](ACADEMIC_YEAR_IMPLEMENTATION_IMPACT.md) |
+| Review every page's database impact | [Page Files and Database Impact Map](PAGE_DATABASE_IMPACT_MAP.md) |
 | Prepare a capstone demonstration | [Demonstration Documentation Map](DEMONSTRATION_DOCUMENTATION.md) |
 
 ## Canonical Sources
@@ -78,6 +83,9 @@ If a summary conflicts with its canonical source, update the summary and follow 
 - [LABORATORIES_AND_DEVICES.md](LABORATORIES_AND_DEVICES.md) — Canonical relationship and ownership rules for physical rooms and their managed attendance devices.
 - [ROLES_AND_FUNCTIONALITY.md](ROLES_AND_FUNCTIONALITY.md) — Canonical explanation of Root Admin, Admin, Instructor, Registrar, Clinic, Console, Student, and Parent responsibilities and access boundaries.
 - [REUSABLE_LANDING_ROUTES.md](REUSABLE_LANDING_ROUTES.md) — Developer reference for reusable landing-page routes and components.
+- [ACADEMIC_YEAR_IMPLEMENTATION_PLAN.md](ACADEMIC_YEAR_IMPLEMENTATION_PLAN.md) — Phased implementation runbook for academic years, enrollment history, offerings, rollover, migration, and verification.
+- [ACADEMIC_YEAR_IMPLEMENTATION_IMPACT.md](ACADEMIC_YEAR_IMPLEMENTATION_IMPACT.md) — Pre-implementation map of affected pages, backend files, and database tables.
+- [PAGE_DATABASE_IMPACT_MAP.md](PAGE_DATABASE_IMPACT_MAP.md) — Repository-wide mapping of Vue page files to database reads, writes, deletes, and indirect effects.
 
 ## Recommended Reading Paths
 

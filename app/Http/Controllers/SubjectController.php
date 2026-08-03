@@ -3,11 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use App\Models\AcademicYear;
+use App\Models\Instructor;
 use App\Models\Section;
 use App\Models\Subject;
+use App\Models\SubjectOffering;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class SubjectController
@@ -19,7 +24,7 @@ class SubjectController
             'semester' => trim((string) $request->input('semester', '')),
         ];
 
-        $query = Subject::query()->with(['section', 'user']);
+        $query = Subject::query()->with(['section', 'user', 'offerings.academicYear', 'offerings.section', 'offerings.instructor.user']);
 
         if ($filters['search'] !== '') {
             $term = strtolower($filters['search']);
@@ -48,6 +53,21 @@ class SubjectController
                 'department' => $subject->department,
                 'unit' => $subject->unit,
                 'semester' => $subject->semester,
+                'offerings' => $subject->offerings
+                    ->sortByDesc(fn (SubjectOffering $offering) => $offering->academicYear?->starts_on)
+                    ->map(fn (SubjectOffering $offering) => [
+                        'subject_offering_id' => $offering->subject_offering_id,
+                        'academic_year' => $offering->academicYear?->name,
+                        'academic_year_status' => $offering->academicYear?->status,
+                        'semester' => $offering->semester,
+                        'section_id' => $offering->section_id,
+                        'section_name' => $offering->section?->section_name,
+                        'instructor_id' => $offering->instructor_id,
+                        'instructor_name' => $offering->instructor?->user?->name,
+                        'status' => $offering->status,
+                        'is_writable' => $offering->isWritable(),
+                    ])->values(),
+                'has_locked_offerings' => $subject->offerings->contains(fn (SubjectOffering $offering) => ! $offering->isWritable()),
             ])->values(),
             'filters' => $filters,
             'sectionOptions' => Section::query()
@@ -65,7 +85,8 @@ class SubjectController
                     ]))),
                 ])
                 ->values(),
-            'instructorOptions' => User::query()->orderBy('name')->get(['user_id', 'name', 'role'])->values(),
+            'instructorOptions' => User::query()->where('role', 'instructor')->orderBy('name')->get(['user_id', 'name', 'role'])->values(),
+            'activeAcademicYearId' => AcademicYear::active()?->academic_year_id,
         ]);
     }
 
@@ -82,7 +103,12 @@ class SubjectController
             'semester' => 'nullable|string|max:255',
         ]);
 
-        $subject = Subject::create($validated);
+        $subject = DB::transaction(function () use ($validated) {
+            $subject = Subject::create(collect($validated)->except(['section_id', 'user_id', 'semester'])->all());
+            $this->syncOfferingFromLegacyFields($subject, $validated);
+
+            return $subject;
+        });
         $this->log('create', 'subjects', 'Created subject ' . $subject->subject_code);
 
         return back()->with('success', 'Subject added successfully.');
@@ -91,6 +117,10 @@ class SubjectController
     public function update(Request $request, int $id)
     {
         $subject = Subject::findOrFail($id);
+
+        if ($subject->offerings()->with('academicYear')->get()->contains(fn (SubjectOffering $offering) => ! $offering->isWritable())) {
+            return back()->withErrors(['subject' => 'This catalog subject has a closed or archived offering and cannot be renamed or deleted. Add a new offering instead.']);
+        }
 
         $validated = $request->validate([
             'section_id' => 'nullable|exists:sections,section_id',
@@ -103,7 +133,10 @@ class SubjectController
             'semester' => 'nullable|string|max:255',
         ]);
 
-        $subject->update($validated);
+        DB::transaction(function () use ($subject, $validated) {
+            $subject->update(collect($validated)->except(['section_id', 'user_id', 'semester'])->all());
+            $this->syncOfferingFromLegacyFields($subject, $validated);
+        });
         $this->log('update', 'subjects', 'Updated subject ' . $subject->subject_code);
 
         return back()->with('success', 'Subject updated successfully.');
@@ -112,11 +145,109 @@ class SubjectController
     public function destroy(int $id)
     {
         $subject = Subject::findOrFail($id);
+        if ($subject->offerings()->exists() || $subject->schedules()->exists()) {
+            return back()->withErrors(['subject' => 'This subject has offering or schedule history and cannot be deleted.']);
+        }
         $code = $subject->subject_code;
         $subject->delete();
         $this->log('delete', 'subjects', 'Deleted subject ' . $code);
 
         return back()->with('success', 'Subject deleted successfully.');
+    }
+
+    public function storeOffering(Request $request, Subject $subject)
+    {
+        $validated = $request->validate([
+            'section_id' => ['required', 'exists:sections,section_id'],
+            'user_id' => ['nullable', 'exists:users,user_id'],
+            'semester' => ['required', 'string', 'max:50'],
+            'status' => ['nullable', 'in:active,inactive'],
+        ]);
+
+        $section = Section::query()->with('academicYear')->findOrFail($validated['section_id']);
+        if (! $section->academicYear || ! $section->academicYear->isWritable()) {
+            return back()->withErrors(['section_id' => 'Subject offerings can only be added to a draft or active academic year section.']);
+        }
+
+        $instructorId = $this->instructorIdForUser($validated['user_id'] ?? null);
+        if (SubjectOffering::query()
+            ->where('academic_year_id', $section->academic_year_id)
+            ->where('subject_id', $subject->subject_id)
+            ->where('section_id', $section->section_id)
+            ->where('semester', $validated['semester'])
+            ->exists()) {
+            return back()->withErrors(['section_id' => 'This subject is already offered to that section in the selected academic year and semester.']);
+        }
+        SubjectOffering::query()->create([
+            'academic_year_id' => $section->academic_year_id,
+            'subject_id' => $subject->subject_id,
+            'section_id' => $section->section_id,
+            'instructor_id' => $instructorId,
+            'semester' => $validated['semester'],
+            'status' => $validated['status'] ?? 'active',
+        ]);
+
+        $this->log('create', 'subject_offerings', "Added {$subject->subject_code} offering for {$section->section_name} ({$section->school_year}).");
+
+        return back()->with('success', 'Subject offering added.');
+    }
+
+    public function destroyOffering(SubjectOffering $subjectOffering)
+    {
+        $subjectOffering->loadMissing(['academicYear', 'subject']);
+        if (! $subjectOffering->isWritable()) {
+            return back()->withErrors(['offering' => 'A closed or archived subject offering cannot be deleted.']);
+        }
+
+        $hasSchedule = DB::table('schedules')
+            ->where('section_id', $subjectOffering->section_id)
+            ->where('subject_code', $subjectOffering->subject?->subject_code)
+            ->exists();
+        if ($hasSchedule) {
+            return back()->withErrors(['offering' => 'This offering is used by a schedule and cannot be deleted.']);
+        }
+
+        $label = $subjectOffering->subject?->subject_code;
+        $subjectOffering->delete();
+        $this->log('delete', 'subject_offerings', "Deleted {$label} subject offering.");
+
+        return back()->with('success', 'Subject offering deleted.');
+    }
+
+    private function syncOfferingFromLegacyFields(Subject $subject, array $validated): void
+    {
+        if (empty($validated['section_id'])) {
+            return;
+        }
+
+        $section = Section::query()->with('academicYear')->findOrFail($validated['section_id']);
+        if (! $section->academicYear || ! $section->academicYear->isWritable()) {
+            throw ValidationException::withMessages([
+                'section_id' => 'A subject offering cannot be created or changed in a closed or archived academic year.',
+            ]);
+        }
+
+        SubjectOffering::query()->updateOrCreate(
+            [
+                'academic_year_id' => $section->academic_year_id,
+                'subject_id' => $subject->subject_id,
+                'section_id' => $section->section_id,
+                'semester' => $validated['semester'] ?: $section->semester,
+            ],
+            [
+                'instructor_id' => $this->instructorIdForUser($validated['user_id'] ?? null),
+                'status' => 'active',
+            ],
+        );
+    }
+
+    private function instructorIdForUser(int|string|null $userId): ?int
+    {
+        if (! $userId) {
+            return null;
+        }
+
+        return Instructor::query()->where('user_id', $userId)->value('instructor_id');
     }
 
     private function log(string $action, string $tableName, string $description): void

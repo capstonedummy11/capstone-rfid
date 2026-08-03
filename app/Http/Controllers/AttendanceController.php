@@ -94,6 +94,7 @@ class AttendanceController
 
         $today = now()->toDateString();
         $nowTime = now()->format('H:i:s');
+        $scheduleContext = $this->attendanceAcademicContext($validated['schedule_id'] ?? null);
         $attendanceSession = DB::table('attendance_sessions')
             ->where('room', $validated['room'])
             ->whereDate('date', $today)
@@ -105,6 +106,8 @@ class AttendanceController
                 DB::table('attendance_sessions')->insert([
                     'subject_code' => $validated['subject_code'] ?? null,
                     'schedule_id' => $validated['schedule_id'] ?? null,
+                    'academic_year_id' => $scheduleContext['academic_year_id'],
+                    'subject_offering_id' => $scheduleContext['subject_offering_id'],
                     'date' => $today,
                     'time_start' => $nowTime,
                     'time_end' => null,
@@ -119,6 +122,8 @@ class AttendanceController
                     ->update([
                         'subject_code' => $validated['subject_code'] ?? $attendanceSession->subject_code,
                         'schedule_id' => $validated['schedule_id'] ?? $attendanceSession->schedule_id,
+                        'academic_year_id' => $scheduleContext['academic_year_id'] ?? $attendanceSession->academic_year_id,
+                        'subject_offering_id' => $scheduleContext['subject_offering_id'] ?? $attendanceSession->subject_offering_id,
                         'status' => 'attendance',
                         'time_start' => $attendanceSession->time_start ?: $nowTime,
                         'time_end' => null,
@@ -197,14 +202,13 @@ class AttendanceController
 
         $currentSchedule = null;
         if ($scheduleId) {
-            $currentSchedule = Schedule::query()->find($scheduleId);
+            $currentSchedule = Schedule::query()->forActiveAcademicYear()->find($scheduleId);
         }
 
         $currentSubject = null;
         if ($subjectCode && $currentSchedule) {
             $currentSubject = Subject::query()
                 ->where('subject_code', $subjectCode)
-                ->where('section_id', $currentSchedule->section_id)
                 ->first();
         }
 
@@ -215,16 +219,31 @@ class AttendanceController
             ], 422);
         }
 
-        // Main guard: a student must belong to the active schedule section.
-        if ((int) $student->section_id !== (int) $currentSchedule->section_id) {
+        $eligibleEnrollment = $currentSchedule->academic_year_id
+            ? \App\Models\StudentEnrollment::query()
+                ->where('student_id', $student->student_id)
+                ->where('academic_year_id', $currentSchedule->academic_year_id)
+                ->where('section_id', $currentSchedule->section_id)
+                ->where('status', 'active')
+                ->when($currentSchedule->semester, fn ($query) => $query->where('semester', $currentSchedule->semester))
+                ->first()
+            : null;
+
+        // The current class roster comes from the schedule's year enrollment, not the student's mutable profile.
+        if (($currentSchedule->academic_year_id && ! $eligibleEnrollment)
+            || (! $currentSchedule->academic_year_id && (int) $student->section_id !== (int) $currentSchedule->section_id)) {
             return response()->json([
                 'ok' => false,
-                'message' => 'Student is not in this class section.',
+                'message' => 'Student has no active enrollment for this class section and academic year.',
             ], 422);
+        }
+        if (! $currentSchedule->academic_year_id) {
+            \App\Services\LegacyAcademicFallbackMonitor::record('attendance.tap_legacy_section', ['schedule_id' => $currentSchedule->scheduled_id, 'student_id' => $student->student_id]);
         }
 
         // Optional guard: if subject year level is set, ensure it aligns too.
-        if ($currentSubject && ! is_null($currentSubject->year_level) && (int) $student->year_level !== (int) $currentSubject->year_level) {
+        $eligibleYearLevel = $eligibleEnrollment?->year_level ?? $student->year_level;
+        if ($currentSubject && ! is_null($currentSubject->year_level) && (int) $eligibleYearLevel !== (int) $currentSubject->year_level) {
             return response()->json([
                 'ok' => false,
                 'message' => 'Student year level does not match this class.',
@@ -462,7 +481,7 @@ class AttendanceController
 
         $scheduleId = $validated['schedule_id'] ?? $attendanceSession->schedule_id;
         $subjectCode = $validated['subject_code'] ?? $attendanceSession->subject_code;
-        $currentSchedule = $scheduleId ? Schedule::query()->find($scheduleId) : null;
+        $currentSchedule = $scheduleId ? Schedule::query()->forActiveAcademicYear()->find($scheduleId) : null;
 
         if (! $currentSchedule) {
             return response()->json([
@@ -471,7 +490,11 @@ class AttendanceController
             ], 422);
         }
 
-        if ((int) $student->section_id !== (int) $currentSchedule->section_id) {
+        $eligibleEnrollment = $currentSchedule->academic_year_id ? \App\Models\StudentEnrollment::query()
+            ->where('student_id', $student->student_id)->where('academic_year_id', $currentSchedule->academic_year_id)
+            ->where('section_id', $currentSchedule->section_id)->where('status', 'active')->first() : null;
+        if (($currentSchedule->academic_year_id && ! $eligibleEnrollment)
+            || (! $currentSchedule->academic_year_id && (int) $student->section_id !== (int) $currentSchedule->section_id)) {
             return response()->json([
                 'ok' => false,
                 'message' => 'Student is not enrolled in this class section.',
@@ -482,11 +505,10 @@ class AttendanceController
         if ($subjectCode) {
             $currentSubject = Subject::query()
                 ->where('subject_code', $subjectCode)
-                ->where('section_id', $currentSchedule->section_id)
                 ->first();
         }
 
-        if ($currentSubject && ! is_null($currentSubject->year_level) && (int) $student->year_level !== (int) $currentSubject->year_level) {
+        if ($currentSubject && ! is_null($currentSubject->year_level) && (int) ($eligibleEnrollment?->year_level ?? $student->year_level) !== (int) $currentSubject->year_level) {
             return response()->json([
                 'ok' => false,
                 'message' => 'Student year level does not match this class.',
@@ -988,6 +1010,7 @@ class AttendanceController
 
             if ($room) {
                 $matchingSchedules = Schedule::query()
+                    ->forActiveAcademicYear()
                     ->leftJoin('subjects', function ($join) {
                         $join->on('subjects.subject_code', '=', 'schedules.subject_code')
                             ->on('subjects.section_id', '=', 'schedules.section_id');
@@ -1039,12 +1062,14 @@ class AttendanceController
                     }
                 } else {
                     $matchingByRoomDay = Schedule::query()
+                        ->forActiveAcademicYear()
                         ->whereRaw('LOWER(TRIM(room)) = ?', [$normalizedRoom])
                         ->get(['weekdays'])
                         ->filter(fn ($s) => $this->matchesWeekday((string) ($s->weekdays ?? ''), $weekday, $weekdayFull))
                         ->count();
 
                     $matchingByInstructorDayTime = Schedule::query()
+                        ->forActiveAcademicYear()
                         ->join('subjects', function ($join) use ($instructor) {
                             $join->on('subjects.subject_code', '=', 'schedules.subject_code')
                                 ->on('subjects.section_id', '=', 'schedules.section_id')
@@ -1762,6 +1787,7 @@ class AttendanceController
             : null;
         $handledSectionIds = $isInstructor
             ? Schedule::query()
+                ->forActiveAcademicYear()
                 ->where('instructor_id', $instructorId ?: 0)
                 ->pluck('section_id')
                 ->unique()
@@ -1769,6 +1795,7 @@ class AttendanceController
             : collect();
 
         $currentSchedule = Schedule::query()
+            ->forActiveAcademicYear()
             ->with(['subject.user', 'section.strand', 'instructor.user'])
             ->when($isInstructor, fn ($scheduleQuery) => $scheduleQuery->where('instructor_id', $instructorId ?: 0))
             ->orderByDesc('scheduled_id')
@@ -2150,14 +2177,29 @@ class AttendanceController
                 'attendance_sessions.time_start',
                 'attendance_sessions.time_end',
                 'schedules.section_id',
+                'attendance_sessions.academic_year_id',
             ])
             ->first();
 
         abort_unless($session, 403, 'You may only edit attendance within your permitted subject scope.');
 
+        abort_if(
+            $session->academic_year_id && \App\Models\AcademicYear::query()
+                ->whereKey($session->academic_year_id)
+                ->whereIn('status', [\App\Models\AcademicYear::STATUS_CLOSED, \App\Models\AcademicYear::STATUS_ARCHIVED])
+                ->exists(),
+            422,
+            'Attendance from a closed or archived academic year is read-only.'
+        );
+
         $student = Students::query()
             ->whereKey($validated['student_id'])
-            ->where('section_id', $session->section_id)
+            ->when($session->academic_year_id,
+                fn ($query) => $query->whereHas('enrollments', fn ($enrollment) => $enrollment
+                    ->where('academic_year_id', $session->academic_year_id)
+                    ->where('section_id', $session->section_id)),
+                fn ($query) => $query->where('section_id', $session->section_id)
+            )
             ->firstOrFail();
 
         $editDays = max(1, min(365, SystemSetting::integer(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 15)));
@@ -2296,6 +2338,7 @@ class AttendanceController
         ]);
 
         $schedule = Schedule::query()
+            ->forActiveAcademicYear()
             ->with(['subject.user', 'section.strand'])
             ->orderByDesc('scheduled_id')
             ->first();
@@ -2425,6 +2468,9 @@ class AttendanceController
             'main_attendance_id' => $attendance->attendance_id,
             'student_id' => $student->student_id,
             'schedule_id' => $scheduleId,
+            'academic_year_id' => $attendance->academic_year_id,
+            'subject_offering_id' => $attendance->subject_offering_id,
+            'student_enrollment_id' => $attendance->student_enrollment_id,
             'time_in' => $tapTime->format('H:i:s'),
             'time_out' => $isCheckout ? $tapTime->format('H:i:s') : null,
             'status' => $attendance->status,
@@ -2447,11 +2493,16 @@ class AttendanceController
 
     private function insertInvalidAttendanceTapLog(int $sessionId, Students $student, ?int $scheduleId, \Carbon\CarbonInterface $tapTime, string $tapType, int $sequence, string $room, string $remarks): int
     {
+        $context = $this->attendanceAcademicContext($scheduleId, (int) $student->student_id);
+
         return (int) DB::table('attendance_logs')->insertGetId([
             'attendance_id' => $sessionId,
             'main_attendance_id' => null,
             'student_id' => $student->student_id,
             'schedule_id' => $scheduleId,
+            'academic_year_id' => $context['academic_year_id'],
+            'subject_offering_id' => $context['subject_offering_id'],
+            'student_enrollment_id' => $context['student_enrollment_id'],
             'time_in' => $tapTime->format('H:i:s'),
             'time_out' => null,
             'status' => 'invalid',
@@ -2465,6 +2516,25 @@ class AttendanceController
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    private function attendanceAcademicContext(?int $scheduleId, ?int $studentId = null): array
+    {
+        $schedule = $scheduleId ? Schedule::query()->find($scheduleId) : null;
+        $enrollmentId = null;
+        if ($studentId && $schedule?->academic_year_id) {
+            $enrollments = \App\Models\StudentEnrollment::query()
+                ->where('student_id', $studentId)
+                ->where('academic_year_id', $schedule->academic_year_id);
+            $enrollment = $schedule->semester ? (clone $enrollments)->where('semester', $schedule->semester)->first() : null;
+            $enrollmentId = ($enrollment ?? $enrollments->first())?->student_enrollment_id;
+        }
+
+        return [
+            'academic_year_id' => $schedule?->academic_year_id,
+            'subject_offering_id' => $schedule?->subject_offering_id,
+            'student_enrollment_id' => $enrollmentId,
+        ];
     }
 
     private function instructorRfidAuthorizesTemporaryMovement(?Schedule $schedule, ?string $instructorRfid): bool

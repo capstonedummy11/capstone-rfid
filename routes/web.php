@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ActiveDeviceController;
+use App\Http\Controllers\AcademicYearController;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AttendanceController;
@@ -202,6 +203,15 @@ Route::prefix('admin')
         });
 
         Route::middleware('role:admin')->group(function () {
+            Route::get('/academic-years', [AcademicYearController::class, 'index'])->name('academic-years.index');
+            Route::post('/academic-years', [AcademicYearController::class, 'store'])->name('academic-years.store');
+            Route::put('/academic-years/{academicYear}', [AcademicYearController::class, 'update'])->name('academic-years.update');
+            Route::post('/academic-years/{academicYear}/activate', [AcademicYearController::class, 'activate'])->name('academic-years.activate');
+            Route::post('/academic-years/{academicYear}/close', [AcademicYearController::class, 'close'])->name('academic-years.close');
+            Route::post('/academic-years/{academicYear}/archive', [AcademicYearController::class, 'archive'])->name('academic-years.archive');
+            Route::post('/academic-years/{academicYear}/reopen', [AcademicYearController::class, 'reopen'])->name('academic-years.reopen');
+            Route::get('/academic-years/{academicYear}/rollover-preview', [AcademicYearController::class, 'rolloverPreview'])->name('academic-years.rollover-preview');
+            Route::post('/academic-years/{academicYear}/rollover', [AcademicYearController::class, 'rolloverExecute'])->name('academic-years.rollover');
             Route::get('/laboratories', [LaboratoryController::class, 'indexAdmin'])->name('laboratories');
             Route::post('/laboratories', [LaboratoryController::class, 'store'])->name('laboratories.store');
             Route::put('/laboratories/{id}', [LaboratoryController::class, 'update'])->name('laboratories.update');
@@ -218,6 +228,8 @@ Route::prefix('admin')
             Route::post('/subjects', [SubjectController::class, 'store'])->name('subjects.store');
             Route::put('/subjects/{id}', [SubjectController::class, 'update'])->name('subjects.update');
             Route::delete('/subjects/{id}', [SubjectController::class, 'destroy'])->name('subjects.destroy');
+            Route::post('/subjects/{subject}/offerings', [SubjectController::class, 'storeOffering'])->name('subjects.offerings.store');
+            Route::delete('/subject-offerings/{subjectOffering}', [SubjectController::class, 'destroyOffering'])->name('subjects.offerings.destroy');
             Route::post('/schedules', [ScheduleController::class, 'store'])->name('schedules.store');
             Route::put('/schedules/{id}', [ScheduleController::class, 'update'])->name('schedules.update');
             Route::delete('/schedules/{id}', [ScheduleController::class, 'destroy'])->name('schedules.destroy');

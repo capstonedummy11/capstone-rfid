@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AcademicYear;
 use Closure;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
@@ -28,6 +29,7 @@ class ReportController
             fputcsv($handle, ['Generated At', now()->format('Y-m-d H:i:s')]);
             fputcsv($handle, ['Date From', $payload['filters']['date_from'] ?: 'All']);
             fputcsv($handle, ['Date To', $payload['filters']['date_to'] ?: 'All']);
+            fputcsv($handle, ['Academic Year', $payload['selectedAcademicYear']['name'] ?? 'All years']);
             fputcsv($handle, []);
             fputcsv($handle, ['Category', 'Metric', 'Value', 'Group']);
 
@@ -50,6 +52,7 @@ class ReportController
         $filters = [
             'date_from' => $request->string('date_from')->toString(),
             'date_to' => $request->string('date_to')->toString(),
+            'academic_year_id' => $this->resolvedAcademicYearId($request, $role),
         ];
 
         return match ($role) {
@@ -66,8 +69,8 @@ class ReportController
     {
         $charts = [
             $this->chart('Users by Role', $this->grouped('users', 'role'), 'donut'),
-            $this->chart('Students by Status', $this->grouped('students', 'status'), 'bar'),
-            $this->chart('Students by Year Level', $this->grouped('students', 'year_level'), 'donut'),
+            $this->chart('Students by Status', $this->grouped('students', 'status', $filters), 'bar'),
+            $this->chart('Students by Year Level', $this->grouped('student_enrollments', 'year_level', $filters), 'donut'),
             $this->chart('Attendance by Status', $this->grouped('attendances', 'status', $filters, 'date'), 'bar'),
             $this->chart('Attendance Trend', $this->dateSeries('attendances', 'date', $filters), 'trend'),
             $this->chart('Borrowing by Status', $this->grouped('borrowings', 'status', $filters, 'borrowed_at'), 'bar'),
@@ -78,7 +81,7 @@ class ReportController
 
         return $this->payload('admin', 'Admin Reports', [
             $this->card('Users', $this->countTable('users')),
-            $this->card('Students', $this->countTable('students')),
+            $this->card('Students', $this->countTable('students', $filters)),
             $this->card('Attendance Records', $this->countTable('attendances', $filters, 'date')),
             $this->card('Borrowings', $this->countTable('borrowings', $filters, 'borrowed_at')),
             $this->card('Clinic Cases', $this->countTable('clinic_cases', $filters, 'occurred_at')),
@@ -108,22 +111,22 @@ class ReportController
 
     private function registrarReport(array $filters): array
     {
-        $strandRows = $this->joinedStudentGroup('strands', 'strand_id', 'strand_code');
-        $sectionRows = $this->joinedStudentGroup('sections', 'section_id', 'section_name');
+        $strandRows = $this->joinedStudentGroup('strands', 'strand_id', 'strand_code', $filters);
+        $sectionRows = $this->joinedStudentGroup('sections', 'section_id', 'section_name', $filters);
         $charts = [
             $this->chart('Students by Strand', $strandRows, 'bar'),
             $this->chart('Students by Section', $sectionRows, 'list'),
-            $this->chart('Students by Year Level', $this->grouped('students', 'year_level'), 'donut'),
-            $this->chart('Students by Status', $this->grouped('students', 'status'), 'donut'),
+            $this->chart('Students by Year Level', $this->grouped('student_enrollments', 'year_level', $filters), 'donut'),
+            $this->chart('Students by Status', $this->grouped('student_enrollments', 'status', $filters), 'donut'),
             $this->chart('Enrollment Logs by Action', $this->grouped('registrar_enrollment_logs', 'action', $filters), 'bar'),
             $this->chart('Enrollment Logs by Person Type', $this->grouped('registrar_enrollment_logs', 'person_type', $filters), 'donut'),
             $this->chart('Enrollment Log Trend', $this->dateSeries('registrar_enrollment_logs', 'created_at', $filters), 'trend'),
         ];
 
         return $this->payload('registrar', 'Registrar Reports', [
-            $this->card('Students', $this->countTable('students')),
-            $this->card('Active Students', $this->countTable('students', [], 'created_at', fn (Builder $query) => $query->where('status', 'active'))),
-            $this->card('Sections', $this->countTable('sections')),
+            $this->card('Students', $this->countTable('student_enrollments', $filters)),
+            $this->card('Active Students', $this->countTable('student_enrollments', $filters, 'created_at', fn (Builder $query) => $query->where('status', 'active'))),
+            $this->card('Sections', $this->countTable('sections', $filters)),
             $this->card('Strands', $this->countTable('strands')),
             $this->card('Enrollment Logs', $this->countTable('registrar_enrollment_logs', $filters)),
         ], $charts, $filters);
@@ -164,7 +167,7 @@ class ReportController
         $scopeStudents = fn (Builder $query) => $query->whereIn('student_id', $studentIds ?: [0]);
         $scopeOnlineClasses = fn (Builder $query) => $query->whereIn(
             'section_id',
-            $this->sectionIdsForStudents($studentIds) ?: [0],
+            $this->sectionIdsForStudents($studentIds, $filters['academic_year_id'] ?? null) ?: [0],
         );
 
         $charts = [
@@ -190,7 +193,7 @@ class ReportController
         $scopeStudents = fn (Builder $query) => $query->whereIn('student_id', $studentIds ?: [0]);
         $scopeOnlineClasses = fn (Builder $query) => $query->whereIn(
             'section_id',
-            $this->sectionIdsForStudents($studentIds) ?: [0],
+            $this->sectionIdsForStudents($studentIds, $filters['academic_year_id'] ?? null) ?: [0],
         );
 
         $charts = [
@@ -220,6 +223,9 @@ class ReportController
             'charts' => array_values($charts),
             'tableRows' => $this->tableRows($charts),
             'exportUrl' => route('reports.export', array_filter($filters)),
+            'academicYears' => AcademicYear::query()->orderByDesc('starts_on')->get(['academic_year_id', 'name', 'status']),
+            'selectedAcademicYear' => $filters['academic_year_id'] === 'all' ? null : AcademicYear::query()->find($filters['academic_year_id']),
+            'allowAllYears' => ! in_array($role, ['student', 'parent'], true),
         ];
     }
 
@@ -246,6 +252,7 @@ class ReportController
         $query = DB::table($table);
         $this->withoutDeleted($query, $table);
         $this->applyDateRange($query, $table, $filters, $dateColumn);
+        $this->applyAcademicYear($query, $table, $filters);
 
         if ($scope) {
             $scope($query);
@@ -273,6 +280,7 @@ class ReportController
         $query = DB::table($table);
         $this->withoutDeleted($query, $table);
         $this->applyDateRange($query, $table, $filters, $dateColumn);
+        $this->applyAcademicYear($query, $table, $filters);
 
         if ($scope) {
             $scope($query);
@@ -293,19 +301,21 @@ class ReportController
             ->all();
     }
 
-    private function joinedStudentGroup(string $joinTable, string $key, string $labelColumn): array
+    private function joinedStudentGroup(string $joinTable, string $key, string $labelColumn, array $filters = []): array
     {
         if (! Schema::hasTable('students') || ! Schema::hasTable($joinTable)) {
             return [];
         }
 
-        $query = DB::table('students')
-            ->leftJoin($joinTable, "students.{$key}", '=', "{$joinTable}.{$key}")
+        $source = ! empty($filters['academic_year_id']) && $filters['academic_year_id'] !== 'all' ? 'student_enrollments' : 'students';
+        $query = DB::table($source)
+            ->leftJoin($joinTable, "{$source}.{$key}", '=', "{$joinTable}.{$key}")
             ->selectRaw("COALESCE({$joinTable}.{$labelColumn}, 'Unspecified') as label, COUNT(*) as value")
             ->groupBy("{$joinTable}.{$labelColumn}")
             ->orderByDesc('value');
 
-        $this->withoutDeleted($query, 'students');
+        $this->withoutDeleted($query, $source);
+        $this->applyAcademicYear($query, $source, $filters);
 
         return $query->get()
             ->map(fn ($row) => [
@@ -325,6 +335,7 @@ class ReportController
         $query = DB::table($table);
         $this->withoutDeleted($query, $table);
         $this->applyDateRange($query, $table, $filters, $dateColumn);
+        $this->applyAcademicYear($query, $table, $filters);
 
         if ($scope) {
             $scope($query);
@@ -346,6 +357,47 @@ class ReportController
         if (! empty($filters['date_to'])) {
             $query->whereDate($dateColumn, '<=', $filters['date_to']);
         }
+    }
+
+    private function applyAcademicYear(Builder $query, string $table, array $filters): void
+    {
+        $yearId = $filters['academic_year_id'] ?? null;
+        if (! $yearId || $yearId === 'all') {
+            return;
+        }
+
+        if (Schema::hasColumn($table, 'academic_year_id')) {
+            $query->where("{$table}.academic_year_id", $yearId);
+            return;
+        }
+
+        if ($table === 'students' && Schema::hasTable('student_enrollments')) {
+            $query->whereExists(fn (Builder $enrollment) => $enrollment
+                ->selectRaw('1')->from('student_enrollments')
+                ->whereColumn('student_enrollments.student_id', 'students.student_id')
+                ->where('student_enrollments.academic_year_id', $yearId));
+        }
+    }
+
+    private function resolvedAcademicYearId(Request $request, string $role): int|string|null
+    {
+        $requested = $request->input('academic_year_id');
+        if ($requested === 'all' && ! in_array($role, ['student', 'parent'], true)) {
+            return 'all';
+        }
+
+        $yearId = is_numeric($requested) ? (int) $requested : AcademicYear::active()?->academic_year_id;
+        if (! $yearId) {
+            return 'all';
+        }
+        abort_unless(AcademicYear::query()->whereKey($yearId)->exists(), 404);
+
+        if (in_array($role, ['student', 'parent'], true)) {
+            $studentIds = $this->studentIdsForUser($request);
+            abort_unless(DB::table('student_enrollments')->whereIn('student_id', $studentIds ?: [0])->where('academic_year_id', $yearId)->exists(), 403);
+        }
+
+        return $yearId;
     }
 
     private function withoutDeleted(Builder $query, string $table): void
@@ -449,14 +501,17 @@ class ReportController
             ->all();
     }
 
-    private function sectionIdsForStudents(array $studentIds): array
+    private function sectionIdsForStudents(array $studentIds, int|string|null $academicYearId = null): array
     {
         if (! $studentIds || ! Schema::hasTable('students') || ! Schema::hasColumn('students', 'section_id')) {
             return [];
         }
 
-        return DB::table('students')
+        $table = $academicYearId && $academicYearId !== 'all' ? 'student_enrollments' : 'students';
+
+        return DB::table($table)
             ->whereIn('student_id', $studentIds)
+            ->when($table === 'student_enrollments', fn ($query) => $query->where('academic_year_id', $academicYearId))
             ->whereNotNull('section_id')
             ->distinct()
             ->pluck('section_id')

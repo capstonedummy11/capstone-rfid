@@ -17,14 +17,23 @@ class OnlineClassNotificationService
         $onlineClass->loadMissing(['section', 'subject', 'instructor.user']);
 
         $students = Students::query()
-            ->where('section_id', $onlineClass->section_id)
+            ->when($onlineClass->academic_year_id,
+                fn ($query) => $query->whereHas('enrollments', fn ($enrollment) => $enrollment
+                    ->where('academic_year_id', $onlineClass->academic_year_id)->where('section_id', $onlineClass->section_id)->where('status', 'active')),
+                fn ($query) => $query->where('section_id', $onlineClass->section_id))
             ->whereNotNull('email')
             ->get();
 
         foreach ($students as $student) {
+            $enrollmentId = $onlineClass->academic_year_id ? $student->enrollments()
+                ->where('academic_year_id', $onlineClass->academic_year_id)->where('section_id', $onlineClass->section_id)
+                ->value('student_enrollment_id') : null;
             $notification = OnlineClassNotification::query()->create([
                 'online_class_id' => $onlineClass->online_class_id,
                 'student_id' => $student->student_id,
+                'academic_year_id' => $onlineClass->academic_year_id,
+                'subject_offering_id' => $onlineClass->subject_offering_id,
+                'student_enrollment_id' => $enrollmentId,
                 'event' => $event,
                 'title' => $this->title($onlineClass, $event),
                 'body' => $this->body($onlineClass, $event),

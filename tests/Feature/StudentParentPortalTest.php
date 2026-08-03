@@ -1,12 +1,14 @@
 <?php
 
 use App\Models\Attendance;
+use App\Models\AcademicYear;
 use App\Models\Instructor;
 use App\Models\Message;
 use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\Strand;
 use App\Models\StudentExcuseLetter;
+use App\Models\StudentEnrollment;
 use App\Models\StudentPortalMessage;
 use App\Models\Students;
 use App\Models\User;
@@ -460,6 +462,31 @@ test('student-created excuse letter requires parent approval before pdf download
         'user_id' => $fixture['parentUser']->user_id,
         'action' => 'update',
         'table_name' => 'student_excuse_letters',
+    ]);
+});
+
+test('new excuse letter keeps the active academic year enrollment context', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    Mail::fake();
+    $fixture = portalFixture();
+    $year = AcademicYear::create([
+        'name' => '2026-2027', 'starts_on' => '2026-06-01', 'ends_on' => '2027-03-31', 'status' => AcademicYear::STATUS_ACTIVE,
+    ]);
+    $fixture['section']->update(['academic_year_id' => $year->academic_year_id]);
+    $enrollment = StudentEnrollment::create([
+        'student_id' => $fixture['student']->student_id, 'academic_year_id' => $year->academic_year_id,
+        'section_id' => $fixture['section']->section_id, 'strand_id' => $fixture['strand']->strand_id,
+        'year_level' => 11, 'semester' => '1st Semester', 'status' => 'active', 'enrolled_at' => '2026-06-01',
+    ]);
+
+    $this->actingAs($fixture['studentUser'])->post(route('student-parent.excuse-letters.store'), [
+        'subject' => 'Year-aware letter', 'from_date' => '2026-07-01', 'to_date' => '2026-07-02', 'reason' => 'Medical appointment.',
+    ])->assertRedirect();
+
+    $this->assertDatabaseHas('student_excuse_letters', [
+        'student_id' => $fixture['student']->student_id,
+        'academic_year_id' => $year->academic_year_id,
+        'student_enrollment_id' => $enrollment->student_enrollment_id,
     ]);
 });
 

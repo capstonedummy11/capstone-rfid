@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Students;
+use App\Models\AcademicYear;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Redirect;
@@ -17,9 +18,9 @@ class RfidController
             'type' => trim((string) $request->input('type', 'all')),
         ];
 
-        $studentQuery = Students::query()
-            ->leftJoin('strands', 'students.strand_id', '=', 'strands.strand_id')
-            ->leftJoin('sections', 'students.section_id', '=', 'sections.section_id');
+        $activeYearId = AcademicYear::active()?->academic_year_id;
+        $studentQuery = Students::query()->with(['enrollments' => fn ($query) => $query
+            ->when($activeYearId, fn ($year) => $year->where('academic_year_id', $activeYearId))->with(['strand', 'section'])]);
 
         $userQuery = User::query();
 
@@ -45,25 +46,17 @@ class RfidController
             $studentQuery->whereRaw('1 = 0');
         }
 
-        $students = $studentQuery->select([
-            'students.student_id as id',
-            'students.student_number as owner_id',
-            'students.first_name',
-            'students.middle_name',
-            'students.last_name',
-            'students.rfid_tag',
-            'students.year_level',
-            'strands.strand_code as strand',
-            'sections.section_name as section',
-        ])->get()->map(function ($item) {
+        $students = $studentQuery->get()->map(function (Students $item) {
+            $placement = $item->enrollments->sortByDesc('student_enrollment_id')->first();
+            if (! $placement) \App\Services\LegacyAcademicFallbackMonitor::record('rfid_directory.legacy_placement', ['student_id' => $item->student_id]);
             return [
-                'id' => $item->id,
-                'ownerId' => $item->owner_id,
+                'id' => $item->student_id,
+                'ownerId' => $item->student_number,
                 'name' => trim(($item->first_name ?? '') . ' ' . ($item->middle_name ?? '') . ' ' . ($item->last_name ?? '')),
                 'role' => 'Student',
-                'strand' => $item->strand ?? 'N/A',
-                'section' => $item->section ?? 'N/A',
-                'year' => $item->year_level ?? 'N/A',
+                'strand' => $placement?->strand?->strand_code ?? 'N/A',
+                'section' => $placement?->section?->section_name ?? 'N/A',
+                'year' => $placement?->year_level ?? 'N/A',
                 'rfid' => $item->rfid_tag ?? '',
                 'type' => 'student',
             ];

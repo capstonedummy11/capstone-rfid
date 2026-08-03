@@ -8,8 +8,10 @@ use App\Models\Laboratory;
 use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\Subject;
+use App\Models\SubjectOffering;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class ScheduleController
@@ -25,7 +27,7 @@ class ScheduleController
             : null;
         $laboratoryId = $isAdmin && $request->input('laboratory_id') ? (int) $request->input('laboratory_id') : null;
 
-        $query = Schedule::query()->with(['laboratory', 'instructor.user', 'section', 'subject']);
+        $query = Schedule::query()->with(['laboratory', 'instructor.user', 'section', 'subject', 'academicYear', 'subjectOffering']);
 
         if ($isInstructor) {
             $query->where('instructor_id', $instructorId ?: 0);
@@ -41,6 +43,12 @@ class ScheduleController
                 ->get()
                 ->map(fn (Schedule $schedule) => [
                 'scheduled_id'   => $schedule->scheduled_id,
+                'academic_year_id' => $schedule->academic_year_id,
+                'academic_year_name' => $schedule->academicYear?->name,
+                'academic_year_status' => $schedule->academicYear?->status,
+                'subject_offering_id' => $schedule->subject_offering_id,
+                'semester' => $schedule->semester,
+                'is_writable' => $schedule->academicYear?->isWritable() ?? true,
                 'laboratory_id'  => $schedule->laboratory_id,
                 'laboratory_name' => $schedule->laboratory?->name,
                 'instructor_id'  => $schedule->instructor_id,
@@ -80,6 +88,32 @@ class ScheduleController
             'subjectOptions' => $isAdmin
                 ? Subject::query()->orderBy('subject_code')->get(['subject_code', 'subject_name'])->values()
                 : [],
+            'subjectOfferingOptions' => $isAdmin
+                ? SubjectOffering::query()
+                    ->with(['academicYear', 'subject', 'section', 'instructor.user'])
+                    ->whereHas('academicYear', fn ($query) => $query->whereIn('status', ['draft', 'active']))
+                    ->orderBy('subject_offering_id')
+                    ->get()
+                    ->map(fn (SubjectOffering $offering) => [
+                        'subject_offering_id' => $offering->subject_offering_id,
+                        'academic_year_id' => $offering->academic_year_id,
+                        'academic_year' => $offering->academicYear?->name,
+                        'semester' => $offering->semester,
+                        'section_id' => $offering->section_id,
+                        'section_name' => $offering->section?->section_name,
+                        'subject_code' => $offering->subject?->subject_code,
+                        'subject_name' => $offering->subject?->subject_name,
+                        'instructor_id' => $offering->instructor_id,
+                        'instructor_name' => $offering->instructor?->user?->name,
+                        'label' => implode(' · ', array_filter([
+                            $offering->subject?->subject_code.' - '.$offering->subject?->subject_name,
+                            $offering->section?->section_name,
+                            $offering->academicYear?->name,
+                            $offering->semester,
+                            $offering->instructor?->user?->name,
+                        ])),
+                    ])->values()
+                : [],
             'instructorOptions' => $isAdmin ? Instructor::query()->with('user')->get()->map(fn (Instructor $i) => [
                 'instructor_id' => $i->instructor_id,
                 'name'          => $i->user?->name ?? '(No name)',
@@ -90,15 +124,18 @@ class ScheduleController
     public function store(Request $request)
     {
         $validated = $request->validate([
+            'subject_offering_id' => 'nullable|exists:subject_offerings,subject_offering_id',
             'laboratory_id' => 'nullable|exists:laboratories,laboratory_id',
             'instructor_id' => 'nullable|exists:instructors,instructor_id',
-            'section_id'    => 'required|exists:sections,section_id',
-            'subject_code'  => 'required|exists:subjects,subject_code',
+            'section_id'    => 'nullable|required_without:subject_offering_id|exists:sections,section_id',
+            'subject_code'  => 'nullable|required_without:subject_offering_id|exists:subjects,subject_code',
             'weekdays'      => 'required|string|max:255',
             'time_start'    => 'required|date_format:H:i',
             'time_end'      => 'required|date_format:H:i',
             'room'          => 'nullable|string|max:255',
         ]);
+
+        $validated = $this->resolveOffering($validated);
 
         $schedule = Schedule::create(array_merge($validated, [
             'time_start' => $validated['time_start'] . ':00',
@@ -113,17 +150,23 @@ class ScheduleController
     public function update(Request $request, int $id)
     {
         $schedule = Schedule::findOrFail($id);
+        if ($schedule->academicYear && ! $schedule->academicYear->isWritable()) {
+            return back()->withErrors(['schedule' => 'A schedule from a closed or archived academic year cannot be edited.']);
+        }
 
         $validated = $request->validate([
+            'subject_offering_id' => 'nullable|exists:subject_offerings,subject_offering_id',
             'laboratory_id' => 'nullable|exists:laboratories,laboratory_id',
             'instructor_id' => 'nullable|exists:instructors,instructor_id',
-            'section_id'    => 'required|exists:sections,section_id',
-            'subject_code'  => 'required|exists:subjects,subject_code',
+            'section_id'    => 'nullable|required_without:subject_offering_id|exists:sections,section_id',
+            'subject_code'  => 'nullable|required_without:subject_offering_id|exists:subjects,subject_code',
             'weekdays'      => 'required|string|max:255',
             'time_start'    => 'required|date_format:H:i',
             'time_end'      => 'required|date_format:H:i',
             'room'          => 'nullable|string|max:255',
         ]);
+
+        $validated = $this->resolveOffering($validated);
 
         $schedule->update(array_merge($validated, [
             'time_start' => $validated['time_start'] . ':00',
@@ -138,11 +181,60 @@ class ScheduleController
     public function destroy(int $id)
     {
         $schedule = Schedule::findOrFail($id);
+        if ($schedule->academicYear && ! $schedule->academicYear->isWritable()) {
+            return back()->withErrors(['schedule' => 'A schedule from a closed or archived academic year cannot be deleted.']);
+        }
+        if ($schedule->attendances()->exists() || $schedule->onlineClasses()->exists()) {
+            return back()->withErrors(['schedule' => 'This schedule has attendance or online-class history and cannot be deleted.']);
+        }
         $scheduleId = $schedule->scheduled_id;
         $schedule->delete();
         $this->log('delete', 'schedules', 'Deleted schedule ' . $scheduleId);
 
         return back()->with('success', 'Schedule deleted successfully.');
+    }
+
+    private function resolveOffering(array $validated): array
+    {
+        if (empty($validated['subject_offering_id'])) {
+            $section = Section::query()->with('academicYear')->findOrFail($validated['section_id']);
+            if ($section->academicYear && ! $section->academicYear->isWritable()) {
+                throw ValidationException::withMessages([
+                    'subject_offering_id' => 'Schedules cannot be created or changed in a closed or archived academic year.',
+                ]);
+            }
+
+            $subjectId = Subject::query()->where('subject_code', $validated['subject_code'])->value('subject_id');
+            $offering = SubjectOffering::query()
+                ->where('academic_year_id', $section->academic_year_id)
+                ->where('section_id', $section->section_id)
+                ->where('subject_id', $subjectId ?: 0)
+                ->when($validated['instructor_id'] ?? null, fn ($query, $instructorId) => $query->where('instructor_id', $instructorId))
+                ->first();
+
+            return $validated + [
+                'academic_year_id' => $section->academic_year_id,
+                'subject_offering_id' => $offering?->subject_offering_id,
+                'semester' => $offering?->semester ?: $section->semester,
+            ];
+        }
+
+        $offering = SubjectOffering::query()
+            ->with(['academicYear', 'subject', 'section'])
+            ->findOrFail($validated['subject_offering_id']);
+        if (! $offering->isWritable()) {
+            throw ValidationException::withMessages([
+                'subject_offering_id' => 'Schedules can only use offerings from a draft or active academic year.',
+            ]);
+        }
+
+        return array_merge($validated, [
+            'academic_year_id' => $offering->academic_year_id,
+            'section_id' => $offering->section_id,
+            'subject_code' => $offering->subject?->subject_code,
+            'instructor_id' => $offering->instructor_id,
+            'semester' => $offering->semester,
+        ]);
     }
 
     private function log(string $action, string $tableName, string $description): void

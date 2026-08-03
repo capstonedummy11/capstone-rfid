@@ -14,7 +14,14 @@
       </section>
 
       <section class="mb-6 rounded-lg bg-white p-6 shadow-lg">
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-5">
+          <div>
+            <label class="mb-1 block text-xs font-medium text-slate-600">Academic Year</label>
+            <select v-model="selectedAcademicYear" @change="onFilterChange" class="w-full rounded-md border border-slate-300 px-3 py-2">
+              <option value="">All Academic Years</option>
+              <option v-for="year in academicYearOptions" :key="year.academic_year_id" :value="String(year.academic_year_id)">{{ year.name }} ({{ year.status }})</option>
+            </select>
+          </div>
           <div>
             <label class="mb-1 block text-xs font-medium text-slate-600">Search</label>
             <input v-model="search" type="text" placeholder="Section name" class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100" @input="onFilterChange" />
@@ -74,8 +81,9 @@
                 </td>
                 <td class="border border-gray-300 px-4 py-3">
                   <div class="flex items-center gap-2">
-                    <button @click="openEditModal(section)" class="rounded-md bg-indigo-600 px-3 py-1 text-sm text-white hover:bg-indigo-700">Edit</button>
-                    <button @click="deleteSection(section)" class="rounded-md bg-rose-500 px-3 py-1 text-sm text-white hover:bg-rose-600">Delete</button>
+                    <button v-if="section.is_writable" @click="openEditModal(section)" class="rounded-md bg-indigo-600 px-3 py-1 text-sm text-white hover:bg-indigo-700">Edit</button>
+                    <button v-if="section.is_writable" @click="deleteSection(section)" class="rounded-md bg-rose-500 px-3 py-1 text-sm text-white hover:bg-rose-600">Delete</button>
+                    <span v-if="!section.is_writable" class="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-500">Locked: {{ section.academic_year_status }}</span>
                   </div>
                 </td>
               </tr>
@@ -168,12 +176,9 @@ interface Section {
   semester: string;
   school_year: string;
   status: 'active' | 'inactive';
-}
-
-interface StrandOption {
-  strand_id: string | number;
-  strand_code: string;
-  strand_name: string;
+  academic_year_id?: string | number | null;
+  academic_year_status?: string | null;
+  is_writable: boolean;
 }
 
 interface StrandOption {
@@ -191,11 +196,19 @@ const props = defineProps({
   },
   filters: {
     type: Object,
-    default: () => ({ search: '', strand: '', year: '', status: '' }),
+    default: () => ({ search: '', strand: '', year: '', status: '', academic_year: '' }),
   },
   strandOptions: {
     type: Array as () => StrandOption[],
     default: () => [],
+  },
+  academicYearOptions: {
+    type: Array as () => Array<{ academic_year_id: string | number; name: string; status: string }>,
+    default: () => [],
+  },
+  activeAcademicYearId: {
+    type: Number,
+    default: null,
   },
 });
 
@@ -203,6 +216,7 @@ const search = ref(props.filters.search ?? '');
 const selectedStrand = ref(props.filters.strand ?? '');
 const selectedYear = ref(props.filters.year ?? '');
 const selectedStatus = ref(props.filters.status ?? '');
+const selectedAcademicYear = ref(props.filters.academic_year ?? (props.activeAcademicYearId ? String(props.activeAcademicYearId) : ''));
 const showModal = ref(false);
 const isEditing = ref(false);
 const selectedSection = ref<Section | null>(null);
@@ -227,8 +241,9 @@ const filteredSections = computed<Section[]>(() => {
     const matchesStrand = selectedStrand.value === '' || String(section.strand_id) === selectedStrand.value;
     const matchesYear = selectedYear.value === '' || String(section.year_level) === selectedYear.value;
     const matchesStatus = selectedStatus.value === '' || section.status === selectedStatus.value;
+    const matchesAcademicYear = selectedAcademicYear.value === '' || String(section.academic_year_id ?? '') === selectedAcademicYear.value;
 
-    return matchesSearch && matchesStrand && matchesYear && matchesStatus;
+    return matchesSearch && matchesStrand && matchesYear && matchesStatus && matchesAcademicYear;
   });
 });
 
@@ -236,6 +251,7 @@ const schoolYearOptions = computed(() => {
   return Array.from(
     new Set([
       ...defaultSchoolYearOptions,
+      ...props.academicYearOptions.map((year) => year.name),
       ...(props.sections as Section[]).map((section) => section.school_year),
     ].filter(Boolean)),
   ).sort();
@@ -247,6 +263,7 @@ const onFilterChange = () => {
     strand: selectedStrand.value,
     year: selectedYear.value,
     status: selectedStatus.value,
+    academic_year: selectedAcademicYear.value,
   }, {
     preserveState: true,
     preserveScroll: true,
@@ -259,6 +276,7 @@ const resetFilters = () => {
   selectedStrand.value = '';
   selectedYear.value = '';
   selectedStatus.value = '';
+  selectedAcademicYear.value = '';
   onFilterChange();
 };
 

@@ -11,6 +11,8 @@ class StudentExcuseLetter extends Model
 
     protected $fillable = [
         'student_id',
+        'academic_year_id',
+        'student_enrollment_id',
         'submitted_by_user_id',
         'submitted_by_role',
         'subject',
@@ -38,6 +40,9 @@ class StudentExcuseLetter extends Model
     {
         return $this->belongsTo(Students::class, 'student_id', 'student_id');
     }
+
+    public function academicYear(): BelongsTo { return $this->belongsTo(AcademicYear::class, 'academic_year_id', 'academic_year_id'); }
+    public function studentEnrollment(): BelongsTo { return $this->belongsTo(StudentEnrollment::class, 'student_enrollment_id', 'student_enrollment_id'); }
 
     public function submittedBy(): BelongsTo
     {

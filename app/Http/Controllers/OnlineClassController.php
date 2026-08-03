@@ -151,10 +151,23 @@ class OnlineClassController
         $this->attendanceFinalizer->finalizeEnded();
         $student = $this->currentStudent($request);
         abort_unless($student, 403);
+        $selectedYearId = $request->integer('academic_year_id') ?: \App\Models\AcademicYear::active()?->academic_year_id;
+        if ($selectedYearId) {
+            abort_unless($student->enrollments()->where('academic_year_id', $selectedYearId)->exists(), 404);
+        }
 
         $classes = OnlineClass::query()
             ->with(['section', 'subject', 'instructor.user', 'attachments', 'attendances' => fn ($query) => $query->where('student_id', $student->student_id)])
-            ->where('section_id', $student->section_id)
+            ->where(function ($query) use ($student) {
+                $enrollments = $student->enrollments()->get(['academic_year_id', 'section_id']);
+                foreach ($enrollments as $enrollment) {
+                    $query->orWhere(fn ($class) => $class
+                        ->where('academic_year_id', $enrollment->academic_year_id)
+                        ->where('section_id', $enrollment->section_id));
+                }
+                $query->orWhere(fn ($legacy) => $legacy->whereNull('academic_year_id')->where('section_id', $student->section_id));
+            })
+            ->when($selectedYearId, fn ($query) => $query->where('academic_year_id', $selectedYearId))
             ->orderByDesc('scheduled_date')
             ->orderByDesc('start_time')
             ->get()
@@ -168,13 +181,28 @@ class OnlineClassController
             'selectedStudentId' => $student?->student_id,
             'faceRecognitionAvailability' => $this->onlineClassFaceAvailability(),
             'onlineClasses' => $classes,
+            'academicYears' => $student->enrollments()->with('academicYear')->get()->filter(fn ($enrollment) => $enrollment->academicYear)->map(fn ($enrollment) => [
+                'academic_year_id' => $enrollment->academic_year_id,
+                'name' => $enrollment->academicYear->name,
+                'status' => $enrollment->academicYear->status,
+            ])->unique('academic_year_id')->values(),
+            'selectedAcademicYearId' => $selectedYearId,
         ]);
     }
 
     public function join(Request $request, OnlineClass $onlineClass)
     {
         $student = $this->currentStudent($request);
-        abort_unless($student && (int) $student->section_id === (int) $onlineClass->section_id, 403);
+        abort_unless($student, 403);
+        $eligibleEnrollment = $onlineClass->academic_year_id ? $student->enrollments()
+            ->where('academic_year_id', $onlineClass->academic_year_id)
+            ->where('section_id', $onlineClass->section_id)
+            ->where('status', 'active')->first() : null;
+        if (! $onlineClass->academic_year_id) {
+            \App\Services\LegacyAcademicFallbackMonitor::record('online_class.join_legacy_section', ['online_class_id' => $onlineClass->online_class_id, 'student_id' => $student->student_id]);
+        }
+        abort_unless($onlineClass->academic_year_id ? $eligibleEnrollment : (int) $student->section_id === (int) $onlineClass->section_id, 403);
+        abort_if($onlineClass->academicYear && $onlineClass->academicYear->status !== \App\Models\AcademicYear::STATUS_ACTIVE, 422, 'Only classes in the active academic year can be joined.');
         abort_if($onlineClass->status === 'cancelled', 422, 'This online class is cancelled.');
         $scheduledStart = Carbon::parse($onlineClass->scheduled_date->format('Y-m-d').' '.$onlineClass->start_time);
         $scheduledEnd = Carbon::parse($onlineClass->scheduled_date->format('Y-m-d').' '.$onlineClass->end_time);
@@ -226,6 +254,9 @@ class OnlineClassController
             ],
             [
                 'joined_at' => $joinedAt,
+                'academic_year_id' => $onlineClass->academic_year_id,
+                'subject_offering_id' => $onlineClass->subject_offering_id,
+                'student_enrollment_id' => $eligibleEnrollment?->student_enrollment_id,
                 'status' => $isLate ? 'late' : 'present',
                 'is_late' => $isLate,
                 'face_required' => $onlineClass->require_face_recognition,
@@ -303,17 +334,21 @@ class OnlineClassController
 
     private function authorizedSchedule(Request $request, int $scheduleId): Schedule
     {
-        $schedule = Schedule::query()->findOrFail($scheduleId);
+        $schedule = Schedule::query()->with('academicYear')->findOrFail($scheduleId);
         $role = strtolower(trim((string) $request->user()?->role));
         if ($role === 'instructor') {
             abort_unless((int) $schedule->instructor_id === (int) $this->instructorId($request->user()->user_id), 403);
         }
+
+        abort_if($schedule->academicYear && ! $schedule->academicYear->isWritable(), 422, 'Online classes cannot be created for a closed or archived academic year.');
 
         return $schedule;
     }
 
     private function authorizeManage(Request $request, OnlineClass $onlineClass): void
     {
+        $onlineClass->loadMissing('academicYear');
+        abort_if($onlineClass->academicYear && ! $onlineClass->academicYear->isWritable(), 422, 'Online classes in a closed or archived academic year are read-only.');
         $role = strtolower(trim((string) $request->user()?->role));
         if ($role === 'admin') {
             return;
@@ -325,7 +360,8 @@ class OnlineClassController
     private function scheduleOptions(string $role, ?int $instructorId)
     {
         return Schedule::query()
-            ->with(['section', 'subject'])
+            ->with(['section', 'subject', 'academicYear'])
+            ->whereHas('academicYear', fn ($query) => $query->whereIn('status', ['draft', 'active']))
             ->when($role === 'instructor', fn ($query) => $query->where('instructor_id', $instructorId ?: 0))
             ->orderBy('weekdays')
             ->orderBy('time_start')
@@ -341,6 +377,7 @@ class OnlineClassController
 
     private function classPayload(OnlineClass $onlineClass, ?Students $student = null): array
     {
+        $onlineClass->loadMissing('academicYear');
         $attendance = $student ? $onlineClass->attendances->first() : null;
         $attendanceSubjectId = \App\Models\Subject::query()
             ->where('section_id', $onlineClass->section_id)
@@ -358,6 +395,8 @@ class OnlineClassController
                 ? route('admin.attendance.session', [$attendanceSubjectId, 'online-'.$onlineClass->online_class_id])
                 : null,
             'schedule_id' => $onlineClass->schedule_id,
+            'academic_year_id' => $onlineClass->academic_year_id,
+            'academic_year' => $onlineClass->academicYear?->name,
             'section_name' => $onlineClass->section?->section_name,
             'subject_name' => $onlineClass->subject?->subject_name ?? $onlineClass->subject_code,
             'instructor_name' => $onlineClass->instructor?->user?->name,
@@ -370,7 +409,8 @@ class OnlineClassController
             'require_face_recognition' => $onlineClass->require_face_recognition,
             'status' => $onlineClass->status === 'cancelled' ? 'cancelled' : ($hasEnded ? 'completed' : $onlineClass->status),
             'has_ended' => $hasEnded,
-            'can_join' => ! $hasEnded && $onlineClass->status !== 'cancelled',
+            'can_join' => ! $hasEnded && $onlineClass->status !== 'cancelled'
+                && (! $onlineClass->academicYear || $onlineClass->academicYear->status === \App\Models\AcademicYear::STATUS_ACTIVE),
             'attendance_status' => $attendanceStatus,
             'joined_late' => (bool) $attendance?->is_late,
             'face_verified' => $attendance?->face_verified,

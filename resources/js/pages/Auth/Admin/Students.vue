@@ -352,6 +352,12 @@
                                             Parents
                                         </button>
                                         <button
+                                            @click="openEnrollmentHistory(student)"
+                                            class="rounded-md bg-sky-600 px-3 py-1 text-sm text-white hover:bg-sky-700"
+                                        >
+                                            Enrollment History
+                                        </button>
+                                        <button
                                             @click="
                                                 resetStudentPassword(student)
                                             "
@@ -753,6 +759,51 @@
             </div>
 
             <div
+                v-if="showEnrollmentModal && selectedStudent"
+                class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+                @click.self="closeEnrollmentHistory"
+            >
+                <div class="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl font-semibold text-slate-900">Enrollment History</h2>
+                            <p class="mt-1 text-sm text-slate-500">
+                                {{ selectedStudent.first_name }} {{ selectedStudent.last_name }} · {{ selectedStudent.student_number }}
+                            </p>
+                        </div>
+                        <button class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700" @click="closeEnrollmentHistory">Close</button>
+                    </div>
+                    <div v-if="!selectedStudent.enrollments?.length" class="mt-6 rounded-lg bg-slate-50 p-6 text-center text-sm text-slate-500">
+                        No enrollment-history record is available yet.
+                    </div>
+                    <div v-else class="mt-6 overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-200 text-sm">
+                            <thead class="bg-slate-50 text-left text-xs uppercase text-slate-500">
+                                <tr>
+                                    <th class="px-3 py-2">School year</th>
+                                    <th class="px-3 py-2">Semester</th>
+                                    <th class="px-3 py-2">Grade</th>
+                                    <th class="px-3 py-2">Section</th>
+                                    <th class="px-3 py-2">Strand</th>
+                                    <th class="px-3 py-2">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                <tr v-for="enrollment in selectedStudent.enrollments" :key="enrollment.student_enrollment_id">
+                                    <td class="px-3 py-3 font-medium text-slate-900">{{ enrollment.academic_year }}</td>
+                                    <td class="px-3 py-3 text-slate-600">{{ enrollment.semester }}</td>
+                                    <td class="px-3 py-3 text-slate-600">{{ enrollment.year_level }}</td>
+                                    <td class="px-3 py-3 text-slate-600">{{ enrollment.section_name }}</td>
+                                    <td class="px-3 py-3 text-slate-600">{{ enrollment.strand_code }}</td>
+                                    <td class="px-3 py-3 capitalize text-slate-600">{{ enrollment.status }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div
                 v-if="showParentModal && canManageStudents && selectedStudent"
                 class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
             >
@@ -1009,6 +1060,17 @@ interface Student {
     face_images?: string[];
     status: 'active' | 'inactive' | 'graduated' | 'dropped';
     parents?: ParentAccount[];
+    enrollments?: StudentEnrollment[];
+}
+
+interface StudentEnrollment {
+    student_enrollment_id: string | number;
+    academic_year: string;
+    semester: string;
+    year_level: string | number;
+    section_name: string;
+    strand_code: string;
+    status: string;
 }
 
 interface ParentAccount {
@@ -1093,6 +1155,7 @@ const showModal = ref(false);
 const isEditing = ref(false);
 const selectedStudent = ref<Student | null>(null);
 const showParentModal = ref(false);
+const showEnrollmentModal = ref(false);
 const selectedParent = ref<ParentAccount | null>(null);
 const defaultSchoolYearOptions = Array.from({ length: 6 }, (_, index) => {
     const startYear = 2025 + index;
@@ -1292,6 +1355,16 @@ const closeParentModal = () => {
     showParentModal.value = false;
     selectedStudent.value = null;
     resetParentForm();
+};
+
+const openEnrollmentHistory = (student: Student) => {
+    selectedStudent.value = student;
+    showEnrollmentModal.value = true;
+};
+
+const closeEnrollmentHistory = () => {
+    showEnrollmentModal.value = false;
+    selectedStudent.value = null;
 };
 
 const editParent = (parent: ParentAccount) => {

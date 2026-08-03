@@ -57,6 +57,12 @@ php artisan test --compact
 
 Use the full suite before committing, deploying, or demonstrating a broad set of changes.
 
+For academic-year reconciliation, also run:
+
+```bash
+php artisan academic-years:check-integrity
+```
+
 To run one file:
 
 ```bash

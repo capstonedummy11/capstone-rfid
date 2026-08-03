@@ -63,11 +63,12 @@ const sections = [
                 route: route('registrar.dashboard'),
                 roles: ['registrar'],
             },
-            // {
-            //     icon: Graduation,
-            //     text: 'School Year',
-            //     roles: ['admin'],
-            // },
+            {
+                icon: Graduation,
+                text: 'Academic Years',
+                route: route('admin.academic-years.index'),
+                roles: ['admin'],
+            },
             {
                 icon: Graduation,
                 text: 'Strands',

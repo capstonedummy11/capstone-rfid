@@ -11,9 +11,16 @@ const props = defineProps({
     charts: { type: Array, default: () => [] },
     tableRows: { type: Array, default: () => [] },
     exportUrl: { type: String, default: '' },
+    academicYears: { type: Array, default: () => [] },
+    selectedAcademicYear: { type: Object, default: null },
+    allowAllYears: { type: Boolean, default: false },
 });
 
 const form = reactive({
+    academic_year_id:
+        props.filters.academic_year_id === 'all'
+            ? 'all'
+            : props.filters.academic_year_id || '',
     date_from: props.filters.date_from || '',
     date_to: props.filters.date_to || '',
 });
@@ -108,6 +115,7 @@ const applyFilters = () => {
 };
 
 const resetFilters = () => {
+    form.academic_year_id = props.academicYears.find((year) => year.status === 'active')?.academic_year_id || (props.allowAllYears ? 'all' : '');
     form.date_from = '';
     form.date_to = '';
     applyFilters();
@@ -141,7 +149,16 @@ const resetFilters = () => {
             </section>
 
             <section class="rounded-md bg-white p-5 shadow-sm">
-                <div class="grid gap-3 md:grid-cols-[1fr_1fr_auto_auto]">
+                <div class="grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto_auto]">
+                    <label class="grid gap-1 text-sm font-semibold text-slate-700">
+                        Academic Year
+                        <select v-model="form.academic_year_id" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
+                            <option v-if="allowAllYears" value="all">All years</option>
+                            <option v-for="year in academicYears" :key="year.academic_year_id" :value="year.academic_year_id">
+                                {{ year.name }} ({{ year.status }})
+                            </option>
+                        </select>
+                    </label>
                     <label
                         class="grid gap-1 text-sm font-semibold text-slate-700"
                     >
