@@ -106,6 +106,9 @@
           <h2 class="mb-4 text-xl font-semibold">{{ isEditing ? 'Edit Subject' : 'Add New Subject' }}</h2>
 
           <form @submit.prevent="submitForm" class="space-y-4">
+            <div v-if="Object.keys(form.errors).length" class="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              <p v-for="(message, field) in form.errors" :key="field">{{ message }}</p>
+            </div>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <label class="mb-1 block text-sm font-medium text-slate-700">Subject Code *</label>
@@ -131,35 +134,6 @@
                 <label class="mb-1 block text-sm font-medium text-slate-700">Unit *</label>
                 <input v-model.number="form.unit" type="number" min="0" placeholder="e.g., 3" class="w-full rounded-md border border-slate-300 px-3 py-2" required />
               </div>
-              <div>
-                <label class="mb-1 block text-sm font-medium text-slate-700">Semester</label>
-                <select v-model="form.semester" class="w-full rounded-md border border-slate-300 px-3 py-2">
-                  <option value="">Select Semester</option>
-                  <option value="1st Semester">1st Semester</option>
-                  <option value="2nd Semester">2nd Semester</option>
-                </select>
-              </div>
-              <div>
-                <label class="mb-1 block text-sm font-medium text-slate-700">Section</label>
-                <SearchableSelect
-                  v-model="form.section_id"
-                  :options="sectionSearchOptions"
-                  placeholder="Search sections..."
-                  empty-text="No matching sections"
-                  clearable
-                />
-              </div>
-            </div>
-
-            <div>
-              <label class="mb-1 block text-sm font-medium text-slate-700">Instructor</label>
-              <SearchableSelect
-                v-model="form.user_id"
-                :options="instructorSearchOptions"
-                placeholder="Search instructors..."
-                empty-text="No matching instructors"
-                clearable
-              />
             </div>
 
             <div class="flex justify-end gap-2 border-t pt-4">
@@ -349,14 +323,11 @@ const openEditModal = (subject: Subject) => {
   isEditing.value = true;
   selectedSubject.value = subject;
   form.reset();
-  form.section_id = subject.section_id ? String(subject.section_id) : '';
-  form.user_id = subject.user_id ? String(subject.user_id) : '';
   form.subject_name = subject.subject_name;
   form.subject_code = subject.subject_code;
   form.subject_description = subject.subject_description ?? '';
   form.department = subject.department ?? '';
   form.unit = Number(subject.unit ?? 0);
-  form.semester = subject.semester ?? '';
   showModal.value = true;
 };
 
@@ -407,10 +378,7 @@ const submitForm = () => {
 
   const payload = {
     ...form.data(),
-    section_id: form.section_id === '' ? null : Number(form.section_id),
-    user_id: form.user_id === '' ? null : Number(form.user_id),
     unit: Number(form.unit),
-    semester: form.semester === '' ? null : form.semester,
     department: form.department === '' ? null : form.department,
     subject_description: form.subject_description === '' ? null : form.subject_description,
   };

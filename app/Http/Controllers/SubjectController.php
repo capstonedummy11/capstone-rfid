@@ -109,7 +109,6 @@ class SubjectController
             'unit' => 'required|integer|min:0',
             'semester' => 'nullable|string|max:255',
         ]);
-
         $subject = DB::transaction(function () use ($validated) {
             $subject = Subject::create(collect($validated)->except(['section_id', 'user_id', 'semester'])->all());
             $this->syncOfferingFromLegacyFields($subject, $validated);
@@ -125,9 +124,8 @@ class SubjectController
     {
         $subject = Subject::findOrFail($id);
 
-        if ($subject->offerings()->with('academicYear')->get()->contains(fn (SubjectOffering $offering) => ! $offering->isWritable())) {
-            return back()->withErrors(['subject' => 'This catalog subject has a closed or archived offering and cannot be renamed or deleted. Add a new offering instead.']);
-        }
+        $hasLockedOffering = $subject->offerings()->with('academicYear')->get()
+            ->contains(fn (SubjectOffering $offering) => ! $offering->isWritable());
 
         $validated = $request->validate([
             'section_id' => 'nullable|exists:sections,section_id',
@@ -139,6 +137,10 @@ class SubjectController
             'unit' => 'required|integer|min:0',
             'semester' => 'nullable|string|max:255',
         ]);
+
+        if ($hasLockedOffering && ($validated['subject_code'] !== $subject->subject_code || $validated['subject_name'] !== $subject->subject_name)) {
+            return back()->withErrors(['subject' => 'The code and name cannot be changed because this subject has a closed or archived offering. Other catalog details can still be updated.']);
+        }
 
         DB::transaction(function () use ($subject, $validated) {
             $subject->update(collect($validated)->except(['section_id', 'user_id', 'semester'])->all());
