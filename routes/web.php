@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ActiveDeviceController;
+use App\Http\Controllers\AcademicYearController;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AttendanceController;
@@ -29,6 +30,7 @@ use App\Http\Controllers\StudentParentLoginController;
 use App\Http\Controllers\StudentsController;
 use App\Http\Controllers\SubjectController;
 use App\Http\Controllers\SystemSettingsController;
+use App\Http\Middleware\EnsureParentPortalEnabled;
 use App\Models\SystemSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -51,7 +53,7 @@ Route::get('/', function (Request $request) {
     if ($role === 'registrar') {
         return redirect()->route('registrar.dashboard');
     }
-    if (in_array($role, ['student', 'parent'], true)) {
+    if ($role === 'student' || ($role === 'parent' && SystemSetting::boolean(SystemSetting::PARENT_PORTAL_ENABLED, false))) {
         return redirect()->route('student-parent.dashboard');
     }
 
@@ -86,14 +88,14 @@ Route::middleware('auth')->group(function () {
 });
 Route::get('/messages/new', [MessageController::class, 'create'])->name('messages.create');
 Route::post('/messages', [MessageController::class, 'store'])->name('messages.store');
-Route::middleware(['auth', 'role:admin,instructor,clinic,registrar,student,parent'])->group(function () {
+Route::middleware(['auth', 'role:admin,instructor,clinic,registrar,student,parent', EnsureParentPortalEnabled::class])->group(function () {
     Route::get('/messages', [MessageController::class, 'index'])->name('messages.index');
     Route::get('/messages/unread-status', [MessageController::class, 'unreadStatus'])->name('messages.unread-status');
     Route::post('/messages/conversation', [MessageController::class, 'sendConversationMessage'])->name('messages.conversation.store');
     Route::put('/messages/{message}/read', [MessageController::class, 'markRead'])->name('messages.read');
     Route::get('/messages/{message}/attachment', [MessageController::class, 'downloadAttachment'])->name('messages.attachments.show');
 });
-Route::middleware(['auth', 'role:admin,instructor,clinic,registrar,student,parent'])->group(function () {
+Route::middleware(['auth', 'role:admin,instructor,clinic,registrar,student,parent', EnsureParentPortalEnabled::class])->group(function () {
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('/reports/export', [ReportController::class, 'export'])->name('reports.export');
 });
@@ -101,7 +103,7 @@ Route::get('/attendance-control-panel/login', [AttendanceController::class, 'pan
 Route::post('/panel-verify', [AttendanceController::class, 'verifyPanelPin'])->name('panelVerify');
 Route::post('/face-recognition/verify-student', [AttendanceController::class, 'verifyStudentFace'])->name('faceRecognition.verifyStudent');
 Route::get('/attendance-evidence/{attendanceLog}/{moment}', [AttendanceController::class, 'evidence'])
-    ->middleware(['auth', 'role:admin,instructor,student,parent'])
+    ->middleware(['auth', 'role:admin,instructor,student,parent', EnsureParentPortalEnabled::class])
     ->name('attendance.evidence');
 
 Route::middleware(['auth', 'role:console'])->group(function () {
@@ -137,7 +139,7 @@ Route::get('/dashboard', function (Request $request) {
     if ($role === 'registrar') {
         return redirect()->route('registrar.dashboard');
     }
-    if (in_array($role, ['student', 'parent'], true)) {
+    if ($role === 'student' || ($role === 'parent' && SystemSetting::boolean(SystemSetting::PARENT_PORTAL_ENABLED, false))) {
         return redirect()->route('student-parent.dashboard');
     }
 
@@ -202,6 +204,15 @@ Route::prefix('admin')
         });
 
         Route::middleware('role:admin')->group(function () {
+            Route::get('/academic-years', [AcademicYearController::class, 'index'])->name('academic-years.index');
+            Route::post('/academic-years', [AcademicYearController::class, 'store'])->name('academic-years.store');
+            Route::put('/academic-years/{academicYear}', [AcademicYearController::class, 'update'])->name('academic-years.update');
+            Route::post('/academic-years/{academicYear}/activate', [AcademicYearController::class, 'activate'])->name('academic-years.activate');
+            Route::post('/academic-years/{academicYear}/close', [AcademicYearController::class, 'close'])->name('academic-years.close');
+            Route::post('/academic-years/{academicYear}/archive', [AcademicYearController::class, 'archive'])->name('academic-years.archive');
+            Route::post('/academic-years/{academicYear}/reopen', [AcademicYearController::class, 'reopen'])->name('academic-years.reopen');
+            Route::get('/academic-years/{academicYear}/rollover-preview', [AcademicYearController::class, 'rolloverPreview'])->name('academic-years.rollover-preview');
+            Route::post('/academic-years/{academicYear}/rollover', [AcademicYearController::class, 'rolloverExecute'])->name('academic-years.rollover');
             Route::get('/laboratories', [LaboratoryController::class, 'indexAdmin'])->name('laboratories');
             Route::post('/laboratories', [LaboratoryController::class, 'store'])->name('laboratories.store');
             Route::put('/laboratories/{id}', [LaboratoryController::class, 'update'])->name('laboratories.update');
@@ -218,6 +229,8 @@ Route::prefix('admin')
             Route::post('/subjects', [SubjectController::class, 'store'])->name('subjects.store');
             Route::put('/subjects/{id}', [SubjectController::class, 'update'])->name('subjects.update');
             Route::delete('/subjects/{id}', [SubjectController::class, 'destroy'])->name('subjects.destroy');
+            Route::post('/subjects/{subject}/offerings', [SubjectController::class, 'storeOffering'])->name('subjects.offerings.store');
+            Route::delete('/subject-offerings/{subjectOffering}', [SubjectController::class, 'destroyOffering'])->name('subjects.offerings.destroy');
             Route::post('/schedules', [ScheduleController::class, 'store'])->name('schedules.store');
             Route::put('/schedules/{id}', [ScheduleController::class, 'update'])->name('schedules.update');
             Route::delete('/schedules/{id}', [ScheduleController::class, 'destroy'])->name('schedules.destroy');
@@ -309,7 +322,7 @@ Route::prefix('clinic')
     });
 
 Route::prefix('student-parent')
-    ->middleware(['auth', 'role:student,parent'])
+    ->middleware(['auth', 'role:student,parent', EnsureParentPortalEnabled::class])
     ->name('student-parent.')
     ->group(function () {
         Route::get('/dashboard', [StudentsController::class, 'portalDashboard'])->name('dashboard');

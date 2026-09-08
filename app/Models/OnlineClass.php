@@ -15,6 +15,8 @@ class OnlineClass extends Model
 
     protected $fillable = [
         'schedule_id',
+        'academic_year_id',
+        'subject_offering_id',
         'instructor_id',
         'section_id',
         'subject_code',
@@ -41,6 +43,18 @@ class OnlineClass extends Model
     public function schedule(): BelongsTo
     {
         return $this->belongsTo(Schedule::class, 'schedule_id', 'scheduled_id');
+    }
+
+    public function academicYear(): BelongsTo { return $this->belongsTo(AcademicYear::class, 'academic_year_id', 'academic_year_id'); }
+    public function subjectOffering(): BelongsTo { return $this->belongsTo(SubjectOffering::class, 'subject_offering_id', 'subject_offering_id'); }
+
+    protected static function booted(): void
+    {
+        static::saving(function (OnlineClass $class) {
+            $schedule = $class->schedule_id ? Schedule::query()->find($class->schedule_id) : null;
+            $class->academic_year_id = $schedule?->academic_year_id;
+            $class->subject_offering_id = $schedule?->subject_offering_id;
+        });
     }
 
     public function instructor(): BelongsTo

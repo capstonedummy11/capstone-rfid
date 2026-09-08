@@ -6,6 +6,7 @@ use App\Models\Strand;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Instructor extends Model
 {
@@ -35,5 +36,10 @@ class Instructor extends Model
     public function strand(): BelongsTo
     {
         return $this->belongsTo(Strand::class, 'strand_id', 'strand_id');
+    }
+
+    public function subjectOfferings(): HasMany
+    {
+        return $this->hasMany(SubjectOffering::class, 'instructor_id', 'instructor_id');
     }
 }

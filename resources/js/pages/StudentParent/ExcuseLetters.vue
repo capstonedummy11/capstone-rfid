@@ -11,6 +11,7 @@ const props = defineProps({
     currentUserRole: { type: String, default: '' },
     letters: { type: Array, default: () => [] },
     recipientSuggestions: { type: Array, default: () => [] },
+    parentPortalEnabled: { type: Boolean, default: false },
 });
 
 const page = usePage();
@@ -209,7 +210,7 @@ const letterRecipients = (letter) => {
                         class="rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-500"
                     >
                         Leave blank to send to all assigned teachers after
-                        parent approval.
+                        {{ parentPortalEnabled ? 'parent approval.' : 'submission.' }}
                     </div>
                     <div
                         v-if="availableRecipientSuggestions.length"
@@ -351,7 +352,8 @@ const letterRecipients = (letter) => {
                                 v-else
                                 class="mt-2 text-xs font-semibold text-slate-400"
                             >
-                                PDF available after parent approval.
+                                PDF available
+                                {{ parentPortalEnabled ? 'after parent approval.' : 'after submission.' }}
                             </p>
                             <form
                                 v-if="letter.can_parent_approve"

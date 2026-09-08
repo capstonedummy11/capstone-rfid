@@ -16,7 +16,14 @@ const props = defineProps({
         }),
     },
     onlineClasses: { type: Array, default: () => [] },
+    academicYears: { type: Array, default: () => [] },
+    selectedAcademicYearId: { type: [Number, String, null], default: null },
 });
+
+const changeAcademicYear = (event) => router.get(window.location.pathname, {
+    academic_year_id: event.target.value || undefined,
+    student_id: props.selectedStudentId || undefined,
+}, { preserveState: true, preserveScroll: true, replace: true });
 
 const page = usePage();
 const flashSuccess = computed(() => page.props.flash?.success);
@@ -144,6 +151,17 @@ const verifyFaceAndJoin = async () => {
                     :students="linkedStudents"
                     :selected-student-id="selectedStudentId"
                 />
+            </div>
+            <div v-if="academicYears.length" class="mt-4">
+                <select
+                    :value="selectedAcademicYearId || ''"
+                    class="rounded-md border border-slate-300 px-3 py-2 text-sm"
+                    @change="changeAcademicYear"
+                >
+                    <option v-for="year in academicYears" :key="year.academic_year_id" :value="year.academic_year_id">
+                        {{ year.name }} ({{ year.status }})
+                    </option>
+                </select>
             </div>
             <p
                 v-if="flashSuccess"

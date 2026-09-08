@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AcademicYear;
 use App\Models\Attendance;
 use App\Models\Instructor;
 use App\Models\Laboratory;
@@ -25,28 +26,31 @@ class DashboardController extends Controller
         $instructorId = $isInstructor
             ? Instructor::query()->where('user_id', $user?->user_id)->value('instructor_id')
             : null;
+        $academicYearId = $request->integer('academic_year_id') ?: AcademicYear::currentOrLatest()?->academic_year_id;
 
-        $sectionIds = $this->scheduleQuery($isInstructor, $instructorId)
+        $sectionIds = $this->scheduleQuery($isInstructor, $instructorId, $academicYearId)
             ->whereNotNull('section_id')
             ->distinct()
             ->pluck('section_id');
 
         $todayAttendanceQuery = Attendance::query()
+            ->when($academicYearId, fn ($query) => $query->where('academic_year_id', $academicYearId))
             ->whereDate('date', now()->toDateString())
             ->when($isInstructor, function ($query) use ($instructorId) {
                 $query->whereHas('schedule', fn ($scheduleQuery) => $scheduleQuery->where('instructor_id', $instructorId ?: 0));
             });
 
         $stats = [
-            'schedules' => $this->scheduleQuery($isInstructor, $instructorId)->count(),
+            'schedules' => $this->scheduleQuery($isInstructor, $instructorId, $academicYearId)->count(),
             'sections' => $sectionIds->count(),
             'students' => $isInstructor
-                ? Students::query()->whereIn('section_id', $sectionIds)->count()
-                : Students::query()->count(),
+                ? Students::query()->whereHas('enrollments', fn ($query) => $query->when($academicYearId, fn ($year) => $year->where('academic_year_id', $academicYearId))->whereIn('section_id', $sectionIds))->count()
+                : Students::query()->when($academicYearId, fn ($query) => $query->whereHas('enrollments', fn ($year) => $year->where('academic_year_id', $academicYearId)))->count(),
             'todayPresent' => (clone $todayAttendanceQuery)->where('status', 'present')->count(),
             'todayLate' => (clone $todayAttendanceQuery)->where('status', 'late')->count(),
             'todayAbsent' => (clone $todayAttendanceQuery)->where('status', 'absent')->count(),
             'onlineClasses' => OnlineClass::query()
+                ->when($academicYearId, fn ($query) => $query->where('academic_year_id', $academicYearId))
                 ->when($isInstructor, fn ($query) => $query->where('instructor_id', $instructorId ?: 0))
                 ->whereDate('scheduled_date', '>=', now()->toDateString())
                 ->where('status', '!=', 'cancelled')
@@ -58,7 +62,7 @@ class DashboardController extends Controller
                     ->count()
                 : 0,
             'laboratories' => $isInstructor
-                ? $this->scheduleQuery($isInstructor, $instructorId)->whereNotNull('laboratory_id')->distinct()->count('laboratory_id')
+                ? $this->scheduleQuery($isInstructor, $instructorId, $academicYearId)->whereNotNull('laboratory_id')->distinct()->count('laboratory_id')
                 : Laboratory::query()->count(),
             'instructors' => $isInstructor ? 1 : User::query()->whereRaw('LOWER(role) = ?', ['instructor'])->count(),
         ];
@@ -66,6 +70,7 @@ class DashboardController extends Controller
         $schedules = Schedule::query()
             ->with(['laboratory', 'section', 'subject', 'instructor.user'])
             ->when($isInstructor, fn ($query) => $query->where('instructor_id', $instructorId ?: 0))
+            ->when($academicYearId, fn ($query) => $query->where('academic_year_id', $academicYearId))
             ->orderBy('weekdays')
             ->orderBy('time_start')
             ->take(8)
@@ -82,6 +87,7 @@ class DashboardController extends Controller
             ]);
 
         $attendance = Attendance::query()
+            ->when($academicYearId, fn ($query) => $query->where('academic_year_id', $academicYearId))
             ->with(['student', 'schedule.subject', 'schedule.section'])
             ->when($isInstructor, function ($query) use ($instructorId) {
                 $query->whereHas('schedule', fn ($scheduleQuery) => $scheduleQuery->where('instructor_id', $instructorId ?: 0));
@@ -105,6 +111,7 @@ class DashboardController extends Controller
             ]);
 
         $onlineClasses = OnlineClass::query()
+            ->when($academicYearId, fn ($query) => $query->where('academic_year_id', $academicYearId))
             ->with(['section', 'subject'])
             ->when($isInstructor, fn ($query) => $query->where('instructor_id', $instructorId ?: 0))
             ->whereDate('scheduled_date', '>=', now()->toDateString())
@@ -127,7 +134,9 @@ class DashboardController extends Controller
         return Inertia::render('Auth/Admin/Dashboard', [
             'title' => $isInstructor ? 'Instructor Dashboard' : 'Dashboard',
             'role' => $role,
-            'scopeLabel' => $isInstructor ? 'Your assigned classes' : 'Whole system',
+            'scopeLabel' => ($isInstructor ? 'Your assigned classes' : 'Whole system').' · '.(AcademicYear::query()->find($academicYearId)?->name ?? 'All years'),
+            'academicYears' => AcademicYear::query()->orderByDesc('starts_on')->get(['academic_year_id', 'name', 'status']),
+            'selectedAcademicYearId' => $academicYearId,
             'instructorProfile' => $isInstructor ? Instructor::query()
                 ->with(['strand'])
                 ->where('instructor_id', $instructorId)
@@ -139,9 +148,10 @@ class DashboardController extends Controller
         ]);
     }
 
-    private function scheduleQuery(bool $isInstructor, ?int $instructorId): Builder
+    private function scheduleQuery(bool $isInstructor, ?int $instructorId, ?int $academicYearId = null): Builder
     {
         return Schedule::query()
+            ->when($academicYearId, fn ($query) => $query->where('academic_year_id', $academicYearId))
             ->when($isInstructor, fn ($query) => $query->where('instructor_id', $instructorId ?: 0));
     }
 }

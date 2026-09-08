@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Instructor;
+use App\Models\AcademicYear;
 use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\Strand;
@@ -96,7 +97,7 @@ function reportFixture(): array
         'updated_at' => now(),
     ]);
 
-    return compact('studentUser', 'parentUser', 'instructorUser');
+    return compact('studentUser', 'parentUser', 'instructorUser', 'student', 'schedule');
 }
 
 test('reports are role specific and include different chart types', function () {
@@ -143,4 +144,27 @@ test('console cannot access shared reports', function () {
     $this->actingAs($console)
         ->get(route('reports.index'))
         ->assertForbidden();
+});
+
+test('report academic year filter matches the exported dataset', function () {
+    $fixture = reportFixture();
+    $admin = User::factory()->create(['role' => 'admin']);
+    $yearA = AcademicYear::create(['name' => '2026-2027', 'starts_on' => '2026-06-01', 'ends_on' => '2027-03-31', 'status' => AcademicYear::STATUS_ACTIVE]);
+    $yearB = AcademicYear::create(['name' => '2025-2026', 'starts_on' => '2025-06-01', 'ends_on' => '2026-03-31', 'status' => AcademicYear::STATUS_CLOSED]);
+    DB::table('attendances')->update(['academic_year_id' => $yearA->academic_year_id]);
+    DB::table('attendances')->insert([
+        'student_id' => $fixture['student']->student_id, 'schedule_id' => $fixture['schedule']->scheduled_id,
+        'academic_year_id' => $yearB->academic_year_id, 'date' => '2026-02-01', 'time_in' => '08:00:00',
+        'status' => 'late', 'subject_code' => 'REP-101', 'room' => 'REPORT-LAB', 'created_at' => now(), 'updated_at' => now(),
+    ]);
+
+    $this->actingAs($admin)->get(route('reports.index', ['academic_year_id' => $yearA->academic_year_id]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('filters.academic_year_id', $yearA->academic_year_id)
+            ->where('summaryCards.2.label', 'Attendance Records')
+            ->where('summaryCards.2.value', 1));
+
+    $export = $this->actingAs($admin)->get(route('reports.export', ['academic_year_id' => $yearA->academic_year_id]));
+    $export->assertOk();
+    expect($export->streamedContent())->toContain($yearA->name);
 });

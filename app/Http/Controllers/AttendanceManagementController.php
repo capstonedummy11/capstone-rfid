@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use App\Models\AcademicYear;
 use App\Models\Attendance;
 use App\Models\Instructor;
 use App\Models\OnlineClass;
@@ -43,6 +44,12 @@ class AttendanceManagementController extends Controller
 
     public function index(Request $request): Response|SymfonyResponse
     {
+        $defaultYear = AcademicYear::currentOrLatest();
+        $schoolYear = trim((string) $request->input('school_year', ''));
+        if ($schoolYear === '' && $defaultYear) {
+            $schoolYear = $defaultYear->name;
+            $request->merge(['school_year' => $schoolYear]);
+        }
         [$role, $instructorId] = $this->actor($request);
         $subjects = $this->subjectsFor($role, $instructorId, $request)->get();
 
@@ -171,7 +178,8 @@ class AttendanceManagementController extends Controller
                 'statuses' => $rows->pluck('status')->unique()->sort()->values(),
                 'statusTotals' => $rows->countBy('status')->sortKeys(),
                 'rows' => $rows->values(),
-                'canEditAttendance' => in_array($context['role'], ['admin', 'instructor'], true),
+                'canEditAttendance' => in_array($context['role'], ['admin', 'instructor'], true)
+                    && ! \App\Models\AcademicYear::query()->whereKey($onlineClass->academic_year_id)->whereIn('status', ['closed', 'archived'])->exists(),
                 'absentDefaultDays' => SystemSetting::integer(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 15),
             ]);
         }
@@ -185,7 +193,8 @@ class AttendanceManagementController extends Controller
             'statuses' => $rows->pluck('status')->unique()->sort()->values(),
             'statusTotals' => $rows->countBy('status')->sortKeys(),
             'rows' => $rows->values(),
-            'canEditAttendance' => in_array($context['role'], ['admin', 'instructor'], true),
+            'canEditAttendance' => in_array($context['role'], ['admin', 'instructor'], true)
+                && ! \App\Models\AcademicYear::query()->whereKey($attendanceSession->academic_year_id)->whereIn('status', ['closed', 'archived'])->exists(),
             'absentDefaultDays' => \App\Models\SystemSetting::integer(\App\Models\SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 15),
         ]);
     }
@@ -222,6 +231,7 @@ class AttendanceManagementController extends Controller
         ]);
 
         $onlineClass = OnlineClass::query()->findOrFail($validated['online_class_id']);
+        abort_if($onlineClass->academicYear && ! $onlineClass->academicYear->isWritable(), 422, 'Online attendance from a closed or archived academic year is read-only.');
         $subject = Subject::query()
             ->where('section_id', $onlineClass->section_id)
             ->where('subject_code', $onlineClass->subject_code)
@@ -385,7 +395,7 @@ class AttendanceManagementController extends Controller
                     $query->where('schedules.instructor_id', $request->integer('instructor'));
                 }
             })
-            ->when($request->filled('school_year'), fn ($q) => $q->whereHas('section', fn ($s) => $s->where('school_year', $request->input('school_year'))))
+            ->when($request->filled('school_year') && $request->input('school_year') !== 'all', fn ($q) => $q->whereHas('section', fn ($s) => $s->where('school_year', $request->input('school_year'))))
             ->when($request->filled('semester'), fn ($q) => $q->where(function ($s) use ($request) {
                 $s->where('semester', $request->input('semester'))
                     ->orWhereHas('section', fn ($section) => $section->where('semester', $request->input('semester')));
@@ -423,8 +433,16 @@ class AttendanceManagementController extends Controller
 
     private function studentsFor(Subject $subject): Builder
     {
+        $subject->loadMissing('section');
+
         return Students::query()
-            ->where('section_id', $subject->section_id)
+            ->when($subject->section?->academic_year_id, function (Builder $query, int $academicYearId) use ($subject) {
+                $query->whereHas('enrollments', fn (Builder $enrollment) => $enrollment
+                    ->where('academic_year_id', $academicYearId)
+                    ->where('section_id', $subject->section_id)
+                    ->when($subject->semester, fn (Builder $term) => $term->where('semester', $subject->semester))
+                );
+            }, fn (Builder $query) => $query->where('section_id', $subject->section_id))
             ->where(function ($query) {
                 $query->whereNull('status')->orWhereRaw('LOWER(status) = ?', ['active']);
             })
