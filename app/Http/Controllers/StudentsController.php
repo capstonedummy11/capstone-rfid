@@ -15,6 +15,7 @@ use App\Models\StudentExcuseLetter;
 use App\Models\StudentEnrollment;
 use App\Models\StudentPortalMessage;
 use App\Models\Students;
+use App\Models\SystemSetting;
 use App\Models\User;
 use App\Services\CompreFaceService;
 use App\Services\ExcuseLetterPdfService;
@@ -629,6 +630,7 @@ class StudentsController
             'linkedStudents' => $this->linkedStudentsPayload($request),
             'selectedStudentId' => $student?->student_id,
             'currentUserRole' => strtolower((string) $request->user()?->role),
+            'parentPortalEnabled' => SystemSetting::boolean(SystemSetting::PARENT_PORTAL_ENABLED, false),
             'recipientSuggestions' => $student ? $this->teacherSuggestionPayload($student) : [],
             'letters' => $student
                 ? $student->excuseLetters()->with(['submittedBy', 'parentApprovedBy', 'academicYear'])->when($enrollment, fn ($query) => $query->where('academic_year_id', $enrollment->academic_year_id))->latest()->get()->map(fn (StudentExcuseLetter $letter) => $this->letterPayload($letter, $request))
@@ -643,6 +645,7 @@ class StudentsController
         $enrollment = $this->portalEnrollment($request, $student);
         abort_if($enrollment && $enrollment->academicYear?->status !== AcademicYear::STATUS_ACTIVE, 422, 'Excuse letters can only be submitted for the active academic year.');
         $role = strtolower((string) $request->user()?->role);
+        $parentPortalEnabled = SystemSetting::boolean(SystemSetting::PARENT_PORTAL_ENABLED, false);
 
         $validated = $request->validate([
             'subject' => ['required', 'string', 'max:255'],
@@ -677,7 +680,7 @@ class StudentsController
             'student_enrollment_id' => $enrollment?->student_enrollment_id,
             'submitted_by_user_id' => $request->user()->user_id,
             'submitted_by_role' => $role,
-            'status' => $role === 'parent' ? 'approved' : 'pending_parent_approval',
+            'status' => $role === 'parent' || ! $parentPortalEnabled ? 'approved' : 'pending_parent_approval',
             'parent_signature' => $role === 'parent' ? $request->input('parent_signature') : null,
             'parent_approved_by_user_id' => $role === 'parent' ? $request->user()->user_id : null,
             'parent_approved_at' => $role === 'parent' ? now() : null,
@@ -685,18 +688,20 @@ class StudentsController
 
         $this->logActivity('create', 'student_excuse_letters', 'Submitted excuse letter '.$letter->student_excuse_letter_id.' for student '.$student->student_number);
 
-        $teacherMessageCount = $role === 'parent'
+        $teacherMessageCount = $role === 'parent' || ! $parentPortalEnabled
             ? $this->sendApprovedExcuseLetterToTeachers($letter->fresh(['student', 'submittedBy', 'parentApprovedBy']), $request->user())
             : 0;
 
-        if ($role !== 'parent') {
+        if ($role !== 'parent' && $parentPortalEnabled) {
             $this->notifyParentsExcuseLetterNeedsApproval(
                 $letter->fresh(['student.parentUsers', 'submittedBy']),
             );
         }
 
         return back()->with('success', match (true) {
-            $role !== 'parent' => 'Excuse letter submitted.',
+            $role !== 'parent' && $parentPortalEnabled => 'Excuse letter submitted.',
+            $role !== 'parent' && $teacherMessageCount > 0 => 'Excuse letter submitted and sent to the teacher.',
+            $role !== 'parent' => 'Excuse letter submitted, but no assigned teacher was found for this section.',
             $teacherMessageCount > 0 => 'Excuse letter submitted and sent to the teacher.',
             default => 'Excuse letter submitted, but no assigned teacher was found for this section.',
         });
@@ -704,6 +709,7 @@ class StudentsController
 
     public function approvePortalExcuseLetter(Request $request, StudentExcuseLetter $letter)
     {
+        abort_if(! SystemSetting::boolean(SystemSetting::PARENT_PORTAL_ENABLED, false), 403, 'Parent portal is disabled.');
         $student = $this->currentStudent($request);
         abort_unless(
             strtolower((string) $request->user()?->role) === 'parent'
@@ -915,6 +921,8 @@ class StudentsController
         $role = strtolower((string) $request->user()?->role);
 
         if ($role === 'parent') {
+            abort_if(! SystemSetting::boolean(SystemSetting::PARENT_PORTAL_ENABLED, false), 403, 'Parent portal is disabled.');
+
             $query = $request->user()
                 ?->linkedStudents()
                 ->with(['section', 'strand'])

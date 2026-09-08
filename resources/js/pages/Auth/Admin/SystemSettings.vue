@@ -9,6 +9,7 @@ const props = defineProps({
         default: () => ({
             borrowing_enabled: false,
             inventory_enabled: false,
+            parent_portal_enabled: false,
             face_recognition_enabled: true,
             demo_attendance_panel_enabled: false,
             online_class_face_recognition_default: true,
@@ -70,6 +71,7 @@ const faceUnavailableMessage = computed(
 const form = useForm({
     borrowing_enabled: Boolean(props.featureSettings.borrowing_enabled),
     inventory_enabled: Boolean(props.featureSettings.inventory_enabled),
+    parent_portal_enabled: Boolean(props.featureSettings.parent_portal_enabled),
     face_recognition_enabled:
         faceAvailable.value &&
         Boolean(props.featureSettings.face_recognition_enabled),
@@ -278,6 +280,24 @@ const toggleFaceSetting = (field) => {
                         </span>
                         <input
                             v-model="form.borrowing_enabled"
+                            type="checkbox"
+                            class="h-5 w-5 shrink-0 accent-brand"
+                        />
+                    </label>
+
+                    <label
+                        class="flex items-center justify-between gap-4 rounded-md border border-slate-200 p-4"
+                    >
+                        <span class="min-w-0">
+                            <span class="block text-sm font-bold text-slate-900">
+                                Parent Portal
+                            </span>
+                            <span class="block text-sm text-slate-500">
+                                Allows linked parent accounts to log in and view connected student information.
+                            </span>
+                        </span>
+                        <input
+                            v-model="form.parent_portal_enabled"
                             type="checkbox"
                             class="h-5 w-5 shrink-0 accent-brand"
                         />

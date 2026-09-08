@@ -13,7 +13,7 @@ import {
     removeSavedStudentParentProfile,
     setStudentParentSavePreference,
 } from '@/composables/useSavedStudentParentProfiles';
-import { Link, useForm } from '@inertiajs/vue3';
+import { Link, useForm, usePage } from '@inertiajs/vue3';
 import { ArrowRight, Eye, EyeOff, Trash2 } from 'lucide-vue-next';
 import { computed, onMounted, ref } from 'vue';
 
@@ -24,6 +24,10 @@ const selectedIndex = ref(0);
 const useDifferentAccount = ref(true);
 const saveOnDevice = ref(false);
 const showPassword = ref(false);
+const page = usePage();
+const parentPortalEnabled = computed(() =>
+    Boolean(page.props.featureSettings?.parent_portal_enabled),
+);
 
 const selectedProfile = computed(
     () => profiles.value[selectedIndex.value] ?? null,
@@ -37,7 +41,9 @@ const form = useForm({
 
 const helperText = computed(() =>
     useDifferentAccount.value || !selectedProfile.value
-        ? 'Enter your Student or Parent account credentials.'
+        ? parentPortalEnabled.value
+            ? 'Enter your Student or Parent account credentials.'
+            : 'Enter your Student account credentials.'
         : `Welcome back, ${selectedProfile.value.name}. Enter your password to continue.`,
 );
 
@@ -144,7 +150,11 @@ const revealLoginPanel = () => {
 };
 
 onMounted(() => {
-    profiles.value = getSavedStudentParentProfiles();
+    profiles.value = getSavedStudentParentProfiles().filter(
+        (profile) =>
+            parentPortalEnabled.value ||
+            String(profile.role || '').toLowerCase() !== 'parent',
+    );
 
     if (profiles.value.length > 0) {
         selectProfile(0);

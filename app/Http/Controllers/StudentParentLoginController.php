@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\SystemSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
@@ -35,6 +36,16 @@ class StudentParentLoginController
 
             throw ValidationException::withMessages([
                 'email' => 'This login is only for student and parent accounts.',
+            ]);
+        }
+
+        if ($role === 'parent' && ! SystemSetting::boolean(SystemSetting::PARENT_PORTAL_ENABLED, false)) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            throw ValidationException::withMessages([
+                'email' => 'Parent portal access is currently disabled by the administrator.',
             ]);
         }
 

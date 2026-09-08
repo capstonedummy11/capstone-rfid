@@ -11,6 +11,7 @@ use App\Models\StudentExcuseLetter;
 use App\Models\StudentEnrollment;
 use App\Models\StudentPortalMessage;
 use App\Models\Students;
+use App\Models\SystemSetting;
 use App\Models\User;
 use App\Notifications\MessengerMessageReceived;
 use App\Services\MessengerEmailNotificationService;
@@ -26,6 +27,8 @@ uses(RefreshDatabase::class);
 
 function portalFixture(): array
 {
+    SystemSetting::setBoolean(SystemSetting::PARENT_PORTAL_ENABLED, true);
+
     $strand = Strand::query()->create([
         'strand_code' => 'ICT',
         'strand_name' => 'Information and Communications Technology',
