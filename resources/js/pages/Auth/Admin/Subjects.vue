@@ -12,7 +12,7 @@
       </section>
 
       <section class="mb-6 rounded-lg bg-white p-6 shadow-lg">
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
           <div>
             <label class="mb-1 block text-xs font-medium text-slate-600">Search</label>
             <input
@@ -29,6 +29,13 @@
               <option value="">All Semesters</option>
               <option value="1st Semester">1st Semester</option>
               <option value="2nd Semester">2nd Semester</option>
+            </select>
+          </div>
+          <div>
+            <label class="mb-1 block text-xs font-medium text-slate-600">Academic Year</label>
+            <select v-model="selectedAcademicYear" @change="onFilterChange" class="w-full rounded-md border border-slate-300 px-3 py-2">
+              <option value="all">All Academic Years</option>
+              <option v-for="year in academicYears" :key="year.academic_year_id" :value="year.academic_year_id">{{ year.name }} ({{ year.status }})</option>
             </select>
           </div>
           <div class="flex items-end justify-end">
@@ -60,12 +67,29 @@
                 <td class="border border-gray-300 px-4 py-3">{{ subject.subject_description || 'N/A' }}</td>
                 <td class="border border-gray-300 px-4 py-3">{{ subject.department || 'N/A' }}</td>
                 <td class="border border-gray-300 px-4 py-3">{{ subject.unit }}</td>
-                <td class="border border-gray-300 px-4 py-3">{{ subject.semester || 'N/A' }}</td>
-                <td class="border border-gray-300 px-4 py-3">{{ subject.section_name || 'Unassigned' }}</td>
-                <td class="border border-gray-300 px-4 py-3">{{ subject.user_name || 'Unassigned' }}</td>
+                <td class="border border-gray-300 px-4 py-3">{{ subject.semester || subject.offerings?.[0]?.semester || 'N/A' }}</td>
+                <td class="border border-gray-300 px-4 py-3">
+                  <div v-if="subject.offerings?.length" class="space-y-1">
+                    <div v-for="offering in subject.offerings" :key="offering.subject_offering_id" class="rounded bg-slate-50 px-2 py-1 text-xs">
+                      <strong>{{ offering.section_name }}</strong> · {{ offering.academic_year }} · {{ offering.semester }}
+                    </div>
+                  </div>
+                  <span v-else>Unassigned</span>
+                </td>
+                <td class="border border-gray-300 px-4 py-3">
+                  <div v-if="subject.offerings?.length" class="space-y-1">
+                    <div v-for="offering in subject.offerings" :key="offering.subject_offering_id" class="flex items-center justify-between gap-2 text-xs">
+                      <span>{{ offering.instructor_name || 'Unassigned' }}</span>
+                      <button v-if="offering.is_writable" @click="deleteOffering(offering)" class="text-rose-600 hover:underline">Remove</button>
+                      <span v-else class="text-slate-400">Locked</span>
+                    </div>
+                  </div>
+                  <span v-else>Unassigned</span>
+                </td>
                 <td class="border border-gray-300 px-4 py-3">
                   <div class="flex items-center gap-2">
                     <button @click="openEditModal(subject)" class="rounded-md bg-indigo-600 px-3 py-1 text-sm text-white hover:bg-indigo-700">Edit</button>
+                    <button @click="openOfferingModal(subject)" class="rounded-md bg-sky-600 px-3 py-1 text-sm text-white hover:bg-sky-700">Add Offering</button>
                     <button @click="deleteSubject(subject)" class="rounded-md bg-rose-500 px-3 py-1 text-sm text-white hover:bg-rose-600">Delete</button>
                   </div>
                 </td>
@@ -82,6 +106,9 @@
           <h2 class="mb-4 text-xl font-semibold">{{ isEditing ? 'Edit Subject' : 'Add New Subject' }}</h2>
 
           <form @submit.prevent="submitForm" class="space-y-4">
+            <div v-if="Object.keys(form.errors).length" class="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              <p v-for="(message, field) in form.errors" :key="field">{{ message }}</p>
+            </div>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <label class="mb-1 block text-sm font-medium text-slate-700">Subject Code *</label>
@@ -107,40 +134,42 @@
                 <label class="mb-1 block text-sm font-medium text-slate-700">Unit *</label>
                 <input v-model.number="form.unit" type="number" min="0" placeholder="e.g., 3" class="w-full rounded-md border border-slate-300 px-3 py-2" required />
               </div>
-              <div>
-                <label class="mb-1 block text-sm font-medium text-slate-700">Semester</label>
-                <select v-model="form.semester" class="w-full rounded-md border border-slate-300 px-3 py-2">
-                  <option value="">Select Semester</option>
-                  <option value="1st Semester">1st Semester</option>
-                  <option value="2nd Semester">2nd Semester</option>
-                </select>
-              </div>
-              <div>
-                <label class="mb-1 block text-sm font-medium text-slate-700">Section</label>
-                <SearchableSelect
-                  v-model="form.section_id"
-                  :options="sectionSearchOptions"
-                  placeholder="Search sections..."
-                  empty-text="No matching sections"
-                  clearable
-                />
-              </div>
-            </div>
-
-            <div>
-              <label class="mb-1 block text-sm font-medium text-slate-700">Instructor</label>
-              <SearchableSelect
-                v-model="form.user_id"
-                :options="instructorSearchOptions"
-                placeholder="Search instructors..."
-                empty-text="No matching instructors"
-                clearable
-              />
             </div>
 
             <div class="flex justify-end gap-2 border-t pt-4">
               <button type="button" @click="closeModal" class="rounded-md border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50">Cancel</button>
               <button type="submit" class="rounded-md bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-700" :disabled="form.processing">{{ isEditing ? 'Update Subject' : 'Add Subject' }}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div v-if="showOfferingModal && selectedSubject" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @click.self="closeOfferingModal">
+        <div class="w-full max-w-2xl rounded-lg bg-white p-6">
+          <h2 class="text-xl font-semibold">Add Subject Offering</h2>
+          <p class="mt-1 text-sm text-slate-500">{{ selectedSubject.subject_code }} — {{ selectedSubject.subject_name }}</p>
+          <form class="mt-5 space-y-4" @submit.prevent="submitOffering">
+            <div>
+              <label class="mb-1 block text-sm font-medium text-slate-700">Section and academic year *</label>
+              <SearchableSelect v-model="offeringForm.section_id" :options="sectionSearchOptions" placeholder="Search section, grade, or year..." empty-text="No matching sections" />
+              <p v-if="offeringForm.errors.section_id" class="mt-1 text-xs text-rose-600">{{ offeringForm.errors.section_id }}</p>
+            </div>
+            <div class="grid gap-4 md:grid-cols-2">
+              <div>
+                <label class="mb-1 block text-sm font-medium text-slate-700">Semester *</label>
+                <select v-model="offeringForm.semester" class="w-full rounded-md border border-slate-300 px-3 py-2" required>
+                  <option value="1st Semester">1st Semester</option>
+                  <option value="2nd Semester">2nd Semester</option>
+                </select>
+              </div>
+              <div>
+                <label class="mb-1 block text-sm font-medium text-slate-700">Instructor</label>
+                <SearchableSelect v-model="offeringForm.user_id" :options="instructorSearchOptions" placeholder="Search instructor..." empty-text="No matching instructors" clearable />
+              </div>
+            </div>
+            <div class="flex justify-end gap-2 border-t pt-4">
+              <button type="button" @click="closeOfferingModal" class="rounded-md border border-slate-300 px-4 py-2 text-sm">Cancel</button>
+              <button type="submit" :disabled="offeringForm.processing" class="rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Add Offering</button>
             </div>
           </form>
         </div>
@@ -166,6 +195,17 @@ interface Subject {
   department: string | null;
   unit: number;
   semester: string | null;
+  offerings?: SubjectOffering[];
+  has_locked_offerings?: boolean;
+}
+
+interface SubjectOffering {
+  subject_offering_id: string | number;
+  academic_year: string;
+  semester: string;
+  section_name: string;
+  instructor_name: string | null;
+  is_writable: boolean;
 }
 
 interface SectionOption {
@@ -201,13 +241,16 @@ const props = defineProps({
     type: Array as () => InstructorOption[],
     default: () => [],
   },
+  academicYears: { type: Array as () => Array<{ academic_year_id: number; name: string; status: string }>, default: () => [] },
 });
 
 const search = ref(props.filters.search ?? '');
 const selectedSemester = ref(props.filters.semester ?? '');
+const selectedAcademicYear = ref(props.filters.academic_year_id ?? '');
 const showModal = ref(false);
 const isEditing = ref(false);
 const selectedSubject = ref<Subject | null>(null);
+const showOfferingModal = ref(false);
 
 const instructors = computed(() => {
   return (props.instructorOptions as InstructorOption[]).filter((instructor) => {
@@ -242,10 +285,18 @@ const form = useForm({
   semester: '',
 });
 
+const offeringForm = useForm({
+  section_id: '',
+  user_id: '',
+  semester: '1st Semester',
+  status: 'active',
+});
+
 const onFilterChange = () => {
   router.get(route('admin.subjects.index'), {
     search: search.value,
     semester: selectedSemester.value,
+    academic_year_id: selectedAcademicYear.value,
   }, {
     preserveState: true,
     preserveScroll: true,
@@ -256,6 +307,7 @@ const onFilterChange = () => {
 const resetFilters = () => {
   search.value = '';
   selectedSemester.value = '';
+  selectedAcademicYear.value = props.academicYears.find((year) => year.status === 'active')?.academic_year_id ?? props.academicYears[0]?.academic_year_id ?? '';
   onFilterChange();
 };
 
@@ -271,14 +323,11 @@ const openEditModal = (subject: Subject) => {
   isEditing.value = true;
   selectedSubject.value = subject;
   form.reset();
-  form.section_id = subject.section_id ? String(subject.section_id) : '';
-  form.user_id = subject.user_id ? String(subject.user_id) : '';
   form.subject_name = subject.subject_name;
   form.subject_code = subject.subject_code;
   form.subject_description = subject.subject_description ?? '';
   form.department = subject.department ?? '';
   form.unit = Number(subject.unit ?? 0);
-  form.semester = subject.semester ?? '';
   showModal.value = true;
 };
 
@@ -289,6 +338,38 @@ const closeModal = () => {
   form.reset();
 };
 
+const openOfferingModal = (subject: Subject) => {
+  selectedSubject.value = subject;
+  offeringForm.reset();
+  offeringForm.semester = '1st Semester';
+  showOfferingModal.value = true;
+};
+
+const closeOfferingModal = () => {
+  showOfferingModal.value = false;
+  selectedSubject.value = null;
+  offeringForm.reset();
+};
+
+const submitOffering = () => {
+  if (!selectedSubject.value || !offeringForm.section_id) return;
+  offeringForm.transform((data) => ({
+    ...data,
+    section_id: Number(data.section_id),
+    user_id: data.user_id === '' ? null : Number(data.user_id),
+  })).post(route('admin.subjects.offerings.store', { subject: selectedSubject.value.subject_id }), {
+    preserveScroll: true,
+    onSuccess: closeOfferingModal,
+  });
+};
+
+const deleteOffering = (offering: SubjectOffering) => {
+  if (!confirm(`Remove this ${offering.academic_year} offering? Historical schedules are protected.`)) return;
+  useForm({}).delete(route('admin.subjects.offerings.destroy', { subjectOffering: offering.subject_offering_id }), {
+    preserveScroll: true,
+  });
+};
+
 const submitForm = () => {
   if (!form.subject_name || !form.subject_code || form.unit === null || form.unit === undefined || Number(form.unit) < 0) {
     alert('Please fill in all required fields and provide a valid unit value.');
@@ -297,10 +378,7 @@ const submitForm = () => {
 
   const payload = {
     ...form.data(),
-    section_id: form.section_id === '' ? null : Number(form.section_id),
-    user_id: form.user_id === '' ? null : Number(form.user_id),
     unit: Number(form.unit),
-    semester: form.semester === '' ? null : form.semester,
     department: form.department === '' ? null : form.department,
     subject_description: form.subject_description === '' ? null : form.subject_description,
   };

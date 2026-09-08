@@ -49,6 +49,10 @@
           <h1 class="text-xl font-bold text-slate-800">{{ pageTitle }}</h1>
           <p class="text-xs text-slate-400">{{ isAdmin ? 'Weekly schedule overview by room' : 'Your assigned weekly schedule' }}</p>
         </div>
+        <select v-model="selectedAcademicYearId" @change="changeAcademicYear" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
+          <option value="all">All Academic Years</option>
+          <option v-for="year in academicYears" :key="year.academic_year_id" :value="year.academic_year_id">{{ year.name }} ({{ year.status }})</option>
+        </select>
         <button
           v-if="isAdmin"
           @click="openAddModal"
@@ -92,12 +96,13 @@
                       v-if="cell.type === 'start' && cell.schedule"
                       class="flex h-full w-full cursor-pointer flex-col gap-0.5 overflow-hidden rounded-md border border-blue-200 bg-blue-50 px-2 py-1.5 transition hover:border-blue-400 hover:bg-blue-100"
                       :class="{ 'cursor-default hover:border-blue-200 hover:bg-blue-50': !isAdmin }"
-                      @click="openEditModal(cell.schedule)"
+                      @click="cell.schedule.is_writable && openEditModal(cell.schedule)"
                     >
                       <span class="truncate text-[11px] font-semibold text-blue-800 leading-tight">{{ cell.schedule.subject_code || 'No subject' }}</span>
                       <span class="truncate text-[10px] text-blue-600 leading-tight">{{ cell.schedule.section_name || '-' }}</span>
                       <span class="truncate text-[10px] text-slate-500 leading-tight">{{ cell.schedule.instructor_name || '-' }}</span>
                       <span class="truncate text-[10px] font-medium text-slate-600 leading-tight">Room: {{ cell.schedule.room || cell.schedule.laboratory_name || '-' }}</span>
+                      <span class="text-[9px] text-slate-400">{{ cell.schedule.academic_year_name || 'Legacy year' }} · {{ cell.schedule.semester || 'Term not set' }}</span>
                       <span class="mt-auto text-[9px] text-slate-400 leading-tight">{{ normalizeTime(cell.schedule.time_start) }} - {{ normalizeTime(cell.schedule.time_end) }}</span>
                     </div>
                   </td>
@@ -126,32 +131,14 @@
         </div>
         <form @submit.prevent="submitForm" class="space-y-4 px-6 py-5">
           <div>
-            <label class="mb-1 block text-sm font-medium text-slate-700">Instructor</label>
+            <label class="mb-1 block text-sm font-medium text-slate-700">Subject offering <span class="text-rose-500">*</span></label>
             <SearchableSelect
-              v-model="form.instructor_id"
-              :options="instructorSearchOptions"
-              placeholder="Search instructor name..."
-              empty-text="No instructors found."
-              clearable
+              v-model="form.subject_offering_id"
+              :options="subjectOfferingSearchOptions"
+              placeholder="Search subject, section, instructor, or academic year..."
+              empty-text="No writable subject offerings found."
             />
-          </div>
-          <div>
-            <label class="mb-1 block text-sm font-medium text-slate-700">Subject <span class="text-rose-500">*</span></label>
-            <SearchableSelect
-              v-model="form.subject_code"
-              :options="subjectSearchOptions"
-              placeholder="Search subject code or name..."
-              empty-text="No subjects found."
-            />
-          </div>
-          <div>
-            <label class="mb-1 block text-sm font-medium text-slate-700">Section <span class="text-rose-500">*</span></label>
-            <SearchableSelect
-              v-model="form.section_id"
-              :options="sectionSearchOptions"
-              placeholder="Search section, grade, or school year..."
-              empty-text="No sections found."
-            />
+            <p class="mt-1 text-xs text-slate-500">The offering determines the academic year, semester, subject, section, and instructor.</p>
           </div>
           <div>
             <label class="mb-2 block text-sm font-medium text-slate-700">Weekdays <span class="text-rose-500">*</span></label>
@@ -202,6 +189,12 @@ import SearchableSelect from '@/components/SearchableSelect.vue';
 
 interface Schedule {
   scheduled_id: string | number;
+  academic_year_id?: string | number | null;
+  academic_year_name?: string | null;
+  academic_year_status?: string | null;
+  subject_offering_id?: string | number | null;
+  semester?: string | null;
+  is_writable: boolean;
   laboratory_id: string | number | null;
   laboratory_name: string | null;
   instructor_id: string | number | null;
@@ -241,6 +234,17 @@ interface InstructorOption {
   name: string;
 }
 
+interface SubjectOfferingOption {
+  subject_offering_id: string | number;
+  label: string;
+  academic_year: string;
+  semester: string;
+  section_name: string;
+  subject_code: string;
+  subject_name: string;
+  instructor_name?: string | null;
+}
+
 declare function route(name: string, params?: Record<string, unknown>): string;
 
 // â”€â”€â”€ Props â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -248,10 +252,12 @@ declare function route(name: string, params?: Record<string, unknown>): string;
 const props = defineProps({
   schedules: { type: Array as () => Schedule[], default: () => [] },
   filters: { type: Object, default: () => ({ laboratory_id: null }) },
+  academicYears: { type: Array as () => Array<{ academic_year_id: number; name: string; status: string }>, default: () => [] },
   laboratories: { type: Array as () => Laboratory[], default: () => [] },
   sectionOptions: { type: Array as () => SectionOption[], default: () => [] },
   subjectOptions: { type: Array as () => SubjectOption[], default: () => [] },
   instructorOptions: { type: Array as () => InstructorOption[], default: () => [] },
+  subjectOfferingOptions: { type: Array as () => SubjectOfferingOption[], default: () => [] },
   currentUserRole: { type: String, default: '' },
   canManageSchedules: { type: Boolean, default: false },
 });
@@ -285,6 +291,14 @@ const sectionSearchOptions = computed(() =>
   })),
 );
 
+const subjectOfferingSearchOptions = computed(() =>
+  props.subjectOfferingOptions.map((offering) => ({
+    value: String(offering.subject_offering_id),
+    label: offering.label,
+    keywords: `${offering.subject_code} ${offering.subject_name} ${offering.section_name} ${offering.academic_year} ${offering.semester} ${offering.instructor_name ?? ''}`,
+  })),
+);
+
 // â”€â”€â”€ Days / time config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const days = [
@@ -304,6 +318,12 @@ const timeSlots: string[] = Array.from({ length: 14 }, (_, i) => {
 // â”€â”€â”€ Sidebar state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const selectedLaboratoryId = ref<number | null>(props.filters.laboratory_id ?? null);
+const selectedAcademicYearId = ref<string | number>(props.filters.academic_year_id ?? '');
+
+const changeAcademicYear = () => router.get(route('admin.schedules.index'), {
+  academic_year_id: selectedAcademicYearId.value,
+  laboratory_id: selectedLaboratoryId.value ?? undefined,
+}, { preserveState: true, preserveScroll: true, replace: true });
 
 const selectedLaboratory = computed(() =>
   selectedLaboratoryId.value === null
@@ -326,7 +346,7 @@ const selectLaboratory = (id: number | null) => {
   selectedLaboratoryId.value = id;
   router.get(
     route('admin.schedules.index'),
-    id !== null ? { laboratory_id: id } : {},
+    { laboratory_id: id ?? undefined, academic_year_id: selectedAcademicYearId.value },
     { preserveState: true, preserveScroll: true, replace: true },
   );
 };
@@ -401,6 +421,7 @@ const selectedSchedule = ref<Schedule | null>(null);
 const selectedWeekdays = ref<string[]>([]);
 
 const form = useForm({
+  subject_offering_id: '' as string,
   laboratory_id: '' as string | number,
   instructor_id: '' as string,
   section_id: '' as string,
@@ -429,6 +450,7 @@ const openEditModal = (schedule: Schedule) => {
   selectedWeekdays.value = schedule.weekdays.split(/[,\-\/\s]+/).map((d) => d.trim()).filter(Boolean);
   form.reset();
   form.laboratory_id = schedule.laboratory_id ?? '';
+  form.subject_offering_id = schedule.subject_offering_id ? String(schedule.subject_offering_id) : '';
   form.instructor_id = schedule.instructor_id ? String(schedule.instructor_id) : '';
   form.section_id = String(schedule.section_id);
   form.subject_code = schedule.subject_code;
@@ -452,8 +474,8 @@ const submitForm = () => {
     alert('Please select at least one weekday.');
     return;
   }
-  if (!form.subject_code || !form.section_id) {
-    alert('Please fill in all required fields.');
+  if (!form.subject_offering_id) {
+    alert('Please select a subject offering.');
     return;
   }
   if (form.time_end <= form.time_start) {
@@ -463,9 +485,10 @@ const submitForm = () => {
 
   const payload = {
     laboratory_id: form.laboratory_id || null,
+    subject_offering_id: Number(form.subject_offering_id),
     instructor_id: form.instructor_id ? Number(form.instructor_id) : null,
-    section_id: Number(form.section_id),
-    subject_code: form.subject_code,
+    section_id: form.section_id ? Number(form.section_id) : null,
+    subject_code: form.subject_code || null,
     weekdays: selectedWeekdays.value.join(','),
     time_start: form.time_start,
     time_end: form.time_end,

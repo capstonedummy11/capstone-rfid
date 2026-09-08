@@ -22,6 +22,8 @@ This README is written from the current source code. It intentionally excludes p
 | Schedule conflict detection            | Missing                               | Schedule CRUD validates data but does not reject overlapping schedules.                                                                              |
 | Full term/department/course management | Partial                               | Strands, sections, subjects, schedules, and school year fields exist; no dedicated term closing, department, curriculum, or course lifecycle module. |
 
+Academic-year lifecycle foundation is available at `/admin/academic-years`. Student Management preserves yearly enrollment history, sections are year-scoped, and subjects use separate yearly offerings. Schedules now select an offering and store its academic year, semester, subject, section, and instructor context. Closed-year schedules are read-only, and the live attendance panel resolves schedules only from the active academic year. Attendance records, online classes, and reports still require later migration phases for complete historical isolation.
+
 ## Primary Roles
 
 Canonical reference: [Roles and Functionality](ROLES_AND_FUNCTIONALITY.md). The list below is a short overview; the linked document explains each role's purpose, complete functionality, boundaries, login entry, and daily workflow.

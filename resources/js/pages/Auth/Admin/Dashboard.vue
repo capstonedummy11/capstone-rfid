@@ -1,5 +1,5 @@
 <script setup>
-import { Link } from '@inertiajs/vue3';
+import { Link, router } from '@inertiajs/vue3';
 import {
     Bell,
     CalendarDays,
@@ -18,9 +18,14 @@ const props = defineProps({
     schedules: { type: Array, default: () => [] },
     attendance: { type: Array, default: () => [] },
     onlineClasses: { type: Array, default: () => [] },
+    academicYears: { type: Array, default: () => [] },
+    selectedAcademicYearId: { type: [Number, String, null], default: null },
 });
 
 const isInstructor = computed(() => props.role === 'instructor');
+const changeAcademicYear = (event) => router.get(window.location.pathname, {
+    academic_year_id: event.target.value || undefined,
+}, { preserveState: true, preserveScroll: true, replace: true });
 
 const cards = computed(() => [
     {
@@ -99,6 +104,15 @@ const statusClass = (status) => {
                 </div>
 
                 <div class="flex flex-wrap gap-2">
+                    <select
+                        :value="selectedAcademicYearId || ''"
+                        class="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-sm"
+                        @change="changeAcademicYear"
+                    >
+                        <option v-for="year in academicYears" :key="year.academic_year_id" :value="year.academic_year_id">
+                            {{ year.name }} ({{ year.status }})
+                        </option>
+                    </select>
                     <Link
                         :href="route('admin.schedules.index')"
                         class="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-sm"

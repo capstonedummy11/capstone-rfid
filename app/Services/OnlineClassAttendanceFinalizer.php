@@ -40,15 +40,23 @@ class OnlineClassAttendanceFinalizer
 
         $now = now();
         $rows = Students::query()
-            ->where('section_id', $onlineClass->section_id)
+            ->when($onlineClass->academic_year_id,
+                fn ($query) => $query->whereHas('enrollments', fn ($enrollment) => $enrollment
+                    ->where('academic_year_id', $onlineClass->academic_year_id)->where('section_id', $onlineClass->section_id)->where('status', 'active')),
+                fn ($query) => $query->where('section_id', $onlineClass->section_id))
             ->where(function ($query) {
                 $query->whereNull('status')->orWhereRaw('LOWER(status) = ?', ['active']);
             })
             ->whereNotIn('student_id', $existingStudentIds)
             ->get(['student_id'])
-            ->map(fn (Students $student) => [
+            ->map(function (Students $student) use ($onlineClass, $now) {
+                $enrollmentId = $onlineClass->academic_year_id ? $student->enrollments()->where('academic_year_id', $onlineClass->academic_year_id)->where('section_id', $onlineClass->section_id)->value('student_enrollment_id') : null;
+                return [
                 'online_class_id' => $onlineClass->online_class_id,
                 'student_id' => $student->student_id,
+                'academic_year_id' => $onlineClass->academic_year_id,
+                'subject_offering_id' => $onlineClass->subject_offering_id,
+                'student_enrollment_id' => $enrollmentId,
                 'joined_at' => null,
                 'status' => 'absent',
                 'is_late' => false,
@@ -57,7 +65,8 @@ class OnlineClassAttendanceFinalizer
                 'face_verified_at' => null,
                 'created_at' => $now,
                 'updated_at' => $now,
-            ]);
+                ];
+            });
 
         if ($rows->isEmpty()) {
             return 0;

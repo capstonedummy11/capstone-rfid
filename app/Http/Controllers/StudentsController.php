@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use App\Models\AcademicYear;
 use App\Models\Instructor;
 use App\Models\Message;
 use App\Models\OnlineClass;
@@ -11,6 +12,7 @@ use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\Strand;
 use App\Models\StudentExcuseLetter;
+use App\Models\StudentEnrollment;
 use App\Models\StudentPortalMessage;
 use App\Models\Students;
 use App\Models\User;
@@ -18,6 +20,7 @@ use App\Services\CompreFaceService;
 use App\Services\ExcuseLetterPdfService;
 use App\Services\MessengerEmailNotificationService;
 use App\Services\OnlineClassAttendanceFinalizer;
+use App\Services\StudentEnrollmentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -33,6 +36,7 @@ class StudentsController
     public function __construct(
         private readonly MessengerEmailNotificationService $emailNotifications,
         private readonly OnlineClassAttendanceFinalizer $onlineAttendanceFinalizer,
+        private readonly StudentEnrollmentService $studentEnrollmentService,
     ) {}
 
     public function index()
@@ -56,6 +60,12 @@ class StudentsController
         $isAdmin = $role === 'admin';
         $isInstructor = $role === 'instructor';
         $handledSectionIds = collect();
+        $selectedAcademicYear = ! in_array($filters['school_year'], ['', 'all'], true)
+            ? AcademicYear::query()->where('name', $filters['school_year'])->first()
+            : ($filters['school_year'] === 'all' ? null : AcademicYear::currentOrLatest());
+        if ($filters['school_year'] === '' && $selectedAcademicYear) {
+            $filters['school_year'] = $selectedAcademicYear->name;
+        }
 
         if ($isInstructor) {
             $instructorId = Instructor::query()
@@ -67,7 +77,18 @@ class StudentsController
                 ->pluck('section_id');
         }
 
-        $query = Students::query()->with(['section', 'strand', 'parentUsers']);
+        $query = Students::query()->with([
+            'section',
+            'strand',
+            'parentUsers',
+            'enrollments.academicYear',
+            'enrollments.section',
+            'enrollments.strand',
+        ]);
+
+        if ($selectedAcademicYear) {
+            $query->whereHas('enrollments', fn ($enrollment) => $enrollment->where('academic_year_id', $selectedAcademicYear->academic_year_id));
+        }
 
         if ($isInstructor) {
             $query->whereIn('section_id', $handledSectionIds->all());
@@ -86,23 +107,31 @@ class StudentsController
         }
 
         if ($filters['strand'] !== '') {
-            $query->where('strand_id', $filters['strand']);
+            $selectedAcademicYear
+                ? $query->whereHas('enrollments', fn ($enrollment) => $enrollment->where('academic_year_id', $selectedAcademicYear->academic_year_id)->where('strand_id', $filters['strand']))
+                : $query->where('strand_id', $filters['strand']);
         }
 
         if ($filters['section'] !== '') {
             if ($isInstructor && ! $handledSectionIds->contains((int) $filters['section'])) {
                 $query->whereRaw('1 = 0');
             } else {
-                $query->where('section_id', $filters['section']);
+                $selectedAcademicYear
+                    ? $query->whereHas('enrollments', fn ($enrollment) => $enrollment->where('academic_year_id', $selectedAcademicYear->academic_year_id)->where('section_id', $filters['section']))
+                    : $query->where('section_id', $filters['section']);
             }
         }
 
         if ($filters['year'] !== '') {
-            $query->where('year_level', $filters['year']);
+            $selectedAcademicYear
+                ? $query->whereHas('enrollments', fn ($enrollment) => $enrollment->where('academic_year_id', $selectedAcademicYear->academic_year_id)->where('year_level', $filters['year']))
+                : $query->where('year_level', $filters['year']);
         }
 
-        if ($filters['school_year'] !== '') {
-            $query->where('school_year', $filters['school_year']);
+        if (! in_array($filters['school_year'], ['', 'all'], true)) {
+            if (! $selectedAcademicYear) {
+                $query->where('school_year', $filters['school_year']);
+            }
         }
 
         if ($filters['status'] !== '') {
@@ -113,7 +142,10 @@ class StudentsController
             ->orderBy('last_name')
             ->orderBy('first_name')
             ->get()
-            ->map(function (Students $student) {
+            ->map(function (Students $student) use ($selectedAcademicYear) {
+                $placement = $selectedAcademicYear
+                    ? $student->enrollments->firstWhere('academic_year_id', $selectedAcademicYear->academic_year_id)
+                    : $student->enrollments->sortByDesc('student_enrollment_id')->first();
                 return [
                     'student_id' => $student->student_id,
                     'student_number' => $student->student_number,
@@ -123,16 +155,28 @@ class StudentsController
                     'email' => $student->email,
                     'phone' => $student->phone,
                     'gender' => $student->gender,
-                    'strand_id' => $student->strand_id,
-                    'strand_code' => $student->strand?->strand_code,
-                    'section_id' => $student->section_id,
-                    'section_name' => $student->section?->section_name,
-                    'year_level' => $student->year_level,
-                    'semester' => $student->semester,
-                    'school_year' => $student->school_year,
+                    'strand_id' => $placement?->strand_id ?? $student->strand_id,
+                    'strand_code' => $placement?->strand?->strand_code ?? $student->strand?->strand_code,
+                    'section_id' => $placement?->section_id ?? $student->section_id,
+                    'section_name' => $placement?->section?->section_name ?? $student->section?->section_name,
+                    'year_level' => $placement?->year_level ?? $student->year_level,
+                    'semester' => $placement?->semester ?? $student->semester,
+                    'school_year' => $placement?->academicYear?->name ?? $student->school_year,
                     'rfid_tag' => $student->rfid_tag,
                     'face_images' => $student->face_images ?? [],
                     'status' => $student->status ?? 'active',
+                    'enrollments' => $student->enrollments
+                        ->sortByDesc(fn ($enrollment) => $enrollment->academicYear?->starts_on)
+                        ->map(fn ($enrollment) => [
+                            'student_enrollment_id' => $enrollment->student_enrollment_id,
+                            'academic_year' => $enrollment->academicYear?->name,
+                            'semester' => $enrollment->semester,
+                            'year_level' => $enrollment->year_level,
+                            'section_name' => $enrollment->section?->section_name,
+                            'strand_code' => $enrollment->strand?->strand_code,
+                            'status' => $enrollment->status,
+                        ])
+                        ->values(),
                     'parents' => $student->parentUsers
                         ->map(fn (User $parent) => $this->parentPayload($parent))
                         ->values(),
@@ -204,7 +248,6 @@ class StudentsController
             'rfid_tag' => 'nullable|string|max:255|unique:students,rfid_tag',
             'status' => 'required|in:active,inactive,graduated,dropped',
         ]);
-
         $existingUser = User::query()
             ->whereRaw('LOWER(email) = ?', [strtolower($validated['email'])])
             ->first();
@@ -217,8 +260,10 @@ class StudentsController
 
         $student = null;
         DB::transaction(function () use ($validated, &$student, $existingUser) {
-            $student = Students::create($validated);
+            $placement = collect($validated)->only(['section_id', 'strand_id', 'year_level', 'semester', 'school_year', 'status'])->all();
+            $student = Students::create(collect($validated)->except(['section_id', 'strand_id', 'year_level', 'semester', 'school_year'])->all());
             $this->createOrUpdateStudentAccount($student, $existingUser);
+            $this->studentEnrollmentService->syncPlacement($student, $placement);
         });
 
         $this->logActivity('create', 'students', 'Created student '.$student->student_number);
@@ -271,8 +316,10 @@ class StudentsController
         $studentUser = $this->studentAccountFor($student);
 
         DB::transaction(function () use ($student, $validated, $studentUser) {
-            $student->update($validated);
+            $placement = collect($validated)->only(['section_id', 'strand_id', 'year_level', 'semester', 'school_year', 'status'])->all();
+            $student->update(collect($validated)->except(['section_id', 'strand_id', 'year_level', 'semester', 'school_year'])->all());
             $this->createOrUpdateStudentAccount($student, $studentUser);
+            $this->studentEnrollmentService->syncPlacement($student, $placement);
         });
 
         $this->logActivity('update', 'students', 'Updated student '.$student->student_number);
@@ -485,23 +532,25 @@ class StudentsController
     public function portalDashboard(Request $request)
     {
         $student = $this->currentStudent($request);
+        $enrollment = $this->portalEnrollment($request, $student);
+        $attendance = $this->combinedAttendancePayloads($student, $enrollment);
 
         return Inertia::render('StudentParent/Dashboard', [
             'title' => 'Student Dashboard',
-            'student' => $this->studentPayload($student),
+            'student' => $this->studentPayload($student, $enrollment),
             'linkedStudents' => $this->linkedStudentsPayload($request),
             'selectedStudentId' => $student?->student_id,
             'stats' => [
-                'present' => $student?->attendances()->where('status', 'present')->count() ?? 0,
-                'late' => $student?->attendances()->where('status', 'late')->count() ?? 0,
-                'excuse_letters' => $student?->excuseLetters()->count() ?? 0,
+                'present' => $attendance->where('status', 'present')->count(),
+                'late' => $attendance->where('status', 'late')->count(),
+                'excuse_letters' => $student?->excuseLetters()->when($enrollment, fn ($query) => $query->where('academic_year_id', $enrollment->academic_year_id))->count() ?? 0,
                 'messages' => $student ? $this->messageQuery($request, $student)->count() : 0,
                 'online_classes' => $student
-                    ? OnlineClass::query()->where('section_id', $student->section_id)->where('status', 'scheduled')->count()
+                    ? OnlineClass::query()->when($enrollment, fn ($query) => $query->where('academic_year_id', $enrollment->academic_year_id)->where('section_id', $enrollment->section_id))->where('status', 'scheduled')->count()
                     : 0,
             ],
-            'recentAttendance' => $this->combinedAttendancePayloads($student)->take(5),
-            'attendance' => $this->combinedAttendancePayloads($student)->take(100),
+            'recentAttendance' => $attendance->take(5),
+            'attendance' => $attendance->take(100),
             'recentMessages' => $student ? $this->messageQuery($request, $student)->take(5)->get()->map(fn ($message) => $this->messagePayload($message)) : [],
         ]);
     }
@@ -556,29 +605,33 @@ class StudentsController
     public function portalAttendance(Request $request)
     {
         $student = $this->currentStudent($request);
+        $enrollment = $this->portalEnrollment($request, $student);
 
         return Inertia::render('StudentParent/Attendance', [
             'title' => 'My Attendance',
-            'student' => $this->studentPayload($student),
+            'student' => $this->studentPayload($student, $enrollment),
             'linkedStudents' => $this->linkedStudentsPayload($request),
             'selectedStudentId' => $student?->student_id,
-            'attendance' => $this->combinedAttendancePayloads($student),
+            'attendance' => $this->combinedAttendancePayloads($student, $enrollment),
+            'academicYears' => $this->portalAcademicYearOptions($student),
+            'selectedAcademicYearId' => $enrollment?->academic_year_id,
         ]);
     }
 
     public function portalExcuseLetters(Request $request)
     {
         $student = $this->currentStudent($request);
+        $enrollment = $this->portalEnrollment($request, $student);
 
         return Inertia::render('StudentParent/ExcuseLetters', [
             'title' => 'Excuse Letters',
-            'student' => $this->studentPayload($student),
+            'student' => $this->studentPayload($student, $enrollment),
             'linkedStudents' => $this->linkedStudentsPayload($request),
             'selectedStudentId' => $student?->student_id,
             'currentUserRole' => strtolower((string) $request->user()?->role),
             'recipientSuggestions' => $student ? $this->teacherSuggestionPayload($student) : [],
             'letters' => $student
-                ? $student->excuseLetters()->with(['submittedBy', 'parentApprovedBy'])->latest()->get()->map(fn (StudentExcuseLetter $letter) => $this->letterPayload($letter, $request))
+                ? $student->excuseLetters()->with(['submittedBy', 'parentApprovedBy', 'academicYear'])->when($enrollment, fn ($query) => $query->where('academic_year_id', $enrollment->academic_year_id))->latest()->get()->map(fn (StudentExcuseLetter $letter) => $this->letterPayload($letter, $request))
                 : [],
         ]);
     }
@@ -587,6 +640,8 @@ class StudentsController
     {
         $student = $this->currentStudent($request);
         abort_unless($student, 403);
+        $enrollment = $this->portalEnrollment($request, $student);
+        abort_if($enrollment && $enrollment->academicYear?->status !== AcademicYear::STATUS_ACTIVE, 422, 'Excuse letters can only be submitted for the active academic year.');
         $role = strtolower((string) $request->user()?->role);
 
         $validated = $request->validate([
@@ -599,6 +654,12 @@ class StudentsController
             'recipient_user_ids.*' => ['integer', 'exists:users,user_id'],
             'attachment' => ['nullable', 'file', 'max:5120', 'mimes:pdf,doc,docx,jpg,jpeg,png'],
         ]);
+        abort_if(
+            $enrollment && ($validated['from_date'] < $enrollment->academicYear->starts_on->toDateString()
+                || $validated['to_date'] > $enrollment->academicYear->ends_on->toDateString()),
+            422,
+            'Excuse-letter dates must fall within the active academic year.'
+        );
 
         $attachment = $request->file('attachment');
         if ($attachment) {
@@ -612,6 +673,8 @@ class StudentsController
         $letter = StudentExcuseLetter::query()->create([
             ...$validated,
             'student_id' => $student->student_id,
+            'academic_year_id' => $enrollment?->academic_year_id,
+            'student_enrollment_id' => $enrollment?->student_enrollment_id,
             'submitted_by_user_id' => $request->user()->user_id,
             'submitted_by_role' => $role,
             'status' => $role === 'parent' ? 'approved' : 'pending_parent_approval',
@@ -680,9 +743,9 @@ class StudentsController
         abort_unless($student && (int) $letter->student_id === (int) $student->student_id, 403);
         abort_if((string) $letter->status === 'pending_parent_approval', 422, 'Parent approval is required before downloading this excuse letter.');
 
-        $letter->loadMissing(['student.section', 'submittedBy', 'parentApprovedBy']);
+        $letter->loadMissing(['student.section', 'studentEnrollment.section', 'submittedBy', 'parentApprovedBy']);
         $studentName = trim($letter->student->first_name.' '.$letter->student->last_name);
-        $section = $letter->student->section?->section_name ?: 'Section';
+        $section = $letter->studentEnrollment?->section?->section_name ?? $letter->student->section?->section_name ?? 'Section';
         $submittedBy = $letter->submittedBy?->name ?: $studentName;
         $filename = 'excuse-letter-'.$letter->student_excuse_letter_id.'.pdf';
         $pdf = app(ExcuseLetterPdfService::class)->render($letter, $studentName, $section, $submittedBy);
@@ -797,16 +860,18 @@ class StudentsController
     public function portalNotifications(Request $request)
     {
         $student = $this->currentStudent($request);
+        $enrollment = $this->portalEnrollment($request, $student);
 
         return Inertia::render('StudentParent/Notifications', [
             'title' => 'Notifications',
-            'student' => $this->studentPayload($student),
+            'student' => $this->studentPayload($student, $enrollment),
             'linkedStudents' => $this->linkedStudentsPayload($request),
             'selectedStudentId' => $student?->student_id,
             'notifications' => $student
                 ? OnlineClassNotification::query()
                     ->with('onlineClass')
                     ->where('student_id', $student->student_id)
+                    ->when($enrollment, fn ($query) => $query->where('academic_year_id', $enrollment->academic_year_id))
                     ->latest()
                     ->get()
                     ->map(fn (OnlineClassNotification $notification) => [
@@ -871,6 +936,35 @@ class StudentsController
             ->first();
     }
 
+    private function portalEnrollment(Request $request, ?Students $student): ?StudentEnrollment
+    {
+        if (! $student) {
+            return null;
+        }
+
+        $query = $student->enrollments()->with(['academicYear', 'section', 'strand']);
+        if ($request->filled('academic_year_id')) {
+            return (clone $query)->where('academic_year_id', (int) $request->input('academic_year_id'))->latest('student_enrollment_id')->firstOrFail();
+        }
+
+        $activeYearId = AcademicYear::currentOrLatest()?->academic_year_id;
+
+        return ($activeYearId ? (clone $query)->where('academic_year_id', $activeYearId)->latest('student_enrollment_id')->first() : null)
+            ?? $query->latest('student_enrollment_id')->first();
+    }
+
+    private function portalAcademicYearOptions(?Students $student)
+    {
+        return $student?->enrollments()->with('academicYear')->get()
+            ->filter(fn (StudentEnrollment $enrollment) => $enrollment->academicYear)
+            ->sortByDesc(fn (StudentEnrollment $enrollment) => $enrollment->academicYear->starts_on)
+            ->map(fn (StudentEnrollment $enrollment) => [
+                'academic_year_id' => $enrollment->academic_year_id,
+                'name' => $enrollment->academicYear->name,
+                'status' => $enrollment->academicYear->status,
+            ])->unique('academic_year_id')->values() ?? collect();
+    }
+
     private function linkedStudentsPayload(Request $request)
     {
         if (strtolower((string) $request->user()?->role) !== 'parent') {
@@ -886,11 +980,17 @@ class StudentsController
             ->values() ?? [];
     }
 
-    private function studentPayload(?Students $student): ?array
+    private function studentPayload(?Students $student, ?StudentEnrollment $enrollment = null): ?array
     {
         if (! $student) {
             return null;
         }
+
+        $enrollment ??= $student->currentEnrollment();
+        if (! $enrollment) {
+            \App\Services\LegacyAcademicFallbackMonitor::record('student_portal.profile_placement', ['student_id' => $student->student_id]);
+        }
+        $enrollment?->loadMissing(['academicYear', 'section', 'strand']);
 
         return [
             'student_id' => $student->student_id,
@@ -899,11 +999,13 @@ class StudentsController
             'email' => $student->email,
             'phone' => $student->phone,
             'gender' => $student->gender,
-            'section' => $student->section?->section_name,
-            'strand' => $student->strand?->strand_code,
-            'year_level' => $student->year_level,
-            'semester' => $student->semester,
-            'school_year' => $student->school_year,
+            'section' => $enrollment?->section?->section_name ?? $student->section?->section_name,
+            'strand' => $enrollment?->strand?->strand_code ?? $student->strand?->strand_code,
+            'year_level' => $enrollment?->year_level ?? $student->year_level,
+            'semester' => $enrollment?->semester ?? $student->semester,
+            'school_year' => $enrollment?->academicYear?->name ?? $student->school_year,
+            'academic_year_id' => $enrollment?->academic_year_id,
+            'student_enrollment_id' => $enrollment?->student_enrollment_id,
             'status' => $student->status,
         ];
     }
@@ -1222,10 +1324,12 @@ class StudentsController
             : null;
     }
 
-    private function attendanceQuery(?Students $student)
+    private function attendanceQuery(?Students $student, ?StudentEnrollment $enrollment = null)
     {
         return $student
-            ? $student->attendances()->with(['schedule.subject'])->latest('date')
+            ? $student->attendances()->with(['schedule.subject'])
+                ->when($enrollment, fn ($query) => $query->where('academic_year_id', $enrollment->academic_year_id))
+                ->latest('date')
             : Students::query()->whereRaw('1 = 0');
     }
 
@@ -1302,7 +1406,7 @@ class StudentsController
         ];
     }
 
-    private function combinedAttendancePayloads(?Students $student)
+    private function combinedAttendancePayloads(?Students $student, ?StudentEnrollment $enrollment = null)
     {
         if (! $student) {
             return collect();
@@ -1310,7 +1414,7 @@ class StudentsController
 
         $this->onlineAttendanceFinalizer->finalizeEnded();
 
-        $rfidAttendance = $this->attendanceQuery($student)
+        $rfidAttendance = $this->attendanceQuery($student, $enrollment)
             ->get()
             ->map(fn ($attendance) => $this->attendancePayload($attendance));
 
@@ -1323,7 +1427,9 @@ class StudentsController
                 $join->on('subjects.subject_code', '=', 'online_classes.subject_code')
                     ->on('subjects.section_id', '=', 'online_classes.section_id');
             })
-            ->where('online_classes.section_id', $student->section_id)
+            ->when($enrollment,
+                fn ($query) => $query->where('online_classes.academic_year_id', $enrollment->academic_year_id)->where('online_classes.section_id', $enrollment->section_id),
+                fn ($query) => $query->where('online_classes.section_id', $student->section_id))
             ->where('online_classes.status', '!=', 'cancelled')
             ->whereNull('online_classes.deleted_at')
             ->orderByDesc('online_classes.scheduled_date')
@@ -1478,6 +1584,7 @@ class StudentsController
             'to_date' => $letter->to_date?->format('Y-m-d'),
             'reason' => $letter->reason,
             'status' => $letter->status,
+            'academic_year' => $letter->academicYear?->name,
             'submitted_by' => $letter->submittedBy?->name,
             'submitted_by_role' => $letter->submitted_by_role,
             'parent_signature' => $letter->parent_signature,

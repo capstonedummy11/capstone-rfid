@@ -44,6 +44,11 @@ class Subject extends Model
         return $this->hasMany(Schedule::class, 'subject_code', 'subject_code');
     }
 
+    public function offerings(): HasMany
+    {
+        return $this->hasMany(SubjectOffering::class, 'subject_id', 'subject_id');
+    }
+
     public function attendances(): HasMany
     {
         return $this->hasMany(Attendance::class, 'subject_id', 'subject_id');

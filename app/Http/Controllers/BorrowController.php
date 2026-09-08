@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Borrowing;
 use App\Models\BorrowingItem;
+use App\Models\AcademicYear;
 use App\Models\Item;
 use App\Models\Students;
 use App\Models\SystemSetting;
@@ -41,6 +42,7 @@ class BorrowController
       'borrowItemsCatalog' => $this->buildBorrowItemsCatalog(),
       'borrowItemsByRfid' => $this->buildBorrowItemsByRfid(),
       'dashboardStats' => $this->countDashboardBorrowing(),
+      'academicYearName' => AcademicYear::currentOrLatest()?->name,
       'filters' => $filters,
     ]);
   }

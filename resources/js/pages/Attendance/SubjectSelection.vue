@@ -121,7 +121,7 @@ const resetFilters = () => {
                         v-model="filters.school_year"
                         class="rounded-xl border-slate-300 text-sm"
                     >
-                        <option value="">All school years</option>
+                        <option value="all">All school years</option>
                         <option
                             v-for="value in filterOptions.schoolYears"
                             :key="value"
