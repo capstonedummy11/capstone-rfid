@@ -1,12 +1,13 @@
 <?php
 
-use App\Models\SystemSetting;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    private const PARENT_PORTAL_ENABLED_KEY = 'feature.parent_portal_enabled';
+
     public function up(): void
     {
         if (! Schema::hasTable('system_settings')) {
@@ -14,7 +15,7 @@ return new class extends Migration
         }
 
         DB::table('system_settings')->updateOrInsert(
-            ['key' => SystemSetting::PARENT_PORTAL_ENABLED],
+            ['key' => self::PARENT_PORTAL_ENABLED_KEY],
             [
                 'value' => json_encode(false),
                 'type' => 'boolean',
@@ -31,7 +32,7 @@ return new class extends Migration
         }
 
         DB::table('system_settings')
-            ->where('key', SystemSetting::PARENT_PORTAL_ENABLED)
+            ->where('key', self::PARENT_PORTAL_ENABLED_KEY)
             ->delete();
     }
 };
