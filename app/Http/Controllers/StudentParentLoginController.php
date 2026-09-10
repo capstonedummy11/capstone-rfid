@@ -45,7 +45,7 @@ class StudentParentLoginController
             $request->session()->regenerateToken();
 
             throw ValidationException::withMessages([
-                'email' => 'Parent portal access is currently disabled by the administrator.',
+                'email' => __('auth.failed'),
             ]);
         }
 

@@ -21,6 +21,8 @@ class SystemSetting extends Model
 
     public const PARENT_PORTAL_ENABLED = 'feature.parent_portal_enabled';
 
+    public const PARENT_EXCUSE_LETTERS_ENABLED = 'feature.parent_excuse_letters_enabled';
+
     public const FACE_RECOGNITION_ENABLED = 'feature.face_recognition_enabled';
 
     public const DEMO_ATTENDANCE_PANEL_ENABLED = 'feature.demo_attendance_panel_enabled';
@@ -63,10 +65,14 @@ class SystemSetting extends Model
 
     public static function featureFlags(): array
     {
+        $parentPortalEnabled = static::boolean(static::PARENT_PORTAL_ENABLED, false);
+
         return [
             'borrowing_enabled' => static::boolean(static::BORROWING_ENABLED, false),
             'inventory_enabled' => static::boolean(static::INVENTORY_ENABLED, false),
-            'parent_portal_enabled' => static::boolean(static::PARENT_PORTAL_ENABLED, false),
+            'parent_portal_enabled' => $parentPortalEnabled,
+            'parent_excuse_letters_enabled' => $parentPortalEnabled
+                && static::boolean(static::PARENT_EXCUSE_LETTERS_ENABLED, false),
             'face_recognition_enabled' => static::boolean(static::FACE_RECOGNITION_ENABLED, true),
             'demo_attendance_panel_enabled' => static::boolean(static::DEMO_ATTENDANCE_PANEL_ENABLED, false),
             'online_class_face_recognition_default' => static::boolean(static::ONLINE_CLASS_FACE_RECOGNITION_DEFAULT, true),

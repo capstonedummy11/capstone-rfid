@@ -623,6 +623,7 @@ class StudentsController
     {
         $student = $this->currentStudent($request);
         $enrollment = $this->portalEnrollment($request, $student);
+        $parentPortalEnabled = SystemSetting::boolean(SystemSetting::PARENT_PORTAL_ENABLED, false);
 
         return Inertia::render('StudentParent/ExcuseLetters', [
             'title' => 'Excuse Letters',
@@ -630,7 +631,9 @@ class StudentsController
             'linkedStudents' => $this->linkedStudentsPayload($request),
             'selectedStudentId' => $student?->student_id,
             'currentUserRole' => strtolower((string) $request->user()?->role),
-            'parentPortalEnabled' => SystemSetting::boolean(SystemSetting::PARENT_PORTAL_ENABLED, false),
+            'parentPortalEnabled' => $parentPortalEnabled,
+            'parentExcuseLettersEnabled' => $parentPortalEnabled
+                && SystemSetting::boolean(SystemSetting::PARENT_EXCUSE_LETTERS_ENABLED, false),
             'recipientSuggestions' => $student ? $this->teacherSuggestionPayload($student) : [],
             'letters' => $student
                 ? $student->excuseLetters()->with(['submittedBy', 'parentApprovedBy', 'academicYear'])->when($enrollment, fn ($query) => $query->where('academic_year_id', $enrollment->academic_year_id))->latest()->get()->map(fn (StudentExcuseLetter $letter) => $this->letterPayload($letter, $request))
@@ -646,6 +649,10 @@ class StudentsController
         abort_if($enrollment && $enrollment->academicYear?->status !== AcademicYear::STATUS_ACTIVE, 422, 'Excuse letters can only be submitted for the active academic year.');
         $role = strtolower((string) $request->user()?->role);
         $parentPortalEnabled = SystemSetting::boolean(SystemSetting::PARENT_PORTAL_ENABLED, false);
+        $parentExcuseLettersEnabled = $parentPortalEnabled
+            && SystemSetting::boolean(SystemSetting::PARENT_EXCUSE_LETTERS_ENABLED, false);
+
+        abort_if($role === 'parent' && ! $parentExcuseLettersEnabled, 403);
 
         $validated = $request->validate([
             'subject' => ['required', 'string', 'max:255'],

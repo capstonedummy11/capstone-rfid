@@ -15,7 +15,7 @@ class EnsureParentPortalEnabled
 
         if ($isParent && ! SystemSetting::boolean(SystemSetting::PARENT_PORTAL_ENABLED, false)) {
             return redirect()->route('landingPage')->withErrors([
-                'email' => 'The parent portal is currently disabled by the administrator.',
+                'email' => __('auth.failed'),
             ]);
         }
 

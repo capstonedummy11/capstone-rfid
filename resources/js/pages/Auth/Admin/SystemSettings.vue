@@ -10,6 +10,7 @@ const props = defineProps({
             borrowing_enabled: false,
             inventory_enabled: false,
             parent_portal_enabled: false,
+            parent_excuse_letters_enabled: false,
             face_recognition_enabled: true,
             demo_attendance_panel_enabled: false,
             online_class_face_recognition_default: true,
@@ -68,10 +69,19 @@ const faceUnavailableMessage = computed(
         'Face recognition is unavailable.',
 );
 
+const toggleParentPortal = () => {
+    if (!form.parent_portal_enabled) {
+        form.parent_excuse_letters_enabled = false;
+    }
+};
+
 const form = useForm({
     borrowing_enabled: Boolean(props.featureSettings.borrowing_enabled),
     inventory_enabled: Boolean(props.featureSettings.inventory_enabled),
     parent_portal_enabled: Boolean(props.featureSettings.parent_portal_enabled),
+    parent_excuse_letters_enabled: Boolean(
+        props.featureSettings.parent_excuse_letters_enabled,
+    ),
     face_recognition_enabled:
         faceAvailable.value &&
         Boolean(props.featureSettings.face_recognition_enabled),
@@ -298,6 +308,27 @@ const toggleFaceSetting = (field) => {
                         </span>
                         <input
                             v-model="form.parent_portal_enabled"
+                            type="checkbox"
+                            class="h-5 w-5 shrink-0 accent-brand"
+                            @change="toggleParentPortal"
+                        />
+                    </label>
+
+                    <label
+                        v-if="form.parent_portal_enabled"
+                        class="flex items-center justify-between gap-4 rounded-md border border-slate-200 p-4"
+                    >
+                        <span class="min-w-0">
+                            <span class="block text-sm font-bold text-slate-900">
+                                Parent Excuse Letter Submission
+                            </span>
+                            <span class="block text-sm text-slate-500">
+                                Allows parents to submit and sign excuse letters
+                                for linked students.
+                            </span>
+                        </span>
+                        <input
+                            v-model="form.parent_excuse_letters_enabled"
                             type="checkbox"
                             class="h-5 w-5 shrink-0 accent-brand"
                         />

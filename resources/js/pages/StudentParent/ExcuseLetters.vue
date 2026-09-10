@@ -12,12 +12,16 @@ const props = defineProps({
     letters: { type: Array, default: () => [] },
     recipientSuggestions: { type: Array, default: () => [] },
     parentPortalEnabled: { type: Boolean, default: false },
+    parentExcuseLettersEnabled: { type: Boolean, default: false },
 });
 
 const page = usePage();
 const flashSuccess = computed(() => page.props.flash?.success);
 const showSuccessModal = computed(() => Boolean(flashSuccess.value));
 const isParent = computed(() => props.currentUserRole === 'parent');
+const canSubmitLetter = computed(
+    () => !isParent.value || props.parentExcuseLettersEnabled,
+);
 const recipientSearch = ref('');
 
 const form = useForm({
@@ -157,6 +161,7 @@ const letterRecipients = (letter) => {
                     />
                 </div>
                 <form
+                    v-if="canSubmitLetter"
                     class="mt-4 flex flex-col gap-3"
                     @submit.prevent="submitLetter"
                 >
@@ -298,6 +303,12 @@ const letterRecipients = (letter) => {
                         }}
                     </button>
                 </form>
+                <p
+                    v-else
+                    class="mt-4 rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600"
+                >
+                    Parent excuse-letter submission is unavailable.
+                </p>
 
                 <div class="mt-6">
                     <h2 class="text-sm font-bold text-slate-900">
