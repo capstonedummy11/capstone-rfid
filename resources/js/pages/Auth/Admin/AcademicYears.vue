@@ -79,6 +79,7 @@ const destinationSemester = ref('2nd Semester');
 const preview = ref(null);
 const previewBusy = ref(false);
 const sectionMappings = ref([]);
+const studentDecisions = ref({});
 
 const loadPreview = async () => {
     if (!rolloverSourceId.value || !rolloverDestinationId.value) return;
@@ -101,6 +102,10 @@ const loadPreview = async () => {
             destination_name: rolloverMode.value === 'semester' ? section.section_name : '',
             destination_year_level: data.transition.advance_grade ? 12 : Number(section.year_level),
         }));
+        studentDecisions.value = Object.fromEntries(data.items.map((item) => [
+            item.source_student_enrollment_id,
+            { decision: item.recommended_decision, destination_section_id: '' },
+        ]));
     } catch (error) {
         Swal.fire('Preview unavailable', error.message, 'error');
     } finally {
@@ -127,7 +132,10 @@ const executeRollover = async () => {
         })),
         decisions: preview.value.items.map((item) => ({
             source_student_enrollment_id: item.source_student_enrollment_id,
-            decision: item.recommended_decision,
+            decision: studentDecisions.value[item.source_student_enrollment_id]?.decision ?? item.recommended_decision,
+            destination_section_id: studentDecisions.value[item.source_student_enrollment_id]?.destination_section_id
+                ? Number(studentDecisions.value[item.source_student_enrollment_id].destination_section_id)
+                : null,
         })),
     }).post(route('admin.academic-years.rollover', rolloverSourceId.value), { preserveScroll: true });
 };
@@ -233,6 +241,43 @@ const onRolloverSourceChange = () => {
                             <div class="text-xs font-semibold uppercase text-slate-500">{{ label }}</div><div class="text-xl font-bold">{{ value }}</div>
                         </div>
                     </div>
+                    <div class="overflow-x-auto rounded-lg border border-slate-200">
+                        <table class="min-w-[900px] w-full text-sm">
+                            <thead class="bg-slate-50 text-left text-xs uppercase text-slate-500">
+                                <tr>
+                                    <th class="px-3 py-2">Student</th>
+                                    <th class="px-3 py-2">Current grade</th>
+                                    <th class="px-3 py-2">Recommended</th>
+                                    <th class="px-3 py-2">Decision</th>
+                                    <th class="px-3 py-2">Destination section</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                <tr v-for="item in preview.items" :key="item.source_student_enrollment_id">
+                                    <td class="px-3 py-2">{{ item.student_id }}</td>
+                                    <td class="px-3 py-2">Grade {{ item.year_level }}</td>
+                                    <td class="px-3 py-2 capitalize">{{ item.recommended_decision }}</td>
+                                    <td class="px-3 py-2">
+                                        <select v-model="studentDecisions[item.source_student_enrollment_id].decision" class="rounded-md border-slate-300 text-sm">
+                                            <option value="promote">Promote</option>
+                                            <option value="retain">Retain grade</option>
+                                            <option value="graduated">Archive / graduate</option>
+                                            <option value="dropped">Drop</option>
+                                            <option value="review">Review</option>
+                                        </select>
+                                    </td>
+                                    <td class="px-3 py-2">
+                                        <select v-model="studentDecisions[item.source_student_enrollment_id].destination_section_id" class="w-full rounded-md border-slate-300 text-sm">
+                                            <option value="">Use mapped section</option>
+                                            <option v-for="section in preview.destination_sections.filter((section) => String(section.year_level) === String(studentDecisions[item.source_student_enrollment_id].decision === 'promote' ? 12 : item.year_level))" :key="section.section_id" :value="section.section_id">
+                                                {{ section.section_name }} · Grade {{ section.year_level }}
+                                            </option>
+                                        </select>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                     <div class="space-y-3">
                         <div v-for="mapping in sectionMappings" :key="mapping.source_section_id" class="grid gap-2 rounded-lg border border-slate-200 p-3 lg:grid-cols-[1.2fr_1fr_1fr_120px]">
                             <div class="text-sm font-semibold text-slate-700">{{ mapping.source_label }}</div>
@@ -245,7 +290,7 @@ const onRolloverSourceChange = () => {
                             </select>
                             <input v-if="rolloverMode !== 'semester'" v-model="mapping.destination_name" :disabled="Boolean(mapping.destination_section_id)" class="rounded-md border-slate-300 text-sm disabled:bg-slate-100" placeholder="New destination section name" />
                             <div v-else class="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600">{{ mapping.destination_name }}</div>
-                            <select v-model="mapping.destination_year_level" disabled class="rounded-md border-slate-300 bg-slate-100 text-sm"><option :value="11">Grade 11</option><option :value="12">Grade 12</option></select>
+                            <select v-model="mapping.destination_year_level" :disabled="rolloverMode === 'semester'" class="rounded-md border-slate-300 text-sm disabled:bg-slate-100"><option :value="11">Grade 11</option><option :value="12">Grade 12</option></select>
                         </div>
                     </div>
                     <button class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white" @click="executeRollover">Execute reviewed rollover</button>

@@ -36,7 +36,6 @@ class AcademicYearRolloverService
         $sourceSections = DB::table('sections')->where('academic_year_id', $source->academic_year_id)
             ->where('semester', $transition['current_semester'])
             ->get(['section_id', 'section_name', 'year_level', 'semester'])
-            ->filter(fn ($section) => ! $transition['advance_grade'] || (int) $section->year_level === 11)
             ->values();
 
         return [
@@ -98,6 +97,10 @@ class AcademicYearRolloverService
                     if (! $section) {
                         throw ValidationException::withMessages(['rollover' => 'A selected destination section does not belong to the destination year.']);
                     }
+                    $requiredYearLevel = $decision === 'promote' ? 12 : (int) $previewItem['year_level'];
+                    if ((int) $section->year_level !== $requiredYearLevel) {
+                        throw ValidationException::withMessages(['rollover' => "Student {$previewItem['student_id']} needs a Grade {$requiredYearLevel} destination section for the selected decision."]);
+                    }
                     $destinationEnrollmentId = DB::table('student_enrollments')->where('student_id', $previewItem['student_id'])
                         ->where('academic_year_id', $destination->academic_year_id)->where('semester', $preview['transition']['destination_semester'])->value('student_enrollment_id');
                     if (! $destinationEnrollmentId) {
@@ -139,20 +142,21 @@ class AcademicYearRolloverService
         foreach ($mappings as $mapping) {
             $sourceSection = DB::table('sections')->where('section_id', $mapping['source_section_id'])->where('academic_year_id', $source->academic_year_id)->first();
             if (! $sourceSection) continue;
-            if ($transition['advance_grade'] && (int) $sourceSection->year_level !== 11) continue;
             $destinationId = $mapping['destination_section_id'] ?? null;
             if (! $destinationId && ! empty($mapping['destination_name'])) {
+                $destinationYearLevel = (int) ($mapping['destination_year_level'] ?? ($transition['advance_grade'] && (int) $sourceSection->year_level === 11 ? 12 : $sourceSection->year_level));
                 $destinationId = DB::table('sections')->where('academic_year_id', $destination->academic_year_id)->where('section_name', $mapping['destination_name'])->where('semester', $transition['destination_semester'])->value('section_id');
                 $destinationId ??= DB::table('sections')->insertGetId([
                     'academic_year_id' => $destination->academic_year_id, 'strand_id' => $sourceSection->strand_id,
-                    'section_name' => $mapping['destination_name'], 'year_level' => $transition['advance_grade'] ? 12 : $sourceSection->year_level,
+                    'section_name' => $mapping['destination_name'], 'year_level' => $destinationYearLevel,
                     'semester' => $transition['destination_semester'], 'school_year' => $destination->name, 'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
                 ]);
             }
             if ($destinationId) {
                 $destinationSection = DB::table('sections')->where('section_id', $destinationId)->where('academic_year_id', $destination->academic_year_id)->first();
-                if (! $destinationSection || $destinationSection->semester !== $transition['destination_semester'] || (int) $destinationSection->year_level !== ($transition['advance_grade'] ? 12 : (int) $sourceSection->year_level)) {
-                    throw ValidationException::withMessages(['rollover' => 'Every destination section must use the next semester and the automatic grade progression.']);
+                $expectedYearLevel = (int) ($mapping['destination_year_level'] ?? ($transition['advance_grade'] && (int) $sourceSection->year_level === 11 ? 12 : $sourceSection->year_level));
+                if (! $destinationSection || $destinationSection->semester !== $transition['destination_semester'] || (int) $destinationSection->year_level !== $expectedYearLevel) {
+                    throw ValidationException::withMessages(['rollover' => 'Every destination section must use the destination semester and selected grade level.']);
                 }
                 $map[$sourceSection->section_id] = (int) $destinationId;
             }
@@ -197,15 +201,11 @@ class AcademicYearRolloverService
                 'description' => "{$currentSemester} → {$destinationSemester}: students remain in the same grade and academic year.",
             ];
         }
-        $firstSemester = $currentSemester === '1st Semester';
-
         return [
             'current_semester' => $currentSemester,
-            'destination_semester' => $firstSemester ? '2nd Semester' : '1st Semester',
-            'advance_grade' => ! $firstSemester,
-            'description' => $firstSemester
-                ? '1st Semester → 2nd Semester: students remain in the same grade.'
-                : '2nd Semester → 1st Semester: Grade 11 advances to Grade 12; Grade 12 is archived as graduated.',
+            'destination_semester' => '2nd Semester',
+            'advance_grade' => true,
+            'description' => 'Year rollover: Grade 11 advances to Grade 12, while Grade 12 is archived unless retained for failure or review.',
         ];
     }
 
