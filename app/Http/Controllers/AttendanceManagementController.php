@@ -50,6 +50,9 @@ class AttendanceManagementController extends Controller
             $schoolYear = $defaultYear->name;
             $request->merge(['school_year' => $schoolYear]);
         }
+        if (! $request->filled('semester') && $defaultYear?->active_semester) {
+            $request->merge(['semester' => $defaultYear->active_semester]);
+        }
         [$role, $instructorId] = $this->actor($request);
         $subjects = $this->subjectsFor($role, $instructorId, $request)->get();
 
@@ -385,6 +388,9 @@ class AttendanceManagementController extends Controller
 
     private function subjectsFor(string $role, ?int $instructorId, Request $request): Builder
     {
+        $academicYearId = $request->filled('school_year') && $request->input('school_year') !== 'all'
+            ? AcademicYear::query()->where('name', $request->input('school_year'))->value('academic_year_id')
+            : null;
         return Subject::query()
             ->with(['section.strand'])
             ->whereHas('schedules', function (Builder $query) use ($role, $instructorId, $request) {
@@ -393,6 +399,12 @@ class AttendanceManagementController extends Controller
                     $query->where('schedules.instructor_id', $instructorId);
                 } elseif ($request->filled('instructor')) {
                     $query->where('schedules.instructor_id', $request->integer('instructor'));
+                }
+                if ($request->filled('school_year') && $request->input('school_year') !== 'all') {
+                    $query->where('schedules.academic_year_id', AcademicYear::query()->where('name', $request->input('school_year'))->value('academic_year_id'));
+                }
+                if ($request->filled('semester')) {
+                    $query->where('schedules.semester', $request->input('semester'));
                 }
             })
             ->when($request->filled('school_year') && $request->input('school_year') !== 'all', fn ($q) => $q->whereHas('section', fn ($s) => $s->where('school_year', $request->input('school_year'))))

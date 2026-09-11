@@ -93,7 +93,7 @@ const loadPreview = async () => {
             source_label: `${section.section_name} · Grade ${section.year_level} · ${section.semester}`,
             destination_section_id: '',
             destination_name: '',
-            destination_year_level: Math.min(12, Number(section.year_level) + 1),
+            destination_year_level: data.transition.advance_grade ? 12 : Number(section.year_level),
         }));
     } catch (error) {
         Swal.fire('Preview unavailable', error.message, 'error');
@@ -172,7 +172,7 @@ const executeRollover = async () => {
 
             <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h2 class="text-lg font-semibold text-slate-900">Year rollover</h2>
-                <p class="mt-1 text-sm text-slate-600">Preview first, explicitly map every source section, then create destination configuration and enrollment decisions transactionally.</p>
+                <p class="mt-1 text-sm text-slate-600">Preview first, map sections, then create destination enrollments transactionally. Subjects and schedules are configured separately for each semester.</p>
                 <div class="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
                     <select v-model="rolloverSourceId" class="rounded-lg border-slate-300">
                         <option value="">Source active/closed year</option>
@@ -188,6 +188,11 @@ const executeRollover = async () => {
                 </div>
 
                 <div v-if="preview" class="mt-5 space-y-4">
+                    <div class="rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-900">
+                        <strong>Automatic rollover:</strong> {{ preview.transition.description }}
+                        <span class="ml-1">Destination semester: {{ preview.transition.destination_semester }}.</span>
+                        <span v-if="preview.transition.advance_grade" class="ml-1">Grade 12 students will be archived as graduated and will not receive a destination enrollment.</span>
+                    </div>
                     <div class="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
                         <div v-for="(value, label) in preview.counts" :key="label" class="rounded-lg bg-slate-50 p-3">
                             <div class="text-xs font-semibold uppercase text-slate-500">{{ label }}</div><div class="text-xl font-bold">{{ value }}</div>
@@ -201,7 +206,7 @@ const executeRollover = async () => {
                                 <option v-for="section in preview.destination_sections" :key="section.section_id" :value="section.section_id">{{ section.section_name }} · Grade {{ section.year_level }}</option>
                             </select>
                             <input v-model="mapping.destination_name" :disabled="Boolean(mapping.destination_section_id)" class="rounded-md border-slate-300 text-sm disabled:bg-slate-100" placeholder="New destination section name" />
-                            <select v-model="mapping.destination_year_level" :disabled="Boolean(mapping.destination_section_id)" class="rounded-md border-slate-300 text-sm disabled:bg-slate-100"><option :value="11">Grade 11</option><option :value="12">Grade 12</option></select>
+                            <select v-model="mapping.destination_year_level" disabled class="rounded-md border-slate-300 bg-slate-100 text-sm"><option :value="11">Grade 11</option><option :value="12">Grade 12</option></select>
                         </div>
                     </div>
                     <button class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white" @click="executeRollover">Execute reviewed rollover</button>

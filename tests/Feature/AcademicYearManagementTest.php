@@ -641,16 +641,15 @@ test('academic year rollover is transactional idempotent and preserves source hi
     $first = $service->execute($source, $destination, $admin, $decision, $mapping);
     $second = $service->execute($source, $destination, $admin, $decision, $mapping);
 
-    expect($second->academic_year_rollover_id)->toBe($first->academic_year_rollover_id)
+        expect($second->academic_year_rollover_id)->toBe($first->academic_year_rollover_id)
         ->and(StudentEnrollment::where('student_id', $student->student_id)->where('academic_year_id', $destination->academic_year_id)->count())->toBe(1)
-        ->and(Schedule::where('academic_year_id', $destination->academic_year_id)->count())->toBe(1)
+        ->and(Schedule::where('academic_year_id', $destination->academic_year_id)->count())->toBe(0)
         ->and(Attendance::where('academic_year_id', $destination->academic_year_id)->count())->toBe(0)
         ->and(Attendance::where('academic_year_id', $source->academic_year_id)->count())->toBe(1);
 
     app(AcademicYearService::class)->activate($destination, $admin);
     expect(AcademicYear::where('status', AcademicYear::STATUS_ACTIVE)->count())->toBe(1)
-        ->and(Schedule::forActiveAcademicYear()->count())->toBe(1)
-        ->and(Schedule::forActiveAcademicYear()->first()->academic_year_id)->toBe($destination->academic_year_id)
+        ->and(Schedule::forActiveAcademicYear()->count())->toBe(0)
         ->and(Artisan::call('academic-years:check-integrity', ['--json' => true]))->toBe(0);
 });
 

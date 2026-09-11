@@ -30,9 +30,14 @@ class ScheduleController
         $defaultYearId = AcademicYear::currentOrLatest()?->academic_year_id;
         $requestedYear = $request->input('academic_year_id');
         $academicYearId = $requestedYear === 'all' ? null : ($request->integer('academic_year_id') ?: $defaultYearId);
+        $semester = trim((string) $request->input('semester', ''));
+        if ($semester === '' && $academicYearId) {
+            $semester = AcademicYear::find($academicYearId)?->active_semester ?: '';
+        }
 
         $query = Schedule::query()->with(['laboratory', 'instructor.user', 'section', 'subject', 'academicYear', 'subjectOffering']);
         $query->when($academicYearId, fn ($yearQuery) => $yearQuery->where('academic_year_id', $academicYearId));
+        $query->when($semester !== '', fn ($termQuery) => $termQuery->where('semester', $semester));
 
         if ($isInstructor) {
             $query->where('instructor_id', $instructorId ?: 0);
@@ -67,7 +72,7 @@ class ScheduleController
                 'time_end'       => $schedule->time_end,
                 'room'           => $schedule->room,
             ])->values(),
-            'filters' => ['laboratory_id' => $laboratoryId, 'academic_year_id' => $requestedYear === 'all' ? 'all' : $academicYearId],
+            'filters' => ['laboratory_id' => $laboratoryId, 'academic_year_id' => $requestedYear === 'all' ? 'all' : $academicYearId, 'semester' => $semester],
             'academicYears' => AcademicYear::query()->orderByDesc('starts_on')->get(['academic_year_id', 'name', 'status']),
             'currentUserRole' => $role,
             'canManageSchedules' => $isAdmin,

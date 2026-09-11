@@ -53,6 +53,7 @@ class StudentsController
             'section' => trim((string) $request->input('section', '')),
             'year' => trim((string) $request->input('year', '')),
             'school_year' => trim((string) $request->input('school_year', '')),
+            'semester' => trim((string) $request->input('semester', '')),
             'status' => trim((string) $request->input('status', '')),
         ];
 
@@ -66,6 +67,9 @@ class StudentsController
             : ($filters['school_year'] === 'all' ? null : AcademicYear::currentOrLatest());
         if ($filters['school_year'] === '' && $selectedAcademicYear) {
             $filters['school_year'] = $selectedAcademicYear->name;
+        }
+        if ($filters['semester'] === '' && $selectedAcademicYear?->active_semester) {
+            $filters['semester'] = $selectedAcademicYear->active_semester;
         }
 
         if ($isInstructor) {
@@ -88,7 +92,7 @@ class StudentsController
         ]);
 
         if ($selectedAcademicYear) {
-            $query->whereHas('enrollments', fn ($enrollment) => $enrollment->where('academic_year_id', $selectedAcademicYear->academic_year_id));
+            $query->whereHas('enrollments', fn ($enrollment) => $enrollment->where('academic_year_id', $selectedAcademicYear->academic_year_id)->when($filters['semester'] !== '', fn ($term) => $term->where('semester', $filters['semester'])));
         }
 
         if ($isInstructor) {
@@ -145,7 +149,7 @@ class StudentsController
             ->get()
             ->map(function (Students $student) use ($selectedAcademicYear) {
                 $placement = $selectedAcademicYear
-                    ? $student->enrollments->firstWhere('academic_year_id', $selectedAcademicYear->academic_year_id)
+                    ? $student->enrollments->first(fn ($enrollment) => (int) $enrollment->academic_year_id === (int) $selectedAcademicYear->academic_year_id && ($filters['semester'] === '' || $enrollment->semester === $filters['semester']))
                     : $student->enrollments->sortByDesc('student_enrollment_id')->first();
                 return [
                     'student_id' => $student->student_id,
@@ -223,6 +227,7 @@ class StudentsController
                 ->orderByDesc('school_year')
                 ->pluck('school_year')
                 ->values(),
+            'semesterOptions' => ['1st Semester', '2nd Semester'],
         ]);
     }
 

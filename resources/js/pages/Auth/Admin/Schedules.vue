@@ -53,6 +53,11 @@
           <option value="all">All Academic Years</option>
           <option v-for="year in academicYears" :key="year.academic_year_id" :value="year.academic_year_id">{{ year.name }} ({{ year.status }})</option>
         </select>
+        <select v-model="selectedSemester" @change="changeAcademicYear" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
+          <option value="">All Semesters</option>
+          <option value="1st Semester">1st Semester</option>
+          <option value="2nd Semester">2nd Semester</option>
+        </select>
         <button
           v-if="isAdmin"
           @click="openAddModal"
@@ -319,9 +324,11 @@ const timeSlots: string[] = Array.from({ length: 14 }, (_, i) => {
 
 const selectedLaboratoryId = ref<number | null>(props.filters.laboratory_id ?? null);
 const selectedAcademicYearId = ref<string | number>(props.filters.academic_year_id ?? '');
+const selectedSemester = ref<string>(props.filters.semester ?? '');
 
 const changeAcademicYear = () => router.get(route('admin.schedules.index'), {
   academic_year_id: selectedAcademicYearId.value,
+  semester: selectedSemester.value,
   laboratory_id: selectedLaboratoryId.value ?? undefined,
 }, { preserveState: true, preserveScroll: true, replace: true });
 
@@ -346,7 +353,7 @@ const selectLaboratory = (id: number | null) => {
   selectedLaboratoryId.value = id;
   router.get(
     route('admin.schedules.index'),
-    { laboratory_id: id ?? undefined, academic_year_id: selectedAcademicYearId.value },
+    { laboratory_id: id ?? undefined, academic_year_id: selectedAcademicYearId.value, semester: selectedSemester.value },
     { preserveState: true, preserveScroll: true, replace: true },
   );
 };

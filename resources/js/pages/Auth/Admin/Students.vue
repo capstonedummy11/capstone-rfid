@@ -126,6 +126,13 @@
                         </select>
                     </div>
                     <div>
+                        <label class="mb-1 block text-xs font-medium text-slate-600">Semester</label>
+                        <select v-model="selectedSemester" @change="onFilterChange" class="w-full rounded-md border border-slate-300 px-3 py-2">
+                            <option value="">All Semesters</option>
+                            <option v-for="semester in semesterOptions" :key="semester" :value="semester">{{ semester }}</option>
+                        </select>
+                    </div>
+                    <div>
                         <label
                             class="mb-1 block text-xs font-medium text-slate-600"
                             >Status</label
@@ -1111,6 +1118,7 @@ const props = defineProps({
             section: '',
             year: '',
             school_year: '',
+            semester: '',
             status: '',
         }),
     },
@@ -1126,6 +1134,7 @@ const props = defineProps({
         type: Array as () => string[],
         default: () => [],
     },
+    semesterOptions: { type: Array as () => string[], default: () => ['1st Semester', '2nd Semester'] },
     currentUserRole: {
         type: String,
         default: '',
@@ -1150,6 +1159,7 @@ const selectedStrand = ref(props.filters.strand ?? '');
 const selectedSection = ref(props.filters.section ?? '');
 const selectedYear = ref(props.filters.year ?? '');
 const selectedSchoolYear = ref(props.filters.school_year ?? '');
+const selectedSemester = ref(props.filters.semester ?? '');
 const selectedStatus = ref(props.filters.status ?? '');
 const showModal = ref(false);
 const isEditing = ref(false);
@@ -1224,6 +1234,8 @@ const filteredStudents = computed<Student[]>(() => {
         const matchesSchoolYear =
             selectedSchoolYear.value === '' ||
             String(student.school_year) === selectedSchoolYear.value;
+        const matchesSemester =
+            selectedSemester.value === '' || student.semester === selectedSemester.value;
         const matchesStatus =
             selectedStatus.value === '' ||
             student.status === selectedStatus.value;
@@ -1234,6 +1246,7 @@ const filteredStudents = computed<Student[]>(() => {
             matchesSection &&
             matchesYear &&
             matchesSchoolYear &&
+            matchesSemester &&
             matchesStatus
         );
     });
@@ -1271,6 +1284,7 @@ const onFilterChange = () => {
             section: selectedSection.value,
             year: selectedYear.value,
             school_year: selectedSchoolYear.value,
+            semester: selectedSemester.value,
             status: selectedStatus.value,
         },
         {
@@ -1287,6 +1301,7 @@ const resetFilters = () => {
     selectedSection.value = '';
     selectedYear.value = '';
     selectedSchoolYear.value = '';
+    selectedSemester.value = '';
     selectedStatus.value = '';
     onFilterChange();
 };

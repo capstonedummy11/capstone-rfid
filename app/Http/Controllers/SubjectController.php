@@ -27,9 +27,13 @@ class SubjectController
         $defaultYearId = AcademicYear::currentOrLatest()?->academic_year_id;
         $yearId = $filters['academic_year_id'] === 'all' ? null : ($request->integer('academic_year_id') ?: $defaultYearId);
         $filters['academic_year_id'] = $filters['academic_year_id'] === 'all' ? 'all' : $yearId;
+        if ($filters['semester'] === '' && $yearId) {
+            $filters['semester'] = AcademicYear::find($yearId)?->active_semester ?: '';
+        }
 
         $query = Subject::query()->with(['section', 'user', 'offerings' => fn ($offerings) => $offerings
             ->when($yearId, fn ($yearQuery) => $yearQuery->where('academic_year_id', $yearId))
+            ->when($filters['semester'] !== '', fn ($termQuery) => $termQuery->where('semester', $filters['semester']))
             ->with(['academicYear', 'section', 'instructor.user'])]);
 
         if ($filters['search'] !== '') {
@@ -43,7 +47,10 @@ class SubjectController
         }
 
         if ($filters['semester'] !== '') {
-            $query->where('semester', $filters['semester']);
+            $query->whereHas('offerings', fn ($offering) => $offering->where('semester', $filters['semester'])->when($yearId, fn ($year) => $year->where('academic_year_id', $yearId)));
+        }
+        if ($yearId) {
+            $query->whereHas('offerings', fn ($offering) => $offering->where('academic_year_id', $yearId));
         }
 
         return Inertia::render('Auth/Admin/Subjects', [
@@ -77,6 +84,8 @@ class SubjectController
             ])->values(),
             'filters' => $filters,
             'sectionOptions' => Section::query()
+                ->when($yearId, fn ($query) => $query->where('academic_year_id', $yearId))
+                ->when($filters['semester'] !== '', fn ($query) => $query->where('semester', $filters['semester']))
                 ->orderBy('section_name')
                 ->get(['section_id', 'section_name', 'year_level', 'school_year'])
                 ->map(fn (Section $section) => [
