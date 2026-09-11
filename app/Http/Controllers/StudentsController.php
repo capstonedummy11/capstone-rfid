@@ -147,7 +147,7 @@ class StudentsController
             ->orderBy('last_name')
             ->orderBy('first_name')
             ->get()
-            ->map(function (Students $student) use ($selectedAcademicYear) {
+            ->map(function (Students $student) use ($selectedAcademicYear, $filters) {
                 $placement = $selectedAcademicYear
                     ? $student->enrollments->first(fn ($enrollment) => (int) $enrollment->academic_year_id === (int) $selectedAcademicYear->academic_year_id && ($filters['semester'] === '' || $enrollment->semester === $filters['semester']))
                     : $student->enrollments->sortByDesc('student_enrollment_id')->first();

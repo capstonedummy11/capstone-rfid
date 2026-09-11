@@ -119,6 +119,57 @@ test('non admin cannot access academic year management', function () {
         ->assertForbidden();
 });
 
+test('students page resolves the selected academic year for an enrolled student', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $year = AcademicYear::create([
+        'name' => '2026-2027',
+        'starts_on' => '2026-06-01',
+        'ends_on' => '2027-03-31',
+        'status' => AcademicYear::STATUS_ACTIVE,
+        'active_semester' => '1st Semester',
+    ]);
+    $strand = Strand::create([
+        'strand_code' => 'ICT-INDEX',
+        'strand_name' => 'ICT Index',
+        'department' => 'SHS',
+        'status' => 'active',
+    ]);
+    $section = Section::create([
+        'academic_year_id' => $year->academic_year_id,
+        'strand_id' => $strand->strand_id,
+        'section_name' => 'ICT Index 11-A',
+        'year_level' => 11,
+        'semester' => '1st Semester',
+        'school_year' => $year->name,
+        'status' => 'active',
+    ]);
+    $student = Students::create([
+        'section_id' => $section->section_id,
+        'strand_id' => $strand->strand_id,
+        'student_number' => 'INDEX-001',
+        'first_name' => 'Index',
+        'last_name' => 'Student',
+        'gender' => 'female',
+        'year_level' => 11,
+        'semester' => '1st Semester',
+        'school_year' => $year->name,
+        'status' => 'active',
+    ]);
+    StudentEnrollment::create([
+        'student_id' => $student->student_id,
+        'academic_year_id' => $year->academic_year_id,
+        'section_id' => $section->section_id,
+        'strand_id' => $strand->strand_id,
+        'year_level' => 11,
+        'semester' => '1st Semester',
+        'status' => 'enrolled',
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.students.index', ['school_year' => $year->name]))
+        ->assertOk();
+});
+
 test('student placement updates create a new year enrollment without overwriting history', function () {
     $admin = User::factory()->create(['role' => 'admin']);
     $strand = Strand::create([
