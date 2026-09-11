@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use App\Models\AcademicYear;
 use App\Models\Attendance;
 use App\Models\AttendanceLog;
 use App\Models\Borrowing;
@@ -16,6 +17,7 @@ use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\Students;
 use App\Models\Subject;
+use App\Models\StudentEnrollment;
 use App\Models\SystemSetting;
 use App\Models\User;
 use App\Services\AwsFaceRecognitionService;
@@ -95,6 +97,12 @@ class AttendanceController
         $today = now()->toDateString();
         $nowTime = now()->format('H:i:s');
         $scheduleContext = $this->attendanceAcademicContext($validated['schedule_id'] ?? null);
+        if (($validated['schedule_id'] ?? null) && ! $scheduleContext['academic_year_id']) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'The selected schedule is not linked to the current academic year.',
+            ], 422);
+        }
         $attendanceSession = DB::table('attendance_sessions')
             ->where('room', $validated['room'])
             ->whereDate('date', $today)
@@ -224,7 +232,7 @@ class AttendanceController
                 ->where('student_id', $student->student_id)
                 ->where('academic_year_id', $currentSchedule->academic_year_id)
                 ->where('section_id', $currentSchedule->section_id)
-                ->where('status', 'active')
+                ->whereIn('status', ['active', 'enrolled'])
                 ->when($currentSchedule->semester, fn ($query) => $query->where('semester', $currentSchedule->semester))
                 ->first()
             : null;
@@ -492,7 +500,10 @@ class AttendanceController
 
         $eligibleEnrollment = $currentSchedule->academic_year_id ? \App\Models\StudentEnrollment::query()
             ->where('student_id', $student->student_id)->where('academic_year_id', $currentSchedule->academic_year_id)
-            ->where('section_id', $currentSchedule->section_id)->where('status', 'active')->first() : null;
+            ->where('section_id', $currentSchedule->section_id)
+            ->whereIn('status', ['active', 'enrolled'])
+            ->when($currentSchedule->semester, fn ($query) => $query->where('semester', $currentSchedule->semester))
+            ->first() : null;
         if (($currentSchedule->academic_year_id && ! $eligibleEnrollment)
             || (! $currentSchedule->academic_year_id && (int) $student->section_id !== (int) $currentSchedule->section_id)) {
             return response()->json([
@@ -1130,6 +1141,18 @@ class AttendanceController
 
         if ($student) {
             $student->loadMissing(['strand', 'section']);
+            $activeAcademicYearId = AcademicYear::currentOrLatest()?->academic_year_id;
+            $activeEnrollment = $activeAcademicYearId
+                ? StudentEnrollment::query()
+                    ->with(['strand', 'section'])
+                    ->where('student_id', $student->student_id)
+                    ->where('academic_year_id', $activeAcademicYearId)
+                    ->whereIn('status', ['active', 'enrolled'])
+                    ->latest('student_enrollment_id')
+                    ->first()
+                : null;
+            $placementStrand = $activeEnrollment?->strand ?? $student->strand;
+            $placementSection = $activeEnrollment?->section ?? $student->section;
 
             $nameParts = [
                 (string) $student->first_name,
@@ -1148,10 +1171,10 @@ class AttendanceController
                     'studentId' => $student->student_number,
                     'name' => $fullName,
                     'rfid' => $student->rfid_tag,
-                    'year' => $student->year_level.' Year',
-                    'course' => $student->strand?->strand_code ?? $student->section?->strand?->strand_code,
-                    'strand' => $student->strand?->strand_code ?? $student->section?->strand?->strand_code,
-                    'section' => $student->section?->section_name,
+                    'year' => ($activeEnrollment?->year_level ?? $student->year_level).' Year',
+                    'course' => $placementStrand?->strand_code ?? $placementSection?->strand?->strand_code,
+                    'strand' => $placementStrand?->strand_code ?? $placementSection?->strand?->strand_code,
+                    'section' => $placementSection?->section_name,
                     'avatarSeed' => $fullName,
                     'hasFaceImage' => count($student->face_images ?? []) > 0,
                     'faceImageCount' => count($student->face_images ?? []),
@@ -1559,6 +1582,8 @@ class AttendanceController
 
     private function panelPayload(): array
     {
+        $activeAcademicYearId = AcademicYear::currentOrLatest()?->academic_year_id;
+
         return [
             'rooms' => $this->panelRooms(),
             'panelDeviceLabel' => SystemSetting::string(SystemSetting::PANEL_DEVICE_LABEL, 'Attendance Console'),
@@ -1576,6 +1601,9 @@ class AttendanceController
                 ->whereNotNull('rfid_tag')
                 ->where('rfid_tag', '!=', '')
                 ->where('status', 'active')
+                ->when($activeAcademicYearId, fn ($query) => $query->whereHas('enrollments', fn ($enrollment) => $enrollment
+                    ->where('academic_year_id', $activeAcademicYearId)
+                    ->whereIn('status', ['active', 'enrolled'])))
                 ->orderBy('student_number')
                 ->pluck('rfid_tag')
                 ->values()
@@ -1630,6 +1658,9 @@ class AttendanceController
             'emergencyStudents' => Students::query()
                 ->with(['section:section_id,section_name', 'strand:strand_id,strand_code'])
                 ->where('status', 'active')
+                ->when($activeAcademicYearId, fn ($query) => $query->whereHas('enrollments', fn ($enrollment) => $enrollment
+                    ->where('academic_year_id', $activeAcademicYearId)
+                    ->whereIn('status', ['active', 'enrolled'])))
                 ->orderBy('last_name')
                 ->orderBy('first_name')
                 ->get()
@@ -2546,7 +2577,9 @@ class AttendanceController
         if ($studentId && $schedule?->academic_year_id) {
             $enrollments = \App\Models\StudentEnrollment::query()
                 ->where('student_id', $studentId)
-                ->where('academic_year_id', $schedule->academic_year_id);
+                ->where('academic_year_id', $schedule->academic_year_id)
+                ->where('section_id', $schedule->section_id)
+                ->whereIn('status', ['active', 'enrolled']);
             $enrollment = $schedule->semester ? (clone $enrollments)->where('semester', $schedule->semester)->first() : null;
             $enrollmentId = ($enrollment ?? $enrollments->first())?->student_enrollment_id;
         }

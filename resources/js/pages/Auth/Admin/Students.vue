@@ -162,7 +162,7 @@
 
             <section class="rounded-lg bg-white p-6 shadow-lg">
                 <div class="overflow-x-auto">
-                    <table class="w-full table-auto border-collapse">
+                    <table class="min-w-[1120px] w-full table-fixed border-collapse">
                         <thead>
                             <tr class="bg-gray-50">
                                 <th
@@ -234,31 +234,31 @@
                                 :key="student.student_id"
                                 class="hover:bg-gray-50"
                             >
-                                <td class="border border-gray-300 px-4 py-3">
+                                <td class="break-words border border-gray-300 px-3 py-3">
                                     {{ student.student_number }}
                                 </td>
-                                <td class="border border-gray-300 px-4 py-3">
+                                <td class="break-words border border-gray-300 px-3 py-3">
                                     {{ student.first_name }}
                                     {{ student.last_name }}
                                 </td>
-                                <td class="border border-gray-300 px-4 py-3">
+                                <td class="break-words border border-gray-300 px-3 py-3">
                                     {{ student.email }}
                                 </td>
-                                <td class="border border-gray-300 px-4 py-3">
+                                <td class="break-words border border-gray-300 px-3 py-3">
                                     <div class="font-medium">
                                         {{ student.strand_code ?? 'N/A' }}
                                     </div>
                                 </td>
-                                <td class="border border-gray-300 px-4 py-3">
+                                <td class="break-words border border-gray-300 px-3 py-3">
                                     {{ student.section_name ?? 'N/A' }}
                                 </td>
-                                <td class="border border-gray-300 px-4 py-3">
+                                <td class="break-words border border-gray-300 px-3 py-3">
                                     {{ student.year_level }}
                                 </td>
-                                <td class="border border-gray-300 px-4 py-3">
+                                <td class="break-words border border-gray-300 px-3 py-3">
                                     {{ student.school_year }}
                                 </td>
-                                <td class="border border-gray-300 px-4 py-3">
+                                <td class="break-words border border-gray-300 px-3 py-3">
                                     <span
                                         :class="statusClasses(student.status)"
                                         >{{
@@ -266,7 +266,7 @@
                                         }}</span
                                     >
                                 </td>
-                                <td class="border border-gray-300 px-4 py-3">
+                                <td class="break-words border border-gray-300 px-3 py-3">
                                     <span
                                         v-if="student.rfid_tag"
                                         class="text-green-600"
@@ -276,7 +276,7 @@
                                         >Not assigned</span
                                     >
                                 </td>
-                                <td class="border border-gray-300 px-4 py-3">
+                                <td class="break-words border border-gray-300 px-3 py-3">
                                     <div
                                         v-if="
                                             student.face_images &&
@@ -312,7 +312,7 @@
                                         >None</span
                                     >
                                 </td>
-                                <td class="border border-gray-300 px-4 py-3">
+                                <td class="break-words border border-gray-300 px-3 py-3">
                                     <div
                                         v-if="student.parents?.length"
                                         class="space-y-1"
@@ -341,7 +341,7 @@
                                 </td>
                                 <td
                                     v-if="canManageStudents"
-                                    class="border border-gray-300 px-4 py-3"
+                                    class="break-words border border-gray-300 px-3 py-3"
                                 >
                                     <div
                                         class="flex flex-wrap items-center gap-2"
@@ -1167,11 +1167,6 @@ const selectedStudent = ref<Student | null>(null);
 const showParentModal = ref(false);
 const showEnrollmentModal = ref(false);
 const selectedParent = ref<ParentAccount | null>(null);
-const defaultSchoolYearOptions = Array.from({ length: 6 }, (_, index) => {
-    const startYear = new Date().getFullYear() - 1 + index;
-    return `${startYear}-${startYear + 1}`;
-});
-
 // Face image management state
 const faceImages = ref<string[]>([]);
 const faceImageUploading = ref(false);
@@ -1262,17 +1257,7 @@ const availableSections = computed<SectionOption[]>(() => {
 });
 
 const availableSchoolYearOptions = computed(() => {
-    return Array.from(
-        new Set(
-            [
-                ...defaultSchoolYearOptions,
-                ...(props.schoolYearOptions as string[]),
-                ...(props.students as Student[]).map(
-                    (student) => student.school_year,
-                ),
-            ].filter(Boolean),
-        ),
-    ).sort();
+    return [...(props.schoolYearOptions as string[])];
 });
 
 const onFilterChange = () => {

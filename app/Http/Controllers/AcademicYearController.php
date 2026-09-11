@@ -52,14 +52,17 @@ class AcademicYearController
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:20', 'regex:/^\d{4}-\d{4}$/', 'unique:academic_years,name'],
-            'starts_on' => ['required', 'date'],
-            'ends_on' => ['required', 'date', 'after:starts_on'],
-            'active_semester' => ['nullable', 'string', 'max:50'],
+            'starts_on' => ['required', 'date_format:Y-m-d'],
+            'ends_on' => ['required', 'date_format:Y-m-d', 'after:starts_on'],
+            'active_semester' => ['nullable', Rule::in(['1st Semester', '2nd Semester'])],
         ]);
 
         [$start, $end] = array_map('intval', explode('-', $validated['name']));
         if ($end !== $start + 1) {
             return back()->withErrors(['name' => 'Academic year must contain consecutive years, for example 2026-2027.']);
+        }
+        if ((int) date('Y', strtotime($validated['starts_on'])) !== $start || (int) date('Y', strtotime($validated['ends_on'])) !== $end) {
+            return back()->withErrors(['starts_on' => "The dates must fall within {$validated['name']}."]);
         }
 
         $year = AcademicYear::create($validated + ['status' => AcademicYear::STATUS_DRAFT]);
@@ -74,14 +77,17 @@ class AcademicYearController
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:20', 'regex:/^\d{4}-\d{4}$/', Rule::unique('academic_years', 'name')->ignore($academicYear->academic_year_id, 'academic_year_id')],
-            'starts_on' => ['required', 'date'],
-            'ends_on' => ['required', 'date', 'after:starts_on'],
-            'active_semester' => ['nullable', 'string', 'max:50'],
+            'starts_on' => ['required', 'date_format:Y-m-d'],
+            'ends_on' => ['required', 'date_format:Y-m-d', 'after:starts_on'],
+            'active_semester' => ['nullable', Rule::in(['1st Semester', '2nd Semester'])],
         ]);
 
         [$start, $end] = array_map('intval', explode('-', $validated['name']));
         if ($end !== $start + 1) {
             return back()->withErrors(['name' => 'Academic year must contain consecutive years, for example 2026-2027.']);
+        }
+        if ((int) date('Y', strtotime($validated['starts_on'])) !== $start || (int) date('Y', strtotime($validated['ends_on'])) !== $end) {
+            return back()->withErrors(['starts_on' => "The dates must fall within {$validated['name']}."]);
         }
 
         $academicYear->update($validated);
@@ -125,14 +131,25 @@ class AcademicYearController
 
     public function rolloverPreview(Request $request, AcademicYear $academicYear)
     {
-        $validated = $request->validate(['destination_academic_year_id' => ['required', 'integer', 'exists:academic_years,academic_year_id']]);
-        return response()->json($this->rolloverService->preview($academicYear, AcademicYear::findOrFail($validated['destination_academic_year_id'])));
+        $validated = $request->validate([
+            'destination_academic_year_id' => ['required', 'integer', 'exists:academic_years,academic_year_id'],
+            'mode' => ['nullable', Rule::in(['year', 'semester'])],
+            'destination_semester' => ['nullable', Rule::in(['1st Semester', '2nd Semester'])],
+        ]);
+        return response()->json($this->rolloverService->preview(
+            $academicYear,
+            AcademicYear::findOrFail($validated['destination_academic_year_id']),
+            $validated['mode'] ?? 'year',
+            $validated['destination_semester'] ?? null,
+        ));
     }
 
     public function rolloverExecute(Request $request, AcademicYear $academicYear)
     {
         $validated = $request->validate([
             'destination_academic_year_id' => ['required', 'integer', 'exists:academic_years,academic_year_id'],
+            'mode' => ['nullable', Rule::in(['year', 'semester'])],
+            'destination_semester' => ['nullable', Rule::in(['1st Semester', '2nd Semester'])],
             'section_mappings' => ['required', 'array'],
             'section_mappings.*.source_section_id' => ['required', 'integer', 'exists:sections,section_id'],
             'section_mappings.*.destination_section_id' => ['nullable', 'integer', 'exists:sections,section_id'],
@@ -145,7 +162,7 @@ class AcademicYearController
         ]);
         $rollover = $this->rolloverService->execute(
             $academicYear, AcademicYear::findOrFail($validated['destination_academic_year_id']), $request->user(),
-            $validated['decisions'] ?? [], $validated['section_mappings'],
+            $validated['decisions'] ?? [], $validated['section_mappings'], $validated['mode'] ?? 'year', $validated['destination_semester'] ?? null,
         );
         return back()->with('success', "Rollover completed safely. {$rollover->items->where('status', 'completed')->count()} student decisions were applied.");
     }

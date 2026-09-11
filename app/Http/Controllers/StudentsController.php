@@ -220,12 +220,9 @@ class StudentsController
                     ]))),
                 ])
                 ->values(),
-            'schoolYearOptions' => Section::query()
-                ->when($isInstructor, fn ($sectionQuery) => $sectionQuery->whereIn('section_id', $handledSectionIds->all()))
-                ->whereNotNull('school_year')
-                ->distinct()
-                ->orderByDesc('school_year')
-                ->pluck('school_year')
+            'schoolYearOptions' => AcademicYear::query()
+                ->orderByDesc('starts_on')
+                ->pluck('name')
                 ->values(),
             'semesterOptions' => ['1st Semester', '2nd Semester'],
         ]);

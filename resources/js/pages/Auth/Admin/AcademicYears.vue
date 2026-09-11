@@ -1,6 +1,6 @@
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import Swal from 'sweetalert2';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 
@@ -74,6 +74,8 @@ const badgeClass = (status) => ({
 
 const rolloverSourceId = ref('');
 const rolloverDestinationId = ref('');
+const rolloverMode = ref('year');
+const destinationSemester = ref('');
 const preview = ref(null);
 const previewBusy = ref(false);
 const sectionMappings = ref([]);
@@ -82,8 +84,12 @@ const loadPreview = async () => {
     if (!rolloverSourceId.value || !rolloverDestinationId.value) return;
     previewBusy.value = true;
     try {
-        const url = route('admin.academic-years.rollover-preview', rolloverSourceId.value)
-            + `?destination_academic_year_id=${rolloverDestinationId.value}`;
+        const params = new URLSearchParams({
+            destination_academic_year_id: rolloverDestinationId.value,
+            mode: rolloverMode.value,
+        });
+        if (rolloverMode.value === 'semester') params.set('destination_semester', destinationSemester.value);
+        const url = route('admin.academic-years.rollover-preview', rolloverSourceId.value) + `?${params}`;
         const response = await fetch(url, { headers: { Accept: 'application/json' } });
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || 'Preview failed.');
@@ -113,6 +119,8 @@ const executeRollover = async () => {
     if (!result.isConfirmed) return;
     useForm({
         destination_academic_year_id: Number(rolloverDestinationId.value),
+        mode: rolloverMode.value,
+        destination_semester: rolloverMode.value === 'semester' ? destinationSemester.value : null,
         section_mappings: sectionMappings.value.map(({ source_label, ...mapping }) => ({
             ...mapping,
             destination_section_id: mapping.destination_section_id ? Number(mapping.destination_section_id) : null,
@@ -123,6 +131,13 @@ const executeRollover = async () => {
         })),
     }).post(route('admin.academic-years.rollover', rolloverSourceId.value), { preserveScroll: true });
 };
+
+const academicYearsForRollover = (kind) => props.academicYears.filter((year) => {
+    if (rolloverMode.value === 'semester') return ['active', 'draft'].includes(year.status);
+    return kind === 'source' ? ['active', 'closed'].includes(year.status) : year.status === 'draft';
+});
+const rolloverSourceOptions = computed(() => academicYearsForRollover('source'));
+const rolloverDestinationOptions = computed(() => academicYearsForRollover('destination'));
 </script>
 
 <template>
@@ -173,16 +188,24 @@ const executeRollover = async () => {
             <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h2 class="text-lg font-semibold text-slate-900">Year rollover</h2>
                 <p class="mt-1 text-sm text-slate-600">Preview first, map sections, then create destination enrollments transactionally. Subjects and schedules are configured separately for each semester.</p>
-                <div class="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
-                    <select v-model="rolloverSourceId" class="rounded-lg border-slate-300">
-                        <option value="">Source active/closed year</option>
-                        <option v-for="year in academicYears.filter((item) => ['active', 'closed'].includes(item.status))" :key="year.academic_year_id" :value="year.academic_year_id">{{ year.name }} ({{ year.status }})</option>
+                <div class="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto]">
+                    <select v-model="rolloverMode" class="rounded-lg border-slate-300" @change="rolloverSourceId = ''; rolloverDestinationId = ''; destinationSemester = ''; preview = null">
+                        <option value="year">Year rollover</option>
+                        <option value="semester">Semester-only rollover</option>
                     </select>
-                    <select v-model="rolloverDestinationId" class="rounded-lg border-slate-300">
-                        <option value="">Destination draft year</option>
-                        <option v-for="year in academicYears.filter((item) => item.status === 'draft')" :key="year.academic_year_id" :value="year.academic_year_id">{{ year.name }}</option>
+                    <select v-model="rolloverSourceId" class="rounded-lg border-slate-300" @change="rolloverMode === 'semester' ? rolloverDestinationId = rolloverSourceId : null">
+                        <option value="">Source academic year</option>
+                        <option v-for="year in rolloverSourceOptions" :key="year.academic_year_id" :value="year.academic_year_id">{{ year.name }} ({{ year.status }})</option>
                     </select>
-                    <button class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" :disabled="previewBusy || !rolloverSourceId || !rolloverDestinationId" @click="loadPreview">
+                    <select v-model="rolloverDestinationId" class="rounded-lg border-slate-300" :disabled="rolloverMode === 'semester'">
+                        <option value="">Destination academic year</option>
+                        <option v-for="year in rolloverDestinationOptions" :key="year.academic_year_id" :value="year.academic_year_id">{{ year.name }} ({{ year.status }})</option>
+                    </select>
+                    <select v-if="rolloverMode === 'semester'" v-model="destinationSemester" class="rounded-lg border-slate-300">
+                        <option value="">Destination semester</option>
+                        <option>1st Semester</option><option>2nd Semester</option>
+                    </select>
+                    <button class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" :disabled="previewBusy || !rolloverSourceId || !rolloverDestinationId || (rolloverMode === 'semester' && !destinationSemester)" @click="loadPreview">
                         {{ previewBusy ? 'Previewing…' : 'Preview' }}
                     </button>
                 </div>

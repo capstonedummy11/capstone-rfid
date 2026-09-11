@@ -10,11 +10,11 @@ use Illuminate\Validation\ValidationException;
 
 class AcademicYearRolloverService
 {
-    public function preview(AcademicYear $source, AcademicYear $destination): array
+    public function preview(AcademicYear $source, AcademicYear $destination, string $mode = 'year', ?string $destinationSemester = null): array
     {
-        $this->validateYears($source, $destination);
+        $this->validateYears($source, $destination, $mode);
         $allEnrollments = DB::table('student_enrollments')->where('academic_year_id', $source->academic_year_id)->get();
-        $transition = $this->transition($source, $allEnrollments);
+        $transition = $this->transition($source, $allEnrollments, $mode, $destinationSemester);
         $enrollments = $allEnrollments->where('semester', $transition['current_semester'])->values();
         $items = $enrollments->map(fn ($enrollment) => [
             'student_id' => $enrollment->student_id,
@@ -61,11 +61,11 @@ class AcademicYearRolloverService
         ];
     }
 
-    public function execute(AcademicYear $source, AcademicYear $destination, User $actor, array $decisions, array $sectionMappings): AcademicYearRollover
+    public function execute(AcademicYear $source, AcademicYear $destination, User $actor, array $decisions, array $sectionMappings, string $mode = 'year', ?string $destinationSemester = null): AcademicYearRollover
     {
-        $preview = $this->preview($source, $destination);
+        $preview = $this->preview($source, $destination, $mode, $destinationSemester);
 
-        return DB::transaction(function () use ($source, $destination, $actor, $decisions, $sectionMappings, $preview) {
+        return DB::transaction(function () use ($source, $destination, $actor, $decisions, $sectionMappings, $preview, $mode, $destinationSemester) {
             $existing = AcademicYearRollover::query()->where('source_academic_year_id', $source->academic_year_id)
                 ->where('destination_academic_year_id', $destination->academic_year_id)->lockForUpdate()->first();
             if ($existing?->status === 'completed') {
@@ -73,11 +73,11 @@ class AcademicYearRolloverService
             }
             $rollover = $existing ?? AcademicYearRollover::create([
                 'source_academic_year_id' => $source->academic_year_id, 'destination_academic_year_id' => $destination->academic_year_id,
-                'executed_by_user_id' => $actor->user_id, 'mode' => 'promote', 'status' => 'processing',
+                'executed_by_user_id' => $actor->user_id, 'mode' => $mode, 'status' => 'processing',
                 'preview_counts' => $preview['counts'], 'started_at' => now(),
             ]);
 
-            $sectionMap = $this->resolveSections($source, $destination, $sectionMappings);
+            $sectionMap = $this->resolveSections($source, $destination, $sectionMappings, $mode, $destinationSemester);
             // Subjects, offerings, and schedules are semester-specific. Configure them
             // fresh in the destination year/semester instead of copying them forward.
             $counts = ['enrolled' => 0, 'retained' => 0, 'archived' => 0, 'skipped' => 0, 'sections' => count($sectionMap), 'offerings' => 0, 'schedules' => 0];
@@ -132,10 +132,10 @@ class AcademicYearRolloverService
         });
     }
 
-    private function resolveSections(AcademicYear $source, AcademicYear $destination, array $mappings): array
+    private function resolveSections(AcademicYear $source, AcademicYear $destination, array $mappings, string $mode = 'year', ?string $destinationSemester = null): array
     {
         $map = [];
-        $transition = $this->transition($source, DB::table('student_enrollments')->where('academic_year_id', $source->academic_year_id)->get());
+        $transition = $this->transition($source, DB::table('student_enrollments')->where('academic_year_id', $source->academic_year_id)->get(), $mode, $destinationSemester);
         foreach ($mappings as $mapping) {
             $sourceSection = DB::table('sections')->where('section_id', $mapping['source_section_id'])->where('academic_year_id', $source->academic_year_id)->first();
             if (! $sourceSection) continue;
@@ -183,9 +183,20 @@ class AcademicYearRolloverService
         return $offeringMap;
     }
 
-    private function transition(AcademicYear $source, $enrollments): array
+    private function transition(AcademicYear $source, $enrollments, string $mode = 'year', ?string $destinationSemester = null): array
     {
         $currentSemester = $source->active_semester ?: $enrollments->pluck('semester')->filter()->first() ?: '2nd Semester';
+        if ($mode === 'semester') {
+            if (! in_array($destinationSemester, ['1st Semester', '2nd Semester'], true) || $destinationSemester === $currentSemester) {
+                throw ValidationException::withMessages(['destination_semester' => 'Choose a different destination semester.']);
+            }
+            return [
+                'current_semester' => $currentSemester,
+                'destination_semester' => $destinationSemester,
+                'advance_grade' => false,
+                'description' => "{$currentSemester} → {$destinationSemester}: students remain in the same grade and academic year.",
+            ];
+        }
         $firstSemester = $currentSemester === '1st Semester';
 
         return [
@@ -198,8 +209,14 @@ class AcademicYearRolloverService
         ];
     }
 
-    private function validateYears(AcademicYear $source, AcademicYear $destination): void
+    private function validateYears(AcademicYear $source, AcademicYear $destination, string $mode = 'year'): void
     {
+        if ($mode === 'semester') {
+            if (! $source->is($destination) || ! in_array($source->status, [AcademicYear::STATUS_ACTIVE, AcademicYear::STATUS_DRAFT], true)) {
+                throw ValidationException::withMessages(['rollover' => 'Semester rollover must use the same active or draft academic year.']);
+            }
+            return;
+        }
         if ($source->is($destination) || $destination->status !== AcademicYear::STATUS_DRAFT || ! in_array($source->status, [AcademicYear::STATUS_ACTIVE, AcademicYear::STATUS_CLOSED], true)) {
             throw ValidationException::withMessages(['rollover' => 'Rollover requires a different draft destination and an active or closed source year.']);
         }
