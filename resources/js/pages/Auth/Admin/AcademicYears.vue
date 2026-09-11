@@ -304,8 +304,8 @@ const onRolloverSourceChange = () => {
                 </div>
 
                 <div v-if="rollovers.length" class="mt-6 overflow-x-auto">
-                    <table class="min-w-full text-sm"><thead><tr class="border-b text-left text-xs uppercase text-slate-500"><th class="py-2">Source</th><th>Destination</th><th>Status</th><th>Completed</th></tr></thead>
-                        <tbody><tr v-for="rollover in rollovers" :key="rollover.id" class="border-b border-slate-100"><td class="py-2">{{ rollover.source }}</td><td>{{ rollover.destination }}</td><td class="capitalize">{{ rollover.status }}</td><td>{{ rollover.completed_at || '—' }}</td></tr></tbody>
+                    <table class="min-w-full text-sm"><thead><tr class="border-b text-left text-xs uppercase text-slate-500"><th class="py-2">Source</th><th>Destination</th><th>Type</th><th>Status</th><th>Completed</th></tr></thead>
+                        <tbody><tr v-for="rollover in rollovers" :key="rollover.id" class="border-b border-slate-100"><td class="py-2">{{ rollover.source }}</td><td>{{ rollover.destination }}</td><td class="capitalize">{{ rollover.mode === 'semester' ? 'Semester-only' : 'Year rollover' }}</td><td class="capitalize">{{ rollover.status }}</td><td>{{ rollover.completed_at || '—' }}</td></tr></tbody>
                     </table>
                 </div>
             </section>

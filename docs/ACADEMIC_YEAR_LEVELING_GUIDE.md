@@ -6,12 +6,14 @@ Academic-year rollover moves the student placement structure forward without cop
 
 ## Leveling rules
 
+Semester-only rollover is available only from 1st Semester to 2nd Semester. Year rollover targets 2nd Semester in the destination year.
+
 The source year’s `active_semester` determines the transition:
 
-| Current semester | Destination semester | Student level | Grade 12 |
+| Rollover type | Destination semester | Student level | Grade 12 |
 |---|---|---|---|
-| 1st Semester | 2nd Semester | Remains in the same grade | Remains enrolled for 2nd Semester |
-| 2nd Semester | 1st Semester | Grade 11 becomes Grade 12 | Marked `graduated` (archived from active enrollment) |
+| Semester-only | 2nd Semester | Remains in the same grade | Remains enrolled for 2nd Semester |
+| Year rollover | 2nd Semester of the destination year | Grade 11 becomes Grade 12, unless retained | Graduated by default; may be retained or sent to review |
 
 Only enrollments from the current semester are processed. Dropped, transferred, or inactive enrollments do not create a destination enrollment.
 
@@ -33,6 +35,14 @@ Subjects, subject offerings, and schedules are not copied. A subject may belong 
 - no destination instructor assignments.
 
 Administrators must add the subjects and offerings for the destination semester, assign instructors, and create schedules after rollover.
+
+## Current-semester controls
+
+- The Subjects page defaults to the current academic year and its active semester.
+- The subject catalog does not display a stale legacy semester when no current offering exists.
+- New subject offerings must use the current academic year and active semester. The semester is fixed by the current academic-year setting.
+- Removing an instructor removes only the instructor assignment; the subject offering and section assignment remain.
+- New schedules can use only subject offerings from the current academic year and active semester. Historical schedules remain viewable through filters but cannot be used to create a current schedule.
 
 ## Historical information
 

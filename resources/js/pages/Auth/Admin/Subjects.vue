@@ -67,7 +67,7 @@
                 <td class="border border-gray-300 px-4 py-3">{{ subject.subject_description || 'N/A' }}</td>
                 <td class="border border-gray-300 px-4 py-3">{{ subject.department || 'N/A' }}</td>
                 <td class="border border-gray-300 px-4 py-3">{{ subject.unit }}</td>
-                <td class="border border-gray-300 px-4 py-3">{{ subject.semester || subject.offerings?.[0]?.semester || 'N/A' }}</td>
+                <td class="border border-gray-300 px-4 py-3">{{ subject.offerings?.[0]?.semester || 'N/A' }}</td>
                 <td class="border border-gray-300 px-4 py-3">
                   <div v-if="subject.offerings?.length" class="space-y-1">
                     <div v-for="offering in subject.offerings" :key="offering.subject_offering_id" class="rounded bg-slate-50 px-2 py-1 text-xs">
@@ -80,7 +80,7 @@
                   <div v-if="subject.offerings?.length" class="space-y-1">
                     <div v-for="offering in subject.offerings" :key="offering.subject_offering_id" class="flex items-center justify-between gap-2 text-xs">
                       <span>{{ offering.instructor_name || 'Unassigned' }}</span>
-                      <button v-if="offering.is_writable" @click="deleteOffering(offering)" class="text-rose-600 hover:underline">Remove</button>
+                      <button v-if="offering.is_writable && offering.instructor_name" @click="removeInstructor(offering)" class="text-rose-600 hover:underline">Remove Instructor</button>
                       <span v-else class="text-slate-400">Locked</span>
                     </div>
                   </div>
@@ -157,7 +157,7 @@
             <div class="grid gap-4 md:grid-cols-2">
               <div>
                 <label class="mb-1 block text-sm font-medium text-slate-700">Semester *</label>
-                <select v-model="offeringForm.semester" class="w-full rounded-md border border-slate-300 px-3 py-2" required>
+                <select v-model="offeringForm.semester" class="w-full rounded-md border border-slate-300 px-3 py-2" required disabled>
                   <option value="1st Semester">1st Semester</option>
                   <option value="2nd Semester">2nd Semester</option>
                 </select>
@@ -181,6 +181,7 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import Swal from 'sweetalert2';
 import SearchableSelect from '@/components/SearchableSelect.vue';
 
 interface Subject {
@@ -242,6 +243,7 @@ const props = defineProps({
     default: () => [],
   },
   academicYears: { type: Array as () => Array<{ academic_year_id: number; name: string; status: string }>, default: () => [] },
+  activeAcademicYearSemester: { type: String, default: '' },
 });
 
 const search = ref(props.filters.search ?? '');
@@ -341,7 +343,7 @@ const closeModal = () => {
 const openOfferingModal = (subject: Subject) => {
   selectedSubject.value = subject;
   offeringForm.reset();
-  offeringForm.semester = '1st Semester';
+  offeringForm.semester = props.activeAcademicYearSemester || '';
   showOfferingModal.value = true;
 };
 
@@ -363,9 +365,18 @@ const submitOffering = () => {
   });
 };
 
-const deleteOffering = (offering: SubjectOffering) => {
-  if (!confirm(`Remove this ${offering.academic_year} offering? Historical schedules are protected.`)) return;
-  useForm({}).delete(route('admin.subjects.offerings.destroy', { subjectOffering: offering.subject_offering_id }), {
+const removeInstructor = async (offering: SubjectOffering) => {
+  const result = await Swal.fire({
+    icon: 'warning',
+    title: 'Remove instructor?',
+    text: 'The subject offering and section assignment will remain. Only the instructor will be removed.',
+    showCancelButton: true,
+    confirmButtonText: 'Remove Instructor',
+    confirmButtonColor: '#e11d48',
+  });
+  if (!result.isConfirmed) return;
+
+  useForm({}).patch(route('admin.subjects.offerings.instructor.remove', { subjectOffering: offering.subject_offering_id }), {
     preserveScroll: true,
   });
 };

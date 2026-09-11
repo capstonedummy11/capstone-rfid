@@ -67,14 +67,20 @@ class AcademicYearRolloverService
         return DB::transaction(function () use ($source, $destination, $actor, $decisions, $sectionMappings, $preview, $mode, $destinationSemester) {
             $existing = AcademicYearRollover::query()->where('source_academic_year_id', $source->academic_year_id)
                 ->where('destination_academic_year_id', $destination->academic_year_id)->lockForUpdate()->first();
-            if ($existing?->status === 'completed') {
-                return $existing;
-            }
             $rollover = $existing ?? AcademicYearRollover::create([
                 'source_academic_year_id' => $source->academic_year_id, 'destination_academic_year_id' => $destination->academic_year_id,
                 'executed_by_user_id' => $actor->user_id, 'mode' => $mode, 'status' => 'processing',
                 'preview_counts' => $preview['counts'], 'started_at' => now(),
             ]);
+            if ($existing) {
+                $rollover->update([
+                    'executed_by_user_id' => $actor->user_id,
+                    'mode' => $mode,
+                    'status' => 'processing',
+                    'preview_counts' => $preview['counts'],
+                    'started_at' => now(),
+                ]);
+            }
 
             $sectionMap = $this->resolveSections($source, $destination, $sectionMappings, $mode, $destinationSemester);
             // Subjects, offerings, and schedules are semester-specific. Configure them
@@ -111,6 +117,14 @@ class AcademicYearRolloverService
                             'created_at' => now(), 'updated_at' => now(),
                         ]);
                     }
+                    DB::table('students')->where('student_id', $previewItem['student_id'])->update([
+                        'section_id' => $section->section_id,
+                        'strand_id' => $section->strand_id,
+                        'year_level' => $section->year_level,
+                        'semester' => $preview['transition']['destination_semester'],
+                        'school_year' => $destination->name,
+                        'updated_at' => now(),
+                    ]);
                     $status = 'completed'; $counts['enrolled']++;
                     if ($decision === 'retain') $counts['retained']++;
                 } elseif ($decision === 'graduated') {
@@ -126,6 +140,12 @@ class AcademicYearRolloverService
                         'destination_section_id' => $destinationSectionId, 'decision' => $decision, 'status' => $status, 'message' => $message,
                         'payload' => json_encode($choice ?: $previewItem), 'created_at' => now(), 'updated_at' => now()]
                 );
+            }
+
+            if ($mode === 'semester') {
+                DB::table('academic_years')
+                    ->where('academic_year_id', $destination->academic_year_id)
+                    ->update(['active_semester' => '2nd Semester', 'updated_at' => now()]);
             }
 
             $rollover->update(['status' => 'completed', 'execution_counts' => $counts, 'completed_at' => now()]);

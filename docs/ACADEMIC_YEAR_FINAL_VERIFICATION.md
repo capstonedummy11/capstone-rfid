@@ -25,7 +25,8 @@ Automated tests cover:
 - read-only closed-year records;
 - transactional and idempotent rollover;
 - source operational-history preservation;
-- destination activation and active-schedule resolution; and
+- destination activation and active-schedule resolution;
+- semester-only rollover updates, including current-semester subject-offering and schedule restrictions; and
 - rejection of unauthorized lifecycle mutations.
 
 ## Required release commands
@@ -58,7 +59,9 @@ These cannot be proven by the in-memory automated environment and must be checke
 4. Review the Legacy Fallback Monitor on the Academic Years page.
 5. Preview and review rollover mappings.
 6. Execute rollover, close the source year, and activate the destination.
-7. Run the integrity command again.
-8. Perform the manual checks above.
+7. Confirm the Academic Years page shows the expected active semester.
+8. Confirm Subjects and Schedules show only the current year and active semester for new configuration.
+9. Run the integrity command again.
+10. Perform the manual checks above.
 
 Legacy columns must remain until the removal gate in `LEGACY_ACADEMIC_DEPENDENCY_AUDIT.md` is satisfied.

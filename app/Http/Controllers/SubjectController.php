@@ -27,8 +27,9 @@ class SubjectController
         $defaultYearId = AcademicYear::currentOrLatest()?->academic_year_id;
         $yearId = $filters['academic_year_id'] === 'all' ? null : ($request->integer('academic_year_id') ?: $defaultYearId);
         $filters['academic_year_id'] = $filters['academic_year_id'] === 'all' ? 'all' : $yearId;
+        $selectedAcademicYear = $yearId ? AcademicYear::find($yearId) : null;
         if ($filters['semester'] === '' && $yearId) {
-            $filters['semester'] = AcademicYear::find($yearId)?->active_semester ?: '';
+            $filters['semester'] = $selectedAcademicYear?->active_semester ?: '';
         }
 
         $query = Subject::query()->with(['section', 'user', 'offerings' => fn ($offerings) => $offerings
@@ -101,8 +102,9 @@ class SubjectController
                 ])
                 ->values(),
             'instructorOptions' => User::query()->where('role', 'instructor')->orderBy('name')->get(['user_id', 'name', 'role'])->values(),
-            'activeAcademicYearId' => AcademicYear::currentOrLatest()?->academic_year_id,
-            'academicYears' => AcademicYear::query()->orderByDesc('starts_on')->get(['academic_year_id', 'name', 'status']),
+            'activeAcademicYearId' => $defaultYearId,
+            'activeAcademicYearSemester' => $selectedAcademicYear?->active_semester,
+            'academicYears' => AcademicYear::query()->orderByDesc('starts_on')->get(['academic_year_id', 'name', 'status', 'active_semester']),
         ]);
     }
 
@@ -187,6 +189,14 @@ class SubjectController
             return back()->withErrors(['section_id' => 'Subject offerings can only be added to a draft or active academic year section.']);
         }
 
+        $currentAcademicYear = AcademicYear::currentOrLatest();
+        if (! $currentAcademicYear || (int) $section->academic_year_id !== (int) $currentAcademicYear->academic_year_id) {
+            return back()->withErrors(['section_id' => 'Subject offerings can only be added to the current academic year.']);
+        }
+        if ($currentAcademicYear->active_semester && ($section->semester !== $currentAcademicYear->active_semester || $validated['semester'] !== $currentAcademicYear->active_semester)) {
+            return back()->withErrors(['semester' => "Subject offerings can only be added for {$currentAcademicYear->active_semester}."]);
+        }
+
         $instructorId = $this->instructorIdForUser($validated['user_id'] ?? null);
         if (SubjectOffering::query()
             ->where('academic_year_id', $section->academic_year_id)
@@ -232,6 +242,19 @@ class SubjectController
         return back()->with('success', 'Subject offering deleted.');
     }
 
+    public function removeOfferingInstructor(SubjectOffering $subjectOffering)
+    {
+        $subjectOffering->loadMissing(['academicYear', 'subject']);
+        if (! $subjectOffering->isWritable()) {
+            return back()->withErrors(['offering' => 'A closed or archived subject offering cannot be changed.']);
+        }
+
+        $subjectOffering->update(['instructor_id' => null]);
+        $this->log('update', 'subject_offerings', "Removed instructor from {$subjectOffering->subject?->subject_code} offering.");
+
+        return back()->with('success', 'Instructor removed from the subject offering.');
+    }
+
     private function syncOfferingFromLegacyFields(Subject $subject, array $validated): void
     {
         if (empty($validated['section_id'])) {
@@ -245,12 +268,20 @@ class SubjectController
             ]);
         }
 
+        $currentAcademicYear = AcademicYear::currentOrLatest();
+        $offeringSemester = $validated['semester'] ?: $section->semester;
+        if ($currentAcademicYear && ((int) $section->academic_year_id !== (int) $currentAcademicYear->academic_year_id || ($currentAcademicYear->active_semester && $offeringSemester !== $currentAcademicYear->active_semester))) {
+            throw ValidationException::withMessages([
+                'semester' => 'Subject offerings must use the current academic year and its active semester.',
+            ]);
+        }
+
         SubjectOffering::query()->updateOrCreate(
             [
                 'academic_year_id' => $section->academic_year_id,
                 'subject_id' => $subject->subject_id,
                 'section_id' => $section->section_id,
-                'semester' => $validated['semester'] ?: $section->semester,
+                'semester' => $offeringSemester,
             ],
             [
                 'instructor_id' => $this->instructorIdForUser($validated['user_id'] ?? null),

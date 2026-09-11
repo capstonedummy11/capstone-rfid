@@ -40,6 +40,7 @@ class AcademicYearController
                 'id' => $rollover->academic_year_rollover_id,
                 'source' => $rollover->sourceYear?->name,
                 'destination' => $rollover->destinationYear?->name,
+                'mode' => $rollover->mode,
                 'status' => $rollover->status,
                 'counts' => $rollover->execution_counts,
                 'completed_at' => $rollover->completed_at?->toDateTimeString(),

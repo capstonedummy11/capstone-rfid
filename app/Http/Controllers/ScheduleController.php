@@ -28,6 +28,8 @@ class ScheduleController
             : null;
         $laboratoryId = $isAdmin && $request->input('laboratory_id') ? (int) $request->input('laboratory_id') : null;
         $defaultYearId = AcademicYear::currentOrLatest()?->academic_year_id;
+        $currentAcademicYear = AcademicYear::currentOrLatest();
+        $currentSemester = $currentAcademicYear?->active_semester;
         $requestedYear = $request->input('academic_year_id');
         $academicYearId = $requestedYear === 'all' ? null : ($request->integer('academic_year_id') ?: $defaultYearId);
         $semester = trim((string) $request->input('semester', ''));
@@ -81,6 +83,8 @@ class ScheduleController
                 : [],
             'sectionOptions' => $isAdmin
                 ? Section::query()
+                    ->when($defaultYearId, fn ($query) => $query->where('academic_year_id', $defaultYearId))
+                    ->when($currentSemester, fn ($query) => $query->where('semester', $currentSemester))
                     ->orderBy('section_name')
                     ->get(['section_id', 'section_name', 'year_level', 'school_year'])
                     ->map(fn (Section $section) => [
@@ -103,6 +107,8 @@ class ScheduleController
                 ? SubjectOffering::query()
                     ->with(['academicYear', 'subject', 'section', 'instructor.user'])
                     ->whereHas('academicYear', fn ($query) => $query->whereIn('status', ['draft', 'active']))
+                    ->when($defaultYearId, fn ($query) => $query->where('academic_year_id', $defaultYearId))
+                    ->when($currentSemester, fn ($query) => $query->where('semester', $currentSemester))
                     ->orderBy('subject_offering_id')
                     ->get()
                     ->map(fn (SubjectOffering $offering) => [
@@ -215,6 +221,8 @@ class ScheduleController
                 ]);
             }
 
+            $this->assertCurrentAcademicContext($section->academic_year_id, $section->semester);
+
             $subjectId = Subject::query()->where('subject_code', $validated['subject_code'])->value('subject_id');
             $offering = SubjectOffering::query()
                 ->where('academic_year_id', $section->academic_year_id)
@@ -238,6 +246,7 @@ class ScheduleController
                 'subject_offering_id' => 'Schedules can only use offerings from a draft or active academic year.',
             ]);
         }
+        $this->assertCurrentAcademicContext($offering->academic_year_id, $offering->semester);
 
         return array_merge($validated, [
             'academic_year_id' => $offering->academic_year_id,
@@ -246,6 +255,22 @@ class ScheduleController
             'instructor_id' => $offering->instructor_id,
             'semester' => $offering->semester,
         ]);
+    }
+
+    private function assertCurrentAcademicContext(int|string|null $academicYearId, ?string $semester): void
+    {
+        $currentAcademicYear = AcademicYear::currentOrLatest();
+        if (! $currentAcademicYear || (int) $academicYearId !== (int) $currentAcademicYear->academic_year_id) {
+            throw ValidationException::withMessages([
+                'subject_offering_id' => 'Schedules can only use the current academic year.',
+            ]);
+        }
+
+        if ($currentAcademicYear->active_semester && $semester !== $currentAcademicYear->active_semester) {
+            throw ValidationException::withMessages([
+                'subject_offering_id' => "Schedules can only use the current {$currentAcademicYear->active_semester}.",
+            ]);
+        }
     }
 
     private function log(string $action, string $tableName, string $description): void

@@ -162,6 +162,7 @@
 
             <section class="rounded-lg bg-white p-6 shadow-lg">
                 <div class="overflow-x-auto">
+
                     <table class="min-w-[1450px] w-full table-fixed border-collapse">
                         <thead>
                             <tr class="bg-gray-50">
@@ -347,49 +348,49 @@
                                         <button
                                             type="button"
                                             @click="openEditModal(student)"
-                                            title="Edit student"
                                             aria-label="Edit student"
-                                            class="rounded-md bg-indigo-600 p-2 text-white hover:bg-indigo-700"
+                                            class="group relative rounded-md bg-indigo-600 p-2 text-white hover:bg-indigo-700"
                                         >
                                             <Pencil class="h-4 w-4" />
+                                            <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100">Edit student</span>
                                         </button>
                                         <button
                                             type="button"
                                             @click="openParentModal(student)"
-                                            title="Manage parents"
                                             aria-label="Manage parents"
-                                            class="rounded-md bg-emerald-600 p-2 text-white hover:bg-emerald-700"
+                                            class="group relative rounded-md bg-emerald-600 p-2 text-white hover:bg-emerald-700"
                                         >
                                             <Users class="h-4 w-4" />
+                                            <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100">Manage parents</span>
                                         </button>
                                         <button
                                             type="button"
                                             @click="openEnrollmentHistory(student)"
-                                            title="Enrollment history"
                                             aria-label="Enrollment history"
-                                            class="rounded-md bg-sky-600 p-2 text-white hover:bg-sky-700"
+                                            class="group relative rounded-md bg-sky-600 p-2 text-white hover:bg-sky-700"
                                         >
                                             <History class="h-4 w-4" />
+                                            <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100">Enrollment history</span>
                                         </button>
                                         <button
                                             type="button"
                                             @click="
                                                 resetStudentPassword(student)
                                             "
-                                            title="Reset password"
                                             aria-label="Reset password"
-                                            class="rounded-md bg-amber-500 p-2 text-white hover:bg-amber-600"
+                                            class="group relative rounded-md bg-amber-500 p-2 text-white hover:bg-amber-600"
                                         >
                                             <KeyRound class="h-4 w-4" />
+                                            <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100">Reset password</span>
                                         </button>
                                         <button
                                             type="button"
                                             @click="deleteStudent(student)"
-                                            title="Delete student"
                                             aria-label="Delete student"
-                                            class="rounded-md bg-rose-500 p-2 text-white hover:bg-rose-600"
+                                            class="group relative rounded-md bg-rose-500 p-2 text-white hover:bg-rose-600"
                                         >
                                             <Trash2 class="h-4 w-4" />
+                                            <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100">Delete student</span>
                                         </button>
                                     </div>
                                 </td>

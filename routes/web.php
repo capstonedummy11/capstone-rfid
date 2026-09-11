@@ -231,6 +231,7 @@ Route::prefix('admin')
             Route::put('/subjects/{id}', [SubjectController::class, 'update'])->name('subjects.update');
             Route::delete('/subjects/{id}', [SubjectController::class, 'destroy'])->name('subjects.destroy');
             Route::post('/subjects/{subject}/offerings', [SubjectController::class, 'storeOffering'])->name('subjects.offerings.store');
+            Route::patch('/subject-offerings/{subjectOffering}/instructor', [SubjectController::class, 'removeOfferingInstructor'])->name('subjects.offerings.instructor.remove');
             Route::delete('/subject-offerings/{subjectOffering}', [SubjectController::class, 'destroyOffering'])->name('subjects.offerings.destroy');
             Route::post('/schedules', [ScheduleController::class, 'store'])->name('schedules.store');
             Route::put('/schedules/{id}', [ScheduleController::class, 'update'])->name('schedules.update');
