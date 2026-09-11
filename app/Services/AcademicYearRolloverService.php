@@ -187,8 +187,8 @@ class AcademicYearRolloverService
     {
         $currentSemester = $source->active_semester ?: $enrollments->pluck('semester')->filter()->first() ?: '2nd Semester';
         if ($mode === 'semester') {
-            if (! in_array($destinationSemester, ['1st Semester', '2nd Semester'], true) || $destinationSemester === $currentSemester) {
-                throw ValidationException::withMessages(['destination_semester' => 'Choose a different destination semester.']);
+            if ($currentSemester !== '1st Semester' || $destinationSemester !== '2nd Semester') {
+                throw ValidationException::withMessages(['destination_semester' => 'Semester rollover is only available from 1st Semester to 2nd Semester.']);
             }
             return [
                 'current_semester' => $currentSemester,

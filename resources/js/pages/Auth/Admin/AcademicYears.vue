@@ -75,7 +75,7 @@ const badgeClass = (status) => ({
 const rolloverSourceId = ref('');
 const rolloverDestinationId = ref('');
 const rolloverMode = ref('year');
-const destinationSemester = ref('');
+const destinationSemester = ref('2nd Semester');
 const preview = ref(null);
 const previewBusy = ref(false);
 const sectionMappings = ref([]);
@@ -88,7 +88,7 @@ const loadPreview = async () => {
             destination_academic_year_id: rolloverDestinationId.value,
             mode: rolloverMode.value,
         });
-        if (rolloverMode.value === 'semester') params.set('destination_semester', destinationSemester.value);
+        if (rolloverMode.value === 'semester') params.set('destination_semester', '2nd Semester');
         const url = route('admin.academic-years.rollover-preview', rolloverSourceId.value) + `?${params}`;
         const response = await fetch(url, { headers: { Accept: 'application/json' } });
         const data = await response.json();
@@ -98,7 +98,7 @@ const loadPreview = async () => {
             source_section_id: section.section_id,
             source_label: `${section.section_name} · Grade ${section.year_level} · ${section.semester}`,
             destination_section_id: '',
-            destination_name: '',
+            destination_name: rolloverMode.value === 'semester' ? section.section_name : '',
             destination_year_level: data.transition.advance_grade ? 12 : Number(section.year_level),
         }));
     } catch (error) {
@@ -120,7 +120,7 @@ const executeRollover = async () => {
     useForm({
         destination_academic_year_id: Number(rolloverDestinationId.value),
         mode: rolloverMode.value,
-        destination_semester: rolloverMode.value === 'semester' ? destinationSemester.value : null,
+        destination_semester: rolloverMode.value === 'semester' ? '2nd Semester' : null,
         section_mappings: sectionMappings.value.map(({ source_label, ...mapping }) => ({
             ...mapping,
             destination_section_id: mapping.destination_section_id ? Number(mapping.destination_section_id) : null,
@@ -136,8 +136,18 @@ const academicYearsForRollover = (kind) => props.academicYears.filter((year) => 
     if (rolloverMode.value === 'semester') return ['active', 'draft'].includes(year.status);
     return kind === 'source' ? ['active', 'closed'].includes(year.status) : year.status === 'draft';
 });
+const selectedRolloverSource = computed(() => props.academicYears.find((year) => String(year.academic_year_id) === String(rolloverSourceId.value)));
+const semesterRolloverUnavailable = computed(() => selectedRolloverSource.value?.active_semester === '2nd Semester');
 const rolloverSourceOptions = computed(() => academicYearsForRollover('source'));
 const rolloverDestinationOptions = computed(() => academicYearsForRollover('destination'));
+const onRolloverSourceChange = () => {
+    if (rolloverMode.value === 'semester' && semesterRolloverUnavailable.value) {
+        rolloverMode.value = 'year';
+        destinationSemester.value = '2nd Semester';
+    }
+    if (rolloverMode.value === 'semester') rolloverDestinationId.value = rolloverSourceId.value;
+    preview.value = null;
+};
 </script>
 
 <template>
@@ -189,23 +199,25 @@ const rolloverDestinationOptions = computed(() => academicYearsForRollover('dest
                 <h2 class="text-lg font-semibold text-slate-900">Year rollover</h2>
                 <p class="mt-1 text-sm text-slate-600">Preview first, map sections, then create destination enrollments transactionally. Subjects and schedules are configured separately for each semester.</p>
                 <div class="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto]">
-                    <select v-model="rolloverMode" class="rounded-lg border-slate-300" @change="rolloverSourceId = ''; rolloverDestinationId = ''; destinationSemester = ''; preview = null">
+                    <select v-model="rolloverMode" class="rounded-lg border-slate-300" @change="rolloverSourceId = ''; rolloverDestinationId = ''; destinationSemester = '2nd Semester'; preview = null">
                         <option value="year">Year rollover</option>
-                        <option value="semester">Semester-only rollover</option>
+                        <option value="semester" :disabled="semesterRolloverUnavailable">Semester-only rollover</option>
                     </select>
-                    <select v-model="rolloverSourceId" class="rounded-lg border-slate-300" @change="rolloverMode === 'semester' ? rolloverDestinationId = rolloverSourceId : null">
+                    <select v-model="rolloverSourceId" class="rounded-lg border-slate-300" @change="onRolloverSourceChange">
                         <option value="">Source academic year</option>
                         <option v-for="year in rolloverSourceOptions" :key="year.academic_year_id" :value="year.academic_year_id">{{ year.name }} ({{ year.status }})</option>
                     </select>
+                    <p v-if="semesterRolloverUnavailable" class="text-xs font-medium text-amber-700 md:col-span-4">
+                        Semester-only rollover is unavailable because this academic year is already on 2nd Semester.
+                    </p>
                     <select v-model="rolloverDestinationId" class="rounded-lg border-slate-300" :disabled="rolloverMode === 'semester'">
                         <option value="">Destination academic year</option>
                         <option v-for="year in rolloverDestinationOptions" :key="year.academic_year_id" :value="year.academic_year_id">{{ year.name }} ({{ year.status }})</option>
                     </select>
-                    <select v-if="rolloverMode === 'semester'" v-model="destinationSemester" class="rounded-lg border-slate-300">
-                        <option value="">Destination semester</option>
-                        <option>1st Semester</option><option>2nd Semester</option>
-                    </select>
-                    <button class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" :disabled="previewBusy || !rolloverSourceId || !rolloverDestinationId || (rolloverMode === 'semester' && !destinationSemester)" @click="loadPreview">
+                    <div v-if="rolloverMode === 'semester'" class="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">
+                        Destination: 2nd Semester
+                    </div>
+                    <button class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" :disabled="previewBusy || !rolloverSourceId || !rolloverDestinationId" @click="loadPreview">
                         {{ previewBusy ? 'Previewing…' : 'Preview' }}
                     </button>
                 </div>
@@ -224,11 +236,15 @@ const rolloverDestinationOptions = computed(() => academicYearsForRollover('dest
                     <div class="space-y-3">
                         <div v-for="mapping in sectionMappings" :key="mapping.source_section_id" class="grid gap-2 rounded-lg border border-slate-200 p-3 lg:grid-cols-[1.2fr_1fr_1fr_120px]">
                             <div class="text-sm font-semibold text-slate-700">{{ mapping.source_label }}</div>
-                            <select v-model="mapping.destination_section_id" class="rounded-md border-slate-300 text-sm" @change="mapping.destination_name = ''">
+                            <div v-if="rolloverMode === 'semester'" class="rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+                                Same section branch → 2nd Semester
+                            </div>
+                            <select v-else v-model="mapping.destination_section_id" class="rounded-md border-slate-300 text-sm" @change="mapping.destination_name = ''">
                                 <option value="">Create a new destination section</option>
                                 <option v-for="section in preview.destination_sections" :key="section.section_id" :value="section.section_id">{{ section.section_name }} · Grade {{ section.year_level }}</option>
                             </select>
-                            <input v-model="mapping.destination_name" :disabled="Boolean(mapping.destination_section_id)" class="rounded-md border-slate-300 text-sm disabled:bg-slate-100" placeholder="New destination section name" />
+                            <input v-if="rolloverMode !== 'semester'" v-model="mapping.destination_name" :disabled="Boolean(mapping.destination_section_id)" class="rounded-md border-slate-300 text-sm disabled:bg-slate-100" placeholder="New destination section name" />
+                            <div v-else class="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600">{{ mapping.destination_name }}</div>
                             <select v-model="mapping.destination_year_level" disabled class="rounded-md border-slate-300 bg-slate-100 text-sm"><option :value="11">Grade 11</option><option :value="12">Grade 12</option></select>
                         </div>
                     </div>
