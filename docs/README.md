@@ -84,7 +84,7 @@ Use the minimal seeder when the database should start without demo or operationa
 php artisan db:seed --class=MinimalSeeder
 ```
 
-It creates or preserves one root administrator:
+It creates or preserves one root administrator and automatically creates the current academic year using the June-to-March school-year cycle:
 
 | Field | Default value |
 | --- | --- |
@@ -94,6 +94,8 @@ It creates or preserves one root administrator:
 | Role | `admin` |
 | Root administrator | Enabled |
 | Must change password | Enabled on first login |
+
+The current academic year is calculated automatically. For example, a run in September 2026 creates active year `2026-2027`, with dates `2026-06-01` through `2027-03-31`. A run from January through May uses the previous year's academic-year label. Existing active years from an older cycle are closed when a new current year is created.
 
 It also creates baseline settings, preserving existing values when the seeder is run again:
 
@@ -107,7 +109,7 @@ It also creates baseline settings, preserving existing values when the seeder is
 - Default security questions.
 - Attendance Console panel label with PIN `1234`.
 
-The values can be customized through `MINIMAL_ROOT_ADMIN_NAME`, `MINIMAL_ROOT_ADMIN_EMAIL`, `MINIMAL_ROOT_ADMIN_PASSWORD`, and `PANEL_PIN` environment variables. The minimal seeder does not create students, instructors, rooms, schedules, messages, inventory, emergency records, or attendance data.
+The values can be customized through `MINIMAL_ROOT_ADMIN_NAME`, `MINIMAL_ROOT_ADMIN_EMAIL`, `MINIMAL_ROOT_ADMIN_PASSWORD`, `MINIMAL_ACADEMIC_YEAR`, `MINIMAL_ACADEMIC_YEAR_START`, `MINIMAL_ACADEMIC_YEAR_END`, and `PANEL_PIN` environment variables. The minimal seeder does not create students, instructors, rooms, schedules, messages, inventory, emergency records, or attendance data.
 
 Default seeded login accounts:
 

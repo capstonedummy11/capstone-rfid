@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\AcademicYear;
 use App\Models\SystemSetting;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -33,6 +34,8 @@ class MinimalSeeder extends Seeder
             'is_root_admin' => true,
         ]);
         $rootAdmin->save();
+
+        $this->seedCurrentAcademicYear($rootAdmin);
 
         $this->createSetting(SystemSetting::BORROWING_ENABLED, false, 'boolean');
         $this->createSetting(SystemSetting::INVENTORY_ENABLED, false, 'boolean');
@@ -82,5 +85,34 @@ class MinimalSeeder extends Seeder
                 'type' => $type,
             ],
         );
+    }
+
+    private function seedCurrentAcademicYear(User $rootAdmin): void
+    {
+        $today = now();
+        $startYear = $today->month >= 6 ? $today->year : $today->year - 1;
+        $endYear = $startYear + 1;
+        $name = env('MINIMAL_ACADEMIC_YEAR', "{$startYear}-{$endYear}");
+
+        $academicYear = AcademicYear::query()->updateOrCreate(
+            ['name' => $name],
+            [
+                'starts_on' => env('MINIMAL_ACADEMIC_YEAR_START', "{$startYear}-06-01"),
+                'ends_on' => env('MINIMAL_ACADEMIC_YEAR_END', "{$endYear}-03-31"),
+                'status' => AcademicYear::STATUS_ACTIVE,
+                'active_semester' => '1st Semester',
+                'activated_at' => now(),
+                'activated_by_user_id' => $rootAdmin->user_id,
+            ],
+        );
+
+        AcademicYear::query()
+            ->where('status', AcademicYear::STATUS_ACTIVE)
+            ->whereKeyNot($academicYear->academic_year_id)
+            ->update([
+                'status' => AcademicYear::STATUS_CLOSED,
+                'closed_at' => now(),
+                'closed_by_user_id' => $rootAdmin->user_id,
+            ]);
     }
 }

@@ -19,7 +19,7 @@ php artisan migrate
 php artisan db:seed --class=MinimalSeeder
 ```
 
-`MinimalSeeder` creates one root administrator and baseline system settings only. It does not create demo accounts, students, instructors, rooms, schedules, messages, inventory, emergency records, or attendance data. The root administrator uses `root.admin@sample.com` with the temporary password `change-me-now` unless overridden by environment variables. The account is required to change its password on first login.
+`MinimalSeeder` creates one root administrator, the automatically calculated current academic year, and baseline system settings. It does not create demo accounts, students, instructors, rooms, schedules, messages, inventory, emergency records, or attendance data. The root administrator uses `root.admin@sample.com` with the temporary password `change-me-now` unless overridden by environment variables. The account is required to change its password on first login. The academic year follows the June-to-March cycle and can be overridden with `MINIMAL_ACADEMIC_YEAR`, `MINIMAL_ACADEMIC_YEAR_START`, and `MINIMAL_ACADEMIC_YEAR_END`.
 
 Reset and rebuild the local database:
 
