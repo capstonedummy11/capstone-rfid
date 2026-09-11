@@ -80,6 +80,7 @@ const preview = ref(null);
 const previewBusy = ref(false);
 const sectionMappings = ref([]);
 const studentDecisions = ref({});
+const selectedSectionStudents = ref(null);
 
 const loadPreview = async () => {
     if (!rolloverSourceId.value || !rolloverDestinationId.value) return;
@@ -138,6 +139,11 @@ const executeRollover = async () => {
                 : null,
         })),
     }).post(route('admin.academic-years.rollover', rolloverSourceId.value), { preserveScroll: true });
+};
+
+const studentsForSection = (mapping) => preview.value?.items?.filter((item) => Number(item.source_section_id) === Number(mapping.source_section_id)) ?? [];
+const openSectionStudents = (mapping) => {
+    selectedSectionStudents.value = mapping;
 };
 
 const academicYearsForRollover = (kind) => props.academicYears.filter((year) => {
@@ -241,46 +247,11 @@ const onRolloverSourceChange = () => {
                             <div class="text-xs font-semibold uppercase text-slate-500">{{ label }}</div><div class="text-xl font-bold">{{ value }}</div>
                         </div>
                     </div>
-                    <div class="overflow-x-auto rounded-lg border border-slate-200">
-                        <table class="min-w-[900px] w-full text-sm">
-                            <thead class="bg-slate-50 text-left text-xs uppercase text-slate-500">
-                                <tr>
-                                    <th class="px-3 py-2">Student</th>
-                                    <th class="px-3 py-2">Current grade</th>
-                                    <th class="px-3 py-2">Recommended</th>
-                                    <th class="px-3 py-2">Decision</th>
-                                    <th class="px-3 py-2">Destination section</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100">
-                                <tr v-for="item in preview.items" :key="item.source_student_enrollment_id">
-                                    <td class="px-3 py-2">{{ item.student_id }}</td>
-                                    <td class="px-3 py-2">Grade {{ item.year_level }}</td>
-                                    <td class="px-3 py-2 capitalize">{{ item.recommended_decision }}</td>
-                                    <td class="px-3 py-2">
-                                        <select v-model="studentDecisions[item.source_student_enrollment_id].decision" class="rounded-md border-slate-300 text-sm">
-                                            <option value="promote">Promote</option>
-                                            <option value="retain">Retain grade</option>
-                                            <option value="graduated">Archive / graduate</option>
-                                            <option value="dropped">Drop</option>
-                                            <option value="review">Review</option>
-                                        </select>
-                                    </td>
-                                    <td class="px-3 py-2">
-                                        <select v-model="studentDecisions[item.source_student_enrollment_id].destination_section_id" class="w-full rounded-md border-slate-300 text-sm">
-                                            <option value="">Use mapped section</option>
-                                            <option v-for="section in preview.destination_sections.filter((section) => String(section.year_level) === String(studentDecisions[item.source_student_enrollment_id].decision === 'promote' ? 12 : item.year_level))" :key="section.section_id" :value="section.section_id">
-                                                {{ section.section_name }} · Grade {{ section.year_level }}
-                                            </option>
-                                        </select>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
                     <div class="space-y-3">
                         <div v-for="mapping in sectionMappings" :key="mapping.source_section_id" class="grid gap-2 rounded-lg border border-slate-200 p-3 lg:grid-cols-[1.2fr_1fr_1fr_120px]">
-                            <div class="text-sm font-semibold text-slate-700">{{ mapping.source_label }}</div>
+                            <button type="button" class="text-left text-sm font-semibold text-blue-700 hover:text-blue-900 hover:underline" @click="openSectionStudents(mapping)">
+                                {{ mapping.source_label }} · {{ studentsForSection(mapping).length }} students
+                            </button>
                             <div v-if="rolloverMode === 'semester'" class="rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-800">
                                 Same section branch → 2nd Semester
                             </div>
@@ -291,6 +262,42 @@ const onRolloverSourceChange = () => {
                             <input v-if="rolloverMode !== 'semester'" v-model="mapping.destination_name" :disabled="Boolean(mapping.destination_section_id)" class="rounded-md border-slate-300 text-sm disabled:bg-slate-100" placeholder="New destination section name" />
                             <div v-else class="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600">{{ mapping.destination_name }}</div>
                             <select v-model="mapping.destination_year_level" :disabled="rolloverMode === 'semester'" class="rounded-md border-slate-300 text-sm disabled:bg-slate-100"><option :value="11">Grade 11</option><option :value="12">Grade 12</option></select>
+                        </div>
+                    </div>
+                    <div v-if="selectedSectionStudents" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @click.self="selectedSectionStudents = null">
+                        <div class="max-h-[85vh] w-full max-w-5xl overflow-y-auto rounded-xl bg-white p-5 shadow-xl">
+                            <div class="mb-4 flex items-start justify-between gap-4">
+                                <div>
+                                    <h3 class="text-lg font-bold text-slate-900">Students in section</h3>
+                                    <p class="text-sm text-slate-500">{{ selectedSectionStudents.source_label }}</p>
+                                </div>
+                                <button type="button" class="rounded-md border border-slate-300 px-3 py-1.5 text-sm" @click="selectedSectionStudents = null">Close</button>
+                            </div>
+                            <div class="overflow-x-auto rounded-lg border border-slate-200">
+                                <table class="min-w-[900px] w-full text-sm">
+                                    <thead class="bg-slate-50 text-left text-xs uppercase text-slate-500">
+                                        <tr><th class="px-3 py-2">Student</th><th class="px-3 py-2">Current grade</th><th class="px-3 py-2">Recommended</th><th class="px-3 py-2">Decision</th><th class="px-3 py-2">Destination section</th></tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100">
+                                        <tr v-for="item in studentsForSection(selectedSectionStudents)" :key="item.source_student_enrollment_id">
+                                            <td class="px-3 py-2">{{ item.student_id }}</td>
+                                            <td class="px-3 py-2">Grade {{ item.year_level }}</td>
+                                            <td class="px-3 py-2 capitalize">{{ item.recommended_decision }}</td>
+                                            <td class="px-3 py-2">
+                                                <select v-model="studentDecisions[item.source_student_enrollment_id].decision" class="rounded-md border-slate-300 text-sm">
+                                                    <option value="promote">Promote</option><option value="retain">Retain grade</option><option value="graduated">Archive / graduate</option><option value="dropped">Drop</option><option value="review">Review</option>
+                                                </select>
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                <select v-model="studentDecisions[item.source_student_enrollment_id].destination_section_id" class="w-full rounded-md border-slate-300 text-sm">
+                                                    <option value="">Use mapped section</option>
+                                                    <option v-for="section in preview.destination_sections.filter((section) => String(section.year_level) === String(studentDecisions[item.source_student_enrollment_id].decision === 'promote' ? 12 : item.year_level))" :key="section.section_id" :value="section.section_id">{{ section.section_name }} · Grade {{ section.year_level }}</option>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                     <button class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white" @click="executeRollover">Execute reviewed rollover</button>
