@@ -316,16 +316,18 @@ Tap types:
 `DatabaseSeeder` currently runs these seeders:
 
 1. `UserSeeder`
-2. `EmergencySeeder`
-3. `ComlabUserSeeder`
-4. `DemoSystemSeeder`
-5. `StudentParentAccountSeeder`
-6. `ClinicDashboardSeeder`
-7. `MessageSeeder`
+2. `AcademicYearSeeder`
+3. `EmergencySeeder`
+4. `ComlabUserSeeder`
+5. `DemoSystemSeeder`
+6. `StudentParentAccountSeeder`
+7. `ClinicDashboardSeeder`
+8. `MessageSeeder`
 
 Other available seeders not called by default:
 
 - `MinimalSeeder` - root administrator and baseline settings only.
+- `AcademicYearSeeder` - active `2026-2027` academic year used by the demo records.
 - `BorrowingSeeder`
 - `SampleInstructorSeeder`
 - `SeniorHighAcademicSeeder`

@@ -3,12 +3,15 @@
 namespace Database\Seeders;
 
 use App\Models\Instructor;
+use App\Models\AcademicYear;
 use App\Models\Laboratory;
 use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\Strand;
+use App\Models\StudentEnrollment;
 use App\Models\Students;
 use App\Models\Subject;
+use App\Models\SubjectOffering;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -20,7 +23,9 @@ class SeniorHighAcademicSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->call(AcademicYearSeeder::class);
         $schoolYear = '2026-2027';
+        $academicYear = AcademicYear::query()->where('name', $schoolYear)->firstOrFail();
 
         $user = User::updateOrCreate(
             ['email' => 'instructor@sample.com'],
@@ -72,6 +77,7 @@ class SeniorHighAcademicSeeder extends Seeder
                 ],
                 [
                     'strand_id' => $strand->strand_id,
+                    'academic_year_id' => $academicYear->academic_year_id,
                     'year_level' => $number <= 2 ? 11 : 12,
                     'semester' => '1st Semester',
                     'status' => 'active',
@@ -94,7 +100,7 @@ class SeniorHighAcademicSeeder extends Seeder
 
         foreach ($sections as $sectionNumber => $section) {
             for ($studentNumber = 1; $studentNumber <= 2; $studentNumber++) {
-                Students::updateOrCreate(
+                $student = Students::updateOrCreate(
                     ['student_number' => sprintf('SHS-%d%02d', $sectionNumber, $studentNumber)],
                     [
                         'section_id' => $section->section_id,
@@ -110,6 +116,22 @@ class SeniorHighAcademicSeeder extends Seeder
                         'school_year' => $section->school_year,
                         'rfid_tag' => sprintf('RFID-STUDENT-S%d%d', $sectionNumber, $studentNumber),
                         'status' => 'active',
+                    ],
+                );
+
+                StudentEnrollment::updateOrCreate(
+                    [
+                        'student_id' => $student->student_id,
+                        'academic_year_id' => $academicYear->academic_year_id,
+                        'semester' => $section->semester,
+                    ],
+                    [
+                        'section_id' => $section->section_id,
+                        'strand_id' => $strand->strand_id,
+                        'year_level' => $section->year_level,
+                        'status' => 'enrolled',
+                        'enrolled_at' => $academicYear->starts_on,
+                        'ended_at' => null,
                     ],
                 );
             }
@@ -130,6 +152,19 @@ class SeniorHighAcademicSeeder extends Seeder
                     ],
                 );
 
+                $offering = SubjectOffering::updateOrCreate(
+                    [
+                        'academic_year_id' => $academicYear->academic_year_id,
+                        'semester' => $section->semester,
+                        'section_id' => $section->section_id,
+                        'subject_id' => $subject->subject_id,
+                    ],
+                    [
+                        'instructor_id' => $instructor->instructor_id,
+                        'status' => 'active',
+                    ],
+                );
+
                 if ($subjectIndex > 1) {
                     continue;
                 }
@@ -145,11 +180,14 @@ class SeniorHighAcademicSeeder extends Seeder
                     ],
                     [
                         'laboratory_id' => $laboratory->laboratory_id,
+                        'academic_year_id' => $academicYear->academic_year_id,
+                        'subject_offering_id' => $offering->subject_offering_id,
                         'instructor_id' => $instructor->instructor_id,
                         'weekdays' => $subjectIndex === 0 ? 'Mon,Wed' : 'Tue,Thu',
                         'time_start' => sprintf('%02d:00:00', $startHour),
                         'time_end' => sprintf('%02d:00:00', $endHour),
                         'room' => $laboratory->name,
+                        'semester' => $section->semester,
                     ],
                 );
             }

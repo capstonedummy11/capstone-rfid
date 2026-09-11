@@ -12,6 +12,7 @@ class SystemSeeder extends Seeder
     public function run(): void
     {
         $this->call([
+            AcademicYearSeeder::class,
             EmergencySeeder::class,
             DemoSystemSeeder::class,
             ClinicDashboardSeeder::class,

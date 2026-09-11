@@ -14,6 +14,7 @@ class DatabaseSeeder extends Seeder
         // Keep the default seed order stable while the wrapper seeders remain available for partial seeding.
         $this->call([
             UserSeeder::class,
+            AcademicYearSeeder::class,
             EmergencySeeder::class,
             ComlabUserSeeder::class,
             DemoSystemSeeder::class,
