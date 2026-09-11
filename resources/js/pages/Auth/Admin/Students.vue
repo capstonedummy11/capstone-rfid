@@ -162,7 +162,7 @@
 
             <section class="rounded-lg bg-white p-6 shadow-lg">
                 <div class="overflow-x-auto">
-                    <table class="min-w-[1120px] w-full table-fixed border-collapse">
+                    <table class="min-w-[1450px] w-full table-fixed border-collapse">
                         <thead>
                             <tr class="bg-gray-50">
                                 <th
@@ -343,40 +343,53 @@
                                     v-if="canManageStudents"
                                     class="break-words border border-gray-300 px-3 py-3"
                                 >
-                                    <div
-                                        class="flex flex-wrap items-center gap-2"
-                                    >
+                                    <div class="flex flex-wrap items-center gap-2">
                                         <button
+                                            type="button"
                                             @click="openEditModal(student)"
-                                            class="rounded-md bg-indigo-600 px-3 py-1 text-sm text-white hover:bg-indigo-700"
+                                            title="Edit student"
+                                            aria-label="Edit student"
+                                            class="rounded-md bg-indigo-600 p-2 text-white hover:bg-indigo-700"
                                         >
-                                            Edit
+                                            <Pencil class="h-4 w-4" />
                                         </button>
                                         <button
+                                            type="button"
                                             @click="openParentModal(student)"
-                                            class="rounded-md bg-emerald-600 px-3 py-1 text-sm text-white hover:bg-emerald-700"
+                                            title="Manage parents"
+                                            aria-label="Manage parents"
+                                            class="rounded-md bg-emerald-600 p-2 text-white hover:bg-emerald-700"
                                         >
-                                            Parents
+                                            <Users class="h-4 w-4" />
                                         </button>
                                         <button
+                                            type="button"
                                             @click="openEnrollmentHistory(student)"
-                                            class="rounded-md bg-sky-600 px-3 py-1 text-sm text-white hover:bg-sky-700"
+                                            title="Enrollment history"
+                                            aria-label="Enrollment history"
+                                            class="rounded-md bg-sky-600 p-2 text-white hover:bg-sky-700"
                                         >
-                                            Enrollment History
+                                            <History class="h-4 w-4" />
                                         </button>
                                         <button
+                                            type="button"
                                             @click="
                                                 resetStudentPassword(student)
                                             "
-                                            class="rounded-md bg-amber-500 px-3 py-1 text-sm text-white hover:bg-amber-600"
+                                            title="Reset password"
+                                            aria-label="Reset password"
+                                            class="rounded-md bg-amber-500 p-2 text-white hover:bg-amber-600"
                                         >
-                                            Reset Password
+                                            <KeyRound class="h-4 w-4" />
                                         </button>
                                         <button
+                                            type="button"
                                             @click="deleteStudent(student)"
-                                            class="rounded-md bg-rose-500 px-3 py-1 text-sm text-white hover:bg-rose-600"
+                                            title="Delete student"
+                                            aria-label="Delete student"
+                                            class="rounded-md bg-rose-500 p-2 text-white hover:bg-rose-600"
                                         >
-                                            Delete
+                                            <Trash2 class="h-4 w-4" />
                                         </button>
                                     </div>
                                 </td>
@@ -564,14 +577,12 @@
                                 >
                                 <select
                                     v-model="form.semester"
+                                    :disabled="!isEditing"
                                     class="w-full rounded-md border border-slate-300 px-3 py-2"
                                     required
                                 >
-                                    <option value="1st Semester">
-                                        1st Semester
-                                    </option>
-                                    <option value="2nd Semester">
-                                        2nd Semester
+                                    <option v-for="semester in (isEditing ? semesterOptions : enrollmentSemesterOptions)" :key="semester" :value="semester">
+                                        {{ semester }}
                                     </option>
                                 </select>
                             </div>
@@ -585,12 +596,13 @@
                                 >
                                 <select
                                     v-model="form.school_year"
+                                    :disabled="!isEditing"
                                     class="w-full rounded-md border border-slate-300 px-3 py-2"
                                     required
                                 >
                                     <option value="">Select School Year</option>
                                     <option
-                                        v-for="schoolYear in availableSchoolYearOptions"
+                                        v-for="schoolYear in (isEditing ? availableSchoolYearOptions : enrollmentSchoolYearOptions)"
                                         :key="schoolYear"
                                         :value="schoolYear"
                                     >
@@ -1045,6 +1057,8 @@
 <script setup lang="ts">
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import Swal from 'sweetalert2';
+import { History, KeyRound, Pencil, Trash2, Users } from 'lucide-vue-next';
 import CameraCapture from '@/components/CameraCapture.vue';
 
 interface Student {
@@ -1099,6 +1113,9 @@ interface SectionOption {
     section_id: string | number;
     section_name: string;
     strand_id: string | number;
+    academic_year_id?: string | number | null;
+    semester?: string;
+    year_level?: string | number;
     school_year: string;
     label: string;
 }
@@ -1133,6 +1150,10 @@ const props = defineProps({
     schoolYearOptions: {
         type: Array as () => string[],
         default: () => [],
+    },
+    currentAcademicYear: {
+        type: Object as () => { name: string; active_semester: string | null } | null,
+        default: null,
     },
     semesterOptions: { type: Array as () => string[], default: () => ['1st Semester', '2nd Semester'] },
     currentUserRole: {
@@ -1252,13 +1273,24 @@ const availableSections = computed<SectionOption[]>(() => {
         const matchesStrand =
             !form.strand_id ||
             String(section.strand_id) === String(form.strand_id);
-        return matchesStrand;
+        if (isEditing.value) return matchesStrand;
+        const matchesCurrentYear =
+            section.school_year === props.currentAcademicYear?.name &&
+            section.semester === props.currentAcademicYear?.active_semester &&
+            String(section.year_level) === String(form.year_level);
+        return matchesStrand && matchesCurrentYear;
     });
 });
 
 const availableSchoolYearOptions = computed(() => {
     return [...(props.schoolYearOptions as string[])];
 });
+const enrollmentSchoolYearOptions = computed(() =>
+    props.currentAcademicYear?.name ? [props.currentAcademicYear.name] : [],
+);
+const enrollmentSemesterOptions = computed(() =>
+    props.currentAcademicYear?.active_semester ? [props.currentAcademicYear.active_semester] : [],
+);
 
 const onFilterChange = () => {
     router.get(
@@ -1297,7 +1329,8 @@ const openAddModal = () => {
     selectedStudent.value = null;
     form.reset();
     form.status = 'active';
-    form.semester = '1st Semester';
+    form.school_year = props.currentAcademicYear?.name ?? '';
+    form.semester = props.currentAcademicYear?.active_semester ?? '';
     showModal.value = true;
 };
 
@@ -1419,13 +1452,18 @@ const submitParentForm = () => {
     );
 };
 
-const unlinkParent = (parent: ParentAccount) => {
+const unlinkParent = async (parent: ParentAccount) => {
     if (!selectedStudent.value) return;
-    if (
-        !confirm(
-            `Unlink ${parent.name} from ${selectedStudent.value.first_name} ${selectedStudent.value.last_name}?`,
-        )
-    ) {
+    const result = await Swal.fire({
+        icon: 'warning',
+        title: 'Unlink parent account?',
+        text: `Remove ${parent.name} from ${selectedStudent.value.first_name} ${selectedStudent.value.last_name}?`,
+        showCancelButton: true,
+        confirmButtonText: 'Unlink',
+        confirmButtonColor: '#e11d48',
+        cancelButtonText: 'Cancel',
+    });
+    if (!result.isConfirmed) {
         return;
     }
 
@@ -1467,15 +1505,20 @@ const defaultStudentPassword = (student: Student) =>
         '',
     ) || String(student.student_number ?? '');
 
-const resetStudentPassword = (student: Student) => {
+const resetStudentPassword = async (student: Student) => {
     if (!canManageStudents.value) return;
 
     const password = defaultStudentPassword(student);
-    if (
-        !confirm(
-            `Reset ${student.first_name} ${student.last_name}'s portal password to "${password}"?`,
-        )
-    ) {
+    const result = await Swal.fire({
+        icon: 'warning',
+        title: 'Reset student password?',
+        text: `The password will be reset to "${password}".`,
+        showCancelButton: true,
+        confirmButtonText: 'Reset password',
+        confirmButtonColor: '#d97706',
+        cancelButtonText: 'Cancel',
+    });
+    if (!result.isConfirmed) {
         return;
     }
 
@@ -1631,13 +1674,18 @@ const removeFaceImage = async (index: number) => {
     }
 };
 
-const deleteStudent = (student: Student) => {
+const deleteStudent = async (student: Student) => {
     if (!canManageStudents.value) return;
-    if (
-        !confirm(
-            `Are you sure you want to delete ${student.first_name} ${student.last_name}?`,
-        )
-    ) {
+    const result = await Swal.fire({
+        icon: 'warning',
+        title: 'Delete student?',
+        text: `This will remove ${student.first_name} ${student.last_name} from the student list.`,
+        showCancelButton: true,
+        confirmButtonText: 'Delete',
+        confirmButtonColor: '#e11d48',
+        cancelButtonText: 'Cancel',
+    });
+    if (!result.isConfirmed) {
         return;
     }
 

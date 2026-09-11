@@ -47,6 +47,7 @@ class StudentsController
 
     public function indexAdmin(Request $request)
     {
+        $currentAcademicYear = AcademicYear::active();
         $filters = [
             'search' => trim((string) $request->input('search', '')),
             'strand' => trim((string) $request->input('strand', '')),
@@ -212,6 +213,9 @@ class StudentsController
                     'section_id' => $section->section_id,
                     'section_name' => $section->section_name,
                     'strand_id' => $section->strand_id,
+                    'academic_year_id' => $section->academic_year_id,
+                    'semester' => $section->semester,
+                    'year_level' => $section->year_level,
                     'school_year' => $section->school_year,
                     'label' => trim(implode(' - ', array_filter([
                         $section->section_name,
@@ -224,6 +228,11 @@ class StudentsController
                 ->orderByDesc('starts_on')
                 ->pluck('name')
                 ->values(),
+            'currentAcademicYear' => $currentAcademicYear ? [
+                'academic_year_id' => $currentAcademicYear->academic_year_id,
+                'name' => $currentAcademicYear->name,
+                'active_semester' => $currentAcademicYear->active_semester,
+            ] : null,
             'semesterOptions' => ['1st Semester', '2nd Semester'],
         ]);
     }
@@ -251,6 +260,26 @@ class StudentsController
             'rfid_tag' => 'nullable|string|max:255|unique:students,rfid_tag',
             'status' => 'required|in:active,inactive,graduated,dropped',
         ]);
+
+        $currentAcademicYear = AcademicYear::active();
+        if (! $currentAcademicYear) {
+            return back()->withErrors(['school_year' => 'No active academic year is configured.']);
+        }
+        if ($validated['school_year'] !== $currentAcademicYear->name) {
+            return back()->withErrors(['school_year' => "New students can only be enrolled in the current academic year ({$currentAcademicYear->name})."]);
+        }
+        if (! $currentAcademicYear->active_semester || $validated['semester'] !== $currentAcademicYear->active_semester) {
+            return back()->withErrors(['semester' => 'New students can only be enrolled in the current semester.']);
+        }
+
+        $section = Section::query()->find($validated['section_id']);
+        if (! $section
+            || (int) $section->academic_year_id !== (int) $currentAcademicYear->academic_year_id
+            || $section->semester !== $validated['semester']
+            || (int) $section->year_level !== (int) $validated['year_level']
+            || (int) $section->strand_id !== (int) $validated['strand_id']) {
+            return back()->withErrors(['section_id' => 'The selected section does not belong to the current academic year, semester, grade, and strand.']);
+        }
         $existingUser = User::query()
             ->whereRaw('LOWER(email) = ?', [strtolower($validated['email'])])
             ->first();
