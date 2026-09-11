@@ -12,6 +12,15 @@ Run migrations and seed demo data:
 php artisan migrate --seed
 ```
 
+For a clean installation with only essential records, run migrations first and then the minimal seeder:
+
+```bash
+php artisan migrate
+php artisan db:seed --class=MinimalSeeder
+```
+
+`MinimalSeeder` creates one root administrator and baseline system settings only. It does not create demo accounts, students, instructors, rooms, schedules, messages, inventory, emergency records, or attendance data. The root administrator uses `root.admin@sample.com` with the temporary password `change-me-now` unless overridden by environment variables. The account is required to change its password on first login.
+
 Reset and rebuild the local database:
 
 ```bash
@@ -316,6 +325,7 @@ Tap types:
 
 Other available seeders not called by default:
 
+- `MinimalSeeder` - root administrator and baseline settings only.
 - `BorrowingSeeder`
 - `SampleInstructorSeeder`
 - `SeniorHighAcademicSeeder`

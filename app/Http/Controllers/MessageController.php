@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\MessengerEmailNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -165,7 +166,7 @@ class MessageController
             ->values();
 
         $messages = StudentPortalMessage::query()
-            ->with(['sender:user_id,name,email,role', 'recipient:user_id,name,email,role', 'student'])
+            ->with(['sender:user_id,name,email,role', 'recipient:user_id,name,email,role', 'student.parentUsers:user_id,name,email,role'])
             ->where(function ($query) use ($user) {
                 $query
                     ->where('sender_user_id', $user->user_id)
@@ -177,6 +178,15 @@ class MessageController
                 'id' => $message->student_portal_message_id,
                 'student_id' => $message->student_id,
                 'student_name' => $message->student ? trim($message->student->first_name.' '.$message->student->last_name) : null,
+                'parents' => $message->student?->parentUsers
+                    ?->filter(fn (User $parent) => filter_var($parent->email, FILTER_VALIDATE_EMAIL))
+                    ->map(fn (User $parent) => [
+                        'user_id' => $parent->user_id,
+                        'name' => $parent->name,
+                        'email' => $parent->email,
+                    ])
+                    ->values()
+                    ->all() ?? [],
                 'sender_user_id' => $message->sender_user_id,
                 'recipient_user_id' => $message->recipient_user_id,
                 'sender' => $message->sender?->name,
@@ -196,6 +206,8 @@ class MessageController
                 'attachment_mime' => $message->attachment_mime,
                 'attachment_size' => $message->attachment_size,
                 'is_image' => $this->isImageAttachment($message),
+                'is_pdf' => strtolower((string) $message->attachment_mime) === 'application/pdf'
+                    || str_ends_with(strtolower((string) $message->attachment_name), '.pdf'),
                 'read_at' => $message->read_at?->toDateTimeString(),
                 'created_at' => $message->created_at?->toDateTimeString(),
                 'created_label' => $message->created_at?->diffForHumans(),
@@ -211,6 +223,52 @@ class MessageController
             'linkedStudents' => $role === 'parent' ? $this->linkedStudentsPayload($request) : [],
             'selectedStudentId' => $student?->student_id,
         ]);
+    }
+
+    public function forwardExcuseLetterToParent(Request $request, StudentPortalMessage $message)
+    {
+        $user = $request->user();
+        abort_unless(in_array(strtolower((string) $user?->role), ['admin', 'instructor'], true), 403);
+
+        $message->loadMissing(['student.parentUsers']);
+        abort_unless($message->student && $message->attachment_path, 422, 'This message has no student PDF attachment.');
+        abort_unless(Storage::disk('public')->exists($message->attachment_path), 404);
+        abort_unless(
+            strtolower((string) $message->attachment_mime) === 'application/pdf'
+                || str_ends_with(strtolower((string) $message->attachment_name), '.pdf'),
+            422,
+            'Only PDF excuse letters can be forwarded by email.',
+        );
+
+        $validated = $request->validate([
+            'parent_user_id' => ['required', 'integer', 'exists:users,user_id'],
+            'body' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $parent = $message->student->parentUsers
+            ->first(fn (User $candidate) => (int) $candidate->user_id === (int) $validated['parent_user_id']);
+        abort_unless($parent && filter_var($parent->email, FILTER_VALIDATE_EMAIL), 422, 'That parent is not linked to this student.');
+
+        $studentName = trim($message->student->first_name.' '.$message->student->last_name);
+        $date = $message->created_at?->format('F j, Y') ?: now()->format('F j, Y');
+        $subject = 'Excuse Letter - '.$studentName.' - '.$date;
+        $body = trim($validated['body']);
+        $html = '<p>Dear Parent,</p><p>'.nl2br(e($body)).'</p>'
+            .'<p><strong>Student: '.$this->escapeMailText($studentName).'</strong><br>'
+            .'<strong>Date: '.$this->escapeMailText($date).'</strong></p>';
+
+        Mail::html($html, function ($mail) use ($parent, $subject, $message) {
+            $mail->to($parent->email)
+                ->subject($subject)
+                ->attach(Storage::disk('public')->path($message->attachment_path), [
+                    'as' => $message->attachment_name ?: 'excuse-letter.pdf',
+                    'mime' => 'application/pdf',
+                ]);
+        });
+
+        $this->logActivity('create', 'student_portal_messages', 'Forwarded excuse letter '.$message->student_portal_message_id.' for '.$studentName.' to parent '.$parent->email);
+
+        return back()->with('success', 'Excuse letter emailed to '.$parent->name.'.');
     }
 
     public function sendConversationMessage(Request $request)
@@ -375,6 +433,11 @@ class MessageController
             'table_name' => $tableName,
             'description' => $description,
         ]);
+    }
+
+    private function escapeMailText(string $value): string
+    {
+        return e($value);
     }
 
     private function inboxThreadMessage(Message $message): array

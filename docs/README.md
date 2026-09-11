@@ -72,8 +72,42 @@ Because of those seeders, a seeded database contains sample users, console accou
 Seeder shortcuts:
 
 - `php artisan db:seed` runs the normal full seed path.
+- `php artisan db:seed --class=MinimalSeeder` creates only the root admin and baseline system settings for a clean installation.
 - `php artisan db:seed --class=SystemSeeder` seeds system reference records and demo operational data.
 - `php artisan db:seed --class=DataAccountSeeder` seeds login accounts, console accounts, and student/parent portal account links.
+
+### Minimal Seeder
+
+Use the minimal seeder when the database should start without demo or operational records:
+
+```bash
+php artisan db:seed --class=MinimalSeeder
+```
+
+It creates or preserves one root administrator:
+
+| Field | Default value |
+| --- | --- |
+| Name | `Root Admin` |
+| Email | `root.admin@sample.com` |
+| Temporary password | `change-me-now` |
+| Role | `admin` |
+| Root administrator | Enabled |
+| Must change password | Enabled on first login |
+
+It also creates baseline settings, preserving existing values when the seeder is run again:
+
+- Borrowing and inventory disabled.
+- Parent portal and parent excuse letters disabled.
+- Face recognition enabled.
+- Demo attendance panel disabled.
+- Online-class face recognition enabled by default.
+- Attendance late threshold set to 15 minutes.
+- Attendance correction window set to 15 days.
+- Default security questions.
+- Attendance Console panel label with PIN `1234`.
+
+The values can be customized through `MINIMAL_ROOT_ADMIN_NAME`, `MINIMAL_ROOT_ADMIN_EMAIL`, `MINIMAL_ROOT_ADMIN_PASSWORD`, and `PANEL_PIN` environment variables. The minimal seeder does not create students, instructors, rooms, schedules, messages, inventory, emergency records, or attendance data.
 
 Default seeded login accounts:
 

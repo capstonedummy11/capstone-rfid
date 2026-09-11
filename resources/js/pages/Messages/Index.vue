@@ -2,7 +2,15 @@
 import LinkedStudentSelector from '@/components/StudentPortal/LinkedStudentSelector.vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
-import { FileText, Image, Paperclip, Search, Send, X } from 'lucide-vue-next';
+import {
+    FileText,
+    Forward,
+    Image,
+    Paperclip,
+    Search,
+    Send,
+    X,
+} from 'lucide-vue-next';
 
 const props = defineProps({
     messages: { type: Array, default: () => [] },
@@ -233,6 +241,60 @@ const clearAttachment = () => {
     form.attachment = null;
     if (fileInput.value) fileInput.value.value = '';
 };
+
+const forwardMessage = ref(null);
+const forwardForm = useForm({
+    parent_user_id: '',
+    body: '',
+});
+
+const canForwardToParent = (message) =>
+    ['admin', 'instructor'].includes(currentRole.value) &&
+    Number(message.sender_user_id) !== currentUserId.value &&
+    message.student_id &&
+    message.is_pdf &&
+    message.parents?.length > 0;
+
+const forwardStudentName = computed(
+    () => forwardMessage.value?.student_name || 'Student',
+);
+const forwardDate = computed(() => {
+    if (!forwardMessage.value?.created_at) return '';
+
+    return new Date(forwardMessage.value.created_at).toLocaleDateString(
+        undefined,
+        { month: 'long', day: 'numeric', year: 'numeric' },
+    );
+});
+const forwardSubject = computed(
+    () => `Excuse Letter - ${forwardStudentName.value} - ${forwardDate.value}`,
+);
+
+const openForwardModal = (message) => {
+    forwardMessage.value = message;
+    forwardForm.parent_user_id = message.parents?.[0]?.user_id || '';
+    forwardForm.body = `Please find attached the excuse letter for your child.\n\nKindly review the attached document.\n\nRegards,\n${page.props.auth?.user?.name || 'School Staff'}`;
+};
+
+const closeForwardModal = () => {
+    if (forwardForm.processing) return;
+    forwardMessage.value = null;
+    forwardForm.reset();
+};
+
+const sendForwardEmail = () => {
+    if (!forwardMessage.value) return;
+
+    forwardForm.post(
+        route('messages.forward-to-parent', {
+            message: forwardMessage.value.id,
+        }),
+        {
+            preserveScroll: true,
+            onSuccess: closeForwardModal,
+        },
+    );
+};
 </script>
 
 <template>
@@ -440,6 +502,16 @@ const clearAttachment = () => {
                                 {{ formatBytes(message.attachment_size) }}
                             </span>
                         </a>
+                        <button
+                            v-if="canForwardToParent(message)"
+                            type="button"
+                            class="mt-2 inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-100"
+                            title="Forward excuse letter to parent by email"
+                            @click.stop="openForwardModal(message)"
+                        >
+                            <Forward class="h-3.5 w-3.5" />
+                            Email parent
+                        </button>
                         <p class="mt-2 text-[11px] opacity-70">
                             {{ message.created_label }}
                         </p>
@@ -516,6 +588,119 @@ const clearAttachment = () => {
                     </div>
                 </form>
             </section>
+        </div>
+
+        <div
+            v-if="forwardMessage"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
+            @click.self="closeForwardModal"
+        >
+            <div
+                class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white shadow-2xl"
+            >
+                <div
+                    class="flex items-center justify-between border-b border-slate-200 px-5 py-4"
+                >
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900">
+                            Forward excuse letter by email
+                        </h3>
+                        <p class="text-sm text-slate-500">
+                            Review the email template before sending the PDF.
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        class="rounded-md p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                        @click="closeForwardModal"
+                    >
+                        <X class="h-5 w-5" />
+                    </button>
+                </div>
+
+                <form class="space-y-4 p-5" @submit.prevent="sendForwardEmail">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 uppercase"
+                            >Send to parent</label
+                        >
+                        <select
+                            v-model="forwardForm.parent_user_id"
+                            class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                            required
+                        >
+                            <option
+                                v-for="parent in forwardMessage.parents"
+                                :key="parent.user_id"
+                                :value="parent.user_id"
+                            >
+                                {{ parent.name }} — {{ parent.email }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 uppercase"
+                            >Subject</label
+                        >
+                        <input
+                            :value="forwardSubject"
+                            readonly
+                            class="mt-1 w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700"
+                        />
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 uppercase"
+                            >Message template</label
+                        >
+                        <textarea
+                            v-model="forwardForm.body"
+                            class="mt-1 min-h-32 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                            required
+                        />
+                    </div>
+
+                    <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                        <p class="text-xs font-bold tracking-wide text-slate-500 uppercase">
+                            Email preview
+                        </p>
+                        <p class="mt-3 text-sm text-slate-700">
+                            Dear Parent,
+                        </p>
+                        <p class="mt-3 whitespace-pre-line text-sm text-slate-700">
+                            {{ forwardForm.body }}
+                        </p>
+                        <p class="mt-3 text-sm text-slate-700">
+                            Student:
+                            <strong>{{ forwardStudentName }}</strong>
+                            <br />
+                            Date: <strong>{{ forwardDate }}</strong>
+                        </p>
+                        <p class="mt-3 text-sm text-slate-700">
+                            Attachment:
+                            <strong>{{ forwardMessage.attachment_name }}</strong>
+                        </p>
+                    </div>
+
+                    <div class="flex justify-end gap-2">
+                        <button
+                            type="button"
+                            class="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+                            @click="closeForwardModal"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            class="inline-flex items-center gap-2 rounded-md bg-brand px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
+                            :disabled="forwardForm.processing"
+                        >
+                            <Send class="h-4 w-4" />
+                            {{ forwardForm.processing ? 'Sending...' : 'Send email' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </template>

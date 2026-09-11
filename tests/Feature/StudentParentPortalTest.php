@@ -594,3 +594,61 @@ test('student can download an approved generated excuse letter pdf', function ()
         'table_name' => 'student_excuse_letters',
     ]);
 });
+
+test('generated excuse letter omits parent approval when the setting is disabled', function () {
+    $fixture = portalFixture();
+
+    SystemSetting::setBoolean(SystemSetting::PARENT_EXCUSE_LETTERS_ENABLED, false);
+
+    $letter = StudentExcuseLetter::query()->create([
+        'student_id' => $fixture['student']->student_id,
+        'submitted_by_user_id' => $fixture['studentUser']->user_id,
+        'submitted_by_role' => 'student',
+        'subject' => 'Programming I',
+        'from_date' => '2026-07-01',
+        'to_date' => '2026-07-02',
+        'reason' => 'Medical appointment.',
+        'status' => 'approved',
+        'parent_signature' => 'Maria Santos',
+        'parent_approved_by_user_id' => $fixture['parentUser']->user_id,
+        'parent_approved_at' => now(),
+    ]);
+
+    $response = $this->actingAs($fixture['studentUser'])
+        ->get(route('student-parent.excuse-letters.download', $letter))
+        ->assertOk();
+
+    $pdf = $response->getContent();
+
+    expect($pdf)->toStartWith('%PDF')
+        ->and($pdf)->not->toContain('Parent Approval')
+        ->and($pdf)->not->toContain('Parent Signature:')
+        ->and($pdf)->not->toContain('Approved By:')
+        ->and($pdf)->not->toContain('Approved At:');
+});
+
+test('generated excuse letter leaves an unsigned parent signature blank', function () {
+    $fixture = portalFixture();
+
+    SystemSetting::setBoolean(SystemSetting::PARENT_EXCUSE_LETTERS_ENABLED, true);
+
+    $letter = StudentExcuseLetter::query()->create([
+        'student_id' => $fixture['student']->student_id,
+        'submitted_by_user_id' => $fixture['studentUser']->user_id,
+        'submitted_by_role' => 'student',
+        'subject' => 'Programming I',
+        'from_date' => '2026-07-01',
+        'to_date' => '2026-07-02',
+        'reason' => 'Medical appointment.',
+        'status' => 'approved',
+    ]);
+
+    $response = $this->actingAs($fixture['studentUser'])
+        ->get(route('student-parent.excuse-letters.download', $letter))
+        ->assertOk();
+
+    $pdf = $response->getContent();
+
+    expect($pdf)->toContain('Parent Signature: ')
+        ->and($pdf)->not->toContain('Not yet signed');
+});

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\StudentExcuseLetter;
+use App\Models\SystemSetting;
 
 class ExcuseLetterPdfService
 {
@@ -24,15 +25,20 @@ class ExcuseLetterPdfService
             ['', 11, false],
             ['Sincerely,', 11, false],
             [$submittedBy, 11, false],
-            ['', 11, false],
-            ['Parent Approval', 12, true],
-            ['Status: '.$this->statusLabel((string) $letter->status), 11, false],
-            ['Parent Signature: '.($letter->parent_signature ?: 'Not yet signed'), 11, false],
-            ['Approved By: '.($letter->parentApprovedBy?->name ?: 'Pending'), 11, false],
-            ['Approved At: '.($letter->parent_approved_at?->format('F j, Y g:i A') ?: 'Pending'), 11, false],
         ];
 
-        if ($letter->parent_approval_notes) {
+        if (SystemSetting::featureFlags()['parent_excuse_letters_enabled']) {
+            array_push($lines,
+                ['', 11, false],
+                ['Parent Approval', 12, true],
+                ['Status: '.$this->statusLabel((string) $letter->status), 11, false],
+                ['Parent Signature: '.($letter->parent_signature ?: ''), 11, false],
+                ['Approved By: '.($letter->parentApprovedBy?->name ?: 'Pending'), 11, false],
+                ['Approved At: '.($letter->parent_approved_at?->format('F j, Y g:i A') ?: 'Pending'), 11, false],
+            );
+        }
+
+        if ($letter->parent_approval_notes && SystemSetting::featureFlags()['parent_excuse_letters_enabled']) {
             $lines[] = ['', 11, false];
             $lines[] = ['Parent Notes', 12, true];
             array_push($lines, ...$this->wrap($letter->parent_approval_notes));
