@@ -163,6 +163,7 @@
             <section class="rounded-lg bg-white p-6 shadow-lg">
                 <div class="overflow-x-auto">
 
+
                     <table class="min-w-[1450px] w-full table-fixed border-collapse">
                         <thead>
                             <tr class="bg-gray-50">
