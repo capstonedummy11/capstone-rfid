@@ -38,6 +38,8 @@ class SystemSetting extends Model
 
     public const ONLINE_CLASS_FACE_RECOGNITION_DEFAULT = 'online_class.face_recognition_enabled_by_default';
 
+    public const ONLINE_CLASSES_ENABLED = 'feature.online_classes_enabled';
+
     public const PANEL_PIN_HASH = 'panel.pin_hash';
 
     public const PANEL_DEVICE_LABEL = 'panel.device_label';
@@ -76,6 +78,7 @@ class SystemSetting extends Model
             'face_recognition_enabled' => static::boolean(static::FACE_RECOGNITION_ENABLED, true),
             'demo_attendance_panel_enabled' => static::boolean(static::DEMO_ATTENDANCE_PANEL_ENABLED, false),
             'online_class_face_recognition_default' => static::boolean(static::ONLINE_CLASS_FACE_RECOGNITION_DEFAULT, true),
+            'online_classes_enabled' => static::boolean(static::ONLINE_CLASSES_ENABLED, true),
         ];
     }
 

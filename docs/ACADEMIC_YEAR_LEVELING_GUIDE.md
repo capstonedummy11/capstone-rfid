@@ -41,6 +41,7 @@ Administrators must add the subjects and offerings for the destination semester,
 - The Subjects page defaults to the current academic year and its active semester.
 - The subject catalog does not display a stale legacy semester when no current offering exists.
 - New subject offerings must use the current academic year and active semester. The semester is fixed by the current academic-year setting.
+- Adding a subject defaults to the current academic year and active semester, creates its initial offering from the selected section, and allows the administrator to choose another available section, instructor, or semester before saving.
 - Removing an instructor removes only the instructor assignment; the subject offering and section assignment remain.
 - New schedules can use only subject offerings from the current academic year and active semester. Historical schedules remain viewable through filters but cannot be used to create a current schedule.
 
@@ -61,7 +62,9 @@ System settings are global application configuration. Academic-year rollover doe
 
 ## Filters and defaults
 
-Student, subject, schedule, and attendance pages expose academic-year and semester filters. On first load, the filters default to the current active academic year and its `active_semester`. Selecting a historical year and semester displays the records belonging to that academic context without changing the source data.
+Admin and instructor dashboards, sections, students, subjects, schedules, attendance, reports, online-class logs, and system activity-log pages expose academic-year and semester filters. Reports support a specific semester or a combined all-semesters view. On first load, the filters default to the current active academic year and its `active_semester` where applicable. Selecting a historical year and semester displays the records belonging to that academic context without changing the source data. Student/parent portal dashboards remain student-scoped and do not expose the administrative academic-context filter.
+
+Online Classes has its own feature setting. When `Online Classes Enabled` is off, Online Classes and Online Class Logs are hidden from navigation and direct log/export access returns not found.
 
 ## Recommended operating sequence
 

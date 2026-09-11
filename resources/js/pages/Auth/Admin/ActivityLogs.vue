@@ -21,6 +21,8 @@ const emptyFilters = {
     subject_type: '',
     subject_id: '',
     ip_address: '',
+    academic_year_id: '',
+    semester: '',
 };
 const form = reactive({ ...emptyFilters, ...props.filters });
 const activeFilterCount = computed(
@@ -101,6 +103,19 @@ const titleCase = (value) =>
                     </label>
                 </div>
                 <div class="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+                    <label class="text-xs font-semibold text-slate-600">Academic year
+                        <select v-model="form.academic_year_id" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+                            <option value="">All academic years</option>
+                            <option v-for="year in options.academicYears" :key="year.academic_year_id" :value="year.academic_year_id">{{ year.name }} ({{ year.status }})</option>
+                        </select>
+                    </label>
+                    <label class="text-xs font-semibold text-slate-600">Semester
+                        <select v-model="form.semester" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+                            <option value="">All semesters</option>
+                            <option value="1st Semester">1st Semester</option>
+                            <option value="2nd Semester">2nd Semester</option>
+                        </select>
+                    </label>
                     <label class="text-xs font-semibold text-slate-600"
                         >Module
                         <select

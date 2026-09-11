@@ -23,6 +23,7 @@ const form = reactive({
             : props.filters.academic_year_id || '',
     date_from: props.filters.date_from || '',
     date_to: props.filters.date_to || '',
+    semester: props.filters.semester || '',
 });
 
 const pageDescription = computed(() => {
@@ -118,6 +119,7 @@ const resetFilters = () => {
     form.academic_year_id = props.academicYears.find((year) => year.status === 'active')?.academic_year_id || (props.allowAllYears ? 'all' : '');
     form.date_from = '';
     form.date_to = '';
+    form.semester = '';
     applyFilters();
 };
 </script>
@@ -149,7 +151,7 @@ const resetFilters = () => {
             </section>
 
             <section class="rounded-md bg-white p-5 shadow-sm">
-                <div class="grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto_auto]">
+                <div class="grid gap-3 md:grid-cols-[1fr_1fr_1fr_1fr_auto_auto]">
                     <label class="grid gap-1 text-sm font-semibold text-slate-700">
                         Academic Year
                         <select v-model="form.academic_year_id" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
@@ -157,6 +159,14 @@ const resetFilters = () => {
                             <option v-for="year in academicYears" :key="year.academic_year_id" :value="year.academic_year_id">
                                 {{ year.name }} ({{ year.status }})
                             </option>
+                        </select>
+                    </label>
+                    <label class="grid gap-1 text-sm font-semibold text-slate-700">
+                        Semester
+                        <select v-model="form.semester" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
+                            <option value="">All semesters</option>
+                            <option value="1st Semester">1st Semester</option>
+                            <option value="2nd Semester">2nd Semester</option>
                         </select>
                     </label>
                     <label

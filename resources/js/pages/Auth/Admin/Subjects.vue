@@ -136,6 +136,30 @@
               </div>
             </div>
 
+            <div v-if="!isEditing" class="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div>
+                <label class="mb-1 block text-sm font-medium text-slate-700">Academic Year *</label>
+                <input :value="activeAcademicYearName || 'Current academic year'" type="text" class="w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-2" disabled />
+                <p class="mt-1 text-xs text-slate-500">The offering uses the selected section's academic year.</p>
+              </div>
+              <div>
+                <label class="mb-1 block text-sm font-medium text-slate-700">Section *</label>
+                <SearchableSelect v-model="form.section_id" :options="sectionSearchOptions" placeholder="Select section..." empty-text="No matching sections" />
+              </div>
+              <div>
+                <label class="mb-1 block text-sm font-medium text-slate-700">Semester *</label>
+                <select v-model="form.semester" class="w-full rounded-md border border-slate-300 px-3 py-2" required>
+                  <option value="1st Semester">1st Semester</option>
+                  <option value="2nd Semester">2nd Semester</option>
+                </select>
+              </div>
+            </div>
+
+            <div v-if="!isEditing">
+              <label class="mb-1 block text-sm font-medium text-slate-700">Instructor</label>
+              <SearchableSelect v-model="form.user_id" :options="instructorSearchOptions" placeholder="Select instructor..." empty-text="No matching instructors" clearable />
+            </div>
+
             <div class="flex justify-end gap-2 border-t pt-4">
               <button type="button" @click="closeModal" class="rounded-md border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50">Cancel</button>
               <button type="submit" class="rounded-md bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-700" :disabled="form.processing">{{ isEditing ? 'Update Subject' : 'Add Subject' }}</button>
@@ -213,6 +237,7 @@ interface SectionOption {
   section_id: string | number;
   section_name: string;
   year_level?: string | number;
+  semester?: string;
   school_year?: string;
   label: string;
 }
@@ -244,6 +269,7 @@ const props = defineProps({
   },
   academicYears: { type: Array as () => Array<{ academic_year_id: number; name: string; status: string }>, default: () => [] },
   activeAcademicYearSemester: { type: String, default: '' },
+  activeAcademicYearName: { type: String, default: '' },
 });
 
 const search = ref(props.filters.search ?? '');
@@ -265,7 +291,7 @@ const sectionSearchOptions = computed(() =>
   props.sectionOptions.map((section) => ({
     value: String(section.section_id),
     label: section.label,
-    keywords: `${section.section_name} ${section.year_level ?? ''} ${section.school_year ?? ''}`,
+    keywords: `${section.section_name} ${section.year_level ?? ''} ${section.school_year ?? ''} ${section.semester ?? ''}`,
   })),
 );
 
@@ -318,6 +344,7 @@ const openAddModal = () => {
   selectedSubject.value = null;
   form.reset();
   form.unit = 0;
+  form.semester = props.activeAcademicYearSemester || '';
   showModal.value = true;
 };
 
@@ -384,6 +411,10 @@ const removeInstructor = async (offering: SubjectOffering) => {
 const submitForm = () => {
   if (!form.subject_name || !form.subject_code || form.unit === null || form.unit === undefined || Number(form.unit) < 0) {
     alert('Please fill in all required fields and provide a valid unit value.');
+    return;
+  }
+  if (!isEditing.value && (!form.section_id || !form.semester)) {
+    alert('Please select the academic section and semester for this subject.');
     return;
   }
 

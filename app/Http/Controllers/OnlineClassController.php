@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Instructor;
+use App\Models\AcademicYear;
 use App\Models\Message;
 use App\Models\OnlineClass;
 use App\Models\OnlineClassAttendance;
@@ -288,15 +289,20 @@ class OnlineClassController
 
     public function logs(Request $request)
     {
+        abort_unless(SystemSetting::boolean(SystemSetting::ONLINE_CLASSES_ENABLED, true), 404);
+        $this->applyLogAcademicDefaults($request);
         return Inertia::render('Auth/Admin/OnlineClassLogs', [
             'title' => 'Online Class Logs',
             'logs' => $this->logQuery($request)->paginate(20)->withQueryString(),
-            'filters' => $request->only(['search', 'date_from', 'date_to', 'instructor', 'user', 'user_role', 'section', 'action']),
+            'filters' => $request->only(['search', 'date_from', 'date_to', 'instructor', 'user', 'user_role', 'section', 'action', 'academic_year_id', 'semester']),
+            'academicYears' => AcademicYear::query()->orderByDesc('starts_on')->get(['academic_year_id', 'name', 'status', 'active_semester']),
         ]);
     }
 
     public function exportLogs(Request $request)
     {
+        abort_unless(SystemSetting::boolean(SystemSetting::ONLINE_CLASSES_ENABLED, true), 404);
+        $this->applyLogAcademicDefaults($request);
         $rows = $this->logQuery($request)->get();
         $csv = "Timestamp,User,Role,Action,Online Class ID,Section,IP Address\n";
         foreach ($rows as $log) {
@@ -653,6 +659,15 @@ class OnlineClassController
             ->when($request->filled('user_role'), fn ($query) => $query->where('user_role', $request->input('user_role')))
             ->when($request->filled('action'), fn ($query) => $query->where('action', $request->input('action')))
             ->when($request->filled('section'), fn ($query) => $query->where('section_id', $request->input('section')))
+            ->when($request->filled('academic_year_id') && $request->input('academic_year_id') !== 'all', fn ($query) => $query->whereHas('onlineClass', fn ($classQuery) => $classQuery->where('academic_year_id', $request->input('academic_year_id'))))
+            ->when($request->filled('semester'), fn ($query) => $query->whereHas('onlineClass', fn ($classQuery) => $classQuery->whereHas('schedule', fn ($scheduleQuery) => $scheduleQuery->where('semester', $request->input('semester')))))
             ->latest('created_at');
+    }
+
+    private function applyLogAcademicDefaults(Request $request): void
+    {
+        if (! $request->filled('academic_year_id')) {
+            $request->merge(['academic_year_id' => AcademicYear::currentOrLatest()?->academic_year_id]);
+        }
     }
 }

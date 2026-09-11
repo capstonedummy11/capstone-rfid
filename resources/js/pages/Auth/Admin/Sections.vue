@@ -14,7 +14,7 @@
       </section>
 
       <section class="mb-6 rounded-lg bg-white p-6 shadow-lg">
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-5">
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-6">
           <div>
             <label class="mb-1 block text-xs font-medium text-slate-600">Academic Year</label>
             <select v-model="selectedAcademicYear" @change="onFilterChange" class="w-full rounded-md border border-slate-300 px-3 py-2">
@@ -39,6 +39,14 @@
               <option value="">All Grades</option>
               <option value="11">Grade 11</option>
               <option value="12">Grade 12</option>
+            </select>
+          </div>
+          <div>
+            <label class="mb-1 block text-xs font-medium text-slate-600">Semester</label>
+            <select v-model="selectedSemester" @change="onFilterChange" class="w-full rounded-md border border-slate-300 px-3 py-2">
+              <option value="">All Semesters</option>
+              <option value="1st Semester">1st Semester</option>
+              <option value="2nd Semester">2nd Semester</option>
             </select>
           </div>
           <div>
@@ -196,7 +204,7 @@ const props = defineProps({
   },
   filters: {
     type: Object,
-    default: () => ({ search: '', strand: '', year: '', status: '', academic_year: '' }),
+    default: () => ({ search: '', strand: '', year: '', status: '', academic_year: '', semester: '' }),
   },
   strandOptions: {
     type: Array as () => StrandOption[],
@@ -216,6 +224,7 @@ const search = ref(props.filters.search ?? '');
 const selectedStrand = ref(props.filters.strand ?? '');
 const selectedYear = ref(props.filters.year ?? '');
 const selectedStatus = ref(props.filters.status ?? '');
+const selectedSemester = ref(props.filters.semester ?? '');
 const selectedAcademicYear = ref(props.filters.academic_year ?? (props.activeAcademicYearId ? String(props.activeAcademicYearId) : ''));
 const showModal = ref(false);
 const isEditing = ref(false);
@@ -241,9 +250,10 @@ const filteredSections = computed<Section[]>(() => {
     const matchesStrand = selectedStrand.value === '' || String(section.strand_id) === selectedStrand.value;
     const matchesYear = selectedYear.value === '' || String(section.year_level) === selectedYear.value;
     const matchesStatus = selectedStatus.value === '' || section.status === selectedStatus.value;
+    const matchesSemester = selectedSemester.value === '' || section.semester === selectedSemester.value;
     const matchesAcademicYear = selectedAcademicYear.value === '' || String(section.academic_year_id ?? '') === selectedAcademicYear.value;
 
-    return matchesSearch && matchesStrand && matchesYear && matchesStatus && matchesAcademicYear;
+    return matchesSearch && matchesStrand && matchesYear && matchesStatus && matchesSemester && matchesAcademicYear;
   });
 });
 
@@ -264,6 +274,7 @@ const onFilterChange = () => {
     year: selectedYear.value,
     status: selectedStatus.value,
     academic_year: selectedAcademicYear.value,
+    semester: selectedSemester.value,
   }, {
     preserveState: true,
     preserveScroll: true,
@@ -276,6 +287,7 @@ const resetFilters = () => {
   selectedStrand.value = '';
   selectedYear.value = '';
   selectedStatus.value = '';
+  selectedSemester.value = '';
   selectedAcademicYear.value = '';
   onFilterChange();
 };

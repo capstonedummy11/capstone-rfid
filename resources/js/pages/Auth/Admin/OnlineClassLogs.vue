@@ -5,6 +5,7 @@ import { reactive } from 'vue';
 const props = defineProps({
     logs: { type: Object, required: true },
     filters: { type: Object, default: () => ({}) },
+    academicYears: { type: Array, default: () => [] },
 });
 
 const form = reactive({
@@ -16,6 +17,8 @@ const form = reactive({
     user_role: props.filters.user_role || '',
     section: props.filters.section || '',
     action: props.filters.action || '',
+    academic_year_id: props.filters.academic_year_id || '',
+    semester: props.filters.semester || '',
 });
 
 const applyFilters = () => {
@@ -35,7 +38,16 @@ const exportCsv = () => {
                 <button class="rounded-md bg-brand px-4 py-2 text-sm font-bold text-white" @click="exportCsv">Export CSV</button>
             </div>
 
-            <form class="mt-4 grid gap-3 md:grid-cols-4 lg:grid-cols-8" @submit.prevent="applyFilters">
+            <form class="mt-4 grid gap-3 md:grid-cols-4 lg:grid-cols-10" @submit.prevent="applyFilters">
+                <select v-model="form.academic_year_id" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
+                    <option value="all">All academic years</option>
+                    <option v-for="year in academicYears" :key="year.academic_year_id" :value="year.academic_year_id">{{ year.name }} ({{ year.status }})</option>
+                </select>
+                <select v-model="form.semester" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
+                    <option value="">All semesters</option>
+                    <option value="1st Semester">1st Semester</option>
+                    <option value="2nd Semester">2nd Semester</option>
+                </select>
                 <input v-model="form.search" placeholder="Search" class="rounded-md border border-slate-300 px-3 py-2 text-sm" />
                 <input v-model="form.date_from" type="date" class="rounded-md border border-slate-300 px-3 py-2 text-sm" />
                 <input v-model="form.date_to" type="date" class="rounded-md border border-slate-300 px-3 py-2 text-sm" />

@@ -14,6 +14,7 @@ const props = defineProps({
             face_recognition_enabled: true,
             demo_attendance_panel_enabled: false,
             online_class_face_recognition_default: true,
+            online_classes_enabled: true,
         }),
     },
     faceRecognitionAvailability: {
@@ -91,6 +92,7 @@ const form = useForm({
         Boolean(
             props.featureSettings.online_class_face_recognition_default ?? true,
         ),
+    online_classes_enabled: Boolean(props.featureSettings.online_classes_enabled ?? true),
     demo_attendance_panel_enabled: Boolean(
         props.demoAttendancePanelSettings.enabled,
     ),
@@ -274,6 +276,16 @@ const toggleFaceSetting = (field) => {
                     class="mt-4 flex flex-col gap-4"
                     @submit.prevent="saveSettings"
                 >
+                    <label
+                        class="flex items-center justify-between gap-4 rounded-md border border-slate-200 p-4"
+                    >
+                        <span class="min-w-0">
+                            <span class="block text-sm font-bold text-slate-900">Online Classes Enabled</span>
+                            <span class="block text-sm text-slate-500">Show and allow online class management, attendance, and logs.</span>
+                        </span>
+                        <input v-model="form.online_classes_enabled" type="checkbox" class="h-5 w-5 shrink-0 accent-brand" />
+                    </label>
+
                     <label
                         class="flex items-center justify-between gap-4 rounded-md border border-slate-200 p-4"
                     >

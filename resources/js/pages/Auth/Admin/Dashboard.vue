@@ -20,11 +20,13 @@ const props = defineProps({
     onlineClasses: { type: Array, default: () => [] },
     academicYears: { type: Array, default: () => [] },
     selectedAcademicYearId: { type: [Number, String, null], default: null },
+    selectedSemester: { type: String, default: '' },
 });
 
 const isInstructor = computed(() => props.role === 'instructor');
-const changeAcademicYear = (event) => router.get(window.location.pathname, {
-    academic_year_id: event.target.value || undefined,
+const changeAcademicContext = (field, value) => router.get(window.location.pathname, {
+    academic_year_id: field === 'academic_year_id' ? value || undefined : props.selectedAcademicYearId || undefined,
+    semester: field === 'semester' ? value || undefined : props.selectedSemester || undefined,
 }, { preserveState: true, preserveScroll: true, replace: true });
 
 const cards = computed(() => [
@@ -107,11 +109,20 @@ const statusClass = (status) => {
                     <select
                         :value="selectedAcademicYearId || ''"
                         class="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-sm"
-                        @change="changeAcademicYear"
+                        @change="changeAcademicContext('academic_year_id', $event.target.value)"
                     >
                         <option v-for="year in academicYears" :key="year.academic_year_id" :value="year.academic_year_id">
                             {{ year.name }} ({{ year.status }})
                         </option>
+                    </select>
+                    <select
+                        :value="selectedSemester"
+                        class="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-sm"
+                        @change="changeAcademicContext('semester', $event.target.value)"
+                    >
+                        <option value="">All Semesters</option>
+                        <option value="1st Semester">1st Semester</option>
+                        <option value="2nd Semester">2nd Semester</option>
                     </select>
                     <Link
                         :href="route('admin.schedules.index')"

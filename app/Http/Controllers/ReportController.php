@@ -30,6 +30,7 @@ class ReportController
             fputcsv($handle, ['Date From', $payload['filters']['date_from'] ?: 'All']);
             fputcsv($handle, ['Date To', $payload['filters']['date_to'] ?: 'All']);
             fputcsv($handle, ['Academic Year', $payload['selectedAcademicYear']['name'] ?? 'All years']);
+            fputcsv($handle, ['Semester', $payload['filters']['semester'] ?: 'All semesters']);
             fputcsv($handle, []);
             fputcsv($handle, ['Category', 'Metric', 'Value', 'Group']);
 
@@ -53,6 +54,7 @@ class ReportController
             'date_from' => $request->string('date_from')->toString(),
             'date_to' => $request->string('date_to')->toString(),
             'academic_year_id' => $this->resolvedAcademicYearId($request, $role),
+            'semester' => in_array($request->input('semester'), ['1st Semester', '2nd Semester'], true) ? $request->input('semester') : '',
         ];
 
         return match ($role) {
@@ -223,7 +225,7 @@ class ReportController
             'charts' => array_values($charts),
             'tableRows' => $this->tableRows($charts),
             'exportUrl' => route('reports.export', array_filter($filters)),
-            'academicYears' => AcademicYear::query()->orderByDesc('starts_on')->get(['academic_year_id', 'name', 'status']),
+            'academicYears' => AcademicYear::query()->orderByDesc('starts_on')->get(['academic_year_id', 'name', 'status', 'active_semester']),
             'selectedAcademicYear' => $filters['academic_year_id'] === 'all' ? null : AcademicYear::query()->find($filters['academic_year_id']),
             'allowAllYears' => ! in_array($role, ['student', 'parent'], true),
         ];
@@ -362,20 +364,38 @@ class ReportController
     private function applyAcademicYear(Builder $query, string $table, array $filters): void
     {
         $yearId = $filters['academic_year_id'] ?? null;
-        if (! $yearId || $yearId === 'all') {
-            return;
-        }
+        $semester = $filters['semester'] ?? '';
 
-        if (Schema::hasColumn($table, 'academic_year_id')) {
+        if ($yearId && $yearId !== 'all' && Schema::hasColumn($table, 'academic_year_id')) {
             $query->where("{$table}.academic_year_id", $yearId);
-            return;
         }
 
-        if ($table === 'students' && Schema::hasTable('student_enrollments')) {
+        if ($semester !== '' && Schema::hasColumn($table, 'semester')) {
+            $query->where("{$table}.semester", $semester);
+        }
+
+        if (($yearId && $yearId !== 'all' || $semester !== '') && $table === 'students' && Schema::hasTable('student_enrollments')) {
             $query->whereExists(fn (Builder $enrollment) => $enrollment
                 ->selectRaw('1')->from('student_enrollments')
                 ->whereColumn('student_enrollments.student_id', 'students.student_id')
-                ->where('student_enrollments.academic_year_id', $yearId));
+                ->when($yearId && $yearId !== 'all', fn ($q) => $q->where('student_enrollments.academic_year_id', $yearId))
+                ->when($semester !== '', fn ($q) => $q->where('student_enrollments.semester', $semester)));
+        }
+
+        if (($yearId && $yearId !== 'all' || $semester !== '') && in_array($table, ['attendances', 'online_classes'], true)) {
+            $query->whereExists(fn (Builder $schedule) => $schedule
+                ->selectRaw('1')->from('schedules')
+                ->whereColumn('schedules.scheduled_id', "{$table}.schedule_id")
+                ->when($yearId && $yearId !== 'all', fn ($q) => $q->where('schedules.academic_year_id', $yearId))
+                ->when($semester !== '', fn ($q) => $q->where('schedules.semester', $semester)));
+        }
+
+        if (($yearId && $yearId !== 'all' || $semester !== '') && $table === 'clinic_cases' && Schema::hasTable('student_enrollments')) {
+            $query->whereExists(fn (Builder $enrollment) => $enrollment
+                ->selectRaw('1')->from('student_enrollments')
+                ->whereColumn('student_enrollments.student_id', 'clinic_cases.student_id')
+                ->when($yearId && $yearId !== 'all', fn ($q) => $q->where('student_enrollments.academic_year_id', $yearId))
+                ->when($semester !== '', fn ($q) => $q->where('student_enrollments.semester', $semester)));
         }
     }
 

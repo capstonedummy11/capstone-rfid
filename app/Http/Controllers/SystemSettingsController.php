@@ -48,6 +48,7 @@ class SystemSettingsController
             'demo_attendance_panel_rfids.second_student_tap' => ['nullable', 'string', 'max:255'],
             'demo_attendance_panel_rfids.second_professor_tap' => ['nullable', 'string', 'max:255'],
             'online_class_face_recognition_default' => ['required', 'boolean'],
+            'online_classes_enabled' => ['required', 'boolean'],
             'absent_default_days' => ['nullable', 'integer', 'min:1', 'max:365'],
             'late_threshold_minutes' => ['required', 'integer', 'min:0', 'max:180'],
             'security_questions' => ['nullable', 'array', 'min:3', 'max:20'],
@@ -85,6 +86,7 @@ class SystemSettingsController
                 ->all(),
         );
         SystemSetting::setBoolean(SystemSetting::ONLINE_CLASS_FACE_RECOGNITION_DEFAULT, (bool) $validated['online_class_face_recognition_default']);
+        SystemSetting::setBoolean(SystemSetting::ONLINE_CLASSES_ENABLED, (bool) $validated['online_classes_enabled']);
         if (array_key_exists('absent_default_days', $validated) && $validated['absent_default_days'] !== null) {
             SystemSetting::setInteger(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, (int) $validated['absent_default_days']);
         }

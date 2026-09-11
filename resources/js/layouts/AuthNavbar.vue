@@ -127,6 +127,7 @@ const sections = [
                 text: 'Online Classes',
                 route: route('admin.online-classes.index'),
                 roles: ['admin', 'instructor'],
+                feature: 'online_classes_enabled',
             },
         ],
     },
@@ -217,6 +218,7 @@ const sections = [
                 text: 'Online Class Logs',
                 route: route('admin.online-class-logs.index'),
                 roles: ['admin'],
+                feature: 'online_classes_enabled',
             },
             {
                 icon: MonitorCheck,

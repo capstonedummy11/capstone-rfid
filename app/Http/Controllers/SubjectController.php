@@ -88,22 +88,25 @@ class SubjectController
                 ->when($yearId, fn ($query) => $query->where('academic_year_id', $yearId))
                 ->when($filters['semester'] !== '', fn ($query) => $query->where('semester', $filters['semester']))
                 ->orderBy('section_name')
-                ->get(['section_id', 'section_name', 'year_level', 'school_year'])
+                ->get(['section_id', 'section_name', 'year_level', 'semester', 'school_year'])
                 ->map(fn (Section $section) => [
                     'section_id' => $section->section_id,
                     'section_name' => $section->section_name,
                     'year_level' => $section->year_level,
+                    'semester' => $section->semester,
                     'school_year' => $section->school_year,
                     'label' => trim(implode(' - ', array_filter([
                         $section->section_name,
                         $section->year_level ? 'Grade '.$section->year_level : null,
                         $section->school_year,
+                        $section->semester,
                     ]))),
                 ])
                 ->values(),
             'instructorOptions' => User::query()->where('role', 'instructor')->orderBy('name')->get(['user_id', 'name', 'role'])->values(),
             'activeAcademicYearId' => $defaultYearId,
             'activeAcademicYearSemester' => $selectedAcademicYear?->active_semester,
+            'activeAcademicYearName' => $selectedAcademicYear?->name,
             'academicYears' => AcademicYear::query()->orderByDesc('starts_on')->get(['academic_year_id', 'name', 'status', 'active_semester']),
         ]);
     }
@@ -111,17 +114,17 @@ class SubjectController
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'section_id' => 'nullable|exists:sections,section_id',
+            'section_id' => 'required|exists:sections,section_id',
             'user_id' => 'nullable|exists:users,user_id',
             'subject_name' => 'required|string|max:255',
             'subject_code' => 'required|string|max:255|unique:subjects,subject_code',
             'subject_description' => 'nullable|string',
             'department' => 'nullable|string|max:255',
             'unit' => 'required|integer|min:0',
-            'semester' => 'nullable|string|max:255',
+            'semester' => ['required', 'string', 'in:1st Semester,2nd Semester'],
         ]);
         $subject = DB::transaction(function () use ($validated) {
-            $subject = Subject::create(collect($validated)->except(['section_id', 'user_id', 'semester'])->all());
+            $subject = Subject::create(collect($validated)->except(['section_id', 'user_id'])->all());
             $this->syncOfferingFromLegacyFields($subject, $validated);
 
             return $subject;

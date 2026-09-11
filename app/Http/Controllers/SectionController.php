@@ -29,6 +29,7 @@ class SectionController
             'year' => trim((string) $request->input('year', '')),
             'status' => trim((string) $request->input('status', '')),
             'academic_year' => trim((string) $request->input('academic_year', '')),
+            'semester' => trim((string) $request->input('semester', '')),
         ];
         $defaultAcademicYear = AcademicYear::currentOrLatest();
         if ($filters['academic_year'] === '' && $defaultAcademicYear) {
@@ -56,6 +57,10 @@ class SectionController
 
         if (! in_array($filters['academic_year'], ['', 'all'], true)) {
             $query->where('academic_year_id', $filters['academic_year']);
+        }
+
+        if ($filters['semester'] !== '') {
+            $query->where('semester', $filters['semester']);
         }
 
         $sections = $query
