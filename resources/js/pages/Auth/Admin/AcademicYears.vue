@@ -1,6 +1,6 @@
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import Swal from 'sweetalert2';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 
@@ -162,6 +162,20 @@ const onRolloverSourceChange = () => {
     if (rolloverMode.value === 'semester') rolloverDestinationId.value = rolloverSourceId.value;
     preview.value = null;
 };
+
+watch(
+    () => props.academicYears,
+    () => {
+        if (rolloverMode.value === 'semester' && semesterRolloverUnavailable.value) {
+            preview.value = null;
+            sectionMappings.value = [];
+            studentDecisions.value = {};
+            rolloverSourceId.value = '';
+            rolloverDestinationId.value = '';
+        }
+    },
+    { deep: true },
+);
 </script>
 
 <template>
@@ -236,7 +250,7 @@ const onRolloverSourceChange = () => {
                     </button>
                 </div>
 
-                <div v-if="preview" class="mt-5 space-y-4">
+                <div v-if="preview && !(rolloverMode === 'semester' && semesterRolloverUnavailable)" class="mt-5 space-y-4">
                     <div class="rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-900">
                         <strong>Automatic rollover:</strong> {{ preview.transition.description }}
                         <span class="ml-1">Destination semester: {{ preview.transition.destination_semester }}.</span>
