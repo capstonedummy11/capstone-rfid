@@ -21,12 +21,12 @@ Exact RFID decisions always come from [Attendance Control Panel Tapping Rules](A
 
 ## Which Demonstration File to Use
 
-| File | Purpose | Best time to use it |
-|---|---|---|
-| [CAPSTONE_PRESENTATION.md](CAPSTONE_PRESENTATION.md) | Slide titles, claims, and speaker structure | Building or updating slides |
-| [FULL_SYSTEM_DEMONSTRATION_SCRIPT.md](FULL_SYSTEM_DEMONSTRATION_SCRIPT.md) | Short sequence of actions and talking points | During the live demo |
-| [SYSTEM_FLOW_DEMONSTRATION.md](SYSTEM_FLOW_DEMONSTRATION.md) | Detailed presenter action, explanation, expected result, rules, and recovery | Rehearsal and evaluator preparation |
-| [ATTENDANCE_SYSTEM_DEMONSTRATION_GUIDE.md](ATTENDANCE_SYSTEM_DEMONSTRATION_GUIDE.md) | Blank-state setup and deep attendance scenarios | Attendance-focused technical rehearsal |
+| File                                                                                 | Purpose                                                                      | Best time to use it                    |
+| ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- | -------------------------------------- |
+| [CAPSTONE_PRESENTATION.md](CAPSTONE_PRESENTATION.md)                                 | Slide titles, claims, and speaker structure                                  | Building or updating slides            |
+| [FULL_SYSTEM_DEMONSTRATION_SCRIPT.md](FULL_SYSTEM_DEMONSTRATION_SCRIPT.md)           | Short sequence of actions and talking points                                 | During the live demo                   |
+| [SYSTEM_FLOW_DEMONSTRATION.md](SYSTEM_FLOW_DEMONSTRATION.md)                         | Detailed presenter action, explanation, expected result, rules, and recovery | Rehearsal and evaluator preparation    |
+| [ATTENDANCE_SYSTEM_DEMONSTRATION_GUIDE.md](ATTENDANCE_SYSTEM_DEMONSTRATION_GUIDE.md) | Blank-state setup and deep attendance scenarios                              | Attendance-focused technical rehearsal |
 
 These documents are complementary formats, not independent sources of business rules.
 
@@ -50,4 +50,3 @@ When behavior changes:
 3. Update the live script only when actions or talking points change.
 4. Update the detailed flow demonstration only when presenter evidence or recovery steps change.
 5. Update the slide outline only when a slide claim changes.
-

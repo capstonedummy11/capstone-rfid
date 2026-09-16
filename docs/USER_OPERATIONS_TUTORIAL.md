@@ -672,13 +672,13 @@ Emergency alert flow from the panel:
 5. Enter optional symptoms or short notes. The panel automatically selects the single hotline whose configured type matches the emergency; if several matching hotlines exist, select one from the filtered choices.
 6. Review the modal showing the student details or area-wide scope, emergency type, room, notes, and routed hotline. Cancel if anything is wrong; otherwise it sends automatically after five seconds.
 7. The system submits the emergency alert.
-4. Clinic dashboard receives the alert.
-5. If the clinic dashboard is already open, it refreshes alert data automatically and plays the emergency alert sound for a newly received alert.
-6. If the browser has not enabled audio yet, the clinic dashboard shows a small note asking the user to click anywhere or press any key once. After audio is enabled, the note disappears.
-7. Clinic reviews the room, type, message, patient/student details when available, and status.
-8. Clinic selects an active Clinic responder and chooses **Dispatch**.
-9. The selected responder receives an email with the location, emergency details, and available recent student Clinic and attendance history.
-10. The responder opens **My Dispatch Assignments**, verifies the displayed **Responder sent** name, proceeds to the location, and continues the record in Clinic Case Logs. Case Logs also retain the responder name beside the student/patient.
+8. Clinic dashboard receives the alert.
+9. If the clinic dashboard is already open, it refreshes alert data automatically and plays the emergency alert sound for a newly received alert.
+10. If the browser has not enabled audio yet, the clinic dashboard shows a small note asking the user to click anywhere or press any key once. After audio is enabled, the note disappears.
+11. Clinic reviews the room, type, message, patient/student details when available, and status.
+12. Clinic selects an active Clinic responder and chooses **Dispatch**.
+13. The selected responder receives an email with the location, emergency details, and available recent student Clinic and attendance history.
+14. The responder opens **My Dispatch Assignments**, verifies the displayed **Responder sent** name, proceeds to the location, and continues the record in Clinic Case Logs. Case Logs also retain the responder name beside the student/patient.
 
 See [Clinic Dispatch Assignment](CLINIC_DISPATCH.md) for the exact responder and notification rules.
 
@@ -741,16 +741,16 @@ Canonical reference: [Roles and Functionality](ROLES_AND_FUNCTIONALITY.md). This
 
 Use this section as the quick feature map for each role.
 
-| Role | Main Features |
-| --- | --- |
-| Root Admin | Admin account control, system settings, full admin management, activity logs, reports. |
-| Admin | Laboratories, academic records, users, instructors, students, parent links, schedules, inventory, attendance logs, online classes, reports, system settings, Messenger. |
-| Registrar | Student RFID enrollment, student face enrollment, instructor RFID enrollment, instructor face enrollment, registrar reports, Messenger. |
+| Role       | Main Features                                                                                                                                                                                          |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Root Admin | Admin account control, system settings, full admin management, activity logs, reports.                                                                                                                 |
+| Admin      | Laboratories, academic records, users, instructors, students, parent links, schedules, inventory, attendance logs, online classes, reports, system settings, Messenger.                                |
+| Registrar  | Student RFID enrollment, student face enrollment, instructor RFID enrollment, instructor face enrollment, registrar reports, Messenger.                                                                |
 | Instructor | Assigned schedules, instructor verification, attendance session participation, Dismiss Class/Continue Class control, temporary movement approval, attendance logs, online classes, reports, Messenger. |
-| Console | Room selection, attendance panel operation, instructor session start support, student RFID tap recording, face/fallback attendance flow, emergency alert creation. |
-| Student | Portal dashboard, attendance history, online classes, excuse letters, messages, notifications, profile updates. |
-| Parent | Linked student dashboard, attendance viewing, excuse letter approval, parent-created excuse letters, messages, notifications, profile updates. |
-| Clinic | Clinic dashboard, emergency alerts, case logs, patient histories, emergency hotlines, emergency types, clinic reports, Messenger. |
+| Console    | Room selection, attendance panel operation, instructor session start support, student RFID tap recording, face/fallback attendance flow, emergency alert creation.                                     |
+| Student    | Portal dashboard, attendance history, online classes, excuse letters, messages, notifications, profile updates.                                                                                        |
+| Parent     | Linked student dashboard, attendance viewing, excuse letter approval, parent-created excuse letters, messages, notifications, profile updates.                                                         |
+| Clinic     | Clinic dashboard, emergency alerts, case logs, patient histories, emergency hotlines, emergency types, clinic reports, Messenger.                                                                      |
 
 ### Root Admin
 

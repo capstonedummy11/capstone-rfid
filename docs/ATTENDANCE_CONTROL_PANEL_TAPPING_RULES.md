@@ -83,16 +83,16 @@ Dismiss Class is for releasing the entire class, not for one student's temporary
 
 ## 7. Tap Sequence Reference
 
-| Situation | Recorded event | Result |
-|---|---|---|
-| First accepted tap | Check-in | Pending; Inside; classified on-time or Late |
-| Later tap before checkout, approved, currently Inside | Temporary Exit | Pending; Outside |
-| Later tap before checkout, approved, currently Outside | Temporary Return | Pending; Inside |
-| Later tap before checkout without approval | Rejected movement | No state change |
-| Tap during checkout window with prior check-in | Check-out | Final Present or Late; Outside |
-| Tap during Dismiss Class with prior check-in | Check-out | Final Present or Late; Outside |
-| Tap during Dismiss Class without prior check-in | Invalid Tap | No valid attendance |
-| Tap after official checkout | Ignored Tap | Final status unchanged |
+| Situation                                              | Recorded event    | Result                                      |
+| ------------------------------------------------------ | ----------------- | ------------------------------------------- |
+| First accepted tap                                     | Check-in          | Pending; Inside; classified on-time or Late |
+| Later tap before checkout, approved, currently Inside  | Temporary Exit    | Pending; Outside                            |
+| Later tap before checkout, approved, currently Outside | Temporary Return  | Pending; Inside                             |
+| Later tap before checkout without approval             | Rejected movement | No state change                             |
+| Tap during checkout window with prior check-in         | Check-out         | Final Present or Late; Outside              |
+| Tap during Dismiss Class with prior check-in           | Check-out         | Final Present or Late; Outside              |
+| Tap during Dismiss Class without prior check-in        | Invalid Tap       | No valid attendance                         |
+| Tap after official checkout                            | Ignored Tap       | Final status unchanged                      |
 
 Tap number alone does not determine the action. Every tap evaluates check-in and checkout existence, location, current time, Dismiss Class state, verification, and instructor authorization.
 

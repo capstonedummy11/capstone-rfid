@@ -8,19 +8,19 @@ This README is written from the current source code. It intentionally excludes p
 
 ## Current Status
 
-| Area                                   | Status                                | Evidence                                                                                                                                             |
-| -------------------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Merge conflicts                        | Resolved                              | No unresolved conflict markers were found in tracked source/docs checked during this pass.                                                           |
-| Application stack                      | Implemented                           | Laravel backend, Inertia routes, Vue pages, migrations, seeders, tests, Vite build.                                                                  |
-| Attendance panel                       | Implemented with complex rules        | `AttendanceController`, `AttendanceControlPanel.vue`, attendance panel feature tests.                                                                |
-| Face verification                      | Implemented with provider dependency  | AWS Rekognition service, fallback/override paths, attendance evidence storage.                                                                       |
-| Borrowing and inventory                | Implemented                           | Borrow, item, inventory, laboratory controllers/pages/models.                                                                                        |
-| Student/parent portal                  | Implemented                           | Dashboard, profile, attendance, online classes, excuse letters, messages, notifications.                                                             |
-| Unified Messenger                      | Implemented for all non-console roles | Admin, instructor, clinic, registrar, student, and parent users can search recipients, chat, send attachments, and preview image attachments inline. |
-| Clinic and emergency                   | Implemented                           | Clinic dashboard/cases/patient histories/reports; emergency types/hotlines/alerts; explicit Clinic responder assignment with email and recent student context; clinic dashboard MP3 alert sound for newly received emergencies.  |
-| Shared reports                         | Implemented as CSV exports            | Role-specific report payloads and stream downloads.                                                                                                  |
-| Schedule conflict detection            | Missing                               | Schedule CRUD validates data but does not reject overlapping schedules.                                                                              |
-| Full term/department/course management | Partial                               | Strands, sections, subjects, schedules, and school year fields exist; no dedicated term closing, department, curriculum, or course lifecycle module. |
+| Area                                   | Status                                | Evidence                                                                                                                                                                                                                        |
+| -------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Merge conflicts                        | Resolved                              | No unresolved conflict markers were found in tracked source/docs checked during this pass.                                                                                                                                      |
+| Application stack                      | Implemented                           | Laravel backend, Inertia routes, Vue pages, migrations, seeders, tests, Vite build.                                                                                                                                             |
+| Attendance panel                       | Implemented with complex rules        | `AttendanceController`, `AttendanceControlPanel.vue`, attendance panel feature tests.                                                                                                                                           |
+| Face verification                      | Implemented with provider dependency  | AWS Rekognition service, fallback/override paths, attendance evidence storage.                                                                                                                                                  |
+| Borrowing and inventory                | Implemented                           | Borrow, item, inventory, laboratory controllers/pages/models.                                                                                                                                                                   |
+| Student/parent portal                  | Implemented                           | Dashboard, profile, attendance, online classes, excuse letters, messages, notifications.                                                                                                                                        |
+| Unified Messenger                      | Implemented for all non-console roles | Admin, instructor, clinic, registrar, student, and parent users can search recipients, chat, send attachments, and preview image attachments inline.                                                                            |
+| Clinic and emergency                   | Implemented                           | Clinic dashboard/cases/patient histories/reports; emergency types/hotlines/alerts; explicit Clinic responder assignment with email and recent student context; clinic dashboard MP3 alert sound for newly received emergencies. |
+| Shared reports                         | Implemented as CSV exports            | Role-specific report payloads and stream downloads.                                                                                                                                                                             |
+| Schedule conflict detection            | Missing                               | Schedule CRUD validates data but does not reject overlapping schedules.                                                                                                                                                         |
+| Full term/department/course management | Partial                               | Strands, sections, subjects, schedules, and school year fields exist; no dedicated term closing, department, curriculum, or course lifecycle module.                                                                            |
 
 Academic-year lifecycle foundation is available at `/admin/academic-years`. Student Management preserves yearly enrollment history, sections are year-scoped, and subjects use separate yearly offerings. Schedules now select an offering and store its academic year, semester, subject, section, and instructor context. Closed-year schedules are read-only, and the live attendance panel resolves schedules only from the active academic year. Attendance records, online classes, and reports still require later migration phases for complete historical isolation.
 
@@ -86,14 +86,14 @@ php artisan db:seed --class=MinimalSeeder
 
 It creates or preserves one root administrator and automatically creates the current academic year using the June-to-March school-year cycle:
 
-| Field | Default value |
-| --- | --- |
-| Name | `Root Admin` |
-| Email | `root.admin@sample.com` |
-| Temporary password | `change-me-now` |
-| Role | `admin` |
-| Root administrator | Enabled |
-| Must change password | Enabled on first login |
+| Field                | Default value           |
+| -------------------- | ----------------------- |
+| Name                 | `Root Admin`            |
+| Email                | `root.admin@sample.com` |
+| Temporary password   | `change-me-now`         |
+| Role                 | `admin`                 |
+| Root administrator   | Enabled                 |
+| Must change password | Enabled on first login  |
 
 The current academic year is calculated automatically. For example, a run in September 2026 creates active year `2026-2027`, with dates `2026-06-01` through `2027-03-31`. A run from January through May uses the previous year's academic-year label. Existing active years from an older cycle are closed when a new current year is created.
 
@@ -113,25 +113,25 @@ The values can be customized through `MINIMAL_ROOT_ADMIN_NAME`, `MINIMAL_ROOT_AD
 
 Default seeded login accounts:
 
-| Role | Email | Password | Notes |
-| --- | --- | --- | --- |
-| Root admin | `root.admin@sample.com` | `sample` | Root administrator |
-| Admin | `test@example.com` | `password` | Test admin |
-| Admin | `jeromebernante@gmail.com` | `1234` | Demo/dev admin |
-| Admin | `vallecera@gmail.com` | `sample` | Demo/dev admin |
-| Admin | `admin@gmail.com` | `password` | Standard admin |
-| Instructor | `instructor@sample.com` | `sample` | RFID `RFID-INSTRUCTOR-SAMPLE` |
-| Clinic | `clinic@sample.com` | `sample` | Clinic staff |
-| Clinic responder | `clinic.responder@sample.com` | `sample` | Assignable Clinic responder |
-| Registrar | `registrar@sample.com` | `sample` | Registrar staff |
-| Console | `comlab1@example.com` | `1234` | COMLAB 1 panel account |
-| Console | `comlab2@example.com` | `1234` | COMLAB 2 panel account |
-| Console | `comlab3@example.com` | `1234` | COMLAB 3 panel account |
-| Console | `comlab4@example.com` | `1234` | COMLAB 4 panel account |
-| Console | `comlab5@example.com` | `1234` | COMLAB 5 panel account |
-| Student | `andrea.santos@student.sample.com` | `sample` | Andrea Santos |
-| Student | `miguel.reyes@student.sample.com` | `sample` | Miguel Reyes |
-| Parent | `parent.andrea.santos@sample.com` | `sample` | Linked to Andrea Santos |
+| Role             | Email                              | Password   | Notes                         |
+| ---------------- | ---------------------------------- | ---------- | ----------------------------- |
+| Root admin       | `root.admin@sample.com`            | `sample`   | Root administrator            |
+| Admin            | `test@example.com`                 | `password` | Test admin                    |
+| Admin            | `jeromebernante@gmail.com`         | `1234`     | Demo/dev admin                |
+| Admin            | `vallecera@gmail.com`              | `sample`   | Demo/dev admin                |
+| Admin            | `admin@gmail.com`                  | `password` | Standard admin                |
+| Instructor       | `instructor@sample.com`            | `sample`   | RFID `RFID-INSTRUCTOR-SAMPLE` |
+| Clinic           | `clinic@sample.com`                | `sample`   | Clinic staff                  |
+| Clinic responder | `clinic.responder@sample.com`      | `sample`   | Assignable Clinic responder   |
+| Registrar        | `registrar@sample.com`             | `sample`   | Registrar staff               |
+| Console          | `comlab1@example.com`              | `1234`     | COMLAB 1 panel account        |
+| Console          | `comlab2@example.com`              | `1234`     | COMLAB 2 panel account        |
+| Console          | `comlab3@example.com`              | `1234`     | COMLAB 3 panel account        |
+| Console          | `comlab4@example.com`              | `1234`     | COMLAB 4 panel account        |
+| Console          | `comlab5@example.com`              | `1234`     | COMLAB 5 panel account        |
+| Student          | `andrea.santos@student.sample.com` | `sample`   | Andrea Santos                 |
+| Student          | `miguel.reyes@student.sample.com`  | `sample`   | Miguel Reyes                  |
+| Parent           | `parent.andrea.santos@sample.com`  | `sample`   | Linked to Andrea Santos       |
 
 ## Initial Configuration Flow
 
@@ -174,6 +174,7 @@ Admin routes under `/admin` cover:
 - Strands, sections, subjects, schedules, and laboratories.
 
 Laboratory and panel ownership is defined in [Laboratories and Devices](LABORATORIES_AND_DEVICES.md): laboratories own physical room information, while assigned devices own their label, PIN, enabled state, live logout, and device lifecycle.
+
 - Inventory, items, borrowing, returned items, and availability.
 - Active devices and attendance panel access controls.
 - System settings.

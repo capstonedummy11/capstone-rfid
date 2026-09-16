@@ -6,12 +6,12 @@ This is the canonical reference for emergency alerts sent from the Attendance Co
 
 ## 1. Roles
 
-| Role | Responsibility |
-|---|---|
-| Instructor | Starts the emergency request from the active Attendance Control Panel session. |
-| Console | Provides the authenticated room-bound panel session. |
-| Clinic user | Reviews the alert, selects a responder, dispatches the response, and maintains records. |
-| Clinic responder | Proceeds to the location and handles the assigned Clinic Case. |
+| Role             | Responsibility                                                                          |
+| ---------------- | --------------------------------------------------------------------------------------- |
+| Instructor       | Starts the emergency request from the active Attendance Control Panel session.          |
+| Console          | Provides the authenticated room-bound panel session.                                    |
+| Clinic user      | Reviews the alert, selects a responder, dispatches the response, and maintains records. |
+| Clinic responder | Proceeds to the location and handles the assigned Clinic Case.                          |
 
 ## 2. Complete Emergency Sequence
 
@@ -19,13 +19,13 @@ This is the canonical reference for emergency alerts sent from the Attendance Co
 2. The instructor selects **Emergency Call**.
 3. The instructor selects the emergency type.
 4. The system resolves the hotline before opening the assistance/details modal:
-   - One matching active hotline is selected automatically.
-   - Multiple matching active hotlines open a filtered selection prompt.
-   - **Cancel** from the multiple-hotline prompt cancels the entire emergency request.
-   - No matching hotline opens a warning. The instructor may continue without hotline SMS or cancel.
+    - One matching active hotline is selected automatically.
+    - Multiple matching active hotlines open a filtered selection prompt.
+    - **Cancel** from the multiple-hotline prompt cancels the entire emergency request.
+    - No matching hotline opens a warning. The instructor may continue without hotline SMS or cancel.
 5. The system determines the information branch:
-   - **Fire/disaster:** automatically uses **Everyone / area-wide** and skips student identification.
-   - **Other emergency:** opens one **Who needs assistance?** modal.
+    - **Fire/disaster:** automatically uses **Everyone / area-wide** and skips student identification.
+    - **Other emergency:** opens one **Who needs assistance?** modal.
 6. The instructor reviews the emergency information and advances to final confirmation.
 7. The final confirmation modal starts a five-second countdown.
 8. Unless cancelled, the system saves the in-app alert and attempts hotline SMS when configured.
@@ -186,11 +186,11 @@ flowchart TD
 
 ## 7. Clinic Case Creation Rules
 
-| Alert scope | Clinic Case result |
-|---|---|
-| One selected student | One case linked to that student |
+| Alert scope                | Clinic Case result                           |
+| -------------------------- | -------------------------------------------- |
+| One selected student       | One case linked to that student              |
 | Multiple selected students | One separate case for every selected student |
-| Everyone / area-wide | One generic incident case |
+| Everyone / area-wide       | One generic incident case                    |
 
 The generic area-wide case uses:
 
@@ -205,15 +205,15 @@ Symptoms/details: submitted incident details or default emergency message
 
 ## 8. Status and Timestamp Rules
 
-| State or field | Meaning |
-|---|---|
-| `open` | Alert is waiting in the Clinic queue. |
-| `acknowledged` | Clinic dispatched the current response workflow. |
-| `resolved` | Emergency response was completed. |
-| `cancelled` | Alert was dismissed or cancelled. |
-| `acknowledged_at` | Time the current Dispatch action acknowledged the alert. |
-| `dispatched_at` | Time the responder was dispatched. |
-| `response_seconds` | Seconds from alert creation to Dispatch. |
+| State or field     | Meaning                                                  |
+| ------------------ | -------------------------------------------------------- |
+| `open`             | Alert is waiting in the Clinic queue.                    |
+| `acknowledged`     | Clinic dispatched the current response workflow.         |
+| `resolved`         | Emergency response was completed.                        |
+| `cancelled`        | Alert was dismissed or cancelled.                        |
+| `acknowledged_at`  | Time the current Dispatch action acknowledged the alert. |
+| `dispatched_at`    | Time the responder was dispatched.                       |
+| `response_seconds` | Seconds from alert creation to Dispatch.                 |
 
 Current implementation note: acknowledgement and dispatch are recorded together when Clinic selects **Dispatch**. A separate acknowledgement-only action is not currently implemented.
 

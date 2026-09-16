@@ -34,10 +34,10 @@ If the alert cannot be linked to a student, the notification states that no link
 
 ## Seeded Clinic Accounts
 
-| Account | Email | Default password |
-|---|---|---|
-| Clinic Staff | `clinic@sample.com` | `sample` |
-| Clinic Responder | `clinic.responder@sample.com` | `sample` |
+| Account          | Email                         | Default password |
+| ---------------- | ----------------------------- | ---------------- |
+| Clinic Staff     | `clinic@sample.com`           | `sample`         |
+| Clinic Responder | `clinic.responder@sample.com` | `sample`         |
 
 These development passwords must be changed according to [Authentication and Password Rules](AUTHENTICATION_PASSWORD_RULES.md).
 

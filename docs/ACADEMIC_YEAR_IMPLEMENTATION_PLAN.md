@@ -110,18 +110,18 @@ Record existing failures separately so they are not confused with academic-year 
 
 Recommended fields:
 
-| Field | Purpose |
-|---|---|
-| `academic_year_id` | Primary key |
-| `name` | Unique label such as `2026-2027` |
-| `starts_on` | First calendar date |
-| `ends_on` | Last calendar date |
-| `status` | `draft`, `active`, `closed`, or `archived` |
-| `active_semester` | Optional current semester |
-| `activated_at` / `activated_by_user_id` | Activation audit |
-| `closed_at` / `closed_by_user_id` | Closure audit |
-| `reopened_at` / `reopened_by_user_id` | Exceptional reopening audit |
-| timestamps | Creation/update audit |
+| Field                                   | Purpose                                    |
+| --------------------------------------- | ------------------------------------------ |
+| `academic_year_id`                      | Primary key                                |
+| `name`                                  | Unique label such as `2026-2027`           |
+| `starts_on`                             | First calendar date                        |
+| `ends_on`                               | Last calendar date                         |
+| `status`                                | `draft`, `active`, `closed`, or `archived` |
+| `active_semester`                       | Optional current semester                  |
+| `activated_at` / `activated_by_user_id` | Activation audit                           |
+| `closed_at` / `closed_by_user_id`       | Closure audit                              |
+| `reopened_at` / `reopened_by_user_id`   | Exceptional reopening audit                |
+| timestamps                              | Creation/update audit                      |
 
 Enforce only one active year. Because database engines differ in partial-index support, enforce this in a transaction and application service even if a database constraint is also available.
 
@@ -175,18 +175,18 @@ Test that:
 
 Recommended fields:
 
-| Field | Purpose |
-|---|---|
-| `student_enrollment_id` | Primary key |
-| `student_id` | Permanent student identity |
-| `academic_year_id` | Academic year |
-| `section_id` | Placement for this enrollment |
-| `strand_id` | Strand at this time |
-| `year_level` | Grade level at this time |
-| `semester` | Semester/term |
-| `status` | `enrolled`, `promoted`, `retained`, `graduated`, `dropped`, `transferred`, etc. |
-| `enrolled_at` / `ended_at` | Enrollment period timestamps |
-| timestamps | Audit fields |
+| Field                      | Purpose                                                                         |
+| -------------------------- | ------------------------------------------------------------------------------- |
+| `student_enrollment_id`    | Primary key                                                                     |
+| `student_id`               | Permanent student identity                                                      |
+| `academic_year_id`         | Academic year                                                                   |
+| `section_id`               | Placement for this enrollment                                                   |
+| `strand_id`                | Strand at this time                                                             |
+| `year_level`               | Grade level at this time                                                        |
+| `semester`                 | Semester/term                                                                   |
+| `status`                   | `enrolled`, `promoted`, `retained`, `graduated`, `dropped`, `transferred`, etc. |
+| `enrolled_at` / `ended_at` | Enrollment period timestamps                                                    |
+| timestamps                 | Audit fields                                                                    |
 
 Start with a uniqueness rule such as:
 

@@ -6,16 +6,16 @@ This is the canonical reference for system roles, their responsibilities, availa
 
 ## Role Summary
 
-| Role | Main purpose | Login entry |
-|---|---|---|
-| Root Admin | Owns the system and manages privileged administrator accounts | Secure staff login |
-| Admin | Configures and supervises school operations | Secure staff login |
-| Instructor | Operates assigned classes and reviews assigned students | Secure staff login |
-| Registrar | Enrolls student RFID and biometric identity records | Secure staff login |
-| Clinic | Responds to emergencies and maintains clinic records | Secure staff login |
-| Console | Runs the physical attendance control panel | Attendance Panel login |
-| Student | Uses the student self-service portal | Student/Parent login |
-| Parent | Reviews and acts for linked students | Student/Parent login |
+| Role       | Main purpose                                                  | Login entry            |
+| ---------- | ------------------------------------------------------------- | ---------------------- |
+| Root Admin | Owns the system and manages privileged administrator accounts | Secure staff login     |
+| Admin      | Configures and supervises school operations                   | Secure staff login     |
+| Instructor | Operates assigned classes and reviews assigned students       | Secure staff login     |
+| Registrar  | Enrolls student RFID and biometric identity records           | Secure staff login     |
+| Clinic     | Responds to emergencies and maintains clinic records          | Secure staff login     |
+| Console    | Runs the physical attendance control panel                    | Attendance Panel login |
+| Student    | Uses the student self-service portal                          | Student/Parent login   |
+| Parent     | Reviews and acts for linked students                          | Student/Parent login   |
 
 All roles except Console support email password recovery. Newly created non-Console accounts must replace their temporary password before proceeding. See [Authentication and Password Rules](AUTHENTICATION_PASSWORD_RULES.md).
 
@@ -198,9 +198,7 @@ Dispatch:
 7. Shows the case in the responder's **My Dispatch Assignments** panel.
 8. Records the assignment and sets the case to Monitoring.
 
-The exact assignment and notification rules are defined in [Clinic Dispatch Assignment](CLINIC_DISPATCH.md).
-6. Writes an activity log.
-7. Removes the alert from the active Open queue.
+The exact assignment and notification rules are defined in [Clinic Dispatch Assignment](CLINIC_DISPATCH.md). 6. Writes an activity log. 7. Removes the alert from the active Open queue.
 
 Dispatch is an internal workflow. It does not automatically call emergency services. Live SMS depends on a configured hotline and working external SMS provider.
 

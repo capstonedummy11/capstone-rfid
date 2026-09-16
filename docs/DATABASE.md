@@ -86,6 +86,7 @@ Clinic and emergency tables:
 - `clinic_cases` - clinic case logs.
 
 Emergency response metrics are stored on `emergency_alerts` as `acknowledged_at`, `dispatched_at`, and `response_seconds`. Multi-student alerts retain their selected students in metadata and create one linked `clinic_cases` row per student when dispatched.
+
 - `patient_histories` - patient history records.
 
 Messaging and portal tables:
@@ -336,17 +337,17 @@ Other available seeders not called by default:
 
 `UserSeeder` creates base staff accounts:
 
-| Role | Email | Password | Notes |
-| --- | --- | --- | --- |
-| Root admin | `root.admin@sample.com` | `sample` | `is_root_admin = true` |
-| Admin | `test@example.com` | `password` | Test admin |
-| Admin | `jeromebernante@gmail.com` | `1234` | Dev admin |
-| Admin | `vallecera@gmail.com` | `sample` | Dev admin |
-| Admin | `admin@gmail.com` | `password` | Standard admin |
-| Instructor | `instructor@sample.com` | `sample` | RFID `RFID-INSTRUCTOR-SAMPLE` |
-| Clinic | `clinic@sample.com` | `sample` | Clinic staff |
-| Clinic responder | `clinic.responder@sample.com` | `sample` | Assignable Clinic responder |
-| Registrar | `registrar@sample.com` | `sample` | Registrar staff |
+| Role             | Email                         | Password   | Notes                         |
+| ---------------- | ----------------------------- | ---------- | ----------------------------- |
+| Root admin       | `root.admin@sample.com`       | `sample`   | `is_root_admin = true`        |
+| Admin            | `test@example.com`            | `password` | Test admin                    |
+| Admin            | `jeromebernante@gmail.com`    | `1234`     | Dev admin                     |
+| Admin            | `vallecera@gmail.com`         | `sample`   | Dev admin                     |
+| Admin            | `admin@gmail.com`             | `password` | Standard admin                |
+| Instructor       | `instructor@sample.com`       | `sample`   | RFID `RFID-INSTRUCTOR-SAMPLE` |
+| Clinic           | `clinic@sample.com`           | `sample`   | Clinic staff                  |
+| Clinic responder | `clinic.responder@sample.com` | `sample`   | Assignable Clinic responder   |
+| Registrar        | `registrar@sample.com`        | `sample`   | Registrar staff               |
 
 `EmergencySeeder` creates:
 
@@ -356,13 +357,13 @@ Other available seeders not called by default:
 
 `ComlabUserSeeder` creates console users:
 
-| Role | Email | Password |
-| --- | --- | --- |
-| Console | `comlab1@example.com` | `1234` |
-| Console | `comlab2@example.com` | `1234` |
-| Console | `comlab3@example.com` | `1234` |
-| Console | `comlab4@example.com` | `1234` |
-| Console | `comlab5@example.com` | `1234` |
+| Role    | Email                 | Password |
+| ------- | --------------------- | -------- |
+| Console | `comlab1@example.com` | `1234`   |
+| Console | `comlab2@example.com` | `1234`   |
+| Console | `comlab3@example.com` | `1234`   |
+| Console | `comlab4@example.com` | `1234`   |
+| Console | `comlab5@example.com` | `1234`   |
 
 `DemoSystemSeeder` creates broad demo data:
 
@@ -375,12 +376,12 @@ Other available seeders not called by default:
 - Schedules for the demo subjects/laboratories.
 - Students:
 
-| Student Number | Name | RFID |
-| --- | --- | --- |
-| `SHS-ICT-1101` | Andrea Santos | `RFID-STUDENT-1101` |
-| `SHS-ICT-1102` | Miguel Reyes | `RFID-STUDENT-1102` |
-| `SHS-ICT-1103` | Lara Cruz | `RFID-STUDENT-1103` |
-| `SHS-ICT-1201` | Rafael Garcia | `RFID-STUDENT-1201` |
+| Student Number | Name           | RFID                |
+| -------------- | -------------- | ------------------- |
+| `SHS-ICT-1101` | Andrea Santos  | `RFID-STUDENT-1101` |
+| `SHS-ICT-1102` | Miguel Reyes   | `RFID-STUDENT-1102` |
+| `SHS-ICT-1103` | Lara Cruz      | `RFID-STUDENT-1103` |
+| `SHS-ICT-1201` | Rafael Garcia  | `RFID-STUDENT-1201` |
 | `SHS-ICT-1202` | Nina Dela Cruz | `RFID-STUDENT-1202` |
 
 - Inventory items: USB Keyboard, Optical Mouse, HDMI Cable, Portable Projector, Laboratory Laptop, Web Camera, Ethernet Cable, RFID Reader.
@@ -390,11 +391,11 @@ Other available seeders not called by default:
 
 `StudentParentAccountSeeder` creates portal accounts:
 
-| Role | Email | Password | Link |
-| --- | --- | --- | --- |
-| Student | `andrea.santos@student.sample.com` | `sample` | Andrea Santos |
-| Student | `miguel.reyes@student.sample.com` | `sample` | Miguel Reyes |
-| Parent | `parent.andrea.santos@sample.com` | `sample` | Linked to Andrea Santos as mother |
+| Role    | Email                              | Password | Link                              |
+| ------- | ---------------------------------- | -------- | --------------------------------- |
+| Student | `andrea.santos@student.sample.com` | `sample` | Andrea Santos                     |
+| Student | `miguel.reyes@student.sample.com`  | `sample` | Miguel Reyes                      |
+| Parent  | `parent.andrea.santos@sample.com`  | `sample` | Linked to Andrea Santos as mother |
 
 If the demo students do not exist, it creates fallback ICT student records first.
 

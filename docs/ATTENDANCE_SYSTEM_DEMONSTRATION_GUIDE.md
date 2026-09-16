@@ -99,15 +99,15 @@ Open **Admin > User Management** at `/admin/users`.
 
 Create these minimum accounts:
 
-| Account | Role | Purpose |
-|---|---|---|
-| Secondary administrator | Admin | Daily configuration and management |
-| Registrar | Registrar | RFID and face enrollment |
-| Instructor | Instructor | Starts class, authorizes fallbacks and movement |
-| Attendance station | Console | Operates the room attendance panel |
-| Clinic responder | Clinic | Receives and manages emergency alerts |
-| Student portal user | Student | Views personal attendance and notifications |
-| Parent user, optional | Parent | Views linked-student information |
+| Account                 | Role       | Purpose                                         |
+| ----------------------- | ---------- | ----------------------------------------------- |
+| Secondary administrator | Admin      | Daily configuration and management              |
+| Registrar               | Registrar  | RFID and face enrollment                        |
+| Instructor              | Instructor | Starts class, authorizes fallbacks and movement |
+| Attendance station      | Console    | Operates the room attendance panel              |
+| Clinic responder        | Clinic     | Receives and manages emergency alerts           |
+| Student portal user     | Student    | Views personal attendance and notifications     |
+| Parent user, optional   | Parent     | Views linked-student information                |
 
 For each account:
 
@@ -260,17 +260,17 @@ Open `/admin/schedules`.
 
 Example:
 
-| Field | Demo value |
-|---|---|
-| Laboratory | Laboratory 1 |
-| Section | ICT 11-A |
-| Subject | Computer Programming 1 |
-| Instructor | Assigned demo instructor |
-| Weekday | Current day |
-| Start | 8:00 AM |
-| End | 10:00 AM |
-| Late boundary | 8:15 AM with a 15-minute threshold |
-| Normal checkout start | 9:45 AM |
+| Field                 | Demo value                         |
+| --------------------- | ---------------------------------- |
+| Laboratory            | Laboratory 1                       |
+| Section               | ICT 11-A                           |
+| Subject               | Computer Programming 1             |
+| Instructor            | Assigned demo instructor           |
+| Weekday               | Current day                        |
+| Start                 | 8:00 AM                            |
+| End                   | 10:00 AM                           |
+| Late boundary         | 8:15 AM with a 15-minute threshold |
+| Normal checkout start | 9:45 AM                            |
 
 **Critical checks:**
 
@@ -493,8 +493,8 @@ Example 3:
 Before official checkout:
 
 - Every pre-window, instructor-approved movement alternates room state:
-  - Inside -> Temporary Exit -> Outside
-  - Outside -> Temporary Return -> Inside
+    - Inside -> Temporary Exit -> Outside
+    - Outside -> Temporary Return -> Inside
 - A tap becomes official checkout once checkout timing, Dismiss Class, or an accepted fallback satisfies checkout rules.
 
 After official checkout:
@@ -512,31 +512,31 @@ After official checkout:
 
 ### 12.8 Invalid, rejected, and ignored taps
 
-| Situation | Result |
-|---|---|
-| Unknown/unassigned RFID | Rejected; student not found |
-| No active attendance session | Rejected |
-| Student is in another section | Rejected |
-| Year level mismatch | Rejected |
-| Missing/expired identity verification | Verification required |
+| Situation                                           | Result                                     |
+| --------------------------------------------------- | ------------------------------------------ |
+| Unknown/unassigned RFID                             | Rejected; student not found                |
+| No active attendance session                        | Rejected                                   |
+| Student is in another section                       | Rejected                                   |
+| Year level mismatch                                 | Rejected                                   |
+| Missing/expired identity verification               | Verification required                      |
 | Temporary movement without assigned instructor RFID | Authorization requested; no movement saved |
-| Dismiss Class tap without prior check-in | Invalid Tap |
-| Any tap after official checkout | Ignored Tap |
+| Dismiss Class tap without prior check-in            | Invalid Tap                                |
+| Any tap after official checkout                     | Ignored Tap                                |
 
 ### 12.9 Complete status and event reference
 
-| Label | Category | Exact meaning |
-|---|---|---|
-| Checked In | Panel response | First valid tap saved |
-| Pending | Attendance status | Check-in exists, active session, no official checkout |
-| Present | Final status | On-time check-in and official checkout |
-| Late | Final status | Late check-in and official checkout |
-| Incomplete Attendance | Display status | Ended session has check-in but no checkout |
-| Absent | Final/generated status | No check-in, or open record finalized as cutting |
-| Temporary Exit | Tap event | Authorized early movement from Inside to Outside |
-| Temporary Return | Tap event | Authorized early movement from Outside to Inside |
-| Invalid Tap | Tap outcome | Validation or logout-state rule failed |
-| Ignored Tap | Tap outcome | Attendance already has official checkout |
+| Label                 | Category               | Exact meaning                                         |
+| --------------------- | ---------------------- | ----------------------------------------------------- |
+| Checked In            | Panel response         | First valid tap saved                                 |
+| Pending               | Attendance status      | Check-in exists, active session, no official checkout |
+| Present               | Final status           | On-time check-in and official checkout                |
+| Late                  | Final status           | Late check-in and official checkout                   |
+| Incomplete Attendance | Display status         | Ended session has check-in but no checkout            |
+| Absent                | Final/generated status | No check-in, or open record finalized as cutting      |
+| Temporary Exit        | Tap event              | Authorized early movement from Inside to Outside      |
+| Temporary Return      | Tap event              | Authorized early movement from Outside to Inside      |
+| Invalid Tap           | Tap outcome            | Validation or logout-state rule failed                |
+| Ignored Tap           | Tap outcome            | Attendance already has official checkout              |
 
 ### 12.10 Tap decision flowchart
 
@@ -737,18 +737,18 @@ The alert can move through Open, Acknowledged, Resolved, or Cancelled.
 
 ## 16. Additional Feature Walkthrough
 
-| Feature | Demonstration |
-|---|---|
-| Notifications | Open `/student-parent/notifications`; read and mark a message as read |
-| Profile | Open staff `/settings/profile` or student/parent profile; update a permitted field |
-| Attendance history | Open student/parent attendance and review dates/statuses |
-| Reports | Filter `/reports` and export CSV |
-| Administrator dashboard | Review users, devices, academic setup, RFID, attendance, audit logs, and settings |
-| Activity logs | Show that sensitive operational actions are auditable |
-| RFID | Show enrolled student and instructor tags |
-| Face recognition | Demonstrate enrolled images and live verification when configured |
-| QR | State accurately that QR attendance is not implemented |
-| NFC | State accurately that no separate NFC workflow is implemented |
+| Feature                 | Demonstration                                                                      |
+| ----------------------- | ---------------------------------------------------------------------------------- |
+| Notifications           | Open `/student-parent/notifications`; read and mark a message as read              |
+| Profile                 | Open staff `/settings/profile` or student/parent profile; update a permitted field |
+| Attendance history      | Open student/parent attendance and review dates/statuses                           |
+| Reports                 | Filter `/reports` and export CSV                                                   |
+| Administrator dashboard | Review users, devices, academic setup, RFID, attendance, audit logs, and settings  |
+| Activity logs           | Show that sensitive operational actions are auditable                              |
+| RFID                    | Show enrolled student and instructor tags                                          |
+| Face recognition        | Demonstrate enrolled images and live verification when configured                  |
+| QR                      | State accurately that QR attendance is not implemented                             |
+| NFC                     | State accurately that no separate NFC workflow is implemented                      |
 
 ## 17. Presenter-Ready End-to-End Script
 

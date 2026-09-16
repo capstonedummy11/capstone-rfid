@@ -32,21 +32,21 @@ The command is defined in `composer.json` and explicitly runs the relevant featu
 
 ### Coverage map
 
-| Feature | Primary automated coverage |
-|---|---|
-| Instructor email OTP | `tests/Feature/Auth/AuthenticationTest.php` |
-| Parent and Instructor excuse-letter notifications | `tests/Feature/StudentParentPortalTest.php` |
-| Instructor Messenger text and generated PDF attachment | `tests/Feature/StudentParentPortalTest.php` |
-| Five-minute Messenger email cooldown per sender–recipient pair | `tests/Feature/StudentParentPortalTest.php` |
-| Standalone RFID navigation hidden and Forgot Password back-button context | `tests/Feature/RequestedFeatureUiWiringTest.php`, `tests/Feature/Auth/PasswordResetTest.php` |
-| Student Biometric Enrollment naming and separation | `tests/Feature/RequestedFeatureUiWiringTest.php`, `tests/Feature/RegistrarPortalTest.php` |
-| Instructor attendance status editing and configured date window | `tests/Feature/AttendancePanelVerificationTest.php`, `tests/Feature/SystemSettingsTest.php` |
-| Attendance subject selection, role scope, administrator browsing/editing, summaries, session drill-down, and PDF/XLSX exports | `tests/Feature/AttendancePanelVerificationTest.php` |
-| First-login password replacement | `tests/Feature/PasswordLifecycleTest.php` |
-| Admin student creation through student login and dashboard access | `tests/Feature/StudentAccountProvisioningTest.php` |
-| Forgot Password and password reset, with Console exclusion | `tests/Feature/PasswordLifecycleTest.php`, `tests/Feature/Auth/AuthenticationTest.php` |
-| Searchable autosuggestions in large Admin relationship fields | `tests/Feature/RequestedFeatureUiWiringTest.php` |
-| Clinic responder assignment, notification, history, and case ownership | `tests/Feature/ClinicFlowTest.php` |
+| Feature                                                                                                                       | Primary automated coverage                                                                   |
+| ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Instructor email OTP                                                                                                          | `tests/Feature/Auth/AuthenticationTest.php`                                                  |
+| Parent and Instructor excuse-letter notifications                                                                             | `tests/Feature/StudentParentPortalTest.php`                                                  |
+| Instructor Messenger text and generated PDF attachment                                                                        | `tests/Feature/StudentParentPortalTest.php`                                                  |
+| Five-minute Messenger email cooldown per sender–recipient pair                                                                | `tests/Feature/StudentParentPortalTest.php`                                                  |
+| Standalone RFID navigation hidden and Forgot Password back-button context                                                     | `tests/Feature/RequestedFeatureUiWiringTest.php`, `tests/Feature/Auth/PasswordResetTest.php` |
+| Student Biometric Enrollment naming and separation                                                                            | `tests/Feature/RequestedFeatureUiWiringTest.php`, `tests/Feature/RegistrarPortalTest.php`    |
+| Instructor attendance status editing and configured date window                                                               | `tests/Feature/AttendancePanelVerificationTest.php`, `tests/Feature/SystemSettingsTest.php`  |
+| Attendance subject selection, role scope, administrator browsing/editing, summaries, session drill-down, and PDF/XLSX exports | `tests/Feature/AttendancePanelVerificationTest.php`                                          |
+| First-login password replacement                                                                                              | `tests/Feature/PasswordLifecycleTest.php`                                                    |
+| Admin student creation through student login and dashboard access                                                             | `tests/Feature/StudentAccountProvisioningTest.php`                                           |
+| Forgot Password and password reset, with Console exclusion                                                                    | `tests/Feature/PasswordLifecycleTest.php`, `tests/Feature/Auth/AuthenticationTest.php`       |
+| Searchable autosuggestions in large Admin relationship fields                                                                 | `tests/Feature/RequestedFeatureUiWiringTest.php`                                             |
+| Clinic responder assignment, notification, history, and case ownership                                                        | `tests/Feature/ClinicFlowTest.php`                                                           |
 
 ## Full Backend Suite
 

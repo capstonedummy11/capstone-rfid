@@ -33,6 +33,7 @@ Then open: `http://127.0.0.1:8000`
 4. Start **MySQL**.
 
 Notes:
+
 - This project uses Laravel. PHP comes from XAMPP.
 - Apache is optional for this workflow, because `php artisan serve` can run the app.
 
@@ -140,6 +141,7 @@ npm run dev
 ```
 
 Open:
+
 - App: `http://127.0.0.1:8000`
 
 For automatic online-class absence finalization in production, keep Laravel's scheduler running. On a development machine, you can run this in another terminal:

@@ -417,22 +417,22 @@ The attendance panel follows strict rules so a tap does not become official atte
 
 #### Checkout And Dismiss Class Rules
 
-| Rule                           | Behavior                                                                                                                |
-| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| Checkout window                | The official checkout window starts 15 minutes before scheduled class end time.                                         |
-| Temporary movement disabled    | During the final checkout window, Temporary Exit and Temporary Return are disabled.                                     |
-| First checkout-window tap      | The first valid student tap inside the checkout window becomes official `Check-out`.                                    |
-| Room status after checkout     | The student room status becomes `Outside`.                                                                              |
-| Final present status           | On-time check-in plus official checkout becomes `Present`.                                                              |
-| Final late status              | Late check-in plus official checkout becomes `Late`.                                                                    |
-| Instructor Dismiss Class mode  | The active instructor can enable persistent class-wide checkout from the instructor action menu.                        |
-| Confirmation                   | A confirmation modal states that all checked-in student taps will be official checkout.                                 |
-| Checkout instead of check-in   | While active, every student tap is processed as a checkout attempt instead of a check-in attempt.                       |
-| Forced early checkout          | If the student already checked in, the tap becomes official `Check-out` even before the normal checkout window.         |
-| No prior check-in              | If the student never checked in, Dismiss Class does not create a check-in; it records `Invalid Tap`.                    |
-| Already checked out            | If official checkout already exists, the Dismiss Class tap is recorded as `Ignored Tap`.                               |
-| Persistent mode                | The mode remains active across all student taps.                                                                         |
-| Continue Class                 | A later instructor tap opens the action menu; choosing Continue Class disables Dismiss Class and restores normal rules. |
+| Rule                          | Behavior                                                                                                                |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Checkout window               | The official checkout window starts 15 minutes before scheduled class end time.                                         |
+| Temporary movement disabled   | During the final checkout window, Temporary Exit and Temporary Return are disabled.                                     |
+| First checkout-window tap     | The first valid student tap inside the checkout window becomes official `Check-out`.                                    |
+| Room status after checkout    | The student room status becomes `Outside`.                                                                              |
+| Final present status          | On-time check-in plus official checkout becomes `Present`.                                                              |
+| Final late status             | Late check-in plus official checkout becomes `Late`.                                                                    |
+| Instructor Dismiss Class mode | The active instructor can enable persistent class-wide checkout from the instructor action menu.                        |
+| Confirmation                  | A confirmation modal states that all checked-in student taps will be official checkout.                                 |
+| Checkout instead of check-in  | While active, every student tap is processed as a checkout attempt instead of a check-in attempt.                       |
+| Forced early checkout         | If the student already checked in, the tap becomes official `Check-out` even before the normal checkout window.         |
+| No prior check-in             | If the student never checked in, Dismiss Class does not create a check-in; it records `Invalid Tap`.                    |
+| Already checked out           | If official checkout already exists, the Dismiss Class tap is recorded as `Ignored Tap`.                                |
+| Persistent mode               | The mode remains active across all student taps.                                                                        |
+| Continue Class                | A later instructor tap opens the action menu; choosing Continue Class disables Dismiss Class and restores normal rules. |
 
 #### Duplicate, Incomplete, And Absent Rules
 

@@ -14,17 +14,17 @@ It is intended for:
 
 ## 1. Comparison of the Source Flows
 
-| Area | System Flow | Attendance Demonstration Guide | Reconciled use in this document |
-|---|---|---|---|
-| Starting state | Supports seeded or manually configured data | Assumes only `root.admin` exists | Start with `root.admin` and no operational data |
-| Scope | Whole application and technical architecture | Attendance-centered setup and presentation | Show full system, with attendance as the main operational journey |
-| Setup order | Settings, master data, users, enrollment, schedules | Users, settings, master data, people, schedules, enrollment | Create dependencies first, create schedule, then verify identity enrollment before operation |
-| Attendance detail | High-level check-in, movement, and checkout flow | Exact first, second, third, and later tap rules | Use the detailed state-based tap rules |
-| Portals | Student/parent, messages, online classes, letters, notifications | Attendance history and basic additional features | Demonstrate the complete portal after attendance |
-| Clinic | Emergency, cases, histories, hotlines, reports | Panel alert, SMS conditions, response workflow | Configure clinic first, then demonstrate the complete alert lifecycle |
-| Reports | Role-aware system-wide reporting | Attendance logs and CSV demonstration | Show operational logs first, then analytical reports |
-| Technical flow | Browser, Vue/Inertia, Laravel, models, database, services | Mostly user-facing actions | Include a short architecture explanation after the user journey |
-| Known limitations | Includes scheduling, notifications, and integration limitations | Includes QR/NFC and SMS cautions | Preserve all relevant limitations in the final presentation |
+| Area              | System Flow                                                      | Attendance Demonstration Guide                              | Reconciled use in this document                                                              |
+| ----------------- | ---------------------------------------------------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Starting state    | Supports seeded or manually configured data                      | Assumes only `root.admin` exists                            | Start with `root.admin` and no operational data                                              |
+| Scope             | Whole application and technical architecture                     | Attendance-centered setup and presentation                  | Show full system, with attendance as the main operational journey                            |
+| Setup order       | Settings, master data, users, enrollment, schedules              | Users, settings, master data, people, schedules, enrollment | Create dependencies first, create schedule, then verify identity enrollment before operation |
+| Attendance detail | High-level check-in, movement, and checkout flow                 | Exact first, second, third, and later tap rules             | Use the detailed state-based tap rules                                                       |
+| Portals           | Student/parent, messages, online classes, letters, notifications | Attendance history and basic additional features            | Demonstrate the complete portal after attendance                                             |
+| Clinic            | Emergency, cases, histories, hotlines, reports                   | Panel alert, SMS conditions, response workflow              | Configure clinic first, then demonstrate the complete alert lifecycle                        |
+| Reports           | Role-aware system-wide reporting                                 | Attendance logs and CSV demonstration                       | Show operational logs first, then analytical reports                                         |
+| Technical flow    | Browser, Vue/Inertia, Laravel, models, database, services        | Mostly user-facing actions                                  | Include a short architecture explanation after the user journey                              |
+| Known limitations | Includes scheduling, notifications, and integration limitations  | Includes QR/NFC and SMS cautions                            | Preserve all relevant limitations in the final presentation                                  |
 
 ## 2. Unified System Objective
 
@@ -75,16 +75,16 @@ flowchart TD
 
 ## 4. Roles and Entry Points
 
-| Role | Main destination | Responsibility |
-|---|---|---|
-| Root administrator | `/admin/dashboard` | System ownership and administrator account management |
-| Administrator | `/admin/dashboard` | Master data, users, schedules, devices, settings, logs, and reports |
-| Registrar | `/registrar/dashboard` | Student and instructor RFID/face enrollment |
-| Instructor | `/admin/dashboard` | Assigned classes, attendance scope, temporary movement, and checkout authorization |
-| Console | `/attendance-control-panel` | Physical room attendance operation |
-| Clinic | `/clinic/dashboard` | Emergency alerts, cases, patient histories, hotlines, and clinic reports |
-| Student | `/student-parent/dashboard` | Personal attendance, classes, letters, messages, notifications, and profile |
-| Parent | `/student-parent/dashboard` | Linked-student attendance, letters, messages, and related portal features |
+| Role               | Main destination            | Responsibility                                                                     |
+| ------------------ | --------------------------- | ---------------------------------------------------------------------------------- |
+| Root administrator | `/admin/dashboard`          | System ownership and administrator account management                              |
+| Administrator      | `/admin/dashboard`          | Master data, users, schedules, devices, settings, logs, and reports                |
+| Registrar          | `/registrar/dashboard`      | Student and instructor RFID/face enrollment                                        |
+| Instructor         | `/admin/dashboard`          | Assigned classes, attendance scope, temporary movement, and checkout authorization |
+| Console            | `/attendance-control-panel` | Physical room attendance operation                                                 |
+| Clinic             | `/clinic/dashboard`         | Emergency alerts, cases, patient histories, hotlines, and clinic reports           |
+| Student            | `/student-parent/dashboard` | Personal attendance, classes, letters, messages, notifications, and profile        |
+| Parent             | `/student-parent/dashboard` | Linked-student attendance, letters, messages, and related portal features          |
 
 Console accounts are restricted to the attendance panel and do not use Messenger or shared Reports.
 
@@ -392,19 +392,19 @@ An in-app emergency alert is saved even if SMS is unavailable.
 
 Do not start the demonstration until every item is checked:
 
-| Check | Required condition |
-|---|---|
-| Users | Admin, registrar, instructor, console, clinic, and student accounts exist |
-| Room | Active laboratory exists |
-| Academic data | Strand, section, and subject exist |
-| Instructor | Active profile linked to instructor user |
-| Student | Active record in scheduled section |
-| Schedule | Correct room, weekday, time, subject, section, and instructor |
-| Student RFID | Assigned and unique |
-| Instructor RFID | Assigned and belongs to scheduled instructor |
-| Verification | Face enrollment works or authorized fallback is prepared |
-| Panel | PIN and room access configured |
-| Emergency | Type, hotline, clinic dashboard, and sound configured |
+| Check           | Required condition                                                        |
+| --------------- | ------------------------------------------------------------------------- |
+| Users           | Admin, registrar, instructor, console, clinic, and student accounts exist |
+| Room            | Active laboratory exists                                                  |
+| Academic data   | Strand, section, and subject exist                                        |
+| Instructor      | Active profile linked to instructor user                                  |
+| Student         | Active record in scheduled section                                        |
+| Schedule        | Correct room, weekday, time, subject, section, and instructor             |
+| Student RFID    | Assigned and unique                                                       |
+| Instructor RFID | Assigned and belongs to scheduled instructor                              |
+| Verification    | Face enrollment works or authorized fallback is prepared                  |
+| Panel           | PIN and room access configured                                            |
+| Emergency       | Type, hotline, clinic dashboard, and sound configured                     |
 
 ## 14. Phase 9 — Start Daily Attendance
 
@@ -476,11 +476,11 @@ The first valid student tap:
 
 For an 8:00 AM start with a 15-minute late threshold:
 
-| First-tap time | Result |
-|---|---|
-| Before 8:00 AM | Early timestamp stored; on-time classification |
-| 8:00 AM through exactly 8:15 AM | On time |
-| Later than 8:15 AM | Late |
+| First-tap time                  | Result                                         |
+| ------------------------------- | ---------------------------------------------- |
+| Before 8:00 AM                  | Early timestamp stored; on-time classification |
+| 8:00 AM through exactly 8:15 AM | On time                                        |
+| Later than 8:15 AM              | Late                                           |
 
 There is no separate final Early Tap status.
 
@@ -488,14 +488,14 @@ There is no separate final Early Tap status.
 
 The second physical tap is evaluated by time, mode, verification method, and current attendance state.
 
-| Second-tap condition | Action | Attendance result |
-|---|---|---|
-| At or after 15 minutes before scheduled end | Official Check-out | Final Present or Late |
-| Before checkout window with instructor approval | Temporary Exit | Pending; Outside |
-| Before checkout window without instructor approval | Movement rejected | Unchanged |
-| Dismiss Class with prior check-in | Official Check-out | Final Present or Late |
-| Dismiss Class without prior check-in | Invalid Tap | No valid attendance |
-| Accepted configured verification fallback | May record official Check-out | Final Present or Late |
+| Second-tap condition                               | Action                        | Attendance result     |
+| -------------------------------------------------- | ----------------------------- | --------------------- |
+| At or after 15 minutes before scheduled end        | Official Check-out            | Final Present or Late |
+| Before checkout window with instructor approval    | Temporary Exit                | Pending; Outside      |
+| Before checkout window without instructor approval | Movement rejected             | Unchanged             |
+| Dismiss Class with prior check-in                  | Official Check-out            | Final Present or Late |
+| Dismiss Class without prior check-in               | Invalid Tap                   | No valid attendance   |
+| Accepted configured verification fallback          | May record official Check-out | Final Present or Late |
 
 The Late classification comes from the first tap and cannot be changed to Present by checking out.
 
@@ -559,34 +559,34 @@ After official checkout:
 
 ## 20. Missing and Invalid Tap Rules
 
-| Situation | System response |
-|---|---|
-| One check-in while class is active | Pending |
+| Situation                                   | System response                         |
+| ------------------------------------------- | --------------------------------------- |
+| One check-in while class is active          | Pending                                 |
 | Check-in without checkout after session end | Incomplete Attendance display may apply |
-| Panel explicitly finalizes an open record | Absent with `cutting` completion reason |
-| Eligible student never checks in | Generated Absent/No Tap record |
-| Unknown RFID | Student not found |
-| No active session | Tap rejected |
-| Wrong section | Tap rejected |
-| Year-level mismatch | Tap rejected |
-| Missing or expired verification | Verification required |
-| Unauthorized temporary movement | Instructor authorization requested |
-| Tap after official checkout | Ignored Tap |
+| Panel explicitly finalizes an open record   | Absent with `cutting` completion reason |
+| Eligible student never checks in            | Generated Absent/No Tap record          |
+| Unknown RFID                                | Student not found                       |
+| No active session                           | Tap rejected                            |
+| Wrong section                               | Tap rejected                            |
+| Year-level mismatch                         | Tap rejected                            |
+| Missing or expired verification             | Verification required                   |
+| Unauthorized temporary movement             | Instructor authorization requested      |
+| Tap after official checkout                 | Ignored Tap                             |
 
 ## 21. Attendance Status and Event Reference
 
-| Label | Type | Meaning |
-|---|---|---|
-| Checked In | Panel response | First accepted tap saved |
-| Pending | Attendance status | Check-in exists, class active, no checkout |
-| Present | Final status | On-time check-in and official checkout |
-| Late | Final status | Late check-in and official checkout |
-| Incomplete Attendance | Display status | Ended session has check-in but no checkout |
-| Absent | Final/generated status | No check-in or open record finalized as cutting |
-| Temporary Exit | Tap event | Authorized early movement from Inside to Outside |
-| Temporary Return | Tap event | Authorized early movement from Outside to Inside |
-| Invalid Tap | Tap outcome | Requested action failed a validation/state rule |
-| Ignored Tap | Tap outcome | Official checkout already exists |
+| Label                 | Type                   | Meaning                                          |
+| --------------------- | ---------------------- | ------------------------------------------------ |
+| Checked In            | Panel response         | First accepted tap saved                         |
+| Pending               | Attendance status      | Check-in exists, class active, no checkout       |
+| Present               | Final status           | On-time check-in and official checkout           |
+| Late                  | Final status           | Late check-in and official checkout              |
+| Incomplete Attendance | Display status         | Ended session has check-in but no checkout       |
+| Absent                | Final/generated status | No check-in or open record finalized as cutting  |
+| Temporary Exit        | Tap event              | Authorized early movement from Inside to Outside |
+| Temporary Return      | Tap event              | Authorized early movement from Outside to Inside |
+| Invalid Tap           | Tap outcome            | Requested action failed a validation/state rule  |
+| Ignored Tap           | Tap outcome            | Official checkout already exists                 |
 
 ## 22. Live Attendance Scenario Sequence
 
@@ -872,19 +872,19 @@ flowchart TD
 
 ## 30. Presenter Recovery Guide
 
-| Problem | Check |
-|---|---|
-| No schedule on console | Room, weekday, current time, schedule status, instructor |
-| Instructor RFID rejected | RFID assignment and scheduled instructor |
-| Student rejected | RFID, active status, section, year level, verification |
-| Second tap becomes Temporary Exit | Current time is before checkout window |
-| Attendance remains Pending | Official checkout does not exist |
-| Third tap becomes Temporary Return | Student was Outside and checkout rule was not satisfied |
-| Extra taps appear | They are Ignored Tap audit events after completion |
-| Face verification unavailable | Use approved instructor fallback |
-| No clinic sound | Click or press a key on clinic dashboard |
-| SMS fails | Verify provider configuration, hotline, SMS flag, and number |
-| Report appears empty | Verify date filter, role scope, and operational records |
+| Problem                            | Check                                                        |
+| ---------------------------------- | ------------------------------------------------------------ |
+| No schedule on console             | Room, weekday, current time, schedule status, instructor     |
+| Instructor RFID rejected           | RFID assignment and scheduled instructor                     |
+| Student rejected                   | RFID, active status, section, year level, verification       |
+| Second tap becomes Temporary Exit  | Current time is before checkout window                       |
+| Attendance remains Pending         | Official checkout does not exist                             |
+| Third tap becomes Temporary Return | Student was Outside and checkout rule was not satisfied      |
+| Extra taps appear                  | They are Ignored Tap audit events after completion           |
+| Face verification unavailable      | Use approved instructor fallback                             |
+| No clinic sound                    | Click or press a key on clinic dashboard                     |
+| SMS fails                          | Verify provider configuration, hotline, SMS flag, and number |
+| Report appears empty               | Verify date filter, role scope, and operational records      |
 
 ## 31. Known Limitations to State Accurately
 
