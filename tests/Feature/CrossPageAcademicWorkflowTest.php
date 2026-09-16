@@ -25,6 +25,72 @@ beforeEach(function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
 });
 
+test('admin can create a strand entity and reuse it on connected pages', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+
+    $this->actingAs($admin)
+        ->post(route('admin.strands.store'), [
+            'strand_code' => 'ENT',
+            'strand_name' => 'Entity Creation Strand',
+            'department' => 'SHS',
+            'status' => 'active',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    $this->assertDatabaseHas('strands', [
+        'strand_code' => 'ENT',
+        'strand_name' => 'Entity Creation Strand',
+        'department' => 'SHS',
+        'status' => 'active',
+    ]);
+
+    $strand = Strand::query()->where('strand_code', 'ENT')->firstOrFail();
+
+    $this->actingAs($admin)
+        ->get(route('admin.strands.index', ['search' => 'ENT']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Auth/Admin/Strands')
+            ->has('strands', 1)
+            ->where('strands.0.strand_code', 'ENT')
+            ->where('strands.0.strand_name', 'Entity Creation Strand')
+        );
+
+    $this->actingAs($admin)
+        ->get(route('admin.sections.index', ['strand' => $strand->strand_id]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Auth/Admin/Sections')
+            ->has('strandOptions', 1)
+            ->where('strandOptions.0.strand_id', $strand->strand_id)
+            ->where('strandOptions.0.strand_code', 'ENT')
+            ->where('strandOptions.0.strand_name', 'Entity Creation Strand')
+        );
+
+    $this->actingAs($admin)
+        ->get(route('admin.students.index', ['strand' => $strand->strand_id]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Auth/Admin/Students')
+            ->has('strandOptions', 1)
+            ->where('strandOptions.0.strand_id', $strand->strand_id)
+            ->where('strandOptions.0.strand_code', 'ENT')
+            ->where('strandOptions.0.strand_name', 'Entity Creation Strand')
+        );
+
+    $this->actingAs($admin)
+        ->get(route('admin.instructors.index', ['strand' => 'ENT']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Auth/Admin/Instructors')
+            ->has('strands', 1)
+            ->where('strands.0.strand_id', $strand->strand_id)
+            ->where('strands.0.strand_code', 'ENT')
+            ->where('strands.0.strand_name', 'Entity Creation Strand')
+        );
+});
+
 test('admin-created academic setup data is reused across strand section student and subject pages', function () {
     $admin = User::factory()->create(['role' => 'admin']);
     $year = AcademicYear::query()->create([
@@ -238,6 +304,7 @@ test('instructor subject offering and schedule share the same academic context a
         ->with('user')
         ->where('instructor_number', 'TIS-INST-001')
         ->firstOrFail();
+    $instructor->user->update(['must_change_password' => false]);
 
     $this->actingAs($admin)
         ->get(route('admin.instructors.index', ['strand' => 'TIS']))
@@ -343,6 +410,7 @@ test('instructor subject offering and schedule share the same academic context a
         );
 
     $this->actingAs($instructor->user)
+        ->withSession(['instructor_verified' => true])
         ->get(route('admin.schedules.index', [
             'academic_year_id' => $year->academic_year_id,
             'semester' => '1st Semester',
@@ -420,6 +488,7 @@ test('admin managed clinic account is reused by clinic dashboard case logs and p
         ->assertSessionHas('success');
 
     $clinic = User::query()->where('email', 'clinic.cross.page@example.test')->firstOrFail();
+    $clinic->update(['must_change_password' => false]);
 
     $this->actingAs($root)
         ->get(route('admin.users.index'))
