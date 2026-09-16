@@ -22,6 +22,7 @@ Choose the document that matches your task:
 | Assign and respond to Clinic dispatches | [Clinic Dispatch Assignment](CLINIC_DISPATCH.md) |
 | Follow the complete emergency and Clinic response flow | [Emergency Alert and Clinic Response Flow](EMERGENCY_FLOW.md) |
 | Run automated tests and regression checks | [Testing and Regression Guide](TESTING.md) |
+| Test data shared across connected page workflows | [Cross-Page Workflow Testing](CROSS_PAGE_WORKFLOW_TESTING.md) |
 | Plan and implement academic-year lifecycle support | [Academic Year Implementation Plan](ACADEMIC_YEAR_IMPLEMENTATION_PLAN.md) |
 | Audit deprecated academic assignment fields and rollback safety | [Legacy Academic Dependency Audit](LEGACY_ACADEMIC_DEPENDENCY_AUDIT.md) |
 | Run final academic-year reconciliation and release checks | [Academic Year Final Verification](ACADEMIC_YEAR_FINAL_VERIFICATION.md) |
@@ -47,6 +48,7 @@ When several files discuss the same subject, use these as the source of truth:
 | Clinic responder selection, notifications, and assignment rules | [Clinic Dispatch Assignment](CLINIC_DISPATCH.md) | Summarize dispatch behavior in role, flow, and operator documents |
 | Emergency panel flow, scope, timers, hotlines, Clinic cases, and status charts | [Emergency Alert and Clinic Response Flow](EMERGENCY_FLOW.md) | Summarize emergency behavior in tutorials and demonstrations |
 | Test commands, regression coverage, and failure troubleshooting | [Testing and Regression Guide](TESTING.md) | Reference current verification results without duplicating commands |
+| Tests connecting data across multiple page requests | [Cross-Page Workflow Testing](CROSS_PAGE_WORKFLOW_TESTING.md) | Apply the workflow pattern while keeping individual tests isolated |
 | Demonstration structure and artifact selection | [Demonstration Documentation Map](DEMONSTRATION_DOCUMENTATION.md) | Supply a script, slide outline, or detailed rehearsal |
 
 If a summary conflicts with its canonical source, update the summary and follow the canonical source.
@@ -74,6 +76,8 @@ If a summary conflicts with its canonical source, update the summary and follow 
 - `capstone-rfid-system-presentation.pptx` — Rendered presentation artifact. Keep its claims aligned with the Markdown presentation and canonical sources.
 
 ### Setup and technical reference
+
+- [CROSS_PAGE_WORKFLOW_TESTING.md](CROSS_PAGE_WORKFLOW_TESTING.md) - Procedural guide for testing data produced on one page and consumed on another while preserving test isolation.
 
 - [CLINIC_DISPATCH.md](CLINIC_DISPATCH.md) — Canonical Clinic responder assignment, email notification, student-context, and case-ownership rules.
 - [EMERGENCY_FLOW.md](EMERGENCY_FLOW.md) — Canonical end-to-end emergency flow with hotline, scope, timer, Clinic Case, status, and Clinic response charts.

@@ -43,6 +43,7 @@ The command is defined in `composer.json` and explicitly runs the relevant featu
 | Instructor attendance status editing and configured date window | `tests/Feature/AttendancePanelVerificationTest.php`, `tests/Feature/SystemSettingsTest.php` |
 | Attendance subject selection, role scope, administrator browsing/editing, summaries, session drill-down, and PDF/XLSX exports | `tests/Feature/AttendancePanelVerificationTest.php` |
 | First-login password replacement | `tests/Feature/PasswordLifecycleTest.php` |
+| Admin student creation through student login and dashboard access | `tests/Feature/StudentAccountProvisioningTest.php` |
 | Forgot Password and password reset, with Console exclusion | `tests/Feature/PasswordLifecycleTest.php`, `tests/Feature/Auth/AuthenticationTest.php` |
 | Searchable autosuggestions in large Admin relationship fields | `tests/Feature/RequestedFeatureUiWiringTest.php` |
 | Clinic responder assignment, notification, history, and case ownership | `tests/Feature/ClinicFlowTest.php` |
@@ -111,6 +112,8 @@ composer test:lint
 - **Frontend build permission error on Windows:** retry from the repository root and ensure no process is locking the project or parent folder.
 
 ## Adding Coverage for Future Updates
+
+For workflows where one page creates data that another page consumes, follow [Cross-Page Workflow Testing](CROSS_PAGE_WORKFLOW_TESTING.md).
 
 1. Add or update a behavioral feature test near the affected module.
 2. Add the test file to `test:requested-features` in `composer.json` if it protects this checklist.
