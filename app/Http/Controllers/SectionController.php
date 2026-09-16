@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ActivityLog;
 use App\Models\AcademicYear;
+use App\Models\ActivityLog;
 use App\Models\Section;
 use App\Models\Strand;
+use App\Services\StudentEnrollmentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
-use App\Services\StudentEnrollmentService;
 use Inertia\Inertia;
 
 class SectionController
@@ -97,7 +97,7 @@ class SectionController
                 ->values(),
             'academicYearOptions' => AcademicYear::query()
                 ->orderByDesc('starts_on')
-                ->get(['academic_year_id', 'name', 'status'])
+                ->get(['academic_year_id', 'name', 'status', 'active_semester'])
                 ->values(),
             'activeAcademicYearId' => $defaultAcademicYear?->academic_year_id,
         ]);
@@ -131,7 +131,7 @@ class SectionController
         ]);
 
         $section = Section::create($validated + ['academic_year_id' => $academicYear->academic_year_id]);
-        $this->logActivity('create', 'sections', 'Created section ' . $section->section_name);
+        $this->logActivity('create', 'sections', 'Created section '.$section->section_name);
 
         return back()->with('success', 'Section added successfully.');
     }
@@ -177,7 +177,7 @@ class SectionController
         ]);
 
         $section->update($validated + ['academic_year_id' => $academicYear->academic_year_id]);
-        $this->logActivity('update', 'sections', 'Updated section ' . $section->section_name);
+        $this->logActivity('update', 'sections', 'Updated section '.$section->section_name);
 
         return back()->with('success', 'Section updated successfully.');
     }
@@ -194,7 +194,7 @@ class SectionController
         $sectionName = $section->section_name;
         $section->delete();
 
-        $this->logActivity('delete', 'sections', 'Deleted section ' . $sectionName);
+        $this->logActivity('delete', 'sections', 'Deleted section '.$sectionName);
 
         return back()->with('success', 'Section deleted successfully.');
     }

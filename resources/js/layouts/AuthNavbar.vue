@@ -75,6 +75,36 @@ const sections = [
                 route: route('admin.strands.index'),
                 roles: ['admin'],
             },
+            {
+                icon: Section,
+                text: 'Section',
+                route: route('admin.sections.index'),
+                roles: ['admin'],
+            },
+            {
+                icon: Instructor,
+                text: 'Instructor',
+                route: route('admin.instructors.index'),
+                roles: ['admin'],
+            },
+            {
+                icon: Graduation,
+                text: 'Subjects',
+                route: route('admin.subjects.index'),
+                roles: ['admin'],
+            },
+            {
+                icon: Instructor,
+                text: 'Students',
+                route: route('admin.students.index'),
+                roles: ['admin'],
+            },
+            {
+                icon: ShieldCheck,
+                text: 'User Management',
+                route: route('admin.users.index'),
+                roles: ['admin'],
+            },
         ],
     },
     {
@@ -88,27 +118,9 @@ const sections = [
             },
             {
                 icon: Instructor,
-                text: 'Instructor',
-                route: route('admin.instructors.index'),
-                roles: ['admin'],
-            },
-            {
-                icon: ShieldCheck,
-                text: 'User Management',
-                route: route('admin.users.index'),
-                roles: ['admin'],
-            },
-            {
-                icon: Instructor,
                 text: 'Students',
                 route: route('admin.students.index'),
-                roles: ['admin', 'instructor'],
-            },
-            {
-                icon: Section,
-                text: 'Section',
-                route: route('admin.sections.index'),
-                roles: ['admin'],
+                roles: ['instructor'],
             },
             {
                 icon: Attendance,
@@ -181,12 +193,6 @@ const sections = [
     {
         title: 'System',
         links: [
-            {
-                icon: Graduation,
-                text: 'Subjects',
-                route: route('admin.subjects.index'),
-                roles: ['admin'],
-            },
             {
                 icon: Borrowing,
                 text: 'Borrowing',

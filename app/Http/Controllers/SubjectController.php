@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ActivityLog;
 use App\Models\AcademicYear;
+use App\Models\ActivityLog;
 use App\Models\Instructor;
 use App\Models\Section;
 use App\Models\Subject;
@@ -31,6 +31,7 @@ class SubjectController
         if ($filters['semester'] === '' && $yearId) {
             $filters['semester'] = $selectedAcademicYear?->active_semester ?: '';
         }
+        $offeringAcademicYearIds = $this->writableOfferingAcademicYearIds();
 
         $query = Subject::query()->with(['section', 'user', 'offerings' => fn ($offerings) => $offerings
             ->when($yearId, fn ($yearQuery) => $yearQuery->where('academic_year_id', $yearId))
@@ -85,12 +86,14 @@ class SubjectController
             ])->values(),
             'filters' => $filters,
             'sectionOptions' => Section::query()
-                ->when($yearId, fn ($query) => $query->where('academic_year_id', $yearId))
-                ->when($filters['semester'] !== '', fn ($query) => $query->where('semester', $filters['semester']))
+                ->with('academicYear')
+                ->whereIn('academic_year_id', $offeringAcademicYearIds->all())
                 ->orderBy('section_name')
-                ->get(['section_id', 'section_name', 'year_level', 'semester', 'school_year'])
+                ->get(['section_id', 'section_name', 'year_level', 'semester', 'school_year', 'academic_year_id'])
                 ->map(fn (Section $section) => [
                     'section_id' => $section->section_id,
+                    'academic_year_id' => $section->academic_year_id,
+                    'academic_year_status' => $section->academicYear?->status,
                     'section_name' => $section->section_name,
                     'year_level' => $section->year_level,
                     'semester' => $section->semester,
@@ -129,7 +132,7 @@ class SubjectController
 
             return $subject;
         });
-        $this->log('create', 'subjects', 'Created subject ' . $subject->subject_code);
+        $this->log('create', 'subjects', 'Created subject '.$subject->subject_code);
 
         return back()->with('success', 'Subject added successfully.');
     }
@@ -145,7 +148,7 @@ class SubjectController
             'section_id' => 'nullable|exists:sections,section_id',
             'user_id' => 'nullable|exists:users,user_id',
             'subject_name' => 'required|string|max:255',
-            'subject_code' => 'required|string|max:255|unique:subjects,subject_code,' . $id . ',subject_id',
+            'subject_code' => 'required|string|max:255|unique:subjects,subject_code,'.$id.',subject_id',
             'subject_description' => 'nullable|string',
             'department' => 'nullable|string|max:255',
             'unit' => 'required|integer|min:0',
@@ -160,7 +163,7 @@ class SubjectController
             $subject->update(collect($validated)->except(['section_id', 'user_id', 'semester'])->all());
             $this->syncOfferingFromLegacyFields($subject, $validated);
         });
-        $this->log('update', 'subjects', 'Updated subject ' . $subject->subject_code);
+        $this->log('update', 'subjects', 'Updated subject '.$subject->subject_code);
 
         return back()->with('success', 'Subject updated successfully.');
     }
@@ -173,7 +176,7 @@ class SubjectController
         }
         $code = $subject->subject_code;
         $subject->delete();
-        $this->log('delete', 'subjects', 'Deleted subject ' . $code);
+        $this->log('delete', 'subjects', 'Deleted subject '.$code);
 
         return back()->with('success', 'Subject deleted successfully.');
     }
@@ -192,12 +195,11 @@ class SubjectController
             return back()->withErrors(['section_id' => 'Subject offerings can only be added to a draft or active academic year section.']);
         }
 
-        $currentAcademicYear = AcademicYear::currentOrLatest();
-        if (! $currentAcademicYear || (int) $section->academic_year_id !== (int) $currentAcademicYear->academic_year_id) {
-            return back()->withErrors(['section_id' => 'Subject offerings can only be added to the current academic year.']);
+        if (! $this->writableOfferingAcademicYearIds()->contains((int) $section->academic_year_id)) {
+            return back()->withErrors(['section_id' => 'Subject offerings can only be added to draft or active academic years.']);
         }
-        if ($currentAcademicYear->active_semester && ($section->semester !== $currentAcademicYear->active_semester || $validated['semester'] !== $currentAcademicYear->active_semester)) {
-            return back()->withErrors(['semester' => "Subject offerings can only be added for {$currentAcademicYear->active_semester}."]);
+        if ($validated['semester'] !== $section->semester) {
+            return back()->withErrors(['semester' => "Subject offerings for this section must use {$section->semester}."]);
         }
 
         $instructorId = $this->instructorIdForUser($validated['user_id'] ?? null);
@@ -271,11 +273,15 @@ class SubjectController
             ]);
         }
 
-        $currentAcademicYear = AcademicYear::currentOrLatest();
         $offeringSemester = $validated['semester'] ?: $section->semester;
-        if ($currentAcademicYear && ((int) $section->academic_year_id !== (int) $currentAcademicYear->academic_year_id || ($currentAcademicYear->active_semester && $offeringSemester !== $currentAcademicYear->active_semester))) {
+        if (! $this->writableOfferingAcademicYearIds()->contains((int) $section->academic_year_id)) {
             throw ValidationException::withMessages([
-                'semester' => 'Subject offerings must use the current academic year and its active semester.',
+                'section_id' => 'Subject offerings must use a draft or active academic year.',
+            ]);
+        }
+        if ($offeringSemester !== $section->semester) {
+            throw ValidationException::withMessages([
+                'semester' => "Subject offerings for this section must use {$section->semester}.",
             ]);
         }
 
@@ -300,6 +306,16 @@ class SubjectController
         }
 
         return Instructor::query()->where('user_id', $userId)->value('instructor_id');
+    }
+
+    private function writableOfferingAcademicYearIds()
+    {
+        return AcademicYear::query()
+            ->whereIn('status', [AcademicYear::STATUS_DRAFT, AcademicYear::STATUS_ACTIVE])
+            ->orderByDesc('starts_on')
+            ->pluck('academic_year_id')
+            ->map(fn ($id) => (int) $id)
+            ->values();
     }
 
     private function log(string $action, string $tableName, string $description): void

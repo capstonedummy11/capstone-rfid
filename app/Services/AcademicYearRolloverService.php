@@ -125,13 +125,18 @@ class AcademicYearRolloverService
                         'school_year' => $destination->name,
                         'updated_at' => now(),
                     ]);
-                    $status = 'completed'; $counts['enrolled']++;
-                    if ($decision === 'retain') $counts['retained']++;
+                    $status = 'completed';
+                    $counts['enrolled']++;
+                    if ($decision === 'retain') {
+                        $counts['retained']++;
+                    }
                 } elseif ($decision === 'graduated') {
                     DB::table('students')->where('student_id', $previewItem['student_id'])->update(['status' => 'graduated', 'updated_at' => now()]);
-                    $status = 'completed'; $counts['archived']++;
+                    $status = 'completed';
+                    $counts['archived']++;
                 } else {
-                    $message = 'No destination enrollment created.'; $counts['skipped']++;
+                    $message = 'No destination enrollment created.';
+                    $counts['skipped']++;
                 }
 
                 DB::table('academic_year_rollover_items')->updateOrInsert(
@@ -151,6 +156,7 @@ class AcademicYearRolloverService
             $rollover->update(['status' => 'completed', 'execution_counts' => $counts, 'completed_at' => now()]);
             DB::table('activity_logs')->insert(['user_id' => $actor->user_id, 'action' => 'academic_year_rollover_completed', 'table_name' => 'academic_year_rollovers',
                 'description' => "Completed rollover from {$source->name} to {$destination->name}.", 'created_at' => now()]);
+
             return $rollover->fresh('items');
         });
     }
@@ -161,7 +167,9 @@ class AcademicYearRolloverService
         $transition = $this->transition($source, DB::table('student_enrollments')->where('academic_year_id', $source->academic_year_id)->get(), $mode, $destinationSemester);
         foreach ($mappings as $mapping) {
             $sourceSection = DB::table('sections')->where('section_id', $mapping['source_section_id'])->where('academic_year_id', $source->academic_year_id)->first();
-            if (! $sourceSection) continue;
+            if (! $sourceSection) {
+                continue;
+            }
             $destinationId = $mapping['destination_section_id'] ?? null;
             if (! $destinationId && ! empty($mapping['destination_name'])) {
                 $destinationYearLevel = (int) ($mapping['destination_year_level'] ?? ($transition['advance_grade'] && (int) $sourceSection->year_level === 11 ? 12 : $sourceSection->year_level));
@@ -181,6 +189,7 @@ class AcademicYearRolloverService
                 $map[$sourceSection->section_id] = (int) $destinationId;
             }
         }
+
         return $map;
     }
 
@@ -189,7 +198,9 @@ class AcademicYearRolloverService
         $offeringMap = [];
         $destinationSemester = $this->transition($source, DB::table('student_enrollments')->where('academic_year_id', $source->academic_year_id)->get())['destination_semester'];
         foreach (DB::table('subject_offerings')->where('academic_year_id', $source->academic_year_id)->get() as $offering) {
-            if (! isset($sectionMap[$offering->section_id])) continue;
+            if (! isset($sectionMap[$offering->section_id])) {
+                continue;
+            }
             $targetId = DB::table('subject_offerings')->where('academic_year_id', $destination->academic_year_id)->where('semester', $destinationSemester)
                 ->where('section_id', $sectionMap[$offering->section_id])->where('subject_id', $offering->subject_id)->value('subject_offering_id');
             $targetId ??= DB::table('subject_offerings')->insertGetId(['academic_year_id' => $destination->academic_year_id, 'subject_id' => $offering->subject_id,
@@ -197,13 +208,16 @@ class AcademicYearRolloverService
             $offeringMap[$offering->subject_offering_id] = $targetId;
         }
         foreach (DB::table('schedules')->where('academic_year_id', $source->academic_year_id)->get() as $schedule) {
-            if (! isset($sectionMap[$schedule->section_id]) || ! isset($offeringMap[$schedule->subject_offering_id])) continue;
+            if (! isset($sectionMap[$schedule->section_id]) || ! isset($offeringMap[$schedule->subject_offering_id])) {
+                continue;
+            }
             DB::table('schedules')->updateOrInsert([
                 'academic_year_id' => $destination->academic_year_id, 'subject_offering_id' => $offeringMap[$schedule->subject_offering_id],
                 'weekdays' => $schedule->weekdays, 'time_start' => $schedule->time_start,
             ], ['laboratory_id' => $schedule->laboratory_id, 'instructor_id' => null, 'section_id' => $sectionMap[$schedule->section_id],
                 'subject_code' => $schedule->subject_code, 'semester' => $destinationSemester, 'time_end' => $schedule->time_end, 'room' => $schedule->room]);
         }
+
         return $offeringMap;
     }
 
@@ -214,6 +228,7 @@ class AcademicYearRolloverService
             if ($currentSemester !== '1st Semester' || $destinationSemester !== '2nd Semester') {
                 throw ValidationException::withMessages(['destination_semester' => 'Semester rollover is only available from 1st Semester to 2nd Semester.']);
             }
+
             return [
                 'current_semester' => $currentSemester,
                 'destination_semester' => $destinationSemester,
@@ -221,11 +236,12 @@ class AcademicYearRolloverService
                 'description' => "{$currentSemester} → {$destinationSemester}: students remain in the same grade and academic year.",
             ];
         }
+
         return [
             'current_semester' => $currentSemester,
-            'destination_semester' => '2nd Semester',
+            'destination_semester' => '1st Semester',
             'advance_grade' => true,
-            'description' => 'Year rollover: Grade 11 advances to Grade 12, while Grade 12 is archived unless retained for failure or review.',
+            'description' => 'Academic rollover: 2nd Semester advances to 1st Semester of the destination academic year. Grade 11 advances to Grade 12, while Grade 12 is archived unless retained for failure or review.',
         ];
     }
 
@@ -235,6 +251,7 @@ class AcademicYearRolloverService
             if (! $source->is($destination) || ! in_array($source->status, [AcademicYear::STATUS_ACTIVE, AcademicYear::STATUS_DRAFT], true)) {
                 throw ValidationException::withMessages(['rollover' => 'Semester rollover must use the same active or draft academic year.']);
             }
+
             return;
         }
         if ($source->is($destination) || $destination->status !== AcademicYear::STATUS_DRAFT || ! in_array($source->status, [AcademicYear::STATUS_ACTIVE, AcademicYear::STATUS_CLOSED], true)) {
