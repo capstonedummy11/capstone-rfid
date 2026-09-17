@@ -863,6 +863,20 @@ test('academic rollover is transactional idempotent and preserves source history
         ->and(Attendance::where('academic_year_id', $source->academic_year_id)->count())->toBe(1)
         ->and($destination->fresh()->active_semester)->toBe('1st Semester');
 
+    $this->actingAs($admin)
+        ->get(route('admin.students.index', [
+            'school_year' => 'all',
+            'status' => 'graduated',
+        ]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Auth/Admin/Students')
+            ->where('filters.school_year', 'all')
+            ->where('filters.status', 'graduated')
+            ->has('students', 1)
+            ->where('students.0.student_id', $graduatingStudent->student_id)
+            ->where('students.0.status', 'graduated'));
+
     app(AcademicYearService::class)->activate($destination, $admin);
     expect(AcademicYear::where('status', AcademicYear::STATUS_ACTIVE)->count())->toBe(1)
         ->and(Schedule::forActiveAcademicYear()->count())->toBe(0)

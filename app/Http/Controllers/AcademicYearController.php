@@ -3,13 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\AcademicYear;
-use App\Models\ActivityLog;
 use App\Models\AcademicYearRollover;
-use App\Services\AcademicYearService;
+use App\Models\ActivityLog;
 use App\Services\AcademicYearRolloverService;
+use App\Services\AcademicYearService;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class AcademicYearController
@@ -137,6 +137,7 @@ class AcademicYearController
             'mode' => ['nullable', Rule::in(['year', 'semester'])],
             'destination_semester' => ['nullable', Rule::in(['1st Semester', '2nd Semester'])],
         ]);
+
         return response()->json($this->rolloverService->preview(
             $academicYear,
             AcademicYear::findOrFail($validated['destination_academic_year_id']),
@@ -174,6 +175,7 @@ class AcademicYearController
             $validated['decisions'] ?? [], $validated['section_mappings'], $validated['mode'] ?? 'year', $validated['destination_semester'] ?? null,
             $validated['subject_selections'] ?? null,
         );
+
         return back()->with('success', "Rollover completed safely. {$rollover->items->where('status', 'completed')->count()} student decisions were applied.");
     }
 

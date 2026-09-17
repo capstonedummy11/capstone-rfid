@@ -94,6 +94,31 @@ const subjectSelections = ref([]);
 const studentDecisions = ref({});
 const selectedSectionStudents = ref(null);
 const rolloverConfigurationOpen = ref(false);
+const rolloverSubmitting = ref(false);
+
+const resetRolloverSelection = () => {
+    rolloverSourceId.value = '';
+    rolloverDestinationId.value = '';
+    rolloverMode.value = 'year';
+    destinationSemester.value = '2nd Semester';
+    preview.value = null;
+    sectionMappings.value = [];
+    subjectSelections.value = [];
+    studentDecisions.value = {};
+    selectedSectionStudents.value = null;
+    rolloverConfigurationOpen.value = false;
+};
+
+const firstRolloverError = (errors) => {
+    const firstError = Object.values(errors ?? {})
+        .flat()
+        .find(Boolean);
+
+    return (
+        firstError ||
+        'The rollover could not be completed. Review the selections and try again.'
+    );
+};
 
 const loadPreview = async () => {
     if (!rolloverSourceId.value || !rolloverDestinationId.value) return;
@@ -263,6 +288,22 @@ const executeRollover = async () => {
         })),
     }).post(route('admin.academic-years.rollover', rolloverSourceId.value), {
         preserveScroll: true,
+        onStart: () => {
+            rolloverSubmitting.value = true;
+        },
+        onSuccess: (page) => {
+            const message =
+                page.props.flash?.success ||
+                'Academic rollover completed successfully.';
+            resetRolloverSelection();
+            Swal.fire('Rollover completed', message, 'success');
+        },
+        onError: (errors) => {
+            Swal.fire('Rollover failed', firstRolloverError(errors), 'error');
+        },
+        onFinish: () => {
+            rolloverSubmitting.value = false;
+        },
     });
 };
 
@@ -1527,10 +1568,15 @@ watch(
                         </div>
                     </div>
                     <button
-                        class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white"
+                        class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        :disabled="rolloverSubmitting"
                         @click="executeRollover"
                     >
-                        Execute reviewed academic rollover
+                        {{
+                            rolloverSubmitting
+                                ? 'Executing academic rollover...'
+                                : 'Execute reviewed academic rollover'
+                        }}
                     </button>
                 </div>
 

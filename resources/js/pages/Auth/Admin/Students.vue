@@ -15,11 +15,26 @@
                             }}
                         </p>
                     </div>
-                    <div
-                        v-if="canManageStudents"
-                        class="flex items-center gap-2"
-                    >
+                    <div class="flex flex-wrap items-center gap-2">
                         <button
+                            type="button"
+                            class="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium transition"
+                            :class="
+                                viewingArchivedStudents
+                                    ? 'border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200'
+                                    : 'border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100'
+                            "
+                            @click="toggleArchivedStudents"
+                        >
+                            <Archive class="h-4 w-4" />
+                            {{
+                                viewingArchivedStudents
+                                    ? 'View All Students'
+                                    : 'Archived Students'
+                            }}
+                        </button>
+                        <button
+                            v-if="canManageStudents"
                             @click="openAddModal"
                             class="rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
                         >
@@ -126,10 +141,23 @@
                         </select>
                     </div>
                     <div>
-                        <label class="mb-1 block text-xs font-medium text-slate-600">Semester</label>
-                        <select v-model="selectedSemester" @change="onFilterChange" class="w-full rounded-md border border-slate-300 px-3 py-2">
+                        <label
+                            class="mb-1 block text-xs font-medium text-slate-600"
+                            >Semester</label
+                        >
+                        <select
+                            v-model="selectedSemester"
+                            @change="onFilterChange"
+                            class="w-full rounded-md border border-slate-300 px-3 py-2"
+                        >
                             <option value="">All Semesters</option>
-                            <option v-for="semester in semesterOptions" :key="semester" :value="semester">{{ semester }}</option>
+                            <option
+                                v-for="semester in semesterOptions"
+                                :key="semester"
+                                :value="semester"
+                            >
+                                {{ semester }}
+                            </option>
                         </select>
                     </div>
                     <div>
@@ -162,9 +190,9 @@
 
             <section class="rounded-lg bg-white p-6 shadow-lg">
                 <div class="overflow-x-auto">
-
-
-                    <table class="min-w-[1450px] w-full table-fixed border-collapse">
+                    <table
+                        class="w-full min-w-[1450px] table-fixed border-collapse"
+                    >
                         <thead>
                             <tr class="bg-gray-50">
                                 <th
@@ -236,31 +264,47 @@
                                 :key="student.student_id"
                                 class="hover:bg-gray-50"
                             >
-                                <td class="break-words border border-gray-300 px-3 py-3">
+                                <td
+                                    class="border border-gray-300 px-3 py-3 break-words"
+                                >
                                     {{ student.student_number }}
                                 </td>
-                                <td class="break-words border border-gray-300 px-3 py-3">
+                                <td
+                                    class="border border-gray-300 px-3 py-3 break-words"
+                                >
                                     {{ student.first_name }}
                                     {{ student.last_name }}
                                 </td>
-                                <td class="break-words border border-gray-300 px-3 py-3">
+                                <td
+                                    class="border border-gray-300 px-3 py-3 break-words"
+                                >
                                     {{ student.email }}
                                 </td>
-                                <td class="break-words border border-gray-300 px-3 py-3">
+                                <td
+                                    class="border border-gray-300 px-3 py-3 break-words"
+                                >
                                     <div class="font-medium">
                                         {{ student.strand_code ?? 'N/A' }}
                                     </div>
                                 </td>
-                                <td class="break-words border border-gray-300 px-3 py-3">
+                                <td
+                                    class="border border-gray-300 px-3 py-3 break-words"
+                                >
                                     {{ student.section_name ?? 'N/A' }}
                                 </td>
-                                <td class="break-words border border-gray-300 px-3 py-3">
+                                <td
+                                    class="border border-gray-300 px-3 py-3 break-words"
+                                >
                                     {{ student.year_level }}
                                 </td>
-                                <td class="break-words border border-gray-300 px-3 py-3">
+                                <td
+                                    class="border border-gray-300 px-3 py-3 break-words"
+                                >
                                     {{ student.school_year }}
                                 </td>
-                                <td class="break-words border border-gray-300 px-3 py-3">
+                                <td
+                                    class="border border-gray-300 px-3 py-3 break-words"
+                                >
                                     <span
                                         :class="statusClasses(student.status)"
                                         >{{
@@ -268,7 +312,9 @@
                                         }}</span
                                     >
                                 </td>
-                                <td class="break-words border border-gray-300 px-3 py-3">
+                                <td
+                                    class="border border-gray-300 px-3 py-3 break-words"
+                                >
                                     <span
                                         v-if="student.rfid_tag"
                                         class="text-green-600"
@@ -278,7 +324,9 @@
                                         >Not assigned</span
                                     >
                                 </td>
-                                <td class="break-words border border-gray-300 px-3 py-3">
+                                <td
+                                    class="border border-gray-300 px-3 py-3 break-words"
+                                >
                                     <div
                                         v-if="
                                             student.face_images &&
@@ -314,7 +362,9 @@
                                         >None</span
                                     >
                                 </td>
-                                <td class="break-words border border-gray-300 px-3 py-3">
+                                <td
+                                    class="border border-gray-300 px-3 py-3 break-words"
+                                >
                                     <div
                                         v-if="student.parents?.length"
                                         class="space-y-1"
@@ -343,9 +393,11 @@
                                 </td>
                                 <td
                                     v-if="canManageStudents"
-                                    class="break-words border border-gray-300 px-3 py-3"
+                                    class="border border-gray-300 px-3 py-3 break-words"
                                 >
-                                    <div class="flex flex-wrap items-center gap-2">
+                                    <div
+                                        class="flex flex-wrap items-center gap-2"
+                                    >
                                         <button
                                             type="button"
                                             @click="openEditModal(student)"
@@ -353,7 +405,10 @@
                                             class="group relative rounded-md bg-indigo-600 p-2 text-white hover:bg-indigo-700"
                                         >
                                             <Pencil class="h-4 w-4" />
-                                            <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100">Edit student</span>
+                                            <span
+                                                class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 rounded bg-slate-900 px-2 py-1 text-[11px] font-medium whitespace-nowrap text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100"
+                                                >Edit student</span
+                                            >
                                         </button>
                                         <button
                                             type="button"
@@ -362,16 +417,24 @@
                                             class="group relative rounded-md bg-emerald-600 p-2 text-white hover:bg-emerald-700"
                                         >
                                             <Users class="h-4 w-4" />
-                                            <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100">Manage parents</span>
+                                            <span
+                                                class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 rounded bg-slate-900 px-2 py-1 text-[11px] font-medium whitespace-nowrap text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100"
+                                                >Manage parents</span
+                                            >
                                         </button>
                                         <button
                                             type="button"
-                                            @click="openEnrollmentHistory(student)"
+                                            @click="
+                                                openEnrollmentHistory(student)
+                                            "
                                             aria-label="Enrollment history"
                                             class="group relative rounded-md bg-sky-600 p-2 text-white hover:bg-sky-700"
                                         >
                                             <History class="h-4 w-4" />
-                                            <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100">Enrollment history</span>
+                                            <span
+                                                class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 rounded bg-slate-900 px-2 py-1 text-[11px] font-medium whitespace-nowrap text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100"
+                                                >Enrollment history</span
+                                            >
                                         </button>
                                         <button
                                             type="button"
@@ -382,7 +445,10 @@
                                             class="group relative rounded-md bg-amber-500 p-2 text-white hover:bg-amber-600"
                                         >
                                             <KeyRound class="h-4 w-4" />
-                                            <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100">Reset password</span>
+                                            <span
+                                                class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 rounded bg-slate-900 px-2 py-1 text-[11px] font-medium whitespace-nowrap text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100"
+                                                >Reset password</span
+                                            >
                                         </button>
                                         <button
                                             type="button"
@@ -391,7 +457,10 @@
                                             class="group relative rounded-md bg-rose-500 p-2 text-white hover:bg-rose-600"
                                         >
                                             <Trash2 class="h-4 w-4" />
-                                            <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100">Delete student</span>
+                                            <span
+                                                class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 rounded bg-slate-900 px-2 py-1 text-[11px] font-medium whitespace-nowrap text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100"
+                                                >Delete student</span
+                                            >
                                         </button>
                                     </div>
                                 </td>
@@ -583,7 +652,13 @@
                                     class="w-full rounded-md border border-slate-300 px-3 py-2"
                                     required
                                 >
-                                    <option v-for="semester in (isEditing ? semesterOptions : enrollmentSemesterOptions)" :key="semester" :value="semester">
+                                    <option
+                                        v-for="semester in isEditing
+                                            ? semesterOptions
+                                            : enrollmentSemesterOptions"
+                                        :key="semester"
+                                        :value="semester"
+                                    >
                                         {{ semester }}
                                     </option>
                                 </select>
@@ -604,7 +679,9 @@
                                 >
                                     <option value="">Select School Year</option>
                                     <option
-                                        v-for="schoolYear in (isEditing ? availableSchoolYearOptions : enrollmentSchoolYearOptions)"
+                                        v-for="schoolYear in isEditing
+                                            ? availableSchoolYearOptions
+                                            : enrollmentSchoolYearOptions"
                                         :key="schoolYear"
                                         :value="schoolYear"
                                     >
@@ -784,22 +861,40 @@
                 class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
                 @click.self="closeEnrollmentHistory"
             >
-                <div class="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
+                <div
+                    class="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
+                >
                     <div class="flex items-start justify-between gap-4">
                         <div>
-                            <h2 class="text-xl font-semibold text-slate-900">Enrollment History</h2>
+                            <h2 class="text-xl font-semibold text-slate-900">
+                                Enrollment History
+                            </h2>
                             <p class="mt-1 text-sm text-slate-500">
-                                {{ selectedStudent.first_name }} {{ selectedStudent.last_name }} · {{ selectedStudent.student_number }}
+                                {{ selectedStudent.first_name }}
+                                {{ selectedStudent.last_name }} ·
+                                {{ selectedStudent.student_number }}
                             </p>
                         </div>
-                        <button class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700" @click="closeEnrollmentHistory">Close</button>
+                        <button
+                            class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700"
+                            @click="closeEnrollmentHistory"
+                        >
+                            Close
+                        </button>
                     </div>
-                    <div v-if="!selectedStudent.enrollments?.length" class="mt-6 rounded-lg bg-slate-50 p-6 text-center text-sm text-slate-500">
+                    <div
+                        v-if="!selectedStudent.enrollments?.length"
+                        class="mt-6 rounded-lg bg-slate-50 p-6 text-center text-sm text-slate-500"
+                    >
                         No enrollment-history record is available yet.
                     </div>
                     <div v-else class="mt-6 overflow-x-auto">
-                        <table class="min-w-full divide-y divide-slate-200 text-sm">
-                            <thead class="bg-slate-50 text-left text-xs uppercase text-slate-500">
+                        <table
+                            class="min-w-full divide-y divide-slate-200 text-sm"
+                        >
+                            <thead
+                                class="bg-slate-50 text-left text-xs text-slate-500 uppercase"
+                            >
                                 <tr>
                                     <th class="px-3 py-2">School year</th>
                                     <th class="px-3 py-2">Semester</th>
@@ -810,13 +905,32 @@
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
-                                <tr v-for="enrollment in selectedStudent.enrollments" :key="enrollment.student_enrollment_id">
-                                    <td class="px-3 py-3 font-medium text-slate-900">{{ enrollment.academic_year }}</td>
-                                    <td class="px-3 py-3 text-slate-600">{{ enrollment.semester }}</td>
-                                    <td class="px-3 py-3 text-slate-600">{{ enrollment.year_level }}</td>
-                                    <td class="px-3 py-3 text-slate-600">{{ enrollment.section_name }}</td>
-                                    <td class="px-3 py-3 text-slate-600">{{ enrollment.strand_code }}</td>
-                                    <td class="px-3 py-3 capitalize text-slate-600">{{ enrollment.status }}</td>
+                                <tr
+                                    v-for="enrollment in selectedStudent.enrollments"
+                                    :key="enrollment.student_enrollment_id"
+                                >
+                                    <td
+                                        class="px-3 py-3 font-medium text-slate-900"
+                                    >
+                                        {{ enrollment.academic_year }}
+                                    </td>
+                                    <td class="px-3 py-3 text-slate-600">
+                                        {{ enrollment.semester }}
+                                    </td>
+                                    <td class="px-3 py-3 text-slate-600">
+                                        {{ enrollment.year_level }}
+                                    </td>
+                                    <td class="px-3 py-3 text-slate-600">
+                                        {{ enrollment.section_name }}
+                                    </td>
+                                    <td class="px-3 py-3 text-slate-600">
+                                        {{ enrollment.strand_code }}
+                                    </td>
+                                    <td
+                                        class="px-3 py-3 text-slate-600 capitalize"
+                                    >
+                                        {{ enrollment.status }}
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>
@@ -1060,7 +1174,14 @@
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import Swal from 'sweetalert2';
-import { History, KeyRound, Pencil, Trash2, Users } from 'lucide-vue-next';
+import {
+    Archive,
+    History,
+    KeyRound,
+    Pencil,
+    Trash2,
+    Users,
+} from 'lucide-vue-next';
 import CameraCapture from '@/components/CameraCapture.vue';
 
 interface Student {
@@ -1154,10 +1275,16 @@ const props = defineProps({
         default: () => [],
     },
     currentAcademicYear: {
-        type: Object as () => { name: string; active_semester: string | null } | null,
+        type: Object as () => {
+            name: string;
+            active_semester: string | null;
+        } | null,
         default: null,
     },
-    semesterOptions: { type: Array as () => string[], default: () => ['1st Semester', '2nd Semester'] },
+    semesterOptions: {
+        type: Array as () => string[],
+        default: () => ['1st Semester', '2nd Semester'],
+    },
     currentUserRole: {
         type: String,
         default: '',
@@ -1184,6 +1311,9 @@ const selectedYear = ref(props.filters.year ?? '');
 const selectedSchoolYear = ref(props.filters.school_year ?? '');
 const selectedSemester = ref(props.filters.semester ?? '');
 const selectedStatus = ref(props.filters.status ?? '');
+const viewingArchivedStudents = computed(
+    () => selectedStatus.value === 'graduated',
+);
 const showModal = ref(false);
 const isEditing = ref(false);
 const selectedStudent = ref<Student | null>(null);
@@ -1253,7 +1383,8 @@ const filteredStudents = computed<Student[]>(() => {
             selectedSchoolYear.value === '' ||
             String(student.school_year) === selectedSchoolYear.value;
         const matchesSemester =
-            selectedSemester.value === '' || student.semester === selectedSemester.value;
+            selectedSemester.value === '' ||
+            student.semester === selectedSemester.value;
         const matchesStatus =
             selectedStatus.value === '' ||
             student.status === selectedStatus.value;
@@ -1291,7 +1422,9 @@ const enrollmentSchoolYearOptions = computed(() =>
     props.currentAcademicYear?.name ? [props.currentAcademicYear.name] : [],
 );
 const enrollmentSemesterOptions = computed(() =>
-    props.currentAcademicYear?.active_semester ? [props.currentAcademicYear.active_semester] : [],
+    props.currentAcademicYear?.active_semester
+        ? [props.currentAcademicYear.active_semester]
+        : [],
 );
 
 const onFilterChange = () => {
@@ -1322,6 +1455,17 @@ const resetFilters = () => {
     selectedSchoolYear.value = '';
     selectedSemester.value = '';
     selectedStatus.value = '';
+    onFilterChange();
+};
+
+const toggleArchivedStudents = () => {
+    const leaveArchive = viewingArchivedStudents.value;
+    selectedStatus.value = leaveArchive ? '' : 'graduated';
+    selectedStrand.value = '';
+    selectedSection.value = '';
+    selectedYear.value = '';
+    selectedSchoolYear.value = leaveArchive ? '' : 'all';
+    selectedSemester.value = '';
     onFilterChange();
 };
 
