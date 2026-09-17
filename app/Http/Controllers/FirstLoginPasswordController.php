@@ -20,7 +20,9 @@ class FirstLoginPasswordController extends Controller
             return redirect()->route('dashboard');
         }
 
-        return Inertia::render('Auth/FirstLoginPassword');
+        return Inertia::render('Auth/FirstLoginPassword', [
+            'title' => 'Change Temporary Password',
+        ]);
     }
 
     public function update(Request $request)

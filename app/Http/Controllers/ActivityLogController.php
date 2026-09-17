@@ -25,6 +25,7 @@ class ActivityLogController
     public function indexAdmin(Request $request)
     {
         return Inertia::render('Auth/Admin/ActivityLogs', [
+            'title' => 'System Activity Logs',
             'logs' => $this->filteredQuery($request)->paginate(25)->withQueryString(),
             'filters' => $request->only(self::FILTERS),
             'options' => [

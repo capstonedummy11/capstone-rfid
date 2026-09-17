@@ -8,6 +8,10 @@ uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 test('each role is sent to the correct landing destination', function (string $role, string $routeName) {
     $user = User::factory()->create(['role' => $role]);
 
+    if ($role === 'parent') {
+        SystemSetting::setBoolean(SystemSetting::PARENT_PORTAL_ENABLED, true);
+    }
+
     $this->actingAs($user)
         ->get(route('landingPage'))
         ->assertRedirect(route($routeName));

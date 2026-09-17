@@ -298,8 +298,10 @@ const sendForwardEmail = () => {
 </script>
 
 <template>
-    <div class="h-full bg-slate-50 p-4">
-        <div class="grid h-full min-h-[680px] gap-4 lg:grid-cols-[340px_1fr]">
+    <div class="min-h-0 bg-slate-50">
+        <div
+            class="grid h-[calc(100vh-7rem)] min-h-0 gap-4 lg:grid-cols-[340px_1fr]"
+        >
             <aside
                 class="flex min-h-0 flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm"
             >

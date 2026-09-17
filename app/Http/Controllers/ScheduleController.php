@@ -48,6 +48,7 @@ class ScheduleController
         }
 
         return Inertia::render('Auth/Admin/Schedules', [
+            'title' => 'Schedules',
             'schedules' => $query
                 ->orderBy('room')
                 ->orderBy('weekdays')

@@ -84,6 +84,7 @@ class EmergencyController
     public function hotlines()
     {
         return Inertia::render('Clinic/EmergencyHotlines', [
+            'title' => 'Emergency Hotlines',
             'hotlines' => EmergencyHotline::query()
                 ->orderBy('sort_order')
                 ->orderBy('name')

@@ -34,6 +34,7 @@ class ClinicController
         $totalResponds = EmergencyAlert::whereIn('status', ['acknowledged', 'resolved'])->count();
 
         return Inertia::render('Clinic/Dashboard', [
+            'title' => 'Clinic Dashboard',
             'currentUser' => [
                 'name' => $currentUser?->name,
                 'email' => $currentUser?->email,
@@ -75,6 +76,7 @@ class ClinicController
     public function caseLogs()
     {
         return Inertia::render('Clinic/CaseLogs', [
+            'title' => 'Clinic Case Logs',
             'cases' => ClinicCase::with(['alert.type', 'assignedResponder'])->latest('clinic_case_id')->get()->map(fn (ClinicCase $case) => $this->casePayload($case))->values(),
             'emergencyTypes' => $this->emergencyTypes(),
         ]);
@@ -83,6 +85,7 @@ class ClinicController
     public function patientHistory()
     {
         return Inertia::render('Clinic/PatientHistory', [
+            'title' => 'Patient History',
             'histories' => PatientHistory::latest('patient_history_id')->get()->map(fn (PatientHistory $history) => $this->historyPayload($history))->values(),
             'recentCases' => ClinicCase::latest('clinic_case_id')->take(25)->get()->map(fn (ClinicCase $case) => [
                 'id' => $case->clinic_case_id,
@@ -112,6 +115,7 @@ class ClinicController
             ->filter();
 
         return Inertia::render('Clinic/Reports', [
+            'title' => 'Clinic Reports',
             'filters' => $filters,
             'summary' => [
                 'alerts' => (clone $alerts)->count(),

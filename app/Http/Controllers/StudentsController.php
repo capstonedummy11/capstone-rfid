@@ -191,6 +191,7 @@ class StudentsController
             ->values();
 
         return Inertia::render('Auth/Admin/Students', [
+            'title' => $isInstructor ? 'Handled Students' : 'Student Management',
             'students' => $students,
             'filters' => $filters,
             'currentUserRole' => $role,

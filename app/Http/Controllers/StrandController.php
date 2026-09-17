@@ -51,6 +51,7 @@ class StrandController
         });
 
         return Inertia::render('Auth/Admin/Strands', [
+            'title' => 'Strands',
             'strands' => $strands,
             'filters' => [
                 'search' => $search,

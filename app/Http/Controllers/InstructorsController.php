@@ -88,6 +88,7 @@ class InstructorsController
         });
 
         return Inertia::render('Auth/Admin/Instructors', [
+            'title' => 'Instructor Management',
             'instructors' => $instructors,
             'strands' => $strands,
             'filters' => [

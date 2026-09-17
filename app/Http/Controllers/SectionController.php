@@ -84,6 +84,7 @@ class SectionController
             ->values();
 
         return Inertia::render('Auth/Admin/Sections', [
+            'title' => 'Sections',
             'sections' => $sections,
             'filters' => $filters,
             'strandOptions' => Strand::query()

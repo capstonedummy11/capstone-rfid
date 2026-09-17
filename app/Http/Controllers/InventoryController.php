@@ -36,6 +36,7 @@ class InventoryController
         }
 
         return Inertia::render('Auth/Admin/Inventory', [
+            'title' => 'Inventory',
             'inventories' => $query->orderByDesc('updated_at')->get()->map(fn(Inventory $inventory) => [
                 'inventory_id' => $inventory->inventory_id,
                 'item_id' => $inventory->item_id,

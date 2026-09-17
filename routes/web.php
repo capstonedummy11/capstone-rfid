@@ -276,7 +276,7 @@ Route::prefix('admin')
             Route::post('/instructors', [InstructorsController::class, 'store'])->name('instructors.store');
             Route::put('/instructors/{id}', [InstructorsController::class, 'update'])->name('instructors.update');
             Route::delete('/instructors/{id}', [InstructorsController::class, 'destroy'])->name('instructors.destroy');
-            Route::inertia('/students-management', 'StudentsManagement')->name('studentsManagement');
+            Route::inertia('/students-management', 'StudentsManagement', ['title' => 'Students Management'])->name('studentsManagement');
             // Route::inertia('/instructors-management', 'InstructorsManagement', ['title' => 'Instructor Management'])->name('instructorsManagement');
             Route::post('/borrow/return-items', [BorrowController::class, 'returnItems'])->name('borrow.returnItems');
             // Route::inertia('/inventory', 'Auth/Admin/Inventory', ['title' => 'Inventory', 'items' => fn() => \App\Models\Item::all(),])->name('inventory');

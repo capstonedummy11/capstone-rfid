@@ -19,6 +19,7 @@ class AcademicYearController
     public function index()
     {
         return Inertia::render('Auth/Admin/AcademicYears', [
+            'title' => 'Academic Years',
             'academicYears' => AcademicYear::query()
                 ->orderByDesc('starts_on')
                 ->get()

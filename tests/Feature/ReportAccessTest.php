@@ -6,6 +6,7 @@ use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\Strand;
 use App\Models\Students;
+use App\Models\SystemSetting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +16,8 @@ uses(RefreshDatabase::class);
 
 function reportFixture(): array
 {
+    SystemSetting::setBoolean(SystemSetting::PARENT_PORTAL_ENABLED, true);
+
     $strand = Strand::query()->create([
         'strand_code' => 'REP-ICT',
         'strand_name' => 'Reports ICT',

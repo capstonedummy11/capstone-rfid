@@ -21,6 +21,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
 
@@ -355,6 +356,17 @@ test('application pages do not return server errors', function () {
         if ($response->getStatusCode() >= 500) {
             $message = $response->exception?->getMessage() ?: $response->getContent();
             $failures[] = "{$label} [{$response->getStatusCode()}] {$url}: {$message}";
+        }
+
+        if ($user && $response->getStatusCode() === 200) {
+            try {
+                $response->assertInertia(fn (Assert $page) => $page
+                    ->has('title')
+                    ->where('title', fn ($title) => is_string($title) && trim($title) !== '')
+                );
+            } catch (Throwable $exception) {
+                $failures[] = "{$label} missing header title: {$exception->getMessage()}";
+            }
         }
     }
 

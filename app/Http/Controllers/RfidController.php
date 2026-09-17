@@ -117,6 +117,7 @@ class RfidController
             });
 
         return Inertia::render('Rfid', [
+            'title' => 'RFID Management',
             'rfidRows' => $rows,
             'filters' => $filters,
             'unassignedOwners' => $unassignedStudents->concat($unassignedInstructors)->values(),

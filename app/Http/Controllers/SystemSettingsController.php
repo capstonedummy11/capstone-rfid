@@ -18,6 +18,7 @@ class SystemSettingsController
         $faceAvailability = (new AwsFaceRecognitionService)->availability();
 
         return Inertia::render('Auth/Admin/SystemSettings', [
+            'title' => 'Settings',
             'featureSettings' => SystemSetting::featureFlags(),
             'demoAttendancePanelSettings' => SystemSetting::demoAttendancePanelSettings(),
             'faceRecognitionAvailability' => $faceAvailability,
@@ -29,7 +30,6 @@ class SystemSettingsController
                 'questions' => SystemSetting::securityQuestions(),
             ],
             'clinicEmergencySoundSettings' => SystemSetting::clinicEmergencySoundSettings(),
-            'title' => 'Settings',
         ]);
     }
 

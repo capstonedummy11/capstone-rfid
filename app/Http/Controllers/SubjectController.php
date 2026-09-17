@@ -56,6 +56,7 @@ class SubjectController
         }
 
         return Inertia::render('Auth/Admin/Subjects', [
+            'title' => 'Subjects',
             'subjects' => $query->orderBy('subject_code')->get()->map(fn (Subject $subject) => [
                 'subject_id' => $subject->subject_id,
                 'section_id' => $subject->section_id,

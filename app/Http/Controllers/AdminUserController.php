@@ -18,6 +18,7 @@ class AdminUserController extends Controller
         $actor = $request->user();
 
         return Inertia::render('Auth/Admin/UserManagement', [
+            'title' => 'User Management',
             'users' => User::query()
                 ->whereIn('role', self::MANAGED_ROLES)
                 ->orderByRaw("CASE LOWER(role) WHEN 'admin' THEN 1 WHEN 'clinic' THEN 2 WHEN 'registrar' THEN 3 ELSE 4 END")

@@ -61,6 +61,7 @@ class AttendanceManagementController extends Controller
         }
 
         return Inertia::render('Attendance/SubjectSelection', [
+            'title' => 'Attendance Subjects',
             'subjects' => $subjects->map(fn (Subject $subject) => $this->subjectCard($subject))->values(),
             'filters' => $request->only(['school_year', 'semester', 'department', 'course', 'section', 'instructor']),
             'filterOptions' => $role === 'admin' ? $this->adminFilterOptions() : null,
@@ -83,6 +84,7 @@ class AttendanceManagementController extends Controller
             ->values();
 
         return Inertia::render('Attendance/Dashboard', [
+            'title' => 'Attendance Dashboard',
             'subject' => $this->subjectMeta($subject, $context['instructor_id']),
             'overview' => [
                 'total_students' => $students->count(),
@@ -102,6 +104,7 @@ class AttendanceManagementController extends Controller
         $rows = $this->summaryRows($subject, $sessions, $onlineClasses, $this->studentsFor($subject)->get());
 
         return Inertia::render('Attendance/Summary', [
+            'title' => 'Attendance Summary',
             'subject' => $this->subjectMeta($subject, $context['instructor_id']),
             'statuses' => $this->statusNames($rows),
             'rows' => $rows->values(),
@@ -158,6 +161,7 @@ class AttendanceManagementController extends Controller
         )->sortByDesc('date')->values();
 
         return Inertia::render('Attendance/StudentHistory', [
+            'title' => 'Student Attendance',
             'subject' => $this->subjectMeta($subject, $context['instructor_id']),
             'student' => [
                 'id' => $student->student_id,
@@ -176,6 +180,7 @@ class AttendanceManagementController extends Controller
             $rows = $this->onlineSessionRows($subject, $onlineClass);
 
             return Inertia::render('Attendance/SessionDetails', [
+                'title' => 'Attendance Session',
                 'subject' => $this->subjectMeta($subject, $context['instructor_id']),
                 'session' => $this->onlineSessionMeta($onlineClass),
                 'statuses' => $rows->pluck('status')->unique()->sort()->values(),
@@ -191,6 +196,7 @@ class AttendanceManagementController extends Controller
         $rows = $this->sessionRows($subject, $attendanceSession);
 
         return Inertia::render('Attendance/SessionDetails', [
+            'title' => 'Attendance Session',
             'subject' => $this->subjectMeta($subject, $context['instructor_id']),
             'session' => $this->sessionMeta($attendanceSession),
             'statuses' => $rows->pluck('status')->unique()->sort()->values(),
@@ -795,9 +801,17 @@ class AttendanceManagementController extends Controller
         abort_unless(in_array($format, ['pdf', 'xlsx'], true), 404);
         $totals = collect($totals)->all();
         if ($format === 'pdf') {
+            if (! class_exists(Pdf::class)) {
+                return $this->minimalPdfDownload($filename, $meta, $headings, $rows, $totals);
+            }
+
             return Pdf::loadView('reports.attendance', compact('meta', 'headings', 'rows', 'totals'))
                 ->setPaper('a4', count($headings) > 7 ? 'landscape' : 'portrait')
                 ->download($filename.'.pdf');
+        }
+
+        if (! class_exists(Spreadsheet::class)) {
+            return $this->minimalXlsxDownload($filename, $meta, $headings, $rows, $totals);
         }
 
         $spreadsheet = new Spreadsheet;
@@ -850,6 +864,181 @@ class AttendanceManagementController extends Controller
         (new Xlsx($spreadsheet))->save($path);
 
         return response()->download($path, $filename.'.xlsx')->deleteFileAfterSend(true);
+    }
+
+    private function minimalPdfDownload(string $filename, array $meta, array $headings, Collection $rows, array $totals): SymfonyResponse
+    {
+        $lines = [];
+        foreach ($meta as $label => $value) {
+            if ($label !== '__logo') {
+                $lines[] = "{$label}: {$value}";
+            }
+        }
+
+        $lines[] = '';
+        $lines[] = implode(' | ', $headings);
+        foreach ($rows->take(45) as $row) {
+            $lines[] = implode(' | ', array_map(
+                fn ($value) => Str::limit((string) $value, 30, ''),
+                array_values($row),
+            ));
+        }
+
+        $lines[] = '';
+        $lines[] = 'Status Totals';
+        foreach ($totals as $status => $count) {
+            $lines[] = "{$status}: {$count}";
+        }
+
+        $path = tempnam(sys_get_temp_dir(), 'attendance-').'.pdf';
+        file_put_contents($path, $this->minimalPdfContent($lines));
+
+        return response()->download($path, $filename.'.pdf', ['Content-Type' => 'application/pdf'])->deleteFileAfterSend(true);
+    }
+
+    private function minimalPdfContent(array $lines): string
+    {
+        $content = "BT\n/F1 10 Tf\n12 TL\n50 780 Td\n";
+        foreach ($lines as $line) {
+            $content .= '('.$this->pdfText($line).") Tj\nT*\n";
+        }
+        $content .= "ET\n";
+
+        $objects = [
+            '1 0 obj'."\n".'<< /Type /Catalog /Pages 2 0 R >>'."\n".'endobj'."\n",
+            '2 0 obj'."\n".'<< /Type /Pages /Kids [3 0 R] /Count 1 >>'."\n".'endobj'."\n",
+            '3 0 obj'."\n".'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>'."\n".'endobj'."\n",
+            '4 0 obj'."\n".'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'."\n".'endobj'."\n",
+            '5 0 obj'."\n".'<< /Length '.strlen($content).' >>'."\n".'stream'."\n".$content.'endstream'."\n".'endobj'."\n",
+        ];
+
+        $pdf = "%PDF-1.4\n";
+        $offsets = [0];
+        foreach ($objects as $object) {
+            $offsets[] = strlen($pdf);
+            $pdf .= $object;
+        }
+
+        $xrefOffset = strlen($pdf);
+        $pdf .= 'xref'."\n".'0 '.(count($objects) + 1)."\n";
+        $pdf .= "0000000000 65535 f \n";
+        foreach (array_slice($offsets, 1) as $offset) {
+            $pdf .= str_pad((string) $offset, 10, '0', STR_PAD_LEFT)." 00000 n \n";
+        }
+        $pdf .= 'trailer'."\n".'<< /Size '.(count($objects) + 1).' /Root 1 0 R >>'."\n";
+        $pdf .= 'startxref'."\n".$xrefOffset."\n".'%%EOF';
+
+        return $pdf;
+    }
+
+    private function pdfText(string $value): string
+    {
+        return str_replace(["\\", '(', ')', "\r", "\n"], ['\\\\', '\(', '\)', ' ', ' '], $value);
+    }
+
+    private function minimalXlsxDownload(string $filename, array $meta, array $headings, Collection $rows, array $totals): SymfonyResponse
+    {
+        $xlsxRows = [];
+
+        foreach ($meta as $label => $value) {
+            if ($label !== '__logo') {
+                $xlsxRows[] = [$label, $value];
+            }
+        }
+
+        $xlsxRows[] = [];
+        $xlsxRows[] = $headings;
+        foreach ($rows as $row) {
+            $xlsxRows[] = array_values($row);
+        }
+
+        $xlsxRows[] = [];
+        $xlsxRows[] = ['Status Totals'];
+        foreach ($totals as $status => $count) {
+            $xlsxRows[] = [$status, $count];
+        }
+
+        $path = tempnam(sys_get_temp_dir(), 'attendance-').'.xlsx';
+        $zip = new \ZipArchive;
+        $zip->open($path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+        $zip->addFromString('[Content_Types].xml', $this->xlsxContentTypes());
+        $zip->addFromString('_rels/.rels', $this->xlsxRootRels());
+        $zip->addFromString('xl/workbook.xml', $this->xlsxWorkbook());
+        $zip->addFromString('xl/_rels/workbook.xml.rels', $this->xlsxWorkbookRels());
+        $zip->addFromString('xl/worksheets/sheet1.xml', $this->xlsxWorksheet($xlsxRows));
+        $zip->close();
+
+        return response()->download($path, $filename.'.xlsx')->deleteFileAfterSend(true);
+    }
+
+    private function xlsxWorksheet(array $rows): string
+    {
+        $xmlRows = [];
+        foreach ($rows as $rowIndex => $row) {
+            $cells = [];
+            foreach (array_values($row) as $columnIndex => $value) {
+                $coordinate = $this->xlsxColumnName($columnIndex + 1).($rowIndex + 1);
+                $cells[] = '<c r="'.$coordinate.'" t="inlineStr"><is><t>'.$this->xmlValue($value).'</t></is></c>';
+            }
+            $xmlRows[] = '<row r="'.($rowIndex + 1).'">'.implode('', $cells).'</row>';
+        }
+
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            .'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            .'<sheetData>'.implode('', $xmlRows).'</sheetData>'
+            .'</worksheet>';
+    }
+
+    private function xlsxContentTypes(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            .'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+            .'<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+            .'<Default Extension="xml" ContentType="application/xml"/>'
+            .'<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+            .'<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+            .'</Types>';
+    }
+
+    private function xlsxRootRels(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            .'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            .'<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+            .'</Relationships>';
+    }
+
+    private function xlsxWorkbook(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            .'<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            .'<sheets><sheet name="Attendance Report" sheetId="1" r:id="rId1"/></sheets>'
+            .'</workbook>';
+    }
+
+    private function xlsxWorkbookRels(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            .'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            .'<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+            .'</Relationships>';
+    }
+
+    private function xmlValue(mixed $value): string
+    {
+        return htmlspecialchars((string) $value, ENT_XML1 | ENT_COMPAT, 'UTF-8');
+    }
+
+    private function xlsxColumnName(int $column): string
+    {
+        $name = '';
+        while ($column > 0) {
+            $column--;
+            $name = chr(65 + ($column % 26)).$name;
+            $column = intdiv($column, 26);
+        }
+
+        return $name;
     }
 
     private function timeRange(?string $start, ?string $end): string

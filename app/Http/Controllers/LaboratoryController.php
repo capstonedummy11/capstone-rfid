@@ -51,6 +51,7 @@ class LaboratoryController
         });
 
         return Inertia::render('Auth/Admin/Laboratories', [
+            'title' => 'Laboratory Management',
             'laboratories' => $laboratories,
             'filters' => [
                 'search' => $search,

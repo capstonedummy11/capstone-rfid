@@ -1342,6 +1342,7 @@ class AttendanceController
         }
 
         return Inertia::render('AttendanceControlPanel', [
+            'title' => 'Attendance Control Panel',
             ...$this->panelPayload(),
             'panelRoom' => $panelRoom,
         ]);
@@ -1357,6 +1358,7 @@ class AttendanceController
         }
 
         return Inertia::render('AttendancePanelLogin', [
+            'title' => 'Attendance Panel Login',
             'rooms' => $this->panelRooms(),
             'alreadyVerified' => $isConsole,
         ]);
@@ -1899,6 +1901,7 @@ class AttendanceController
             ->values();
 
         return Inertia::render('AttendanceScanner', [
+            'title' => 'Attendance Scanner',
             'session' => $currentSchedule ? [
                 'instructor' => $currentSchedule->instructor?->user?->name ?? $currentSchedule->subject?->user?->name ?? 'Unassigned Instructor',
                 'subject' => $currentSchedule->subject?->subject_name ?? 'Unassigned Subject',
@@ -2155,6 +2158,7 @@ class AttendanceController
             ->leftJoin('users as subject_instructor_users', 'subject_instructor_users.user_id', '=', 'instructors.user_id');
 
         return Inertia::render('AttendanceLogs', [
+            'title' => 'Attendance Logs',
             'logs' => $logs,
             'filters' => $filters,
             'currentUserRole' => $role,
