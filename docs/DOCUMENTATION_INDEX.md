@@ -10,6 +10,7 @@
 | Human operating steps | [User Operations Tutorial](System%20Explanation/USER_OPERATIONS_TUTORIAL.md) |
 | Hidden, automatic, notification, and scheduled behavior | [Automatic and Conditional Behavior](System%20Explanation/AUTOMATIC_AND_CONDITIONAL_BEHAVIOR.md) |
 | Internal architecture and feature data flows | [Architecture and Feature Flows](System%20Architecture/ARCHITECTURE_AND_FEATURE_FLOWS.md) |
+| Controllers, services, models, middleware, and components | [Implementation Catalog](System%20Architecture/IMPLEMENTATION_CATALOG.md) |
 | Routes and endpoints | [Routes and Endpoints](System%20Architecture/ROUTES_AND_ENDPOINTS.md) |
 | Tables, fields, and relationships | [Database Schema Reference](System%20Architecture/DATABASE_SCHEMA_REFERENCE.md) |
 | Install, configure, run, build, and deploy | [System Installation](System%20Installation/README.md) |
@@ -35,6 +36,7 @@
 
 - `README.md` — technical entry point.
 - `ARCHITECTURE_AND_FEATURE_FLOWS.md` — stack, layers, authentication, services, data flow, external integrations, and known gaps.
+- `IMPLEMENTATION_CATALOG.md` — every controller/service group plus models, middleware, commands, frontend layouts/components, and composables.
 - `ROUTES_AND_ENDPOINTS.md` — HTTP and command surface.
 - `DATABASE_SCHEMA_REFERENCE.md` — final migrated tables, fields, foreign keys, and storage boundary.
 - `DATABASE.md` — migration groups, seeders, attendance data, and compatibility notes.

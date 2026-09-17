@@ -20,6 +20,7 @@ The migration set does **not** create `jobs`, `job_batches`, or `failed_jobs`, e
 | Table | Fields | Relationships and purpose |
 | --- | --- | --- |
 | `academic_years` | `academic_year_id PK`, `name unique`, `starts_on`, `ends_on`, `status`, `active_semester?`, `activated_at?`, `activated_by_user_id? FK`, `closed_at?`, `closed_by_user_id? FK`, `reopened_at?`, `reopened_by_user_id? FK`, `reopen_reason?` | Year lifecycle. Actor FKs set null when account is deleted. |
+| `laboratories` | `laboratory_id PK`, `name`, `description?`, `location`, `status` | Physical rooms/labs referenced by schedules and assigned panel devices. |
 | `strands` | `strand_id PK`, `strand_code unique`, `strand_name`, `department`, `status`, `deleted_at?` | Academic strand/track; parent of Sections, Instructors, and enrollments. |
 | `sections` | `section_id PK`, `strand_id FK`, `section_name`, `year_level`, `semester`, `school_year`, `status`, `academic_year_id? FK` | Year/semester class group. Academic year deletion restricted. |
 | `subjects` | `subject_id PK`, legacy `section_id? FK`, legacy `user_id? FK`, `subject_name`, `subject_code unique`, `year_level?`, `department?`, `unit`, `semester?`, `subject_description?` | Reusable subject catalog. Legacy assignment columns remain nullable for compatibility. |
@@ -110,4 +111,3 @@ The migration set does **not** create `jobs`, `job_batches`, or `failed_jobs`, e
 ## File storage that is not in the database
 
 The database stores paths and metadata, while bytes live in Laravel storage: Student/Instructor faces, attendance face evidence, Messenger files, online-class files, excuse-letter support files and generated PDFs, and uploaded emergency sounds. Backups must include both database and `storage/app` content.
-
