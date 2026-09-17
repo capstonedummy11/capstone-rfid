@@ -14,12 +14,15 @@ return new class extends Migration
         Schema::create('sections', function (Blueprint $table) {
             $table->id('section_id');
             $table->foreignId('strand_id')->constrained('strands', 'strand_id');
+            $table->unsignedBigInteger('academic_year_id')->nullable();
             $table->string('section_name');
             $table->integer('year_level');
             $table->string('semester');  
             $table->string('school_year');
             $table->enum('status', ['active', 'inactive'])->default('active');
             $table->timestamps();
+
+            $table->unique(['academic_year_id', 'semester', 'section_name'], 'sections_year_semester_name_unique');
         });
     }
 

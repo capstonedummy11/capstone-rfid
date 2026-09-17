@@ -426,6 +426,33 @@ test('instructor subject offering and schedule share the same academic context a
         );
 });
 
+test('admin instructor page ignores instructor rows whose user account was removed', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $faculty = User::factory()->create(['role' => 'instructor']);
+    $strand = Strand::query()->create([
+        'strand_code' => 'ORPH',
+        'strand_name' => 'Orphan Guard Strand',
+        'department' => 'SHS',
+        'status' => 'active',
+    ]);
+
+    Instructor::query()->create([
+        'user_id' => $faculty->user_id,
+        'strand_id' => $strand->strand_id,
+        'instructor_number' => 'ORPH-INST-001',
+        'status' => 'active',
+    ]);
+
+    $faculty->delete();
+
+    $this->actingAs($admin)
+        ->get(route('admin.instructors.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Auth/Admin/Instructors')
+            ->has('instructors', 0));
+});
+
 test('admin managed clinic account is reused by clinic dashboard case logs and patient history pages', function () {
     $root = User::factory()->create([
         'role' => 'admin',

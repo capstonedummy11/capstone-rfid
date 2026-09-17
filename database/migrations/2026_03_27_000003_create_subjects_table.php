@@ -12,10 +12,11 @@ return new class extends Migration {
   {
     Schema::create('subjects', function (Blueprint $table) {
       $table->id('subject_id');
-      $table->foreignId('section_id')->constrained('sections', 'section_id')->cascadeOnDelete();
-      $table->foreignId('user_id')->constrained('users', 'user_id')->cascadeOnDelete();
+      $table->foreignId('section_id')->nullable()->constrained('sections', 'section_id')->nullOnDelete();
+      $table->foreignId('user_id')->nullable()->constrained('users', 'user_id')->nullOnDelete();
       $table->string('subject_name');
       $table->string('subject_code');
+      $table->text('subject_description')->nullable();
       $table->unsignedTinyInteger('year_level')->nullable();
       $table->string('department')->nullable();
       $table->unsignedTinyInteger('unit')->default(3);

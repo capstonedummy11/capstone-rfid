@@ -27,11 +27,15 @@ return new class extends Migration
             $table->string('room')->nullable();
             $table->string('subject_code')->nullable();
             $table->string('triggered_by_name')->nullable();
+            $table->string('sub_type')->nullable();
             $table->string('severity')->default('urgent');
             $table->enum('status', ['open', 'acknowledged', 'resolved', 'cancelled'])->default('open');
             $table->text('message');
             $table->json('metadata')->nullable();
             $table->timestamp('resolved_at')->nullable();
+            $table->timestamp('acknowledged_at')->nullable();
+            $table->timestamp('dispatched_at')->nullable();
+            $table->unsignedInteger('response_seconds')->nullable();
             $table->timestamps();
         });
 

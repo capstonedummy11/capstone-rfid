@@ -410,6 +410,7 @@ class StudentsController
                 'password' => Hash::make($validated['password']),
                 'must_change_password' => true,
                 'role' => 'parent',
+                'is_root_admin' => false,
                 'phone' => $validated['phone'] ?? null,
                 'gender' => $validated['gender'] ?? null,
             ]);
@@ -1076,6 +1077,7 @@ class StudentsController
             'name' => trim($student->first_name.' '.$student->last_name),
             'email' => $student->email,
             'role' => 'student',
+            'is_root_admin' => false,
             'phone' => $student->phone,
             'gender' => $student->gender,
             'rfid_tag' => null,
@@ -1508,7 +1510,12 @@ class StudentsController
     {
         $joinedAt = $attendance->joined_at ? \Carbon\Carbon::parse($attendance->joined_at) : null;
         $faceVerifiedAt = $attendance->face_verified_at ? \Carbon\Carbon::parse($attendance->face_verified_at) : null;
-        $hasEnded = \Carbon\Carbon::parse($attendance->scheduled_date.' '.$attendance->end_time)->isPast();
+        $scheduledDate = $attendance->scheduled_date
+            ? \Carbon\Carbon::parse($attendance->scheduled_date)->format('Y-m-d')
+            : $joinedAt?->format('Y-m-d');
+        $hasEnded = $scheduledDate
+            ? \Carbon\Carbon::parse($scheduledDate.' '.$attendance->end_time)->isPast()
+            : false;
         $savedStatus = strtolower((string) $attendance->status);
         $status = in_array($savedStatus, ['present', 'late', 'absent', 'excused'], true)
             ? $savedStatus
@@ -1520,7 +1527,7 @@ class StudentsController
         return [
             'attendance_id' => 'online-'.$attendance->online_class_id,
             'source' => 'online',
-            'date' => $attendance->scheduled_date ? \Carbon\Carbon::parse($attendance->scheduled_date)->format('Y-m-d') : $joinedAt?->format('Y-m-d'),
+            'date' => $scheduledDate,
             'subject' => $attendance->subject_name ?? $attendance->subject_code ?? $attendance->title,
             'room' => 'Online Class',
             'time_in' => $joinedAt?->format('g:i A'),

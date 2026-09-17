@@ -13,9 +13,11 @@ return new class extends Migration
     {
         Schema::create('online_classes', function (Blueprint $table) {
             $table->id('online_class_id');
-            $table->foreignId('schedule_id')->constrained('schedules', 'scheduled_id')->cascadeOnDelete();
-            $table->foreignId('instructor_id')->constrained('instructors', 'instructor_id')->cascadeOnDelete();
-            $table->foreignId('section_id')->constrained('sections', 'section_id')->cascadeOnDelete();
+            $table->unsignedBigInteger('schedule_id');
+            $table->unsignedBigInteger('academic_year_id')->nullable();
+            $table->unsignedBigInteger('subject_offering_id')->nullable();
+            $table->unsignedBigInteger('instructor_id');
+            $table->unsignedBigInteger('section_id');
             $table->string('subject_code');
             $table->string('title');
             $table->text('description')->nullable();
@@ -34,6 +36,8 @@ return new class extends Migration
 
             $table->index(['instructor_id', 'scheduled_date']);
             $table->index(['section_id', 'scheduled_date']);
+            $table->index('schedule_id');
+            $table->index(['academic_year_id', 'scheduled_date'], 'online_class_year_date_index');
             $table->index('status');
         });
 
@@ -51,6 +55,9 @@ return new class extends Migration
             $table->id('online_class_attendance_id');
             $table->foreignId('online_class_id')->constrained('online_classes', 'online_class_id')->cascadeOnDelete();
             $table->foreignId('student_id')->constrained('students', 'student_id')->cascadeOnDelete();
+            $table->unsignedBigInteger('academic_year_id')->nullable();
+            $table->unsignedBigInteger('subject_offering_id')->nullable();
+            $table->unsignedBigInteger('student_enrollment_id')->nullable();
             $table->timestamp('joined_at')->nullable();
             $table->string('status')->default('not_joined');
             $table->boolean('is_late')->default(false);
@@ -66,6 +73,9 @@ return new class extends Migration
             $table->id('online_class_notification_id');
             $table->foreignId('online_class_id')->constrained('online_classes', 'online_class_id')->cascadeOnDelete();
             $table->foreignId('student_id')->constrained('students', 'student_id')->cascadeOnDelete();
+            $table->unsignedBigInteger('academic_year_id')->nullable();
+            $table->unsignedBigInteger('subject_offering_id')->nullable();
+            $table->unsignedBigInteger('student_enrollment_id')->nullable();
             $table->string('event');
             $table->string('title');
             $table->text('body');

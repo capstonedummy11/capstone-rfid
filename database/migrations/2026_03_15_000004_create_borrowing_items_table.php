@@ -12,9 +12,7 @@ return new class extends Migration {
       $table->foreignId('borrowing_id')
         ->constrained('borrowings', 'borrowing_id')
         ->cascadeOnDelete();
-      $table->foreignId('item_id')
-        ->constrained('items', 'item_id')
-        ->restrictOnDelete();
+      $table->unsignedBigInteger('item_id');
       $table->unsignedInteger('quantity')->default(1);
       $table->enum('status', [
         'borrowed',
@@ -24,6 +22,8 @@ return new class extends Migration {
         'lost',
       ])->default('borrowed');
       $table->timestamps();
+
+      $table->index('item_id');
     });
   }
 

@@ -22,10 +22,7 @@ return new class extends Migration {
         ->constrained('users', 'user_id')
         ->nullOnDelete();
 
-      $table->foreignId('item_id')
-        ->nullable()
-        ->constrained('items', 'item_id')
-        ->nullOnDelete();
+      $table->unsignedBigInteger('item_id')->nullable();
 
       $table->unsignedInteger('quantity')->default(1);
 
@@ -46,6 +43,8 @@ return new class extends Migration {
       $table->date('due_date')->nullable();
       $table->text('remarks')->nullable();
       $table->timestamps();
+
+      $table->index('item_id');
     });
   }
 

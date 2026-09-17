@@ -16,7 +16,9 @@ return new class extends Migration
             $table->string('sender_email')->nullable();
             $table->string('student_number')->nullable();
             $table->string('subject')->nullable();
+            $table->text('subject_ciphertext')->nullable();
             $table->text('body');
+            $table->longText('body_ciphertext')->nullable();
             $table->string('attachment_path')->nullable();
             $table->string('attachment_name')->nullable();
             $table->string('attachment_mime')->nullable();

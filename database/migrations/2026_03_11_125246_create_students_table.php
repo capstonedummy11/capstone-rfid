@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('students', function (Blueprint $table) {
             $table->id('student_id');
-            $table->foreignId('section_id')->constrained('sections', 'section_id');
-            $table->foreignId('strand_id')->constrained('strands', 'strand_id');
+            $table->foreignId('section_id')->nullable()->constrained('sections', 'section_id');
+            $table->foreignId('strand_id')->nullable()->constrained('strands', 'strand_id');
             $table->string('student_number')->unique();
             $table->string('first_name');
             $table->string('last_name');
@@ -22,11 +22,13 @@ return new class extends Migration
             $table->enum('gender', ['male', 'female']);
             $table->string('email')->unique()->nullable();
             $table->string('phone')->nullable();
-            $table->integer('year_level');
-            $table->string('semester');                 
-            $table->string('school_year');              
+            $table->integer('year_level')->nullable();
+            $table->string('semester')->nullable();
+            $table->string('school_year')->nullable();
             $table->string('rfid_tag')->nullable()->unique();      
+            $table->json('face_images')->nullable();
             $table->enum('status', ['active', 'inactive', 'graduated', 'dropped'])->default('active');
+            $table->softDeletes();
             $table->timestamps();
         });
     }

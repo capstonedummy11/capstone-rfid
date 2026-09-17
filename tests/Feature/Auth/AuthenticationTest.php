@@ -35,6 +35,29 @@ test('instructors are redirected to email otp verification after login', functio
     $this->assertAuthenticatedAs($user);
 });
 
+test('student account cannot enter staff root admin area and uses student portal login', function () {
+    $user = User::factory()->create([
+        'name' => 'Miguel Reyes',
+        'email' => 'miguel.reyes@student.sample.com',
+        'role' => 'student',
+        'is_root_admin' => true,
+    ]);
+
+    $this->post(route('staff.login.store'), [
+        'email' => $user->email,
+        'password' => 'password',
+    ])->assertSessionHasErrors('email');
+
+    $this->assertGuest();
+
+    $this->post(route('student-parent.login.store'), [
+        'email' => $user->email,
+        'password' => 'password',
+    ])->assertRedirect(route('student-parent.dashboard'));
+
+    $this->assertAuthenticatedAs($user);
+});
+
 test('instructor can request an email otp', function () {
     Mail::fake();
     $user = User::factory()->create([

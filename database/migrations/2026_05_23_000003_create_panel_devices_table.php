@@ -12,7 +12,13 @@ return new class extends Migration
     {
         Schema::create('panel_devices', function (Blueprint $table) {
             $table->id('panel_device_id');
+            $table->foreignId('laboratory_id')
+                ->nullable()
+                ->unique()
+                ->constrained('laboratories', 'laboratory_id')
+                ->nullOnDelete();
             $table->string('label')->unique();
+            $table->string('description')->nullable();
             $table->string('pin_hash');
             $table->boolean('is_active')->default(true);
             $table->timestamps();

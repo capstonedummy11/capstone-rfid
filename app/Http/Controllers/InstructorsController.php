@@ -27,14 +27,23 @@ class InstructorsController
         $strand = $request->input('strand', '');
         $status = $request->input('status', '');
 
-        $query = Instructor::with('user', 'strand');
+        $query = Instructor::query()
+            ->with(['user', 'strand'])
+            ->whereHas('user', fn ($userQuery) => $userQuery->whereRaw('LOWER(role) = ?', ['instructor']));
 
         // Apply search filter
         if ($search) {
-            $query->whereHas('user', function ($q) use ($search) {
-                $q->whereRaw('LOWER(name) LIKE ?', ['%' . strtolower($search) . '%'])
-                    ->orWhereRaw('LOWER(email) LIKE ?', ['%' . strtolower($search) . '%']);
-            })->orWhereRaw('LOWER(instructor_number) LIKE ?', ['%' . strtolower($search) . '%']);
+            $term = '%' . strtolower($search) . '%';
+
+            $query->where(function ($searchQuery) use ($term) {
+                $searchQuery
+                    ->whereHas('user', function ($userQuery) use ($term) {
+                        $userQuery
+                            ->whereRaw('LOWER(name) LIKE ?', [$term])
+                            ->orWhereRaw('LOWER(email) LIKE ?', [$term]);
+                    })
+                    ->orWhereRaw('LOWER(instructor_number) LIKE ?', [$term]);
+            });
         }
 
         // Apply strand filter
@@ -127,6 +136,7 @@ class InstructorsController
             'password' => bcrypt('password'), // Default password
             'must_change_password' => true,
             'role' => 'instructor',
+            'is_root_admin' => false,
         ]);
 
         // Create instructor record
@@ -185,6 +195,7 @@ class InstructorsController
             'phone' => $validated['phone'] ?? null,
             'gender' => $validated['gender'] ?? null,
             'rfid_tag' => $validated['rfid_tag'] ?? null,
+            'is_root_admin' => false,
         ]);
 
         // Update instructor record
@@ -204,8 +215,11 @@ class InstructorsController
     {
         $instructor = Instructor::with('user')->findOrFail($id);
         
-        // Delete user record (which will cascade delete instructor)
-        $instructor->user->delete();
+        if ($instructor->user) {
+            $instructor->user->delete();
+        } else {
+            $instructor->delete();
+        }
 
         return back()->with('success', 'Instructor deleted successfully.');
     }
