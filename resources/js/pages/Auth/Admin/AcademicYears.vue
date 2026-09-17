@@ -438,11 +438,13 @@ watch(
                 </p>
             </header>
 
-            <section
+            <details
                 class="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-950"
             >
-                <h2 class="font-semibold">How academic years work</h2>
-                <div class="mt-2 grid gap-3 md:grid-cols-2">
+                <summary class="cursor-pointer font-semibold outline-none">
+                    How academic years work
+                </summary>
+                <div class="mt-3 grid gap-3 md:grid-cols-2">
                     <p>
                         Create the next school year as a draft first, then add
                         its strands, sections, subjects, and schedules before
@@ -466,7 +468,7 @@ watch(
                         list below.
                     </p>
                 </div>
-            </section>
+            </details>
 
             <section
                 class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
