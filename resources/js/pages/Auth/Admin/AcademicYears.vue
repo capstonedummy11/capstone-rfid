@@ -136,7 +136,7 @@ const loadPreview = async () => {
                 item.source_student_enrollment_id,
                 {
                     decision: item.recommended_decision,
-                    destination_section_id: '',
+                    destination_choice: '',
                 },
             ]),
         );
@@ -196,14 +196,14 @@ const executeRollover = async () => {
             decision:
                 studentDecisions.value[item.source_student_enrollment_id]
                     ?.decision ?? item.recommended_decision,
-            destination_section_id: studentDecisions.value[
-                item.source_student_enrollment_id
-            ]?.destination_section_id
-                ? Number(
-                      studentDecisions.value[item.source_student_enrollment_id]
-                          .destination_section_id,
-                  )
-                : null,
+            destination_section_id: existingSectionIdFromChoice(
+                studentDecisions.value[item.source_student_enrollment_id]
+                    ?.destination_choice,
+            ),
+            destination_source_section_id: sourceSectionIdFromChoice(
+                studentDecisions.value[item.source_student_enrollment_id]
+                    ?.destination_choice,
+            ),
         })),
     }).post(route('admin.academic-years.rollover', rolloverSourceId.value), {
         preserveScroll: true,
@@ -236,6 +236,59 @@ const isSectionIncluded = (sourceSectionId) =>
                 Number(mapping.source_section_id) === Number(sourceSectionId),
         )?.include,
     );
+const existingSectionIdFromChoice = (choice) => {
+    if (!choice?.startsWith('existing:')) return null;
+
+    return Number(choice.slice('existing:'.length));
+};
+const sourceSectionIdFromChoice = (choice) => {
+    if (!choice?.startsWith('rollover:')) return null;
+
+    return Number(choice.slice('rollover:'.length));
+};
+const requiredDestinationYearLevel = (item) =>
+    studentDecisions.value[item.source_student_enrollment_id]?.decision ===
+    'promote'
+        ? 12
+        : Number(item.year_level);
+const selectedRolloverSectionsForStudent = (item) =>
+    sectionMappings.value.filter(
+        (mapping) =>
+            mapping.include &&
+            Number(mapping.destination_year_level) ===
+                requiredDestinationYearLevel(item) &&
+            Number(mapping.source_section_id) !==
+                Number(item.source_section_id),
+    );
+const existingDestinationSectionsForStudent = (item) =>
+    preview.value?.destination_sections?.filter(
+        (section) =>
+            Number(section.year_level) === requiredDestinationYearLevel(item),
+    ) ?? [];
+const clearStudentSelectionsForMapping = (mapping) => {
+    if (mapping.include) return;
+
+    const selectedValue = `rollover:${mapping.source_section_id}`;
+    Object.values(studentDecisions.value).forEach((decision) => {
+        if (decision.destination_choice === selectedValue) {
+            decision.destination_choice = '';
+        }
+    });
+};
+const rolloverSectionLabel = (mapping) => {
+    if (mapping.destination_section_id) {
+        const section = preview.value?.destination_sections?.find(
+            (candidate) =>
+                Number(candidate.section_id) ===
+                Number(mapping.destination_section_id),
+        );
+
+        if (section)
+            return `${section.section_name} - Grade ${section.year_level}`;
+    }
+
+    return `${mapping.destination_name} - Grade ${mapping.destination_year_level}`;
+};
 const sectionMappingForSubject = (subject) =>
     sectionMappings.value.find(
         (mapping) =>
@@ -640,7 +693,6 @@ watch(
                         </button>
                     </div>
                     <div
-                        v-if="rolloverMode === 'year'"
                         class="space-y-3 rounded-lg border border-slate-200 p-3"
                     >
                         <div>
@@ -670,123 +722,132 @@ watch(
                                     {{ group.studentCount }} students
                                 </span>
                             </div>
-                            <div
-                                class="grid gap-2 p-3 sm:grid-cols-2 lg:grid-cols-3"
-                            >
-                                <button
+                            <div class="grid gap-3 p-3 xl:grid-cols-2">
+                                <div
                                     v-for="mapping in group.mappings"
                                     :key="mapping.source_section_id"
-                                    type="button"
-                                    class="rounded-md border border-slate-200 px-3 py-2 text-left text-sm hover:border-blue-200 hover:bg-blue-50"
-                                    @click="openSectionStudents(mapping)"
+                                    class="rounded-md border border-slate-200 p-3"
                                 >
-                                    <span
-                                        class="block font-semibold text-blue-700"
+                                    <div class="flex items-start gap-2">
+                                        <input
+                                            v-model="mapping.include"
+                                            type="checkbox"
+                                            class="mt-1 rounded border-slate-300 text-blue-600"
+                                            :aria-label="`Include ${mapping.source_label} in rollover`"
+                                            @change="
+                                                clearStudentSelectionsForMapping(
+                                                    mapping,
+                                                )
+                                            "
+                                        />
+                                        <button
+                                            type="button"
+                                            class="min-w-0 flex-1 text-left text-sm hover:underline"
+                                            @click="
+                                                openSectionStudents(mapping)
+                                            "
+                                        >
+                                            <span
+                                                class="block font-semibold text-blue-700"
+                                            >
+                                                {{ mapping.source_label }}
+                                            </span>
+                                            <span
+                                                class="text-xs text-slate-500"
+                                            >
+                                                {{
+                                                    studentsForSection(mapping)
+                                                        .length
+                                                }}
+                                                students
+                                            </span>
+                                        </button>
+                                    </div>
+
+                                    <div
+                                        v-if="!mapping.include"
+                                        class="mt-3 rounded-md bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600"
                                     >
-                                        {{ mapping.source_label }}
-                                    </span>
-                                    <span class="text-xs text-slate-500">
-                                        {{ studentsForSection(mapping).length }}
-                                        students
-                                    </span>
-                                </button>
+                                        {{
+                                            isArchivedSectionMapping(mapping)
+                                                ? 'Archived / graduated - no destination section'
+                                                : 'Excluded from rollover - no destination section'
+                                        }}
+                                    </div>
+
+                                    <div
+                                        v-else
+                                        class="mt-3 grid gap-2 md:grid-cols-[1fr_1fr_120px]"
+                                    >
+                                        <div
+                                            v-if="rolloverMode === 'semester'"
+                                            class="rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-800"
+                                        >
+                                            Same section branch → 2nd Semester
+                                        </div>
+                                        <select
+                                            v-else
+                                            v-model="
+                                                mapping.destination_section_id
+                                            "
+                                            class="rounded-md border-slate-300 text-sm"
+                                            @change="
+                                                mapping.destination_name = ''
+                                            "
+                                        >
+                                            <option value="">
+                                                Create a new destination section
+                                            </option>
+                                            <option
+                                                v-for="section in destinationSectionsForMapping(
+                                                    mapping,
+                                                )"
+                                                :key="section.section_id"
+                                                :value="section.section_id"
+                                            >
+                                                {{ section.section_name }} ·
+                                                Grade
+                                                {{ section.year_level }}
+                                            </option>
+                                        </select>
+
+                                        <input
+                                            v-if="rolloverMode !== 'semester'"
+                                            v-model="mapping.destination_name"
+                                            :disabled="
+                                                Boolean(
+                                                    mapping.destination_section_id,
+                                                )
+                                            "
+                                            class="rounded-md border-slate-300 text-sm disabled:bg-slate-100"
+                                            placeholder="New destination section name"
+                                        />
+                                        <div
+                                            v-else
+                                            class="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600"
+                                        >
+                                            {{ mapping.destination_name }}
+                                        </div>
+
+                                        <select
+                                            v-model="
+                                                mapping.destination_year_level
+                                            "
+                                            :disabled="
+                                                rolloverMode === 'semester'
+                                            "
+                                            class="rounded-md border-slate-300 text-sm disabled:bg-slate-100"
+                                        >
+                                            <option :value="11">
+                                                Grade 11
+                                            </option>
+                                            <option :value="12">
+                                                Grade 12
+                                            </option>
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                    <div class="space-y-3">
-                        <div
-                            v-for="mapping in sectionMappings"
-                            :key="mapping.source_section_id"
-                            class="grid gap-2 rounded-lg border border-slate-200 p-3 lg:grid-cols-[1.2fr_1fr_1fr_120px]"
-                        >
-                            <div class="flex items-center gap-2">
-                                <input
-                                    v-model="mapping.include"
-                                    type="checkbox"
-                                    class="rounded border-slate-300 text-blue-600"
-                                />
-                                <button
-                                    type="button"
-                                    class="text-left text-sm font-semibold text-blue-700 hover:text-blue-900 hover:underline"
-                                    @click="openSectionStudents(mapping)"
-                                >
-                                    {{ mapping.source_label }} ·
-                                    {{ studentsForSection(mapping).length }}
-                                    students
-                                </button>
-                            </div>
-                            <div
-                                v-if="!mapping.include"
-                                class="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700"
-                            >
-                                {{
-                                    isArchivedSectionMapping(mapping)
-                                        ? 'Archived / graduated'
-                                        : 'Excluded from rollover'
-                                }}
-                            </div>
-                            <div
-                                v-else-if="rolloverMode === 'semester'"
-                                class="rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-800"
-                            >
-                                Same section branch → 2nd Semester
-                            </div>
-                            <select
-                                v-else
-                                v-model="mapping.destination_section_id"
-                                class="rounded-md border-slate-300 text-sm"
-                                @change="mapping.destination_name = ''"
-                            >
-                                <option value="">
-                                    Create a new destination section
-                                </option>
-                                <option
-                                    v-for="section in destinationSectionsForMapping(
-                                        mapping,
-                                    )"
-                                    :key="section.section_id"
-                                    :value="section.section_id"
-                                >
-                                    {{ section.section_name }} · Grade
-                                    {{ section.year_level }}
-                                </option>
-                            </select>
-                            <div
-                                v-if="!mapping.include"
-                                class="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-500"
-                            >
-                                No destination section
-                            </div>
-                            <input
-                                v-else-if="rolloverMode !== 'semester'"
-                                v-model="mapping.destination_name"
-                                :disabled="
-                                    Boolean(mapping.destination_section_id)
-                                "
-                                class="rounded-md border-slate-300 text-sm disabled:bg-slate-100"
-                                placeholder="New destination section name"
-                            />
-                            <div
-                                v-else
-                                class="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600"
-                            >
-                                {{ mapping.destination_name }}
-                            </div>
-                            <div
-                                v-if="!mapping.include"
-                                class="rounded-md bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600"
-                            >
-                                Not selected
-                            </div>
-                            <select
-                                v-else
-                                v-model="mapping.destination_year_level"
-                                :disabled="rolloverMode === 'semester'"
-                                class="rounded-md border-slate-300 text-sm disabled:bg-slate-100"
-                            >
-                                <option :value="11">Grade 11</option>
-                                <option :value="12">Grade 12</option>
-                            </select>
                         </div>
                     </div>
                     <div
@@ -843,6 +904,11 @@ watch(
                                                 v-model="mapping.include"
                                                 type="checkbox"
                                                 class="rounded border-slate-300 text-blue-600"
+                                                @change="
+                                                    clearStudentSelectionsForMapping(
+                                                        mapping,
+                                                    )
+                                                "
                                             />
                                             {{ mapping.source_label }}
                                         </label>
@@ -1162,7 +1228,7 @@ watch(
                                                         studentDecisions[
                                                             item
                                                                 .source_student_enrollment_id
-                                                        ].destination_section_id
+                                                        ].destination_choice
                                                     "
                                                     :disabled="
                                                         !isSectionIncluded(
@@ -1172,42 +1238,59 @@ watch(
                                                     class="w-full rounded-md border-slate-300 text-sm"
                                                 >
                                                     <option value="">
+                                                        Use mapped section:
                                                         {{
                                                             mappedSectionLabelForStudent(
                                                                 item,
                                                             )
                                                         }}
                                                     </option>
-                                                    <option
-                                                        v-for="section in preview.destination_sections.filter(
-                                                            (section) =>
-                                                                String(
-                                                                    section.year_level,
-                                                                ) ===
-                                                                String(
-                                                                    studentDecisions[
-                                                                        item
-                                                                            .source_student_enrollment_id
-                                                                    ]
-                                                                        .decision ===
-                                                                        'promote'
-                                                                        ? 12
-                                                                        : item.year_level,
-                                                                ),
-                                                        )"
-                                                        :key="
-                                                            section.section_id
+                                                    <optgroup
+                                                        v-if="
+                                                            selectedRolloverSectionsForStudent(
+                                                                item,
+                                                            ).length
                                                         "
-                                                        :value="
-                                                            section.section_id
-                                                        "
+                                                        label="Selected for rollover"
                                                     >
-                                                        {{
-                                                            section.section_name
-                                                        }}
-                                                        · Grade
-                                                        {{ section.year_level }}
-                                                    </option>
+                                                        <option
+                                                            v-for="mapping in selectedRolloverSectionsForStudent(
+                                                                item,
+                                                            )"
+                                                            :key="`rollover-${mapping.source_section_id}`"
+                                                            :value="`rollover:${mapping.source_section_id}`"
+                                                        >
+                                                            {{
+                                                                rolloverSectionLabel(
+                                                                    mapping,
+                                                                )
+                                                            }}
+                                                        </option>
+                                                    </optgroup>
+                                                    <optgroup
+                                                        v-if="
+                                                            existingDestinationSectionsForStudent(
+                                                                item,
+                                                            ).length
+                                                        "
+                                                        label="Existing destination sections"
+                                                    >
+                                                        <option
+                                                            v-for="section in existingDestinationSectionsForStudent(
+                                                                item,
+                                                            )"
+                                                            :key="`existing-${section.section_id}`"
+                                                            :value="`existing:${section.section_id}`"
+                                                        >
+                                                            {{
+                                                                section.section_name
+                                                            }}
+                                                            · Grade
+                                                            {{
+                                                                section.year_level
+                                                            }}
+                                                        </option>
+                                                    </optgroup>
                                                 </select>
                                             </td>
                                         </tr>

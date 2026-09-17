@@ -164,6 +164,7 @@ class AcademicYearController
             'decisions.*.source_student_enrollment_id' => ['required', 'integer', 'exists:student_enrollments,student_enrollment_id'],
             'decisions.*.decision' => ['required', 'in:promote,retain,graduated,dropped,transferred,review'],
             'decisions.*.destination_section_id' => ['nullable', 'integer', 'exists:sections,section_id'],
+            'decisions.*.destination_source_section_id' => ['nullable', 'integer', 'exists:sections,section_id'],
         ]);
         $rollover = $this->rolloverService->execute(
             $academicYear, AcademicYear::findOrFail($validated['destination_academic_year_id']), $request->user(),

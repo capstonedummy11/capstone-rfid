@@ -137,7 +137,15 @@ class AcademicYearRolloverService
             foreach ($preview['items'] as $previewItem) {
                 $choice = collect($decisions)->firstWhere('source_student_enrollment_id', $previewItem['source_student_enrollment_id']);
                 $decision = $choice['decision'] ?? $previewItem['recommended_decision'];
-                $destinationSectionId = $choice['destination_section_id'] ?? ($sectionMap[$previewItem['source_section_id']] ?? null);
+                $selectedSourceSectionId = $choice['destination_source_section_id'] ?? null;
+                if ($selectedSourceSectionId !== null && ! array_key_exists((int) $selectedSourceSectionId, $sectionMap)) {
+                    throw ValidationException::withMessages([
+                        'decisions' => 'A student destination must reference a section selected for rollover.',
+                    ]);
+                }
+                $destinationSectionId = $selectedSourceSectionId !== null
+                    ? $sectionMap[(int) $selectedSourceSectionId]
+                    : ($choice['destination_section_id'] ?? ($sectionMap[$previewItem['source_section_id']] ?? null));
                 $sourceSectionIncluded = collect($sectionMappings)->contains(
                     fn (array $mapping) => (int) $mapping['source_section_id'] === (int) $previewItem['source_section_id']
                         && (bool) ($mapping['include'] ?? true)
