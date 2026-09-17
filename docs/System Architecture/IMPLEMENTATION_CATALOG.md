@@ -45,7 +45,7 @@ This catalog maps implementation classes and frontend building blocks to their r
 | Service | Responsibility and important behavior |
 | --- | --- |
 | `AcademicYearService` | Transactional activate/close/archive/reopen invariants; one active year. |
-| `AcademicYearRolloverService` | Preview, section mapping, Student decision execution, idempotent audit items. The executed path does not copy offerings/schedules. |
+| `AcademicYearRolloverService` | Preview, editable Section mapping, selectable Subject Offering creation, Student decision execution, and idempotent audit items. Selected offerings reuse the Subject catalog but do not copy Instructors or Schedules. |
 | `StudentEnrollmentService` | Creates/synchronizes normalized enrollments and legacy current-placement fields. |
 | `AwsFaceRecognitionService` | Provider availability and captured-vs-stored image comparison. |
 | `CompreFaceService` | Alternative/legacy enroll, recognize, and delete-subject client. |
@@ -134,4 +134,3 @@ Model responsibilities are deliberately small: fillable/casts/relationships and 
 ### Pages
 
 All 66 Vue files, including active, child, wrapper, legacy, reusable, and unwired pages, are cataloged in [Pages and Features](../System%20Explanation/PAGES_AND_FEATURES.md) and [Page/Database Impact Map](PAGE_DATABASE_IMPACT_MAP.md).
-

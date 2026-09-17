@@ -382,12 +382,15 @@ class ReportController
                 ->when($semester !== '', fn ($q) => $q->where('student_enrollments.semester', $semester)));
         }
 
-        if (($yearId && $yearId !== 'all' || $semester !== '') && in_array($table, ['attendances', 'online_classes'], true)) {
+        $needsScheduleYear = $yearId && $yearId !== 'all' && ! Schema::hasColumn($table, 'academic_year_id');
+        $needsScheduleSemester = $semester !== '' && ! Schema::hasColumn($table, 'semester');
+
+        if (($needsScheduleYear || $needsScheduleSemester) && in_array($table, ['attendances', 'online_classes'], true)) {
             $query->whereExists(fn (Builder $schedule) => $schedule
                 ->selectRaw('1')->from('schedules')
                 ->whereColumn('schedules.scheduled_id', "{$table}.schedule_id")
-                ->when($yearId && $yearId !== 'all', fn ($q) => $q->where('schedules.academic_year_id', $yearId))
-                ->when($semester !== '', fn ($q) => $q->where('schedules.semester', $semester)));
+                ->when($needsScheduleYear, fn ($q) => $q->where('schedules.academic_year_id', $yearId))
+                ->when($needsScheduleSemester, fn ($q) => $q->where('schedules.semester', $semester)));
         }
 
         if (($yearId && $yearId !== 'all' || $semester !== '') && $table === 'clinic_cases' && Schema::hasTable('student_enrollments')) {

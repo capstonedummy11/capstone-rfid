@@ -156,6 +156,9 @@ class AcademicYearController
             'section_mappings.*.destination_section_id' => ['nullable', 'integer', 'exists:sections,section_id'],
             'section_mappings.*.destination_name' => ['nullable', 'string', 'max:255'],
             'section_mappings.*.destination_year_level' => ['nullable', 'integer', 'in:11,12'],
+            'subject_selections' => ['nullable', 'array'],
+            'subject_selections.*.source_subject_offering_id' => ['required', 'integer', 'exists:subject_offerings,subject_offering_id'],
+            'subject_selections.*.include' => ['required', 'boolean'],
             'decisions' => ['nullable', 'array'],
             'decisions.*.source_student_enrollment_id' => ['required', 'integer', 'exists:student_enrollments,student_enrollment_id'],
             'decisions.*.decision' => ['required', 'in:promote,retain,graduated,dropped,transferred,review'],
@@ -164,6 +167,7 @@ class AcademicYearController
         $rollover = $this->rolloverService->execute(
             $academicYear, AcademicYear::findOrFail($validated['destination_academic_year_id']), $request->user(),
             $validated['decisions'] ?? [], $validated['section_mappings'], $validated['mode'] ?? 'year', $validated['destination_semester'] ?? null,
+            $validated['subject_selections'] ?? null,
         );
         return back()->with('success', "Rollover completed safely. {$rollover->items->where('status', 'completed')->count()} student decisions were applied.");
     }

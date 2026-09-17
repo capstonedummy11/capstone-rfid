@@ -1,14 +1,14 @@
 <?php
 
-use App\Models\Attendance;
 use App\Models\AcademicYear;
+use App\Models\Attendance;
 use App\Models\Instructor;
 use App\Models\Message;
 use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\Strand;
-use App\Models\StudentExcuseLetter;
 use App\Models\StudentEnrollment;
+use App\Models\StudentExcuseLetter;
 use App\Models\StudentPortalMessage;
 use App\Models\Students;
 use App\Models\SystemSetting;
@@ -28,6 +28,7 @@ uses(RefreshDatabase::class);
 function portalFixture(): array
 {
     SystemSetting::setBoolean(SystemSetting::PARENT_PORTAL_ENABLED, true);
+    SystemSetting::setBoolean(SystemSetting::PARENT_EXCUSE_LETTERS_ENABLED, true);
 
     $strand = Strand::query()->create([
         'strand_code' => 'ICT',

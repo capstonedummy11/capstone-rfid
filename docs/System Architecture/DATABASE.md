@@ -127,7 +127,7 @@ Rollover audit model:
 - `academic_year_rollovers` records the source/destination years, operator, mode, status, preview/execution counts, errors, and completion timestamps.
 - `academic_year_rollover_items` records each student decision and any resulting destination enrollment/section.
 - the source/destination pair and per-rollover student are unique, making successful execution safe to retry.
-- rollover copies only explicitly mapped sections, offerings, unassigned schedules, and approved enrollments; attendance, online classes, messages, letters, clinic data, borrowing, evidence, and audit history are excluded.
+- rollover copies only explicitly mapped Sections, selected Subject Offerings, and approved enrollments; Instructor assignments, Schedules, attendance, online classes, messages, letters, Clinic data, borrowing, evidence, and audit history are excluded.
 
 Legacy academic compatibility:
 

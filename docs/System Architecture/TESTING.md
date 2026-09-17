@@ -7,15 +7,7 @@ This is the canonical guide for running automated tests and verifying the applic
 - `npm run build`: passed; Vite compiled all 2,480 modules and Wayfinder generated route/action types.
 - Full migration chain: passed against a clean temporary SQLite database through all migrations, including the 2026-09-08 Parent settings migrations.
 - `php artisan route:list --except-vendor --json`: passed with the compatible PHP 8.5.8 executable.
-- `php artisan test --compact`: **153 passed, 7 failed, 1,503 assertions**. The failures are current code/test-contract drift, not documentation failures:
-  - Academic Year Student creation fixture has no active year.
-  - Attendance session-ending fixture receives the current-year context rejection.
-  - Admin report academic-year attendance count expected one but returned zero.
-  - Parent role smoke test is blocked while Parent Portal defaults off.
-  - Two Parent excuse-letter tests are blocked while Parent Portal/Parent Excuse Letters default off.
-  - System Settings test omits the now-required `online_classes_enabled` field.
-
-Do not describe the current branch as having a fully passing backend suite until these seven expectations/fixtures or the corresponding implementation contracts are reconciled.
+- `php artisan test --compact`: passed with **160 tests and 1,554 assertions**. The suite includes editable rollover Section/Subject Offering selection through the HTTP preview/execute routes, academic-year Student placement, attendance session completion, report filtering, Parent Portal, Parent excuse-letter, and System Settings contracts.
 
 ## Requirements
 

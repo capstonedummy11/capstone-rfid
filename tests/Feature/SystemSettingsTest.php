@@ -19,6 +19,7 @@ test('admin can enable demo attendance panel and configure demo rfids', function
             'inventory_enabled' => false,
             'parent_portal_enabled' => false,
             'face_recognition_enabled' => false,
+            'online_classes_enabled' => true,
             'online_class_face_recognition_default' => false,
             'demo_attendance_panel_enabled' => true,
             'demo_attendance_panel_rfids' => [

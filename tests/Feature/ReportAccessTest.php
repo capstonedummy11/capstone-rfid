@@ -1,7 +1,7 @@
 <?php
 
-use App\Models\Instructor;
 use App\Models\AcademicYear;
+use App\Models\Instructor;
 use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\Strand;
@@ -46,6 +46,7 @@ function reportFixture(): array
         'instructor_id' => $instructor->instructor_id,
         'section_id' => $section->section_id,
         'subject_code' => 'REP-101',
+        'semester' => '1st Semester',
         'weekdays' => now()->format('l'),
         'time_start' => '08:00:00',
         'time_end' => '09:00:00',
@@ -152,6 +153,15 @@ test('report academic year filter matches the exported dataset', function () {
     $yearA = AcademicYear::create(['name' => '2026-2027', 'starts_on' => '2026-06-01', 'ends_on' => '2027-03-31', 'status' => AcademicYear::STATUS_ACTIVE]);
     $yearB = AcademicYear::create(['name' => '2025-2026', 'starts_on' => '2025-06-01', 'ends_on' => '2026-03-31', 'status' => AcademicYear::STATUS_CLOSED]);
     DB::table('attendances')->update(['academic_year_id' => $yearA->academic_year_id]);
+    $secondSemesterSchedule = $fixture['schedule']->replicate();
+    $secondSemesterSchedule->semester = '2nd Semester';
+    $secondSemesterSchedule->room = 'REPORT-LAB-2';
+    $secondSemesterSchedule->save();
+    DB::table('attendances')->insert([
+        'student_id' => $fixture['student']->student_id, 'schedule_id' => $secondSemesterSchedule->scheduled_id,
+        'academic_year_id' => $yearA->academic_year_id, 'date' => '2026-08-01', 'time_in' => '10:00:00',
+        'status' => 'present', 'subject_code' => 'REP-101', 'room' => 'REPORT-LAB-2', 'created_at' => now(), 'updated_at' => now(),
+    ]);
     DB::table('attendances')->insert([
         'student_id' => $fixture['student']->student_id, 'schedule_id' => $fixture['schedule']->scheduled_id,
         'academic_year_id' => $yearB->academic_year_id, 'date' => '2026-02-01', 'time_in' => '08:00:00',
@@ -162,7 +172,14 @@ test('report academic year filter matches the exported dataset', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->where('filters.academic_year_id', $yearA->academic_year_id)
             ->where('summaryCards.2.label', 'Attendance Records')
-            ->where('summaryCards.2.value', 1));
+            ->where('summaryCards.2.value', 2));
+
+    $this->actingAs($admin)->get(route('reports.index', [
+        'academic_year_id' => $yearA->academic_year_id,
+        'semester' => '1st Semester',
+    ]))->assertInertia(fn (Assert $page) => $page
+        ->where('filters.semester', '1st Semester')
+        ->where('summaryCards.2.value', 1));
 
     $export = $this->actingAs($admin)->get(route('reports.export', ['academic_year_id' => $yearA->academic_year_id]));
     $export->assertOk();

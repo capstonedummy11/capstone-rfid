@@ -167,7 +167,7 @@ Emergency sound is a browser-side notification driven by polling/refresh data an
 4. For promote/retain, create the destination enrollment if missing and update current student compatibility placement.
 5. For graduated, mark current Student status graduated; skipped decisions create no enrollment.
 6. Upsert per-student rollover item and complete the transaction/audit.
-7. Do not copy subjects, offerings, schedules, attendance, online classes, messages, files, clinic, borrowing, or logs.
+7. Reuse the global Subject catalog and create only the Subject Offerings selected in preview for mapped destination Sections. Do not copy Instructor assignments, Schedules, attendance, online classes, messages, files, Clinic, borrowing, or logs.
 
 The unused private `copyOfferingsAndSchedules` helper remains in the service, but `execute` explicitly sets those copy counts to zero and does not call it. Documentation follows executed behavior.
 
@@ -190,4 +190,3 @@ The unused private `copyOfferingsAndSchedules` helper remains in the service, bu
 - Public registration and legacy public message-create/store routes remain enabled; production policy should confirm this.
 - Database queue is the example default but migrations do not create `jobs`, `job_batches`, or `failed_jobs`; either add queue migrations or set `QUEUE_CONNECTION=sync` when no queued work is required.
 - The health route is application-process health only, not dependency readiness.
-

@@ -1,10 +1,12 @@
 <?php
 
+use App\Models\AcademicYear;
 use App\Models\Instructor;
 use App\Models\RfidPanelSession;
 use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\Strand;
+use App\Models\StudentEnrollment;
 use App\Models\Students;
 use App\Models\Subject;
 use App\Models\SystemSetting;
@@ -20,6 +22,13 @@ uses(RefreshDatabase::class);
 
 function attendanceVerificationFixture(bool $withFace = false): array
 {
+    $academicYear = AcademicYear::query()->create([
+        'name' => '2026-2027',
+        'starts_on' => '2026-06-01',
+        'ends_on' => '2027-03-31',
+        'status' => AcademicYear::STATUS_ACTIVE,
+        'active_semester' => '1st Semester',
+    ]);
     $strand = Strand::query()->create([
         'strand_code' => 'ICT-ATT',
         'strand_name' => 'ICT Attendance',
@@ -27,6 +36,7 @@ function attendanceVerificationFixture(bool $withFace = false): array
         'status' => 'active',
     ]);
     $section = Section::query()->create([
+        'academic_year_id' => $academicYear->academic_year_id,
         'strand_id' => $strand->strand_id,
         'section_name' => 'ICT ATT 11-A',
         'year_level' => 11,
@@ -54,9 +64,11 @@ function attendanceVerificationFixture(bool $withFace = false): array
         'semester' => '1st Semester',
     ]);
     $schedule = Schedule::query()->create([
+        'academic_year_id' => $academicYear->academic_year_id,
         'instructor_id' => $instructor->instructor_id,
         'section_id' => $section->section_id,
         'subject_code' => 'ATT-SEC-101',
+        'semester' => '1st Semester',
         'weekdays' => now()->format('l'),
         'time_start' => '08:00:00',
         'time_end' => '17:00:00',
@@ -77,10 +89,21 @@ function attendanceVerificationFixture(bool $withFace = false): array
         'status' => 'active',
         'face_images' => $withFace ? ['student_faces/missing-reference.jpg'] : [],
     ]);
+    StudentEnrollment::query()->create([
+        'student_id' => $student->student_id,
+        'academic_year_id' => $academicYear->academic_year_id,
+        'section_id' => $section->section_id,
+        'strand_id' => $strand->strand_id,
+        'year_level' => 11,
+        'semester' => '1st Semester',
+        'status' => 'enrolled',
+        'enrolled_at' => '2026-06-01',
+    ]);
     $console = User::factory()->create(['role' => 'console']);
     $attendanceSessionId = DB::table('attendance_sessions')->insertGetId([
         'subject_code' => 'ATT-SEC-101',
         'schedule_id' => $schedule->scheduled_id,
+        'academic_year_id' => $academicYear->academic_year_id,
         'date' => now()->toDateString(),
         'time_start' => now()->format('H:i:s'),
         'status' => 'attendance',
@@ -89,7 +112,7 @@ function attendanceVerificationFixture(bool $withFace = false): array
         'updated_at' => now(),
     ]);
 
-    return compact('student', 'instructorUser', 'schedule', 'console', 'attendanceSessionId');
+    return compact('academicYear', 'student', 'instructorUser', 'schedule', 'console', 'attendanceSessionId');
 }
 
 test('direct student tap cannot record attendance without server-side verification', function () {
@@ -228,7 +251,18 @@ test('online class participation is counted as online class and present attendan
         'school_year' => '2026-2027',
         'status' => 'active',
     ]);
+    StudentEnrollment::query()->create([
+        'student_id' => $absentStudent->student_id,
+        'academic_year_id' => $fixture['academicYear']->academic_year_id,
+        'section_id' => $fixture['student']->section_id,
+        'strand_id' => $fixture['student']->strand_id,
+        'year_level' => 11,
+        'semester' => '1st Semester',
+        'status' => 'enrolled',
+        'enrolled_at' => '2026-06-01',
+    ]);
     $onlineClassId = DB::table('online_classes')->insertGetId([
+        'academic_year_id' => $fixture['academicYear']->academic_year_id,
         'schedule_id' => $fixture['schedule']->scheduled_id,
         'instructor_id' => $fixture['schedule']->instructor_id,
         'section_id' => $fixture['student']->section_id,

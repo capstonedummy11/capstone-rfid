@@ -90,8 +90,10 @@ const destinationSemester = ref('2nd Semester');
 const preview = ref(null);
 const previewBusy = ref(false);
 const sectionMappings = ref([]);
+const subjectSelections = ref([]);
 const studentDecisions = ref({});
 const selectedSectionStudents = ref(null);
+const rolloverConfigurationOpen = ref(false);
 
 const loadPreview = async () => {
     if (!rolloverSourceId.value || !rolloverDestinationId.value) return;
@@ -125,6 +127,10 @@ const loadPreview = async () => {
                 ? 12
                 : Number(section.year_level),
         }));
+        subjectSelections.value = data.source_offerings.map((offering) => ({
+            ...offering,
+            include: Boolean(offering.will_rollover),
+        }));
         studentDecisions.value = Object.fromEntries(
             data.items.map((item) => [
                 item.source_student_enrollment_id,
@@ -134,6 +140,7 @@ const loadPreview = async () => {
                 },
             ]),
         );
+        rolloverConfigurationOpen.value = false;
     } catch (error) {
         Swal.fire('Preview unavailable', error.message, 'error');
     } finally {
@@ -157,7 +164,7 @@ const executeRollover = async () => {
     const result = await Swal.fire({
         icon: 'warning',
         title: 'Execute this academic rollover?',
-        text: 'This creates only destination configuration and enrollments. Historical operational records are never copied.',
+        text: 'This creates the reviewed destination Sections, Subject Offerings, and enrollments. Instructors, Schedules, and historical operational records are not copied.',
         showCancelButton: true,
         confirmButtonText: 'Execute Academic Rollover',
         confirmButtonColor: '#2563eb',
@@ -176,6 +183,12 @@ const executeRollover = async () => {
                     : null,
             }),
         ),
+        subject_selections: subjectSelections.value.map((selection) => ({
+            source_subject_offering_id: Number(
+                selection.source_subject_offering_id,
+            ),
+            include: Boolean(selection.include),
+        })),
         decisions: preview.value.items.map((item) => ({
             source_student_enrollment_id: item.source_student_enrollment_id,
             decision:
@@ -214,6 +227,30 @@ const destinationSectionsForMapping = (mapping) =>
             String(section.year_level) ===
             String(mapping.destination_year_level),
     ) ?? [];
+const sectionMappingForSubject = (subject) =>
+    sectionMappings.value.find(
+        (mapping) =>
+            Number(mapping.source_section_id) ===
+            Number(subject.source_section_id),
+    );
+const subjectDestinationLabel = (subject) => {
+    if (!subject.include) return 'Excluded from rollover';
+    const mapping = sectionMappingForSubject(subject);
+    if (!mapping || isArchivedSectionMapping(mapping)) return 'Not included';
+    if (mapping.destination_section_id) {
+        return (
+            preview.value?.destination_sections?.find(
+                (section) =>
+                    Number(section.section_id) ===
+                    Number(mapping.destination_section_id),
+            )?.section_name ?? 'Selected destination section'
+        );
+    }
+    return mapping.destination_name || 'New destination section';
+};
+const selectedSubjectCount = computed(
+    () => subjectSelections.value.filter((subject) => subject.include).length,
+);
 const isArchivedStudent = (item) =>
     rolloverMode.value === 'year' &&
     preview.value?.transition?.advance_grade &&
@@ -276,6 +313,10 @@ const onRolloverSourceChange = () => {
     if (rolloverMode.value === 'semester')
         rolloverDestinationId.value = rolloverSourceId.value;
     preview.value = null;
+    sectionMappings.value = [];
+    subjectSelections.value = [];
+    studentDecisions.value = {};
+    rolloverConfigurationOpen.value = false;
 };
 
 watch(
@@ -287,7 +328,9 @@ watch(
         ) {
             preview.value = null;
             sectionMappings.value = [];
+            subjectSelections.value = [];
             studentDecisions.value = {};
+            rolloverConfigurationOpen.value = false;
             rolloverSourceId.value = '';
             rolloverDestinationId.value = '';
         }
@@ -423,8 +466,9 @@ watch(
                     Academic rollover
                 </h2>
                 <p class="mt-1 text-sm text-slate-600">
-                    Preview first, map sections, then create destination
-                    enrollments transactionally. Subjects and schedules are
+                    Preview first, edit destination Sections and Subject
+                    Offerings, then create the reviewed configuration and
+                    enrollments transactionally. Instructors and Schedules are
                     configured separately for each semester.
                 </p>
                 <div class="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto]">
@@ -539,6 +583,28 @@ watch(
                             </div>
                             <div class="text-xl font-bold">{{ value }}</div>
                         </div>
+                    </div>
+                    <div
+                        class="flex flex-col gap-3 rounded-lg border border-indigo-200 bg-indigo-50 p-4 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                        <div>
+                            <h3 class="text-sm font-bold text-indigo-950">
+                                Sections and subjects to roll over
+                            </h3>
+                            <p class="text-xs text-indigo-800">
+                                Review and edit destination Section mappings and
+                                choose which Subject Offerings will be created.
+                                {{ sectionMappings.length }} source sections and
+                                {{ selectedSubjectCount }} selected subjects.
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            class="shrink-0 rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-800"
+                            @click="rolloverConfigurationOpen = true"
+                        >
+                            Review and edit sections &amp; subjects
+                        </button>
                     </div>
                     <div
                         v-if="rolloverMode === 'year'"
@@ -677,6 +743,256 @@ watch(
                                 <option :value="11">Grade 11</option>
                                 <option :value="12">Grade 12</option>
                             </select>
+                        </div>
+                    </div>
+                    <div
+                        v-if="rolloverConfigurationOpen"
+                        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+                        @click.self="rolloverConfigurationOpen = false"
+                    >
+                        <div
+                            class="max-h-[90vh] w-full max-w-6xl overflow-y-auto rounded-xl bg-white p-5 shadow-xl"
+                        >
+                            <div
+                                class="mb-5 flex items-start justify-between gap-4"
+                            >
+                                <div>
+                                    <h3
+                                        class="text-lg font-bold text-slate-900"
+                                    >
+                                        Review rollover Sections and Subjects
+                                    </h3>
+                                    <p class="mt-1 text-sm text-slate-600">
+                                        Changes here update the rollover
+                                        preview. The Subject catalog is reused;
+                                        selected offerings are created without
+                                        Instructor assignments or Schedules.
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    class="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                                    @click="rolloverConfigurationOpen = false"
+                                >
+                                    Close
+                                </button>
+                            </div>
+
+                            <section>
+                                <h4 class="font-bold text-slate-900">
+                                    Destination Sections
+                                </h4>
+                                <p class="mb-3 text-xs text-slate-500">
+                                    Select an existing destination Section or
+                                    edit the name and grade of a new Section.
+                                </p>
+                                <div class="space-y-2">
+                                    <div
+                                        v-for="mapping in sectionMappings"
+                                        :key="`review-section-${mapping.source_section_id}`"
+                                        class="grid gap-2 rounded-lg border border-slate-200 p-3 lg:grid-cols-[1.2fr_1fr_1fr_120px]"
+                                    >
+                                        <div
+                                            class="text-sm font-semibold text-slate-800"
+                                        >
+                                            {{ mapping.source_label }}
+                                        </div>
+                                        <template
+                                            v-if="
+                                                isArchivedSectionMapping(
+                                                    mapping,
+                                                )
+                                            "
+                                        >
+                                            <div
+                                                class="rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-600 lg:col-span-3"
+                                            >
+                                                Not copied: Grade 12 is archived
+                                                by default.
+                                            </div>
+                                        </template>
+                                        <template v-else>
+                                            <select
+                                                v-model="
+                                                    mapping.destination_section_id
+                                                "
+                                                class="rounded-md border-slate-300 text-sm"
+                                                @change="
+                                                    mapping.destination_name =
+                                                        ''
+                                                "
+                                            >
+                                                <option value="">
+                                                    Create a new Section
+                                                </option>
+                                                <option
+                                                    v-for="section in destinationSectionsForMapping(
+                                                        mapping,
+                                                    )"
+                                                    :key="section.section_id"
+                                                    :value="section.section_id"
+                                                >
+                                                    {{ section.section_name }} -
+                                                    Grade
+                                                    {{ section.year_level }}
+                                                </option>
+                                            </select>
+                                            <input
+                                                v-model="
+                                                    mapping.destination_name
+                                                "
+                                                :disabled="
+                                                    Boolean(
+                                                        mapping.destination_section_id,
+                                                    )
+                                                "
+                                                class="rounded-md border-slate-300 text-sm disabled:bg-slate-100"
+                                                placeholder="Destination Section name"
+                                            />
+                                            <select
+                                                v-model="
+                                                    mapping.destination_year_level
+                                                "
+                                                :disabled="
+                                                    rolloverMode === 'semester'
+                                                "
+                                                class="rounded-md border-slate-300 text-sm disabled:bg-slate-100"
+                                            >
+                                                <option :value="11">
+                                                    Grade 11
+                                                </option>
+                                                <option :value="12">
+                                                    Grade 12
+                                                </option>
+                                            </select>
+                                        </template>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="mt-6">
+                                <div
+                                    class="mb-3 flex items-end justify-between gap-3"
+                                >
+                                    <div>
+                                        <h4 class="font-bold text-slate-900">
+                                            Subject Offerings
+                                        </h4>
+                                        <p class="text-xs text-slate-500">
+                                            Clear a checkbox to leave that
+                                            Subject out of the destination
+                                            semester.
+                                        </p>
+                                    </div>
+                                    <span
+                                        class="text-sm font-semibold text-indigo-700"
+                                    >
+                                        {{ selectedSubjectCount }} selected
+                                    </span>
+                                </div>
+                                <div
+                                    v-if="subjectSelections.length"
+                                    class="overflow-x-auto rounded-lg border border-slate-200"
+                                >
+                                    <table
+                                        class="w-full min-w-[820px] text-left text-sm"
+                                    >
+                                        <thead
+                                            class="bg-slate-50 text-xs text-slate-500 uppercase"
+                                        >
+                                            <tr>
+                                                <th class="px-3 py-2">
+                                                    Include
+                                                </th>
+                                                <th class="px-3 py-2">
+                                                    Subject
+                                                </th>
+                                                <th class="px-3 py-2">
+                                                    Source Section
+                                                </th>
+                                                <th class="px-3 py-2">
+                                                    Destination Section
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody
+                                            class="divide-y divide-slate-100"
+                                        >
+                                            <tr
+                                                v-for="subject in subjectSelections"
+                                                :key="
+                                                    subject.source_subject_offering_id
+                                                "
+                                            >
+                                                <td class="px-3 py-2">
+                                                    <input
+                                                        v-model="
+                                                            subject.include
+                                                        "
+                                                        type="checkbox"
+                                                        :disabled="
+                                                            !subject.will_rollover
+                                                        "
+                                                        class="rounded border-slate-300 text-indigo-600 disabled:opacity-50"
+                                                    />
+                                                </td>
+                                                <td class="px-3 py-2">
+                                                    <span
+                                                        class="block font-semibold text-slate-900"
+                                                    >
+                                                        {{
+                                                            subject.subject_code
+                                                        }}
+                                                        -
+                                                        {{
+                                                            subject.subject_name
+                                                        }}
+                                                    </span>
+                                                    <span
+                                                        class="text-xs text-slate-500"
+                                                    >
+                                                        {{ subject.unit ?? 0 }}
+                                                        units
+                                                    </span>
+                                                </td>
+                                                <td class="px-3 py-2">
+                                                    {{
+                                                        subject.source_section_name
+                                                    }}
+                                                    - Grade
+                                                    {{
+                                                        subject.source_year_level
+                                                    }}
+                                                </td>
+                                                <td class="px-3 py-2">
+                                                    {{
+                                                        subjectDestinationLabel(
+                                                            subject,
+                                                        )
+                                                    }}
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <p
+                                    v-else
+                                    class="rounded-lg bg-slate-50 p-4 text-sm text-slate-500"
+                                >
+                                    No active Subject Offerings exist in the
+                                    source semester.
+                                </p>
+                            </section>
+
+                            <div class="mt-5 flex justify-end">
+                                <button
+                                    type="button"
+                                    class="rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white"
+                                    @click="rolloverConfigurationOpen = false"
+                                >
+                                    Save preview changes
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div

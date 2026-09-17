@@ -105,10 +105,11 @@ Only enrollments from the source current semester are processed. Dropped, transf
 4. Select the source academic year.
 5. Select the destination academic year for full academic rollover.
 6. Click **Preview**.
-7. Review the student preview by grade and section.
-8. Map each source section to a destination section, or enter a destination section name.
-9. Confirm Grade 12 students that should be archived.
-10. Execute the reviewed academic rollover.
+7. Click **Review and edit sections & subjects**.
+8. Map each source Section to an existing destination Section, or edit the name and grade of a new destination Section.
+9. Review the Subject Offerings and clear any offering that should not continue into the destination semester.
+10. Confirm Grade 12 students that should be archived.
+11. Save the preview changes and execute the reviewed academic rollover.
 
 The preview step is important because it lets the admin check the movement before anything is written.
 
@@ -118,6 +119,8 @@ The preview shows:
 
 - source sections;
 - destination sections;
+- active Subject Offerings from the source semester;
+- which Subject Offerings are selected for the destination semester;
 - student counts;
 - promotion, retention, archive, drop, and review counts;
 - each student's recommended decision;
@@ -155,6 +158,7 @@ If a Grade 12 student failed, was retained, or needs review, the admin can chang
 Academic rollover can create:
 
 - destination sections when the admin provides a new destination section name;
+- selected destination Subject Offerings linked to the mapped Sections;
 - destination student enrollment records;
 - rollover history records;
 - per-student rollover result records.
@@ -171,8 +175,6 @@ It does not copy:
 
 - attendance logs;
 - attendance sessions;
-- subjects;
-- subject offerings;
 - schedules;
 - instructor assignments;
 - online classes;
@@ -187,16 +189,17 @@ It does not copy:
 - system settings;
 - account configuration.
 
-Subjects, instructors, offerings, and schedules must be configured for the destination academic year or semester separately. This keeps historical records clean and prevents old operational data from being mixed into the new school year.
+The permanent Subject catalog is reused rather than duplicated. The admin can include or exclude each active source Subject Offering during preview. Selected offerings are created for the mapped destination Section and semester without copying the old Instructor or Schedule. This keeps historical teaching assignments clean while avoiding repetitive Subject setup.
 
 ## Subject Offering and Schedule Setup
 
-After rollover, administrators should configure teaching data for the destination semester.
+After rollover, administrators should complete the teaching setup for the destination semester.
 
 - The Subjects page can filter sections by academic year and grade level before selecting a section.
 - Subject offerings inherit their academic year and semester from the selected section.
+- Rollover-created Subject Offerings have no Instructor assignment until an administrator assigns one.
 - Removing an instructor removes only the instructor assignment; the subject offering and section assignment remain.
-- New schedules should use subject offerings from the intended academic year and semester.
+- New Schedules should use the reviewed rollover Subject Offerings from the intended academic year and semester.
 - Historical schedules remain viewable through filters but should not be reused as current schedules.
 
 ## Historical Information
