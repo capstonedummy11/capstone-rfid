@@ -125,6 +125,13 @@ class AcademicYearRolloverService
             }
 
             $sectionMap = $this->resolveSections($source, $destination, $sectionMappings, $mode, $destinationSemester);
+            $promotionSectionMap = $this->resolvePromotionSections(
+                $source,
+                $destination,
+                $sectionMappings,
+                $sectionMap,
+                $preview['transition'],
+            );
             $offeringMap = $this->copySubjectOfferings(
                 $source,
                 $destination,
@@ -151,7 +158,11 @@ class AcademicYearRolloverService
                     }
                     $destinationSectionId = $selectedSourceSectionId !== null
                         ? $sectionMap[(int) $selectedSourceSectionId]
-                        : ($choice['destination_section_id'] ?? ($sectionMap[$previewItem['source_section_id']] ?? null));
+                        : ($choice['destination_section_id'] ?? (
+                            $decision === 'promote'
+                                ? ($promotionSectionMap[$previewItem['source_section_id']] ?? null)
+                                : ($sectionMap[$previewItem['source_section_id']] ?? null)
+                        ));
                     if (! $destinationSectionId) {
                         throw ValidationException::withMessages(['rollover' => "Destination section is required for student {$previewItem['student_id']}."]);
                     }
@@ -249,6 +260,78 @@ class AcademicYearRolloverService
         }
 
         return $map;
+    }
+
+    private function resolvePromotionSections(AcademicYear $source, AcademicYear $destination, array $mappings, array $sectionMap, array $transition): array
+    {
+        if (! $transition['advance_grade']) {
+            return [];
+        }
+
+        $promotionMap = [];
+        $usedDestinationIds = [];
+        foreach ($mappings as $mapping) {
+            $sourceSection = DB::table('sections')
+                ->where('section_id', $mapping['source_section_id'])
+                ->where('academic_year_id', $source->academic_year_id)
+                ->first();
+            if (! $sourceSection || (int) $sourceSection->year_level !== 11) {
+                continue;
+            }
+
+            $destinationId = null;
+            $destinationSourceSectionId = $mapping['promotion_destination_source_section_id'] ?? null;
+            if ($destinationSourceSectionId !== null) {
+                if (! array_key_exists((int) $destinationSourceSectionId, $sectionMap)) {
+                    throw ValidationException::withMessages([
+                        'section_mappings' => 'Each Grade 11 promotion destination must reference a Grade 12 Section selected for rollover.',
+                    ]);
+                }
+                $destinationId = $sectionMap[(int) $destinationSourceSectionId];
+            } elseif (! empty($mapping['promotion_destination_section_id'])) {
+                $destinationId = (int) $mapping['promotion_destination_section_id'];
+            } elseif (! empty($mapping['promotion_destination_name'])) {
+                $destinationName = trim($mapping['promotion_destination_name']);
+                $destinationId = DB::table('sections')
+                    ->where('academic_year_id', $destination->academic_year_id)
+                    ->where('section_name', $destinationName)
+                    ->where('semester', $transition['destination_semester'])
+                    ->value('section_id');
+                $destinationId ??= DB::table('sections')->insertGetId([
+                    'academic_year_id' => $destination->academic_year_id,
+                    'strand_id' => $sourceSection->strand_id,
+                    'section_name' => $destinationName,
+                    'year_level' => 12,
+                    'semester' => $transition['destination_semester'],
+                    'school_year' => $destination->name,
+                    'status' => 'active',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            if (! $destinationId) {
+                continue;
+            }
+            $destinationSection = DB::table('sections')
+                ->where('section_id', $destinationId)
+                ->where('academic_year_id', $destination->academic_year_id)
+                ->first();
+            if (! $destinationSection || $destinationSection->semester !== $transition['destination_semester'] || (int) $destinationSection->year_level !== 12) {
+                throw ValidationException::withMessages([
+                    'section_mappings' => 'Every Grade 11 promotion destination must be a Grade 12 Section in the destination year and semester.',
+                ]);
+            }
+            if (in_array((int) $destinationId, $usedDestinationIds, true)) {
+                throw ValidationException::withMessages([
+                    'section_mappings' => 'Each Grade 11 section must use a different Grade 12 destination Section.',
+                ]);
+            }
+            $usedDestinationIds[] = (int) $destinationId;
+            $promotionMap[(int) $sourceSection->section_id] = (int) $destinationId;
+        }
+
+        return $promotionMap;
     }
 
     private function copySubjectOfferings(AcademicYear $source, AcademicYear $destination, array $sectionMap, array $transition, ?array $subjectSelections): array

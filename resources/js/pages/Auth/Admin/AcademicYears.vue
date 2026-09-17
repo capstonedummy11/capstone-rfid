@@ -124,7 +124,10 @@ const loadPreview = async () => {
             destination_section_id: '',
             destination_name: section.section_name,
             destination_year_level: Number(section.year_level),
+            promotion_destination_choice: '',
+            promotion_destination_name: '',
         }));
+        initializePromotionMappings();
         subjectSelections.value = data.source_offerings.map((offering) => ({
             ...offering,
             include: Boolean(offering.will_rollover),
@@ -134,10 +137,7 @@ const loadPreview = async () => {
                 item.source_student_enrollment_id,
                 {
                     decision: item.recommended_decision,
-                    destination_choice: defaultDestinationChoice(
-                        item,
-                        item.recommended_decision,
-                    ),
+                    destination_choice: '',
                 },
             ]),
         );
@@ -162,13 +162,41 @@ const executeRollover = async () => {
             'Select or name a destination for every copied section.',
             'error',
         );
+    const invalidPromotionMapping = promotionMappings.value.some(
+        (mapping) =>
+            !mapping.promotion_destination_choice ||
+            (mapping.promotion_destination_choice === 'new' &&
+                !mapping.promotion_destination_name.trim()),
+    );
+    if (invalidPromotionMapping)
+        return Swal.fire(
+            'Grade 12 section required',
+            'Map every Grade 11 section to a different Grade 12 section, or enter a name for a new Grade 12 section.',
+            'error',
+        );
+    const promotionChoices = promotionMappings.value
+        .filter(
+            (mapping) => mapping.promotion_destination_choice !== 'individual',
+        )
+        .map((mapping) =>
+            mapping.promotion_destination_choice === 'new'
+                ? `new:${mapping.promotion_destination_name.trim().toLowerCase()}`
+                : mapping.promotion_destination_choice,
+        );
+    if (new Set(promotionChoices).size !== promotionChoices.length)
+        return Swal.fire(
+            'Duplicate Grade 12 destination',
+            'Each Grade 11 section must use a different Grade 12 destination section.',
+            'error',
+        );
     const missingStudentDestination = preview.value.items.some((item) => {
         const studentDecision =
             studentDecisions.value[item.source_student_enrollment_id];
 
         return (
             ['promote', 'retain'].includes(studentDecision?.decision) &&
-            !studentDecision?.destination_choice
+            !studentDecision?.destination_choice &&
+            !hasSectionDefaultDestination(item, studentDecision.decision)
         );
     });
     if (missingStudentDestination)
@@ -192,11 +220,23 @@ const executeRollover = async () => {
         destination_semester:
             rolloverMode.value === 'semester' ? '2nd Semester' : null,
         section_mappings: sectionMappings.value.map(
-            ({ source_label, ...mapping }) => ({
+            ({
+                source_label,
+                promotion_destination_choice: promotionChoice,
+                ...mapping
+            }) => ({
                 ...mapping,
                 destination_section_id: mapping.destination_section_id
                     ? Number(mapping.destination_section_id)
                     : null,
+                promotion_destination_source_section_id:
+                    sourceSectionIdFromChoice(promotionChoice),
+                promotion_destination_section_id:
+                    existingSectionIdFromChoice(promotionChoice),
+                promotion_destination_name:
+                    promotionChoice === 'new'
+                        ? mapping.promotion_destination_name.trim()
+                        : null,
             }),
         ),
         subject_selections: subjectSelections.value.map((selection) => ({
@@ -264,6 +304,53 @@ const requiredDestinationYearLevel = (item, decision = null) =>
     'promote'
         ? 12
         : Number(item.year_level);
+const promotionMappings = computed(() =>
+    rolloverMode.value === 'year'
+        ? sectionMappings.value.filter(
+              (mapping) => Number(mapping.source_year_level) === 11,
+          )
+        : [],
+);
+const suggestedPromotionSectionName = (mapping) => {
+    const promotedName = mapping.destination_name.replace(
+        /(^|\D)11(?=\D|$)/,
+        (_, prefix) => `${prefix}12`,
+    );
+
+    return promotedName === mapping.destination_name
+        ? `${mapping.destination_name} - Grade 12`
+        : promotedName;
+};
+const initializePromotionMappings = () => {
+    if (rolloverMode.value !== 'year') return;
+
+    const grade11Mappings = sectionMappings.value.filter(
+        (mapping) => Number(mapping.source_year_level) === 11,
+    );
+    const grade12Mappings = sectionMappings.value.filter(
+        (mapping) =>
+            Number(mapping.source_year_level) === 12 && mapping.include,
+    );
+    const existingGrade12Sections =
+        preview.value?.destination_sections?.filter(
+            (section) => Number(section.year_level) === 12,
+        ) ?? [];
+
+    grade11Mappings.forEach((mapping, index) => {
+        if (grade12Mappings[index]) {
+            mapping.promotion_destination_choice = `rollover:${grade12Mappings[index].source_section_id}`;
+            return;
+        }
+        const existingSection =
+            existingGrade12Sections[index - grade12Mappings.length];
+        if (existingSection) {
+            mapping.promotion_destination_choice = `existing:${existingSection.section_id}`;
+            return;
+        }
+        mapping.promotion_destination_choice = 'individual';
+        mapping.promotion_destination_name = '';
+    });
+};
 const selectedRolloverSectionsForStudent = (item) =>
     sectionMappings.value.filter(
         (mapping) =>
@@ -276,36 +363,10 @@ const existingDestinationSectionsForStudent = (item) =>
         (section) =>
             Number(section.year_level) === requiredDestinationYearLevel(item),
     ) ?? [];
-const defaultDestinationChoice = (item, decision) => {
-    if (!['promote', 'retain'].includes(decision)) return '';
-
-    const requiredYearLevel = requiredDestinationYearLevel(item, decision);
-    const eligibleMappings = sectionMappings.value.filter(
-        (mapping) =>
-            mapping.include &&
-            Number(mapping.destination_year_level) === requiredYearLevel,
-    );
-    const ownMapping = eligibleMappings.find(
-        (mapping) =>
-            Number(mapping.source_section_id) ===
-            Number(item.source_section_id),
-    );
-    const defaultMapping =
-        decision === 'retain' && ownMapping
-            ? ownMapping
-            : eligibleMappings.length === 1
-              ? eligibleMappings[0]
-              : null;
-
-    return defaultMapping ? `rollover:${defaultMapping.source_section_id}` : '';
-};
 const resetStudentDestinationForDecision = (item) => {
     const studentDecision =
         studentDecisions.value[item.source_student_enrollment_id];
-    studentDecision.destination_choice = defaultDestinationChoice(
-        item,
-        studentDecision.decision,
-    );
+    studentDecision.destination_choice = '';
 };
 const clearStudentSelectionsForMapping = (mapping) => {
     if (mapping.include) return;
@@ -316,6 +377,14 @@ const clearStudentSelectionsForMapping = (mapping) => {
             decision.destination_choice = '';
         }
     });
+    if (Number(mapping.source_year_level) === 12) {
+        promotionMappings.value.forEach((sourceMapping) => {
+            if (sourceMapping.promotion_destination_choice === selectedValue) {
+                sourceMapping.promotion_destination_choice = 'individual';
+                sourceMapping.promotion_destination_name = '';
+            }
+        });
+    }
 };
 const rolloverSectionLabel = (mapping) => {
     if (mapping.destination_section_id) {
@@ -330,6 +399,101 @@ const rolloverSectionLabel = (mapping) => {
     }
 
     return `${mapping.destination_name} - Grade ${mapping.destination_year_level}`;
+};
+const promotionChoiceUsedByAnother = (choice, mapping) =>
+    promotionMappings.value.some(
+        (candidate) =>
+            Number(candidate.source_section_id) !==
+                Number(mapping.source_section_id) &&
+            candidate.promotion_destination_choice === choice,
+    );
+const availablePromotionRolloverMappings = (mapping) =>
+    sectionMappings.value.filter(
+        (candidate) =>
+            candidate.include &&
+            Number(candidate.source_year_level) === 12 &&
+            !promotionChoiceUsedByAnother(
+                `rollover:${candidate.source_section_id}`,
+                mapping,
+            ),
+    );
+const availableExistingPromotionSections = (mapping) =>
+    (preview.value?.destination_sections ?? []).filter(
+        (section) =>
+            Number(section.year_level) === 12 &&
+            !promotionChoiceUsedByAnother(
+                `existing:${section.section_id}`,
+                mapping,
+            ),
+    );
+const onPromotionDestinationChange = (mapping) => {
+    mapping.promotion_destination_name =
+        mapping.promotion_destination_choice === 'new'
+            ? suggestedPromotionSectionName(mapping)
+            : '';
+};
+const openIndividualStudentAssignments = (mapping) => {
+    rolloverConfigurationOpen.value = false;
+    openSectionStudents(mapping);
+};
+const promotionDestinationLabel = (mapping) => {
+    const choice = mapping?.promotion_destination_choice;
+    if (choice === 'individual') return 'Assign each student individually';
+    if (choice === 'new') {
+        return mapping.promotion_destination_name
+            ? `${mapping.promotion_destination_name} - Grade 12 (new)`
+            : 'New Grade 12 section name required';
+    }
+    const sourceSectionId = sourceSectionIdFromChoice(choice);
+    if (sourceSectionId) {
+        const destinationMapping = sectionMappings.value.find(
+            (candidate) =>
+                Number(candidate.source_section_id) === sourceSectionId,
+        );
+        return destinationMapping
+            ? rolloverSectionLabel(destinationMapping)
+            : 'Selected Grade 12 rollover section';
+    }
+    const existingSectionId = existingSectionIdFromChoice(choice);
+    if (existingSectionId) {
+        const section = preview.value?.destination_sections?.find(
+            (candidate) => Number(candidate.section_id) === existingSectionId,
+        );
+        return section
+            ? `${section.section_name} - Grade ${section.year_level}`
+            : 'Selected existing Grade 12 section';
+    }
+
+    return 'No Grade 12 destination configured';
+};
+const sourceMappingForStudent = (item) =>
+    sectionMappings.value.find(
+        (mapping) =>
+            Number(mapping.source_section_id) ===
+            Number(item.source_section_id),
+    );
+const sectionDefaultDestinationLabel = (item) => {
+    const decision =
+        studentDecisions.value[item.source_student_enrollment_id]?.decision;
+    const sourceMapping = sourceMappingForStudent(item);
+    if (decision === 'promote') return promotionDestinationLabel(sourceMapping);
+    if (decision === 'retain' && sourceMapping?.include)
+        return rolloverSectionLabel(sourceMapping);
+
+    return 'No section mapping configured';
+};
+const hasSectionDefaultDestination = (item, decision) => {
+    const sourceMapping = sourceMappingForStudent(item);
+    if (decision === 'retain') return Boolean(sourceMapping?.include);
+    if (decision !== 'promote') return false;
+    if (!sourceMapping?.promotion_destination_choice) return false;
+    if (sourceMapping.promotion_destination_choice === 'individual')
+        return false;
+
+    return (
+        sourceMapping.promotion_destination_choice !== 'new' ||
+        Boolean(sourceMapping.promotion_destination_name.trim())
+    );
 };
 const sectionMappingForSubject = (subject) =>
     sectionMappings.value.find(
@@ -725,8 +889,8 @@ watch(
                                 Student preview by grade and section
                             </h3>
                             <p class="text-xs text-slate-500">
-                                Review each source section before mapping its
-                                destination.
+                                Click a section card to review its students and
+                                destination assignments.
                             </p>
                         </div>
                         <div
@@ -748,116 +912,47 @@ watch(
                                 </span>
                             </div>
                             <div class="grid gap-3 p-3 xl:grid-cols-2">
-                                <div
+                                <button
                                     v-for="mapping in group.mappings"
                                     :key="mapping.source_section_id"
-                                    class="rounded-md border border-slate-200 p-3"
+                                    type="button"
+                                    class="rounded-md border border-slate-200 p-3 text-left transition hover:border-blue-300 hover:bg-blue-50 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                    @click="openSectionStudents(mapping)"
                                 >
-                                    <div class="flex items-start gap-2">
-                                        <input
-                                            v-model="mapping.include"
-                                            type="checkbox"
-                                            class="mt-1 rounded border-slate-300 text-blue-600"
-                                            :aria-label="`Include ${mapping.source_label} in rollover`"
-                                            @change="
-                                                clearStudentSelectionsForMapping(
-                                                    mapping,
-                                                )
-                                            "
-                                        />
-                                        <button
-                                            type="button"
-                                            class="min-w-0 flex-1 text-left text-sm hover:underline"
-                                            @click="
-                                                openSectionStudents(mapping)
-                                            "
-                                        >
-                                            <span
-                                                class="block font-semibold text-blue-700"
-                                            >
-                                                {{ mapping.source_label }}
-                                            </span>
-                                            <span
-                                                class="text-xs text-slate-500"
-                                            >
-                                                {{
-                                                    studentsForSection(mapping)
-                                                        .length
-                                                }}
-                                                students
-                                            </span>
-                                        </button>
-                                    </div>
-
-                                    <div
-                                        v-if="!mapping.include"
-                                        class="mt-3 rounded-md bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600"
+                                    <span
+                                        class="block font-semibold text-blue-700"
                                     >
-                                        Section definition not copied
-                                    </div>
-
-                                    <div
-                                        v-else
-                                        class="mt-3 grid gap-2 md:grid-cols-[1fr_1fr_120px]"
+                                        {{ mapping.source_label }}
+                                    </span>
+                                    <span
+                                        class="mt-1 block text-xs text-slate-500"
                                     >
-                                        <div
-                                            v-if="rolloverMode === 'semester'"
-                                            class="rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-800"
-                                        >
-                                            Same section branch → 2nd Semester
-                                        </div>
-                                        <select
-                                            v-else
-                                            v-model="
-                                                mapping.destination_section_id
-                                            "
-                                            class="rounded-md border-slate-300 text-sm"
-                                            @change="
-                                                mapping.destination_name = ''
-                                            "
-                                        >
-                                            <option value="">
-                                                Create a new destination section
-                                            </option>
-                                            <option
-                                                v-for="section in destinationSectionsForMapping(
-                                                    mapping,
-                                                )"
-                                                :key="section.section_id"
-                                                :value="section.section_id"
-                                            >
-                                                {{ section.section_name }} ·
-                                                Grade
-                                                {{ section.year_level }}
-                                            </option>
-                                        </select>
-
-                                        <input
-                                            v-if="rolloverMode !== 'semester'"
-                                            v-model="mapping.destination_name"
-                                            :disabled="
-                                                Boolean(
-                                                    mapping.destination_section_id,
-                                                )
-                                            "
-                                            class="rounded-md border-slate-300 text-sm disabled:bg-slate-100"
-                                            placeholder="New destination section name"
-                                        />
-                                        <div
-                                            v-else
-                                            class="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600"
-                                        >
-                                            {{ mapping.destination_name }}
-                                        </div>
-
-                                        <div
-                                            class="rounded-md bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700"
-                                        >
-                                            Grade
-                                            {{ mapping.destination_year_level }}
-                                        </div>
-                                    </div>
-                                </div>
+                                        {{ studentsForSection(mapping).length }}
+                                        students · Click to review students
+                                    </span>
+                                    <span
+                                        class="mt-2 block text-xs font-medium text-slate-700"
+                                    >
+                                        Structure:
+                                        {{
+                                            mapping.include
+                                                ? 'selected for rollover'
+                                                : 'not copied'
+                                        }}
+                                    </span>
+                                    <span
+                                        v-if="
+                                            rolloverMode === 'year' &&
+                                            Number(
+                                                mapping.source_year_level,
+                                            ) === 11
+                                        "
+                                        class="mt-1 block text-xs font-medium text-indigo-700"
+                                    >
+                                        Students →
+                                        {{ promotionDestinationLabel(mapping) }}
+                                    </span>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -982,6 +1077,133 @@ watch(
                                                 }}
                                             </div>
                                         </template>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section
+                                v-if="promotionMappings.length"
+                                class="mt-6"
+                            >
+                                <h4 class="font-bold text-slate-900">
+                                    Grade 11 student destinations
+                                </h4>
+                                <p class="mb-3 text-xs text-slate-500">
+                                    Each Grade 11 source section uses a
+                                    different Grade 12 destination. You may
+                                    create a new section or assign every student
+                                    individually when no suitable section is
+                                    available.
+                                </p>
+                                <div class="space-y-2">
+                                    <div
+                                        v-for="mapping in promotionMappings"
+                                        :key="`promotion-${mapping.source_section_id}`"
+                                        class="grid gap-2 rounded-lg border border-slate-200 p-3 md:grid-cols-[1.2fr_1fr_1fr]"
+                                    >
+                                        <div
+                                            class="text-sm font-semibold text-slate-800"
+                                        >
+                                            {{ mapping.source_label }}
+                                        </div>
+                                        <select
+                                            v-model="
+                                                mapping.promotion_destination_choice
+                                            "
+                                            class="rounded-md border-slate-300 text-sm"
+                                            @change="
+                                                onPromotionDestinationChange(
+                                                    mapping,
+                                                )
+                                            "
+                                        >
+                                            <option value="">
+                                                Select Grade 12 destination
+                                            </option>
+                                            <optgroup
+                                                v-if="
+                                                    availablePromotionRolloverMappings(
+                                                        mapping,
+                                                    ).length
+                                                "
+                                                label="Sections selected for rollover"
+                                            >
+                                                <option
+                                                    v-for="destinationMapping in availablePromotionRolloverMappings(
+                                                        mapping,
+                                                    )"
+                                                    :key="`promotion-rollover-${destinationMapping.source_section_id}`"
+                                                    :value="`rollover:${destinationMapping.source_section_id}`"
+                                                >
+                                                    {{
+                                                        rolloverSectionLabel(
+                                                            destinationMapping,
+                                                        )
+                                                    }}
+                                                </option>
+                                            </optgroup>
+                                            <optgroup
+                                                v-if="
+                                                    availableExistingPromotionSections(
+                                                        mapping,
+                                                    ).length
+                                                "
+                                                label="Existing destination sections"
+                                            >
+                                                <option
+                                                    v-for="section in availableExistingPromotionSections(
+                                                        mapping,
+                                                    )"
+                                                    :key="`promotion-existing-${section.section_id}`"
+                                                    :value="`existing:${section.section_id}`"
+                                                >
+                                                    {{ section.section_name }} -
+                                                    Grade 12
+                                                </option>
+                                            </optgroup>
+                                            <option value="individual">
+                                                Assign students individually
+                                            </option>
+                                            <option value="new">
+                                                Create a new Grade 12 section
+                                            </option>
+                                        </select>
+                                        <input
+                                            v-if="
+                                                mapping.promotion_destination_choice ===
+                                                'new'
+                                            "
+                                            v-model="
+                                                mapping.promotion_destination_name
+                                            "
+                                            class="rounded-md border-slate-300 text-sm"
+                                            placeholder="New Grade 12 section name"
+                                        />
+                                        <button
+                                            v-else-if="
+                                                mapping.promotion_destination_choice ===
+                                                'individual'
+                                            "
+                                            type="button"
+                                            class="rounded-md border border-indigo-200 bg-indigo-50 px-3 py-2 text-left text-sm font-semibold text-indigo-700 hover:bg-indigo-100"
+                                            @click="
+                                                openIndividualStudentAssignments(
+                                                    mapping,
+                                                )
+                                            "
+                                        >
+                                            Select each student's destination
+                                        </button>
+                                        <div
+                                            v-else
+                                            class="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600"
+                                        >
+                                            {{
+                                                promotionDestinationLabel(
+                                                    mapping,
+                                                )
+                                            }}
+                                        </div>
                                     </div>
                                 </div>
                             </section>
@@ -1243,13 +1465,12 @@ watch(
                                                     class="w-full rounded-md border-slate-300 text-sm"
                                                 >
                                                     <option value="">
-                                                        Select a Grade
+                                                        Use section mapping:
                                                         {{
-                                                            requiredDestinationYearLevel(
+                                                            sectionDefaultDestinationLabel(
                                                                 item,
                                                             )
                                                         }}
-                                                        destination section
                                                     </option>
                                                     <optgroup
                                                         v-if="

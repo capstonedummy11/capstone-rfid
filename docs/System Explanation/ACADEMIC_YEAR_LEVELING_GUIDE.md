@@ -142,6 +142,8 @@ For example:
 
 The Section checkbox controls whether that Sections-table row and its selected Subject Offerings are copied. It does not move or block the source Section's students as a group. Each promoted or retained student receives an explicit destination Section selected from the Sections chosen for rollover or from Sections that already exist in the destination year.
 
+For full-year rollover, each Grade 11 source Section can have one corresponding Grade 12 student destination. The preview pairs available Grade 11 and Grade 12 Sections in order and prevents two section-level mappings from using the same Grade 12 destination. When there are not enough available Sections, the admin may create a new Grade 12 Section or choose **Assign students individually** and select a destination for every student in that source Section. Individual students use their source Section's mapping by default and can still receive a reviewed exception.
+
 ## Grade 12 Archive Rule
 
 During full academic rollover, Grade 12 students have no normal next grade level.

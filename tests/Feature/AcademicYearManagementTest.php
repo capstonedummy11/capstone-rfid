@@ -698,6 +698,10 @@ test('academic rollover is transactional idempotent and preserves source history
         'academic_year_id' => $source->academic_year_id, 'strand_id' => $strand->strand_id, 'section_name' => 'Rollover 11-A',
         'year_level' => 11, 'semester' => '2nd Semester', 'school_year' => $source->name, 'status' => 'active',
     ]);
+    $secondGrade11Section = Section::create([
+        'academic_year_id' => $source->academic_year_id, 'strand_id' => $strand->strand_id, 'section_name' => 'Rollover 11-C',
+        'year_level' => 11, 'semester' => '2nd Semester', 'school_year' => $source->name, 'status' => 'active',
+    ]);
     $alternateSection = Section::create([
         'academic_year_id' => $source->academic_year_id, 'strand_id' => $strand->strand_id, 'section_name' => 'Rollover 12-B',
         'year_level' => 12, 'semester' => '2nd Semester', 'school_year' => $source->name, 'status' => 'active',
@@ -709,6 +713,15 @@ test('academic rollover is transactional idempotent and preserves source history
     ]);
     $sourceEnrollment = StudentEnrollment::create([
         'student_id' => $student->student_id, 'academic_year_id' => $source->academic_year_id, 'section_id' => $section->section_id,
+        'strand_id' => $strand->strand_id, 'year_level' => 11, 'semester' => '2nd Semester', 'status' => 'enrolled', 'enrolled_at' => '2026-06-01',
+    ]);
+    $secondGrade11Student = Students::create([
+        'section_id' => $secondGrade11Section->section_id, 'strand_id' => $strand->strand_id, 'student_number' => 'ROLL-002',
+        'first_name' => 'Second', 'last_name' => 'Student', 'gender' => 'female', 'year_level' => 11,
+        'semester' => '2nd Semester', 'school_year' => $source->name, 'status' => 'active',
+    ]);
+    $secondGrade11Enrollment = StudentEnrollment::create([
+        'student_id' => $secondGrade11Student->student_id, 'academic_year_id' => $source->academic_year_id, 'section_id' => $secondGrade11Section->section_id,
         'strand_id' => $strand->strand_id, 'year_level' => 11, 'semester' => '2nd Semester', 'status' => 'enrolled', 'enrolled_at' => '2026-06-01',
     ]);
     $graduatingStudent = Students::create([
@@ -750,9 +763,10 @@ test('academic rollover is transactional idempotent and preserves source history
 
     $service = app(AcademicYearRolloverService::class);
     $preview = $service->preview($source, $destination);
-    expect($preview['counts']['students'])->toBe(2)
-        ->and($preview['counts']['sections'])->toBe(2)
+    expect($preview['counts']['students'])->toBe(3)
+        ->and($preview['counts']['sections'])->toBe(3)
         ->and($preview['counts']['offerings'])->toBe(2)
+        ->and($preview['counts']['promote'])->toBe(2)
         ->and($preview['counts']['archived'])->toBe(1)
         ->and($preview['source_offerings'])->toHaveCount(2)
         ->and($preview['transition']['destination_semester'])->toBe('2nd Semester');
@@ -768,19 +782,20 @@ test('academic rollover is transactional idempotent and preserves source history
 
     $mapping = [
         ['source_section_id' => $section->section_id, 'include' => false, 'destination_name' => 'Rollover 11-A', 'destination_year_level' => 11],
+        ['source_section_id' => $secondGrade11Section->section_id, 'include' => false, 'destination_name' => 'Rollover 11-C', 'destination_year_level' => 11, 'promotion_destination_name' => 'Rollover 12-C'],
         ['source_section_id' => $alternateSection->section_id, 'include' => true, 'destination_section_id' => $existingDestinationSection->section_id, 'destination_name' => '', 'destination_year_level' => 12],
     ];
-    $decision = [[
-        'source_student_enrollment_id' => $sourceEnrollment->student_enrollment_id,
-        'decision' => 'promote',
-        'destination_source_section_id' => $alternateSection->section_id,
-    ]];
+    $decision = [
+        ['source_student_enrollment_id' => $sourceEnrollment->student_enrollment_id, 'decision' => 'promote', 'destination_source_section_id' => $alternateSection->section_id],
+        ['source_student_enrollment_id' => $secondGrade11Enrollment->student_enrollment_id, 'decision' => 'promote'],
+    ];
     $subjectSelections = [
         ['source_subject_offering_id' => $offering->subject_offering_id, 'include' => true],
         ['source_subject_offering_id' => $excludedOffering->subject_offering_id, 'include' => false],
     ];
     $mappingWithUnselectedDestination = $mapping;
-    $mappingWithUnselectedDestination[1]['include'] = false;
+    $mappingWithUnselectedDestination[0]['promotion_destination_source_section_id'] = $alternateSection->section_id;
+    $mappingWithUnselectedDestination[2]['include'] = false;
     $noSubjectSelections = collect($subjectSelections)
         ->map(fn (array $selection) => [...$selection, 'include' => false])
         ->all();
@@ -793,7 +808,22 @@ test('academic rollover is transactional idempotent and preserves source history
         'year',
         null,
         $noSubjectSelections,
-    ))->toThrow(ValidationException::class, 'A student destination must reference a section selected for rollover.');
+    ))->toThrow(ValidationException::class, 'Each Grade 11 promotion destination must reference a Grade 12 Section selected for rollover.');
+
+    $duplicatePromotionMapping = $mapping;
+    $duplicatePromotionMapping[0]['promotion_destination_source_section_id'] = $alternateSection->section_id;
+    $duplicatePromotionMapping[1]['promotion_destination_source_section_id'] = $alternateSection->section_id;
+    $duplicatePromotionMapping[1]['promotion_destination_name'] = null;
+    expect(fn () => $service->execute(
+        $source,
+        $destination,
+        $admin,
+        $decision,
+        $duplicatePromotionMapping,
+        'year',
+        null,
+        $noSubjectSelections,
+    ))->toThrow(ValidationException::class, 'Each Grade 11 section must use a different Grade 12 destination Section.');
 
     $first = $service->execute($source, $destination, $admin, $decision, $mapping, 'year', null, $subjectSelections);
     $this->actingAs($admin)->post(route('admin.academic-years.rollover', $source), [
@@ -808,13 +838,20 @@ test('academic rollover is transactional idempotent and preserves source history
         ->where('academic_year_id', $destination->academic_year_id)
         ->where('section_name', 'Rollover 12-B')
         ->firstOrFail();
+    $newPromotionSection = Section::query()
+        ->where('academic_year_id', $destination->academic_year_id)
+        ->where('section_name', 'Rollover 12-C')
+        ->firstOrFail();
 
     expect($second->academic_year_rollover_id)->toBe($first->academic_year_rollover_id)
         ->and(StudentEnrollment::where('student_id', $student->student_id)->where('academic_year_id', $destination->academic_year_id)->count())->toBe(1)
         ->and(StudentEnrollment::where('student_id', $student->student_id)->where('academic_year_id', $destination->academic_year_id)->value('semester'))->toBe('2nd Semester')
         ->and(StudentEnrollment::where('student_id', $student->student_id)->where('academic_year_id', $destination->academic_year_id)->value('section_id'))->toBe($alternateDestinationSection->section_id)
+        ->and(StudentEnrollment::where('student_id', $secondGrade11Student->student_id)->where('academic_year_id', $destination->academic_year_id)->value('section_id'))->toBe($newPromotionSection->section_id)
         ->and(Section::where('academic_year_id', $destination->academic_year_id)->where('section_name', 'Rollover 11-A')->count())->toBe(0)
+        ->and(Section::where('academic_year_id', $destination->academic_year_id)->where('section_name', 'Rollover 11-C')->count())->toBe(0)
         ->and(Section::where('academic_year_id', $destination->academic_year_id)->where('section_name', 'Rollover 12-B')->value('year_level'))->toBe(12)
+        ->and($newPromotionSection->year_level)->toBe(12)
         ->and(Students::whereKey($graduatingStudent->student_id)->value('status'))->toBe('graduated')
         ->and(StudentEnrollment::where('student_id', $graduatingStudent->student_id)->where('academic_year_id', $destination->academic_year_id)->count())->toBe(0)
         ->and(SubjectOffering::where('academic_year_id', $destination->academic_year_id)->where('subject_id', $subject->subject_id)->count())->toBe(1)
