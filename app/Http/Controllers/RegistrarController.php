@@ -42,10 +42,10 @@ class RegistrarController
 
     public function biometricEnrollment()
     {
-        $people = $this->enrollmentPeople();
+        $people = $this->studentEnrollmentPeople();
 
         return Inertia::render('Registrar/BiometricEnrollment', [
-            'title' => 'Biometric Enrollment',
+            'title' => 'Student Biometric Enrollment',
             'people' => $people,
             'stats' => $this->enrollmentStats($people),
         ]);
@@ -69,7 +69,15 @@ class RegistrarController
 
     private function enrollmentPeople()
     {
-        $students = Students::query()
+        return $this->studentEnrollmentPeople()
+            ->concat($this->facultyPeople())
+            ->sortBy(fn ($person) => ($person['has_face'] && $person['has_rfid'] ? 1 : 0).'-'.$person['name'])
+            ->values();
+    }
+
+    private function studentEnrollmentPeople()
+    {
+        return Students::query()
             ->with(['section', 'strand'])
             ->get()
             ->map(fn (Students $student) => [
@@ -85,16 +93,9 @@ class RegistrarController
                 'has_face' => count(array_filter($student->face_images ?? [])) > 0,
                 'face_count' => count(array_filter($student->face_images ?? [])),
                 'face_images' => array_values(array_filter($student->face_images ?? [])),
-            ]);
-
-        $faculty = $this->facultyPeople();
-
-        $people = $students
-            ->concat($faculty)
+            ])
             ->sortBy(fn ($person) => ($person['has_face'] && $person['has_rfid'] ? 1 : 0).'-'.$person['name'])
             ->values();
-
-        return $people;
     }
 
     private function facultyPeople()

@@ -26,11 +26,11 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             if ($request->is('admin*', 'clinic*', 'registrar*', 'instructor*')) {
-                return route('login');
+                return route('staff.login');
             }
 
             if ($request->is('user/*', 'email/*', 'two-factor-challenge')) {
-                return route('login');
+                return route('landingPage');
             }
 
             return route('landingPage');
@@ -41,6 +41,8 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
             RecordSystemActivity::class,
+            \App\Http\Middleware\PreventConsolePasswordReset::class,
+            \App\Http\Middleware\EnsurePasswordIsChanged::class,
         ]);
 
         $middleware->alias([

@@ -26,11 +26,17 @@ class EmergencyAlert extends Model
         'message',
         'metadata',
         'resolved_at',
+        'acknowledged_at',
+        'dispatched_at',
+        'response_seconds',
     ];
 
     protected $casts = [
         'metadata' => 'array',
         'resolved_at' => 'datetime',
+        'acknowledged_at' => 'datetime',
+        'dispatched_at' => 'datetime',
+        'response_seconds' => 'integer',
     ];
 
     public function type(): BelongsTo

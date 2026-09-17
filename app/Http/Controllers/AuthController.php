@@ -18,6 +18,7 @@ class AuthController
 
         $register['role'] = 'student';
 
+        $register['must_change_password'] = strtolower((string) ($register['role'] ?? '')) !== 'console';
         $user = User::create($register);
 
         Auth::login($user);

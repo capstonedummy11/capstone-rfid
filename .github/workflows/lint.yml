@@ -1,14 +1,17 @@
 name: linter
 
 on:
+  workflow_dispatch:
   push:
     branches:
+      - development
       - develop
       - main
       - master
       - workos
   pull_request:
     branches:
+      - development
       - develop
       - main
       - master

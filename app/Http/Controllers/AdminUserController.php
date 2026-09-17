@@ -49,6 +49,7 @@ class AdminUserController extends Controller
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
+            'must_change_password' => true,
             'role' => $role,
             'phone' => $validated['phone'] ?? null,
             'is_root_admin' => $makeRoot,

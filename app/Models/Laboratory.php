@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Laboratory extends Model
 {
@@ -18,4 +19,9 @@ class Laboratory extends Model
         'location',
         'status'
     ];
+
+    public function panelDevices(): HasMany
+    {
+        return $this->hasMany(PanelDevice::class, 'laboratory_id', 'laboratory_id');
+    }
 }

@@ -34,6 +34,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    academicYearName: {
+        type: String,
+        default: '',
+    },
     filters: {
         type: Object,
         default: () => ({ search: '', status: '', perPage: 10 }),
@@ -452,7 +456,7 @@ const showRowPopup = (row) => {
               </div>
             </div>
             <div style="background:rgba(0,0,0,0.2); padding:6px 16px; display:flex; justify-content:space-between; align-items:center;">
-              <span style="color:rgba(255,255,255,0.45); font-size:7px; letter-spacing:1px; text-transform:uppercase;">Academic Year 2025–2026</span>
+              <span style="color:rgba(255,255,255,0.45); font-size:7px; letter-spacing:1px; text-transform:uppercase;">Academic Year {{ academicYearName || 'Not set' }}</span>
             </div>
           </div>
 
@@ -569,7 +573,7 @@ const showResultPopup = (confirmed, student, borrowItems) => {
                 </div>
               </div>
               <div style="background:rgba(0,0,0,0.2); padding:5px 14px; display:flex; justify-content:space-between; align-items:center;">
-                <span style="color:rgba(255,255,255,0.4); font-size:7px; letter-spacing:1px; text-transform:uppercase;">Academic Year 2025–2026</span>
+                <span style="color:rgba(255,255,255,0.4); font-size:7px; letter-spacing:1px; text-transform:uppercase;">Academic Year {{ academicYearName || 'Not set' }}</span>
                 <span style="color:rgba(255,255,255,0.4); font-size:7px; letter-spacing:1px;">${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
               </div>
             </div>
@@ -638,7 +642,7 @@ const showResultPopup = (confirmed, student, borrowItems) => {
                 </div>
               </div>
               <div style="background:rgba(0,0,0,0.25); padding:5px 14px; display:flex; justify-content:space-between; align-items:center;">
-                <span style="color:rgba(255,255,255,0.35); font-size:7px; letter-spacing:1px; text-transform:uppercase;">Academic Year 2025–2026</span>
+                <span style="color:rgba(255,255,255,0.35); font-size:7px; letter-spacing:1px; text-transform:uppercase;">Academic Year {{ academicYearName || 'Not set' }}</span>
                 <span style="color:rgba(255,255,255,0.35); font-size:7px; letter-spacing:1px;">${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
               </div>
             </div>
@@ -975,7 +979,7 @@ const showUserInfo = (rfid) => {
             </div>
           </div>
           <div style="background:rgba(0,0,0,0.2); padding:7px 18px; display:flex; justify-content:space-between; align-items:center;">
-            <span style="color:rgba(255,255,255,0.45); font-size:8px; letter-spacing:1px; text-transform:uppercase;">Academic Year 2025–2026</span>
+            <span style="color:rgba(255,255,255,0.45); font-size:8px; letter-spacing:1px; text-transform:uppercase;">Academic Year {{ academicYearName || 'Not set' }}</span>
             <div style="display:flex; gap:3px;">
               <div style="width:18px; height:3px; background:rgba(255,255,255,0.6); border-radius:2px;"></div>
               <div style="width:8px;  height:3px; background:rgba(255,255,255,0.3); border-radius:2px;"></div>

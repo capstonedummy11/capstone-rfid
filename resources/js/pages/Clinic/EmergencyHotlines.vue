@@ -64,8 +64,22 @@
 
         <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
             <form class="w-full max-w-2xl rounded-md bg-white p-5 shadow-xl" @submit.prevent="submit">
-                <h2 class="text-lg font-bold text-slate-900">{{ selectedHotline ? 'Edit Hotline' : 'Add Hotline' }}</h2>
-                <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                <h2 class="text-lg font-bold text-slate-900">
+                    {{ selectedHotline ? 'Edit Hotline' : creationStep === 'type' ? 'What type of hotline is this?' : `Add ${form.category} hotline` }}
+                </h2>
+                <p v-if="!selectedHotline && creationStep === 'type'" class="mt-1 text-sm text-slate-500">
+                    Enter the emergency type used for automatic routing, such as fire, clinic, medical, police, security, or disaster.
+                </p>
+                <div v-if="!selectedHotline && creationStep === 'type'" class="mt-4">
+                    <label class="block">
+                        <span class="mb-1 block text-sm font-semibold text-slate-700">Hotline type</span>
+                        <select v-model="form.category" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" required autofocus>
+                            <option value="" disabled>Select hotline type</option>
+                            <option v-for="type in hotlineTypes" :key="type.value" :value="type.value">{{ type.label }}</option>
+                        </select>
+                    </label>
+                </div>
+                <div v-else class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
                     <label class="block">
                         <span class="mb-1 block text-sm font-semibold text-slate-700">Name</span>
                         <input v-model="form.name" type="text" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" required />
@@ -73,7 +87,9 @@
                     </label>
                     <label class="block">
                         <span class="mb-1 block text-sm font-semibold text-slate-700">Category</span>
-                        <input v-model="form.category" type="text" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" required />
+                        <select v-model="form.category" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" required>
+                            <option v-for="type in hotlineTypes" :key="type.value" :value="type.value">{{ type.label }}</option>
+                        </select>
                         <span v-if="form.errors.category" class="mt-1 block text-xs text-red-600">{{ form.errors.category }}</span>
                     </label>
                     <label class="block">
@@ -108,7 +124,16 @@
                     <button type="button" class="rounded-md border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700" @click="closeModal">
                         Cancel
                     </button>
-                    <button type="submit" class="rounded-md bg-red-600 px-4 py-2 text-sm font-bold text-white" :disabled="form.processing">
+                    <button
+                        v-if="!selectedHotline && creationStep === 'type'"
+                        type="button"
+                        class="rounded-md bg-red-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+                        :disabled="!form.category.trim()"
+                        @click="continueCreate"
+                    >
+                        Continue
+                    </button>
+                    <button v-else type="submit" class="rounded-md bg-red-600 px-4 py-2 text-sm font-bold text-white" :disabled="form.processing">
                         {{ form.processing ? 'Saving...' : 'Save Hotline' }}
                     </button>
                 </div>
@@ -127,6 +152,17 @@ const page = usePage();
 const flashSuccess = computed(() => page.props.flash?.success);
 const showModal = ref(false);
 const selectedHotline = ref(null);
+const creationStep = ref('type');
+const hotlineTypes = [
+    { value: 'clinic', label: 'Clinic' },
+    { value: 'medical', label: 'Medical / Ambulance' },
+    { value: 'fire', label: 'Fire Department' },
+    { value: 'police', label: 'Police' },
+    { value: 'security', label: 'School Security' },
+    { value: 'disaster', label: 'Disaster Response' },
+    { value: 'general', label: 'General Emergency' },
+    { value: 'external', label: 'Other External Hotline' },
+];
 const form = useForm({
     name: '',
     category: 'clinic',
@@ -141,15 +177,23 @@ const form = useForm({
 const openCreate = () => {
     selectedHotline.value = null;
     form.reset();
-    form.category = 'clinic';
+    form.category = '';
     form.sms_enabled = false;
     form.is_active = true;
     form.sort_order = 0;
+    creationStep.value = 'type';
     showModal.value = true;
+};
+
+const continueCreate = () => {
+    form.category = form.category.trim().toLowerCase();
+    if (!form.category) return;
+    creationStep.value = 'details';
 };
 
 const openEdit = (hotline) => {
     selectedHotline.value = hotline;
+    creationStep.value = 'details';
     form.name = hotline.name;
     form.category = hotline.category;
     form.phone_number = hotline.phone_number;
@@ -169,6 +213,11 @@ const closeModal = () => {
 };
 
 const submit = () => {
+    if (!selectedHotline.value && creationStep.value === 'type') {
+        continueCreate();
+        return;
+    }
+
     if (selectedHotline.value) {
         form.put(route('clinic.emergency-hotlines.update', { id: selectedHotline.value.emergency_hotline_id }), {
             preserveScroll: true,

@@ -3,12 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use App\Models\Attendance;
 use App\Models\ClinicCase;
 use App\Models\EmergencyAlert;
 use App\Models\EmergencyType;
 use App\Models\PatientHistory;
 use App\Models\Section;
 use App\Models\Students;
+use App\Models\SystemSetting;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -19,6 +22,11 @@ class ClinicController
     public function dashboard(Request $request)
     {
         $alerts = EmergencyAlert::with(['type', 'cases'])->latest('emergency_alert_id')->limit(20)->get();
+        $activeAlerts = EmergencyAlert::with(['type', 'cases'])
+            ->where('status', 'open')
+            ->latest('emergency_alert_id')
+            ->limit(20)
+            ->get();
         $currentUser = $request->user();
         $openAlerts = EmergencyAlert::where('status', 'open')->count();
         $todayAlerts = EmergencyAlert::whereDate('created_at', today())->count();
@@ -37,23 +45,37 @@ class ClinicController
                 'clinicCases' => $clinicCases,
                 'patientHistories' => PatientHistory::count(),
                 'totalResponds' => $totalResponds,
-                'casesSubtitle' => $clinicCases . ' CASES RECORDED',
-                'respondsSubtitle' => $totalResponds . ' RESPONSES SENT',
-                'pendingSubtitle' => $openAlerts . ' OPEN ALERTS',
-                'todaySubtitle' => $todayAlerts . ' TODAY',
+                'casesSubtitle' => $clinicCases.' CASES RECORDED',
+                'respondsSubtitle' => $totalResponds.' RESPONSES SENT',
+                'pendingSubtitle' => $openAlerts.' OPEN ALERTS',
+                'todaySubtitle' => $todayAlerts.' TODAY',
                 'yearRange' => $this->yearRange(),
             ],
             'alerts' => $this->formatAlerts($alerts),
-            'emergencyDetails' => $this->formatEmergencyDetails($alerts),
+            'emergencyDetails' => $this->formatEmergencyDetails($activeAlerts),
             'calendarEvents' => $this->calendarEvents(),
             'emergencyTypes' => $this->emergencyTypes(),
+            'emergencySound' => SystemSetting::clinicEmergencySoundSettings(),
+            'clinicAccounts' => User::query()
+                ->whereRaw('LOWER(role) = ?', ['clinic'])
+                ->orderBy('name')
+                ->get(['user_id', 'name', 'email'])
+                ->values(),
+            'assignedDispatches' => ClinicCase::query()
+                ->with(['alert.type', 'assignedResponder'])
+                ->where('handled_by_user_id', $currentUser?->user_id)
+                ->whereIn('status', ['open', 'monitoring'])
+                ->latest('clinic_case_id')
+                ->get()
+                ->map(fn (ClinicCase $case) => $this->dispatchAssignmentPayload($case))
+                ->values(),
         ]);
     }
 
     public function caseLogs()
     {
         return Inertia::render('Clinic/CaseLogs', [
-            'cases' => ClinicCase::with('alert.type')->latest('clinic_case_id')->get()->map(fn (ClinicCase $case) => $this->casePayload($case))->values(),
+            'cases' => ClinicCase::with(['alert.type', 'assignedResponder'])->latest('clinic_case_id')->get()->map(fn (ClinicCase $case) => $this->casePayload($case))->values(),
             'emergencyTypes' => $this->emergencyTypes(),
         ]);
     }
@@ -271,8 +293,23 @@ class ClinicController
         return $alerts->map(function (EmergencyAlert $alert) {
             $case = $alert->cases->sortByDesc('clinic_case_id')->first();
             $student = $this->studentForAlert($alert, $case);
-            $patientName = $case?->patient_name
-                ?: ($student ? trim($student->first_name . ' ' . $student->last_name) : ($alert->triggered_by_name ?: 'Unknown Patient'));
+            $metadata = $alert->metadata ?? [];
+            $patients = collect($metadata['students'] ?? [])
+                ->filter(fn ($person) => is_array($person) && ! empty($person['student_name']))
+                ->map(fn ($person) => [
+                    'student_id' => $person['student_id'] ?? null,
+                    'student_number' => $person['student_number'] ?? null,
+                    'name' => $person['student_name'],
+                    'section' => $person['section'] ?? null,
+                    'photo' => $person['photo'] ?? null,
+                ])
+                ->values();
+            $patientName = $patients->isNotEmpty()
+                ? $patients->pluck('name')->implode(', ')
+                : (($metadata['emergency_scope'] ?? null) === 'all'
+                    ? 'Everyone / Area-wide'
+                    : ($case?->patient_name
+                    ?: ($student ? trim($student->first_name.' '.$student->last_name) : ($alert->triggered_by_name ?: 'Unknown Patient'))));
             $severity = strtolower((string) $alert->severity);
             $status = strtolower((string) $alert->status);
             $category = match (true) {
@@ -285,16 +322,61 @@ class ClinicController
                 'id' => $alert->emergency_alert_id,
                 'patient_name' => $patientName,
                 'patient_avatar' => $this->studentAvatar($student),
+                'patients' => $patients,
                 'location' => $alert->room ?: 'No room assigned',
                 'department' => $alert->type?->category ?: 'General',
                 'category' => $category,
-                'symptoms' => $case?->symptoms ?: $alert->message,
+                'symptoms' => $metadata['symptoms'] ?? $case?->symptoms ?: $alert->message,
                 'symptoms_color' => $category,
                 'phone' => $student?->phone,
                 'time_sent' => optional($alert->created_at)->format('g:i A'),
+                'acknowledged_at' => optional($alert->acknowledged_at)->format('g:i A'),
+                'dispatched_at' => optional($alert->dispatched_at)->format('g:i A'),
+                'response_seconds' => $alert->response_seconds,
                 'email' => $student?->email,
             ];
         })->values();
+    }
+
+    private function dispatchAssignmentPayload(ClinicCase $case): array
+    {
+        $history = $case->student_id
+            ? PatientHistory::query()
+                ->where('student_id', $case->student_id)
+                ->latest('occurred_at')
+                ->take(3)
+                ->get()
+                ->map(fn (PatientHistory $record) => [
+                    'date' => optional($record->occurred_at)->format('Y-m-d'),
+                    'summary' => $record->summary,
+                ])
+                ->values()
+            : collect();
+        $attendance = $case->student_id
+            ? Attendance::query()
+                ->where('student_id', $case->student_id)
+                ->latest('date')
+                ->take(3)
+                ->get()
+                ->map(fn (Attendance $record) => [
+                    'date' => optional($record->date)->format('Y-m-d'),
+                    'status' => ucfirst((string) $record->status),
+                ])
+                ->values()
+            : collect();
+
+        return [
+            'case_id' => $case->clinic_case_id,
+            'patient_name' => $case->patient_name,
+            'assigned_responder_name' => $case->assignedResponder?->name,
+            'assigned_responder_email' => $case->assignedResponder?->email,
+            'case_type' => $case->case_type,
+            'symptoms' => $case->symptoms,
+            'location' => $case->alert?->room ?: 'No location provided',
+            'assigned_at' => optional($case->occurred_at)->format('Y-m-d g:i A'),
+            'history' => $history,
+            'attendance' => $attendance,
+        ];
     }
 
     private function studentForAlert(EmergencyAlert $alert, ?ClinicCase $case): ?Students
@@ -347,7 +429,7 @@ class ClinicController
 
         $year = now()->year;
 
-        return $year . ' - ' . ($year + 1);
+        return $year.' - '.($year + 1);
     }
 
     private function validatedCase(Request $request): array
@@ -388,6 +470,8 @@ class ClinicController
             'student_id' => $case->student_id,
             'user_id' => $case->user_id,
             'patient_name' => $case->patient_name,
+            'assigned_responder_name' => $case->assignedResponder?->name,
+            'assigned_responder_email' => $case->assignedResponder?->email,
             'patient_type' => $case->patient_type,
             'case_type' => $case->case_type,
             'symptoms' => $case->symptoms,

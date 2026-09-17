@@ -1,22 +1,34 @@
 <?php
 
 use App\Models\Attendance;
+use App\Models\AcademicYear;
 use App\Models\Instructor;
 use App\Models\Message;
+use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\Strand;
 use App\Models\StudentExcuseLetter;
+use App\Models\StudentEnrollment;
 use App\Models\StudentPortalMessage;
 use App\Models\Students;
+use App\Models\SystemSetting;
 use App\Models\User;
+use App\Notifications\MessengerMessageReceived;
+use App\Services\MessengerEmailNotificationService;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
 
 function portalFixture(): array
 {
+    SystemSetting::setBoolean(SystemSetting::PARENT_PORTAL_ENABLED, true);
+
     $strand = Strand::query()->create([
         'strand_code' => 'ICT',
         'strand_name' => 'Information and Communications Technology',
@@ -194,6 +206,11 @@ test('authenticated users can search recipients and exchange attachment messages
         'email' => 'registrar.messages@example.com',
         'role' => 'registrar',
     ]);
+    $console = User::factory()->create([
+        'name' => 'Console User',
+        'email' => 'console.messages@example.com',
+        'role' => 'console',
+    ]);
 
     $this->actingAs($admin)
         ->get(route('messages.index'))
@@ -202,6 +219,10 @@ test('authenticated users can search recipients and exchange attachment messages
             ->component('Messages/Index')
             ->has('recipients', 2)
         );
+
+    $this->actingAs($console)
+        ->get(route('messages.index'))
+        ->assertForbidden();
 
     $this->actingAs($admin)
         ->post(route('messages.conversation.store'), [
@@ -217,6 +238,18 @@ test('authenticated users can search recipients and exchange attachment messages
     expect($message->sender_user_id)->toBe($admin->user_id)
         ->and($message->recipient_user_id)->toBe($clinic->user_id)
         ->and($message->attachment_name)->toBe('clinic-note.pdf');
+
+    $this->actingAs($clinic)
+        ->getJson(route('messages.unread-status'))
+        ->assertOk()
+        ->assertJson([
+            'unread_count' => 1,
+            'latest' => [
+                'id' => $message->student_portal_message_id,
+                'sender' => 'Admin User',
+                'preview' => 'Please review the clinic note.',
+            ],
+        ]);
 
     $this->actingAs($clinic)
         ->get(route('messages.index'))
@@ -253,6 +286,51 @@ test('authenticated users can search recipients and exchange attachment messages
     $this->actingAs($registrar)
         ->get(route('messages.attachments.show', $message))
         ->assertForbidden();
+});
+
+test('messenger email notifications are limited per sender and recipient', function () {
+    Notification::fake();
+    config([
+        'cache.default' => 'array',
+        'messenger.email_notification_cooldown_minutes' => 5,
+    ]);
+    Cache::flush();
+
+    $sender = User::factory()->create([
+        'name' => 'Message Sender',
+        'email' => 'message.sender@example.com',
+        'role' => 'student',
+    ]);
+    $recipient = User::factory()->create([
+        'name' => 'Message Recipient',
+        'email' => 'message.recipient@example.com',
+        'role' => 'instructor',
+    ]);
+    $firstMessage = StudentPortalMessage::query()->create([
+        'sender_user_id' => $sender->user_id,
+        'recipient_user_id' => $recipient->user_id,
+        'sender_role' => 'student',
+        'subject' => 'Conversation',
+        'body' => 'First message.',
+    ]);
+    $secondMessage = StudentPortalMessage::query()->create([
+        'sender_user_id' => $sender->user_id,
+        'recipient_user_id' => $recipient->user_id,
+        'sender_role' => 'student',
+        'subject' => 'Conversation',
+        'body' => 'Second message.',
+    ]);
+    $notifier = app(MessengerEmailNotificationService::class);
+
+    expect($notifier->notify($sender, $recipient, $firstMessage))->toBeTrue()
+        ->and($notifier->notify($sender, $recipient, $secondMessage))->toBeFalse();
+
+    Notification::assertSentToTimes($recipient, MessengerMessageReceived::class, 1);
+
+    $this->travel(6)->minutes();
+
+    expect($notifier->notify($sender, $recipient, $secondMessage))->toBeTrue();
+    Notification::assertSentToTimes($recipient, MessengerMessageReceived::class, 2);
 });
 
 test('instructor inbox replies create student portal replies', function () {
@@ -340,6 +418,7 @@ test('parent profile update does not change linked student phone or gender', fun
 
 test('student-created excuse letter requires parent approval before pdf download', function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
+    Mail::fake();
     $fixture = portalFixture();
 
     $this->actingAs($fixture['studentUser'])
@@ -367,7 +446,7 @@ test('student-created excuse letter requires parent approval before pdf download
             'parent_approval_notes' => 'Approved after checking the appointment.',
         ])
         ->assertRedirect()
-        ->assertSessionHas('success', 'Excuse letter approved.');
+        ->assertSessionHas('success', 'Excuse letter approved, but no assigned teacher was found for this section.');
 
     $letter->refresh();
 
@@ -389,6 +468,31 @@ test('student-created excuse letter requires parent approval before pdf download
     ]);
 });
 
+test('new excuse letter keeps the active academic year enrollment context', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    Mail::fake();
+    $fixture = portalFixture();
+    $year = AcademicYear::create([
+        'name' => '2026-2027', 'starts_on' => '2026-06-01', 'ends_on' => '2027-03-31', 'status' => AcademicYear::STATUS_ACTIVE,
+    ]);
+    $fixture['section']->update(['academic_year_id' => $year->academic_year_id]);
+    $enrollment = StudentEnrollment::create([
+        'student_id' => $fixture['student']->student_id, 'academic_year_id' => $year->academic_year_id,
+        'section_id' => $fixture['section']->section_id, 'strand_id' => $fixture['strand']->strand_id,
+        'year_level' => 11, 'semester' => '1st Semester', 'status' => 'active', 'enrolled_at' => '2026-06-01',
+    ]);
+
+    $this->actingAs($fixture['studentUser'])->post(route('student-parent.excuse-letters.store'), [
+        'subject' => 'Year-aware letter', 'from_date' => '2026-07-01', 'to_date' => '2026-07-02', 'reason' => 'Medical appointment.',
+    ])->assertRedirect();
+
+    $this->assertDatabaseHas('student_excuse_letters', [
+        'student_id' => $fixture['student']->student_id,
+        'academic_year_id' => $year->academic_year_id,
+        'student_enrollment_id' => $enrollment->student_enrollment_id,
+    ]);
+});
+
 test('parent-created excuse letter is signed and downloads as pdf', function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
     $fixture = portalFixture();
@@ -402,7 +506,7 @@ test('parent-created excuse letter is signed and downloads as pdf', function () 
             'parent_signature' => 'Maria Santos',
         ])
         ->assertRedirect()
-        ->assertSessionHas('success', 'Excuse letter submitted.');
+        ->assertSessionHas('success', 'Excuse letter submitted, but no assigned teacher was found for this section.');
 
     $letter = StudentExcuseLetter::query()->firstOrFail();
 
@@ -416,6 +520,48 @@ test('parent-created excuse letter is signed and downloads as pdf', function () 
         ->assertHeader('Content-Type', 'application/pdf');
 
     expect(substr($response->getContent(), 0, 4))->toBe('%PDF');
+});
+
+test('approved excuse letter is sent to instructor messenger with generated pdf', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    Mail::fake();
+    Storage::fake('public');
+    $fixture = portalFixture();
+    $instructor = Instructor::query()
+        ->where('user_id', $fixture['instructorUser']->user_id)
+        ->firstOrFail();
+
+    Schedule::query()->create([
+        'instructor_id' => $instructor->instructor_id,
+        'section_id' => $fixture['section']->section_id,
+        'subject_code' => 'PROG1',
+        'weekdays' => 'Monday',
+        'time_start' => '08:00:00',
+        'time_end' => '09:00:00',
+        'room' => 'ICT Lab',
+    ]);
+
+    $this->actingAs($fixture['parentUser'])
+        ->post(route('student-parent.excuse-letters.store', ['student_id' => $fixture['student']->student_id]), [
+            'subject' => 'Programming I',
+            'from_date' => '2026-07-01',
+            'to_date' => '2026-07-02',
+            'reason' => 'Medical appointment.',
+            'parent_signature' => 'Maria Santos',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Excuse letter submitted and sent to the teacher.');
+
+    $letter = StudentExcuseLetter::query()->firstOrFail();
+    $message = StudentPortalMessage::query()->firstOrFail();
+
+    expect($message->recipient_user_id)->toBe($fixture['instructorUser']->user_id)
+        ->and($message->attachment_name)->toBe('excuse-letter-'.$letter->student_excuse_letter_id.'.pdf')
+        ->and($message->attachment_mime)->toBe('application/pdf')
+        ->and($message->attachment_size)->toBeGreaterThan(0);
+
+    Storage::disk('public')->assertExists($message->attachment_path);
+    expect(substr(Storage::disk('public')->get($message->attachment_path), 0, 4))->toBe('%PDF');
 });
 
 test('student can download an approved generated excuse letter pdf', function () {
@@ -447,4 +593,62 @@ test('student can download an approved generated excuse letter pdf', function ()
         'action' => 'download',
         'table_name' => 'student_excuse_letters',
     ]);
+});
+
+test('generated excuse letter omits parent approval when the setting is disabled', function () {
+    $fixture = portalFixture();
+
+    SystemSetting::setBoolean(SystemSetting::PARENT_EXCUSE_LETTERS_ENABLED, false);
+
+    $letter = StudentExcuseLetter::query()->create([
+        'student_id' => $fixture['student']->student_id,
+        'submitted_by_user_id' => $fixture['studentUser']->user_id,
+        'submitted_by_role' => 'student',
+        'subject' => 'Programming I',
+        'from_date' => '2026-07-01',
+        'to_date' => '2026-07-02',
+        'reason' => 'Medical appointment.',
+        'status' => 'approved',
+        'parent_signature' => 'Maria Santos',
+        'parent_approved_by_user_id' => $fixture['parentUser']->user_id,
+        'parent_approved_at' => now(),
+    ]);
+
+    $response = $this->actingAs($fixture['studentUser'])
+        ->get(route('student-parent.excuse-letters.download', $letter))
+        ->assertOk();
+
+    $pdf = $response->getContent();
+
+    expect($pdf)->toStartWith('%PDF')
+        ->and($pdf)->not->toContain('Parent Approval')
+        ->and($pdf)->not->toContain('Parent Signature:')
+        ->and($pdf)->not->toContain('Approved By:')
+        ->and($pdf)->not->toContain('Approved At:');
+});
+
+test('generated excuse letter leaves an unsigned parent signature blank', function () {
+    $fixture = portalFixture();
+
+    SystemSetting::setBoolean(SystemSetting::PARENT_EXCUSE_LETTERS_ENABLED, true);
+
+    $letter = StudentExcuseLetter::query()->create([
+        'student_id' => $fixture['student']->student_id,
+        'submitted_by_user_id' => $fixture['studentUser']->user_id,
+        'submitted_by_role' => 'student',
+        'subject' => 'Programming I',
+        'from_date' => '2026-07-01',
+        'to_date' => '2026-07-02',
+        'reason' => 'Medical appointment.',
+        'status' => 'approved',
+    ]);
+
+    $response = $this->actingAs($fixture['studentUser'])
+        ->get(route('student-parent.excuse-letters.download', $letter))
+        ->assertOk();
+
+    $pdf = $response->getContent();
+
+    expect($pdf)->toContain('Parent Signature: ')
+        ->and($pdf)->not->toContain('Not yet signed');
 });

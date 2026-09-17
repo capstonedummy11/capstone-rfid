@@ -25,6 +25,19 @@ const props = defineProps({
         default: () => ({
             borrowing_enabled: false,
             inventory_enabled: false,
+            demo_attendance_panel_enabled: false,
+        }),
+    },
+    demoAttendancePanel: {
+        type: Object,
+        default: () => ({
+            enabled: false,
+            rfids: {
+                professor_tap: '',
+                student_tap: '',
+                second_student_tap: '',
+                second_professor_tap: '',
+            },
         }),
     },
     demoInstructorRfids: {
@@ -40,6 +53,10 @@ const props = defineProps({
         default: () => [],
     },
     emergencyHotlines: {
+        type: Array,
+        default: () => [],
+    },
+    emergencyStudents: {
         type: Array,
         default: () => [],
     },
@@ -76,7 +93,7 @@ const scanPulse = ref(false);
 const lastScanned = ref('');
 const activeProfessor = ref(null);
 const activeStudent = ref(null);
-const forceStudentCheckoutNext = ref(false);
+const dismissClassMode = ref(false);
 const defaultTapHeadline = 'Tap RFID';
 const tapHeadline = ref(defaultTapHeadline);
 const lastAction = ref(
@@ -106,10 +123,15 @@ let tapHeadlineTimer = null;
 let demoStudentCursor = 0;
 let captureResetTimer = null;
 let panelStatusTicker = null;
+let pendingInstructorRfidPrompt = null;
 
 const cameraRef = ref(null);
 const capturedPhotoUrl = ref(null);
 const panelFeatureSettings = ref({ ...(props.featureSettings ?? {}) });
+const demoAttendancePanelSettings = ref({
+    ...(props.demoAttendancePanel ?? {}),
+    rfids: { ...(props.demoAttendancePanel?.rfids ?? {}) },
+});
 
 const PANEL_RUNTIME_KEY = 'panelRuntime';
 
@@ -129,6 +151,23 @@ const STUDENT_INFO_VISIBLE_MS =
 const borrowingEnabled = computed(() =>
     Boolean(panelFeatureSettings.value?.borrowing_enabled),
 );
+const demoAttendanceEnabled = computed(() =>
+    Boolean(demoAttendancePanelSettings.value?.enabled),
+);
+const demoAttendanceRfids = computed(() => ({
+    professorTap: String(
+        demoAttendancePanelSettings.value?.rfids?.professor_tap ?? '',
+    ).trim(),
+    studentTap: String(
+        demoAttendancePanelSettings.value?.rfids?.student_tap ?? '',
+    ).trim(),
+    secondStudentTap: String(
+        demoAttendancePanelSettings.value?.rfids?.second_student_tap ?? '',
+    ).trim(),
+    secondProfessorTap: String(
+        demoAttendancePanelSettings.value?.rfids?.second_professor_tap ?? '',
+    ).trim(),
+}));
 const modeLabel = computed(() => {
     if (currentMode.value === 'attendance') return 'Attendance Mode';
     if (currentMode.value === 'borrowing' && borrowingEnabled.value)
@@ -182,13 +221,6 @@ const statusSubline = computed(() => {
     if (currentMode.value === 'borrowing' && borrowingEnabled.value)
         return 'Tap the professor card again to resume attendance or end the session.';
     return 'Students can now tap their RFID cards to be marked present.';
-});
-
-const actionButtonLabel = computed(() => {
-    if (!sessionActive.value) return 'Demo Instructor Tap';
-    if (currentMode.value === 'borrowing' && borrowingEnabled.value)
-        return 'Demo Borrower Tap';
-    return 'Demo Student Tap';
 });
 
 const emergencyGroups = computed(() => {
@@ -314,6 +346,67 @@ const xsrfToken = () => {
     return xsrfRaw ? decodeURIComponent(xsrfRaw) : '';
 };
 
+const resolveInstructorRfidPrompt = (rfid) => {
+    const scannedRfid = String(rfid ?? '').trim();
+    if (!pendingInstructorRfidPrompt || !scannedRfid) return false;
+
+    const input = Swal.getInput();
+    if (input) {
+        input.value = scannedRfid;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    pendingInstructorRfidPrompt(scannedRfid);
+    pendingInstructorRfidPrompt = null;
+    Swal.clickConfirm();
+
+    return true;
+};
+
+const requestInstructorRfidPrompt = ({
+    title = 'Instructor RFID Required',
+    text,
+    input = 'text',
+    inputLabel = 'Instructor RFID',
+    inputPlaceholder = 'Scan instructor RFID',
+    confirmButtonText = 'Verify Instructor',
+    confirmButtonColor = '#2563eb',
+}) =>
+    Swal.fire({
+        icon: 'warning',
+        title,
+        text,
+        input,
+        inputLabel,
+        inputPlaceholder,
+        inputAttributes: {
+            autocomplete: 'off',
+            autocapitalize: 'off',
+        },
+        showCancelButton: true,
+        confirmButtonText,
+        confirmButtonColor,
+        inputValidator: (value) =>
+            String(value ?? '').trim()
+                ? undefined
+                : 'Instructor RFID is required.',
+        didOpen: () => {
+            Swal.getInput()?.focus();
+            pendingInstructorRfidPrompt = (scannedRfid) => {
+                const modalInput = Swal.getInput();
+                if (modalInput) {
+                    modalInput.value = scannedRfid;
+                    modalInput.dispatchEvent(
+                        new Event('input', { bubbles: true }),
+                    );
+                }
+            };
+        },
+        willClose: () => {
+            pendingInstructorRfidPrompt = null;
+        },
+    });
+
 const setTapHeadline = (message, holdMs = 2200) => {
     tapHeadline.value = message;
     if (tapHeadlineTimer) {
@@ -400,7 +493,7 @@ const recordStudentTapOnServer = async (student, extra = {}) => {
                 room: selectedRoom.value,
                 subject_code: activeProfessor.value?.subject_code ?? null,
                 schedule_id: activeProfessor.value?.schedule_id ?? null,
-                force_checkout: forceStudentCheckoutNext.value,
+                force_checkout: dismissClassMode.value,
                 ...extra,
             }),
         });
@@ -414,21 +507,14 @@ const recordStudentTapOnServer = async (student, extra = {}) => {
 };
 
 const requestInstructorTapForTemporaryMovement = async (student) => {
-    const result = await Swal.fire({
-        icon: 'warning',
+    const result = await requestInstructorRfidPrompt({
         title: 'Instructor RFID Required',
         text: `${student.name} is trying to record a temporary exit or return. Ask the active instructor to tap or enter their RFID.`,
         input: 'password',
         inputLabel: 'Instructor RFID',
         inputPlaceholder: 'Tap or enter instructor RFID',
-        showCancelButton: true,
         confirmButtonText: 'Authorize Movement',
         confirmButtonColor: '#0f766e',
-        cancelButtonText: 'Cancel',
-        inputValidator: (value) =>
-            String(value || '').trim()
-                ? undefined
-                : 'Instructor RFID is required.',
     });
 
     if (!result.isConfirmed) {
@@ -517,6 +603,7 @@ const persistPanelRuntime = () => {
         isListening: isListening.value,
         activeProfessor: activeProfessor.value,
         lastAction: lastAction.value,
+        dismissClassMode: dismissClassMode.value,
     };
 
     localStorage.setItem(PANEL_RUNTIME_KEY, JSON.stringify(runtime));
@@ -577,7 +664,7 @@ const startAttendanceSession = (professor) => {
     currentMode.value = 'attendance';
     activeProfessor.value = professor;
     activeStudent.value = null;
-    forceStudentCheckoutNext.value = false;
+    dismissClassMode.value = false;
     attendanceRecords.value = [];
     tapHeadline.value = defaultTapHeadline;
     lastAction.value = `${professor.name} started attendance recording for ${professor.subject}.`;
@@ -604,7 +691,7 @@ const endAttendanceSession = () => {
         'Attendance session ended. Waiting for the next instructor RFID tap.';
     activeProfessor.value = null;
     activeStudent.value = null;
-    forceStudentCheckoutNext.value = false;
+    dismissClassMode.value = false;
     attendanceRecords.value = [];
     sessionActive.value = false;
     currentMode.value = 'idle';
@@ -613,22 +700,37 @@ const endAttendanceSession = () => {
     showToast('info', 'Attendance session ended');
 };
 
-const enableStudentLogoutMode = () => {
-    forceStudentCheckoutNext.value = true;
+const enableDismissClassMode = async () => {
+    const confirmation = await Swal.fire({
+        icon: 'warning',
+        title: 'Dismiss Class?',
+        text: 'All student taps will be processed as checkout until the instructor chooses Continue Class. Students without a check-in will receive Invalid Tap.',
+        showCancelButton: true,
+        confirmButtonText: 'Dismiss Class',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#0f766e',
+        cancelButtonColor: '#64748b',
+        reverseButtons: true,
+        allowOutsideClick: false,
+    });
+
+    if (!confirmation.isConfirmed) return;
+
+    dismissClassMode.value = true;
     currentMode.value = 'attendance';
     lastAction.value =
-        'Student logout mode enabled. The next student RFID tap will be recorded as official check-out.';
+        'Class dismissed. All checked-in student RFID taps will be recorded as official check-out.';
     pushHistory(
-        'Student logout mode',
-        'Next student tap will be saved as official check-out instead of temporary exit.',
+        'Class dismissed',
+        'All checked-in student taps will be saved as official check-out until Continue Class is selected.',
         'warning',
     );
-    setTapHeadline('Student Logout Mode', 5000);
+    setTapHeadline('Dismiss Class Mode', 5000);
     syncPanelSessionState('attendance', {
-        student_logout_mode: true,
-        student_logout_mode_started_at: new Date().toISOString(),
+        dismiss_class_mode: true,
+        dismiss_class_mode_started_at: new Date().toISOString(),
     });
-    showToast('info', 'Next student tap will be official checkout');
+    showToast('info', 'All checked-in student taps will be checkout');
 };
 
 const checkStudentFaceForAttendance = async (
@@ -679,33 +781,8 @@ const recordAttendance = async (student) => {
         hour12: true,
     });
 
-    const requestActiveInstructorRfid = async ({
-        title = 'Instructor RFID Required',
-        text,
-        confirmButtonText = 'Verify Instructor',
-        confirmButtonColor = '#2563eb',
-    }) =>
-        Swal.fire({
-            icon: 'warning',
-            title,
-            text,
-            input: 'text',
-            inputPlaceholder: 'Scan instructor RFID',
-            inputAttributes: {
-                autocomplete: 'off',
-                autocapitalize: 'off',
-            },
-            showCancelButton: true,
-            confirmButtonText,
-            confirmButtonColor,
-            inputValidator: (value) =>
-                String(value ?? '').trim()
-                    ? undefined
-                    : 'Instructor RFID is required.',
-        });
-
     if (!student.hasFaceImage) {
-        const instructorApproval = await requestActiveInstructorRfid({
+        const instructorApproval = await requestInstructorRfidPrompt({
             text: `${student.name} has no registered face image. Scan the active instructor's RFID card to approve this attendance.`,
         });
 
@@ -758,7 +835,7 @@ const recordAttendance = async (student) => {
             );
 
             if (!bypassResult?.ok) {
-                const instructorApproval = await requestActiveInstructorRfid({
+                const instructorApproval = await requestInstructorRfidPrompt({
                     title: 'Camera Unavailable',
                     text: "Scan the active instructor's RFID once to continue this scheduled class without camera capture. The bypass ends when the class session ends or the panel logs out.",
                     confirmButtonText: 'Enable Session Bypass',
@@ -806,7 +883,7 @@ const recordAttendance = async (student) => {
             );
 
             if (faceResult?.requires_instructor_rfid) {
-                const instructorApproval = await requestActiveInstructorRfid({
+                const instructorApproval = await requestInstructorRfidPrompt({
                     text:
                         faceResult.message ??
                         'Scan the active instructor RFID to approve this attendance.',
@@ -868,9 +945,8 @@ const recordAttendance = async (student) => {
         }
     }
 
-    const wasForceCheckout = forceStudentCheckoutNext.value;
+    const wasDismissClassCheckout = dismissClassMode.value;
     let tapResult = await recordStudentTapOnServer(student);
-    forceStudentCheckoutNext.value = false;
 
     if (tapResult?.requires_temporary_movement_instructor) {
         setTapHeadline('Instructor RFID Required', STUDENT_TOAST_MS);
@@ -948,8 +1024,8 @@ const recordAttendance = async (student) => {
         tapResult.accepted === false ? 'warning' : 'success',
     );
     setTapHeadline(
-        wasForceCheckout && tapResult.accepted !== false
-            ? 'Student Logout Recorded'
+        wasDismissClassCheckout && tapResult.accepted !== false
+            ? 'Dismissed Student Checked Out'
             : tapResult.accepted === false
               ? 'Tap ignored'
               : tapType,
@@ -1293,38 +1369,247 @@ const triggerEmergencyCall = async (
         );
     }
 
-    let emergencyHotline = selectedHotline;
-    if (!emergencyHotline && (props.emergencyHotlines ?? []).length > 0) {
-        const hotlineOptions = {
-            none: 'No specific hotline',
-        };
-        (props.emergencyHotlines ?? []).forEach((hotline) => {
-            hotlineOptions[hotline.emergency_hotline_id] =
-                `${hotline.name} - ${hotline.phone_number}`;
-        });
-
-        const hotlineResult = await Swal.fire({
-            icon: 'warning',
-            title: 'Select Hotline',
-            input: 'select',
-            inputOptions: hotlineOptions,
-            inputValue: 'none',
-            showCancelButton: true,
-            confirmButtonText: 'Send Emergency Text',
-            confirmButtonColor: '#dc2626',
-        });
-
-        if (!hotlineResult.isConfirmed) return;
-        emergencyHotline = (props.emergencyHotlines ?? []).find(
-            (hotline) =>
-                String(hotline.emergency_hotline_id) ===
-                String(hotlineResult.value),
-        );
-    }
-
     if (!emergencyType) {
         showToast('warning', 'No emergency type selected');
         return;
+    }
+
+    const selectedStudents = new Map();
+    const studentDirectory = props.emergencyStudents ?? [];
+    let emergencyHotline = selectedHotline;
+    let symptoms = '';
+    const typeName = String(emergencyType.name ?? '').toLowerCase();
+    const typeCategory = String(emergencyType.category ?? 'general').toLowerCase();
+    const isAreaWideType = typeName.includes('fire') || typeCategory === 'disaster';
+    let emergencyScope = isAreaWideType ? 'all' : 'people';
+
+    if (!emergencyHotline) {
+        const routingKeys = new Set([typeCategory]);
+        typeName.split(/[^a-z0-9]+/).filter(Boolean).forEach((key) => routingKeys.add(key));
+        if (typeName.includes('fire')) routingKeys.add('fire');
+        if (typeCategory === 'clinic' || typeName.match(/medical|injury|faint|seizure|asthma|allergy|bleed/)) {
+            routingKeys.add('clinic');
+            routingKeys.add('medical');
+            routingKeys.add('medic');
+        }
+        const matchingHotlines = (props.emergencyHotlines ?? []).filter((hotline) =>
+            routingKeys.has(String(hotline.category ?? '').trim().toLowerCase()),
+        );
+
+        if (matchingHotlines.length === 1) {
+            [emergencyHotline] = matchingHotlines;
+        } else if (matchingHotlines.length > 1) {
+            const hotlineOptions = {};
+            matchingHotlines.forEach((hotline) => {
+                hotlineOptions[hotline.emergency_hotline_id] = `${hotline.name} - ${hotline.phone_number}`;
+            });
+            const hotlineResult = await Swal.fire({
+                icon: 'question',
+                title: `Select ${emergencyType.name} hotline`,
+                input: 'select',
+                inputOptions: hotlineOptions,
+                inputPlaceholder: 'Choose the hotline to contact',
+                showCancelButton: true,
+                confirmButtonText: 'Continue',
+                confirmButtonColor: '#dc2626',
+            });
+            if (!hotlineResult.isConfirmed) return;
+            emergencyHotline = matchingHotlines.find(
+                (hotline) => String(hotline.emergency_hotline_id) === String(hotlineResult.value),
+            );
+        }
+
+        if (matchingHotlines.length === 0) {
+            const unmatchedResult = await Swal.fire({
+                icon: 'warning',
+                title: 'No matching hotline configured',
+                text: `Clinic has no active hotline matching ${emergencyType.name}. The in-app alert can still be sent, but no hotline SMS will be attempted.`,
+                showCancelButton: true,
+                confirmButtonText: 'Continue without hotline',
+                cancelButtonText: 'Cancel alert',
+                confirmButtonColor: '#dc2626',
+            });
+            if (!unmatchedResult.isConfirmed) return;
+        }
+    }
+    const renderSelectedStudents = () => {
+        if (selectedStudents.size === 0) {
+            return '<div style="padding:12px; color:#64748b; text-align:center;">No student selected yet.</div>';
+        }
+
+        return Array.from(selectedStudents.values())
+            .map(
+                (student) => `<div style="display:flex; align-items:center; gap:10px; padding:8px; border-bottom:1px solid #e2e8f0;">
+                    <img src="${escapeHtml(student.photo || `https://api.dicebear.com/7.x/personas/svg?seed=${encodeURIComponent(student.name)}`)}" alt="" style="width:36px; height:36px; border-radius:999px; object-fit:cover;" />
+                    <div style="min-width:0; flex:1; text-align:left;">
+                        <div style="font-weight:800; color:#0f172a;">${escapeHtml(student.name)}</div>
+                        <div style="font-size:11px; color:#64748b;">${escapeHtml(student.student_number)} · ${escapeHtml(student.section || 'No section')}</div>
+                    </div>
+                    <button type="button" data-remove-student="${student.id}" style="border:0; background:#fee2e2; color:#b91c1c; border-radius:8px; padding:5px 8px; font-weight:800; cursor:pointer;">Remove</button>
+                </div>`,
+            )
+            .join('');
+    };
+    const renderMatches = (query) => {
+        const normalized = String(query ?? '').trim().toLowerCase();
+        if (!normalized) return '';
+
+        return studentDirectory
+            .filter(
+                (student) =>
+                    !selectedStudents.has(String(student.id)) &&
+                    [student.name, student.student_number, student.rfid]
+                        .filter(Boolean)
+                        .some((value) =>
+                            String(value).toLowerCase().includes(normalized),
+                        ),
+            )
+            .slice(0, 8)
+            .map(
+                (student) => `<button type="button" data-add-student="${student.id}" style="display:block; width:100%; border:0; border-bottom:1px solid #e2e8f0; background:white; padding:9px; text-align:left; cursor:pointer;">
+                    <strong>${escapeHtml(student.name)}</strong><br><span style="font-size:11px; color:#64748b;">${escapeHtml(student.student_number)} · ${escapeHtml(student.section || 'No section')} · RFID ${escapeHtml(student.rfid || 'not enrolled')}</span>
+                </button>`,
+            )
+            .join('');
+    };
+    let assistanceResult = { isConfirmed: true };
+    if (!isAreaWideType) assistanceResult = await Swal.fire({
+        icon: 'warning',
+        title: 'Who needs assistance?',
+        width: 680,
+        html: `<div style="text-align:left;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px;">
+                <label style="display:flex; gap:8px; align-items:flex-start; padding:10px; border:1px solid #fecaca; border-radius:8px; cursor:pointer;">
+                    <input type="radio" name="emergency-scope" value="people" checked />
+                    <span><strong>Specific person(s)</strong><br><small>Identify one or more students.</small></span>
+                </label>
+                <label style="display:flex; gap:8px; align-items:flex-start; padding:10px; border:1px solid #fed7aa; border-radius:8px; cursor:pointer;">
+                    <input type="radio" name="emergency-scope" value="all" />
+                    <span><strong>Everyone / area-wide</strong><br><small>Continue without student information.</small></span>
+                </label>
+            </div>
+            <div id="emergency-specific-people">
+                <label for="emergency-student-search" style="display:block; margin-bottom:6px; font-size:12px; font-weight:800; color:#334155;">Scan RFID or type a student name</label>
+                <input id="emergency-student-search" class="swal2-input" style="width:100%; margin:0;" autocomplete="off" placeholder="RFID, name, or student number" />
+                <div id="emergency-student-matches" style="max-height:180px; overflow:auto; border:1px solid #e2e8f0; border-top:0;"></div>
+                <div style="margin-top:12px; font-size:12px; font-weight:800; color:#334155;">Selected students (multiple allowed)</div>
+                <div id="emergency-selected-students" style="margin-top:5px; max-height:190px; overflow:auto; border:1px solid #e2e8f0; border-radius:8px;">${renderSelectedStudents()}</div>
+            </div>
+            <label for="emergency-symptoms" style="display:block; margin:12px 0 6px; font-size:12px; font-weight:800; color:#334155;">Symptoms or short notes</label>
+            <textarea id="emergency-symptoms" class="swal2-textarea" style="width:100%; margin:0;" maxlength="1000" placeholder="Describe what happened or the assistance needed"></textarea>
+        </div>`,
+        showCancelButton: true,
+        confirmButtonText: 'Review Emergency',
+        confirmButtonColor: '#dc2626',
+        focusConfirm: false,
+        didOpen: () => {
+            const search = document.getElementById('emergency-student-search');
+            const matches = document.getElementById('emergency-student-matches');
+            const selected = document.getElementById('emergency-selected-students');
+            const specificPeople = document.getElementById('emergency-specific-people');
+            document.querySelectorAll('input[name="emergency-scope"]').forEach((radio) => {
+                radio.addEventListener('change', () => {
+                    emergencyScope = radio.checked ? radio.value : emergencyScope;
+                    specificPeople.style.display = emergencyScope === 'people' ? 'block' : 'none';
+                    if (emergencyScope === 'people') search.focus();
+                });
+            });
+            const refresh = () => {
+                matches.innerHTML = renderMatches(search.value);
+                selected.innerHTML = renderSelectedStudents();
+            };
+            search.addEventListener('input', refresh);
+            search.addEventListener('keydown', (event) => {
+                if (event.key !== 'Enter') return;
+                event.preventDefault();
+                const exact = studentDirectory.find(
+                    (student) =>
+                        String(student.rfid ?? '').toLowerCase() ===
+                        search.value.trim().toLowerCase(),
+                );
+                if (exact) {
+                    selectedStudents.set(String(exact.id), exact);
+                    search.value = '';
+                    refresh();
+                }
+            });
+            matches.addEventListener('click', (event) => {
+                const button = event.target.closest('[data-add-student]');
+                if (!button) return;
+                const student = studentDirectory.find(
+                    (item) => String(item.id) === button.dataset.addStudent,
+                );
+                if (student) selectedStudents.set(String(student.id), student);
+                search.value = '';
+                refresh();
+                search.focus();
+            });
+            selected.addEventListener('click', (event) => {
+                const button = event.target.closest('[data-remove-student]');
+                if (!button) return;
+                selectedStudents.delete(button.dataset.removeStudent);
+                refresh();
+            });
+            search.focus();
+        },
+        preConfirm: () => {
+            emergencyScope = document.querySelector('input[name="emergency-scope"]:checked')?.value ?? 'people';
+            if (emergencyScope === 'people' && selectedStudents.size === 0) {
+                Swal.showValidationMessage('Scan or select at least one student.');
+                return false;
+            }
+            if (emergencyScope === 'all') selectedStudents.clear();
+            symptoms = document.getElementById('emergency-symptoms').value.trim();
+            return true;
+        },
+    });
+
+    if (!assistanceResult.isConfirmed) return;
+    if (isAreaWideType) {
+        let areaWideDetails = '';
+        const detailsResult = await Swal.fire({
+            icon: isAreaWideType ? 'warning' : 'info',
+            title: `${emergencyType.name} details`,
+            html: `<div style="text-align:left;">
+                <label for="area-wide-emergency-details" style="display:block; margin-bottom:6px; font-size:12px; font-weight:800; color:#334155;">Optional details or instructions</label>
+                <textarea id="area-wide-emergency-details" class="swal2-textarea" style="width:100%; margin:0;" maxlength="1000" placeholder="Describe the affected area or what happened"></textarea>
+                <div id="area-wide-details-timer" style="margin-top:12px; border-radius:8px; background:#fff7ed; padding:9px; text-align:center; font-weight:800; color:#9a3412;">Continuing automatically in 15 seconds if no action is taken.</div>
+            </div>`,
+            showCancelButton: true,
+            confirmButtonText: 'Review Emergency',
+            confirmButtonColor: '#dc2626',
+            timer: 15000,
+            timerProgressBar: true,
+            allowOutsideClick: false,
+            didOpen: () => {
+                const detailsInput = document.getElementById('area-wide-emergency-details');
+                const timerText = document.getElementById('area-wide-details-timer');
+                const interval = window.setInterval(() => {
+                    const seconds = Math.max(0, Math.ceil((Swal.getTimerLeft() ?? 0) / 1000));
+                    if (timerText && Swal.getTimerLeft() !== null) {
+                        timerText.textContent = `Continuing automatically in ${seconds} second${seconds === 1 ? '' : 's'} if no action is taken.`;
+                    }
+                }, 200);
+                Swal.getPopup().dataset.detailsTimerInterval = String(interval);
+                detailsInput.addEventListener('input', () => {
+                    areaWideDetails = detailsInput.value.trim();
+                    Swal.stopTimer();
+                    if (timerText) timerText.textContent = 'Automatic continuation paused while details are being entered.';
+                });
+                detailsInput.focus();
+            },
+            preConfirm: () => {
+                areaWideDetails = document.getElementById('area-wide-emergency-details').value.trim();
+                return true;
+            },
+            willClose: () => {
+                areaWideDetails = document.getElementById('area-wide-emergency-details')?.value.trim() ?? areaWideDetails;
+                const interval = Number(Swal.getPopup()?.dataset.detailsTimerInterval);
+                if (interval) window.clearInterval(interval);
+            },
+        });
+        if (!detailsResult.isConfirmed && detailsResult.dismiss !== Swal.DismissReason.timer) return;
+        symptoms = areaWideDetails;
     }
 
     const professorName = activeProfessor.value?.name ?? 'Instructor';
@@ -1335,7 +1620,50 @@ const triggerEmergencyCall = async (
         ? ` Hotline: ${emergencyHotline.name} ${emergencyHotline.phone_number}.`
         : '';
     const panelMessage = `${emergencyMessage}${hotlineNote}`;
+    const people = Array.from(selectedStudents.values());
+    let countdown = 5;
+    const confirmationResult = await Swal.fire({
+        icon: 'warning',
+        title: 'Emergency Alert Confirmation',
+        width: 720,
+        html: `<div style="text-align:left;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
+                <div><strong>Emergency type</strong><br>${escapeHtml(emergencyType.name)}</div>
+                <div><strong>Laboratory/room</strong><br>${escapeHtml(selectedRoom.value || 'Not assigned')}</div>
+                <div><strong>Symptoms/notes</strong><br>${escapeHtml(symptoms || 'No notes supplied')}</div>
+                <div><strong>Selected hotline</strong><br>${escapeHtml(emergencyHotline ? `${emergencyHotline.name} - ${emergencyHotline.phone_number}` : 'No specific hotline')}</div>
+            </div>
+            ${emergencyScope === 'people'
+                ? `<div style="font-weight:800; margin-bottom:5px;">Students needing assistance</div><div style="max-height:220px; overflow:auto; border:1px solid #e2e8f0; border-radius:8px;">${renderSelectedStudents()}</div>`
+                : '<div style="padding:12px; border-radius:8px; background:#fff7ed; color:#9a3412; font-weight:800; text-align:center;">Everyone / area-wide emergency — student details are not required.</div>'}
+            <div id="emergency-countdown" style="margin-top:14px; padding:10px; border-radius:8px; background:#fef2f2; color:#b91c1c; text-align:center; font-weight:900;">Sending automatically in 5 seconds…</div>
+        </div>`,
+        showCancelButton: true,
+        showConfirmButton: false,
+        cancelButtonText: 'Cancel Alert',
+        allowOutsideClick: false,
+        allowEscapeKey: true,
+        timer: 5000,
+        timerProgressBar: true,
+        didOpen: () => {
+            const countdownElement = document.getElementById('emergency-countdown');
+            const interval = window.setInterval(() => {
+                countdown = Math.max(0, Math.ceil((Swal.getTimerLeft() ?? 0) / 1000));
+                if (countdownElement) {
+                    countdownElement.textContent = `Sending automatically in ${countdown} second${countdown === 1 ? '' : 's'}…`;
+                }
+            }, 200);
+            Swal.getPopup().dataset.countdownInterval = String(interval);
+        },
+        willClose: () => {
+            const interval = Number(Swal.getPopup()?.dataset.countdownInterval);
+            if (interval) window.clearInterval(interval);
+        },
+    });
 
+    if (confirmationResult.dismiss !== Swal.DismissReason.timer) return;
+
+    let alertResult = null;
     try {
         const xsrfRaw = document.cookie
             .split('; ')
@@ -1363,6 +1691,18 @@ const triggerEmergencyCall = async (
                     metadata: {
                         panel: 'attendance-control-panel',
                         mode: currentMode.value,
+                        emergency_scope: emergencyScope,
+                        student_id: people[0]?.id ?? null,
+                        student_rfid: people[0]?.rfid ?? null,
+                        symptoms: symptoms || null,
+                        students: people.map((student) => ({
+                            student_id: student.id,
+                            student_rfid: student.rfid,
+                            student_number: student.student_number,
+                            student_name: student.name,
+                            section: student.section,
+                            photo: student.photo,
+                        })),
                         emergency_hotline_id:
                             emergencyHotline?.emergency_hotline_id ?? null,
                         emergency_hotline_name: emergencyHotline?.name ?? null,
@@ -1378,6 +1718,7 @@ const triggerEmergencyCall = async (
         if (!response.ok) {
             throw new Error('Unable to save emergency alert.');
         }
+        alertResult = await response.json();
     } catch {
         showToast('error', 'Emergency alert could not be saved');
         return;
@@ -1392,10 +1733,19 @@ const triggerEmergencyCall = async (
         emergency_hotline: emergencyHotline?.name ?? null,
         emergency_called_at: new Date().toISOString(),
     });
+    const smsStatus = alertResult?.duplicate
+        ? 'Duplicate alert suppressed; the existing open alert remains active.'
+        : alertResult?.sms?.sent
+          ? 'Hotline SMS: sent successfully.'
+          : emergencyHotline
+            ? `Hotline SMS: not sent (${String(alertResult?.sms?.reason ?? 'unavailable').replaceAll('_', ' ')}).`
+            : 'Hotline SMS: not attempted because no hotline was selected.';
     Swal.fire({
-        icon: 'warning',
-        title: `${emergencyType.name} Sent`,
-        text: panelMessage,
+        icon: alertResult?.duplicate ? 'info' : 'warning',
+        title: alertResult?.duplicate
+            ? 'Existing Emergency Alert Kept'
+            : `${emergencyType.name} Sent`,
+        html: `<p>${escapeHtml(panelMessage)}</p><p style="margin-top:10px; font-weight:800;">${escapeHtml(smsStatus)}</p>`,
         confirmButtonColor: '#dc2626',
     });
 };
@@ -1404,11 +1754,13 @@ const showInstructorOptions = async () => {
     if (currentMode.value === 'borrowing' && borrowingEnabled.value) {
         const result = await Swal.fire({
             title: 'Instructor RFID detected',
-            text: 'Choose the next action for this live class.',
+            text: dismissClassMode.value
+                ? 'Dismiss Class is active. Choose Continue Class to restore normal attendance rules.'
+                : 'Choose the next action for this live class.',
             showConfirmButton: true,
             showDenyButton: true,
             showCancelButton: true,
-            confirmButtonText: 'Student Logout',
+            confirmButtonText: 'Dismiss Class',
             denyButtonText: 'Continue Class',
             cancelButtonText: 'Emergency Call',
             confirmButtonColor: '#0f766e',
@@ -1419,12 +1771,12 @@ const showInstructorOptions = async () => {
         });
 
         if (result.isConfirmed) {
-            enableStudentLogoutMode();
+            await enableDismissClassMode();
             return;
         }
 
         if (result.isDenied) {
-            forceStudentCheckoutNext.value = false;
+            dismissClassMode.value = false;
             currentMode.value = 'attendance';
             lastAction.value = `${activeProfessor.value?.name ?? 'Instructor'} resumed attendance recording.`;
             pushHistory(
@@ -1433,28 +1785,29 @@ const showInstructorOptions = async () => {
                 'success',
             );
             syncPanelSessionState('attendance');
-            showToast('success', 'Attendance mode resumed');
+            showToast('success', 'Class continued; normal tap rules restored');
             return;
         }
 
         if (result.dismiss === Swal.DismissReason.cancel) {
-            forceStudentCheckoutNext.value = false;
             triggerEmergencyCall();
         }
         return;
     }
 
-    let selectedInstructorAction = 'student_logout';
+    let selectedInstructorAction = 'dismiss_class';
     const result = await Swal.fire({
         title: 'Instructor RFID detected again',
-        text: 'Choose the next action for this live session.',
+        text: dismissClassMode.value
+            ? 'Dismiss Class is active. Choose Continue Class to restore normal attendance rules.'
+            : 'Choose the next action for this live session.',
         html: borrowingEnabled.value
             ? '<button type="button" id="instructor-borrowing-mode" class="swal2-styled" style="background:#d97706;">Borrowing Mode</button>'
             : undefined,
         showConfirmButton: true,
         showDenyButton: true,
         showCancelButton: true,
-        confirmButtonText: 'Student Logout',
+        confirmButtonText: 'Dismiss Class',
         denyButtonText: 'Continue Class',
         cancelButtonText: 'Emergency Call',
         confirmButtonColor: '#0f766e',
@@ -1475,12 +1828,12 @@ const showInstructorOptions = async () => {
     });
 
     if (result.isConfirmed) {
-        if (result.value === 'student_logout') {
-            enableStudentLogoutMode();
+        if (result.value === 'dismiss_class') {
+            await enableDismissClassMode();
             return;
         }
 
-        forceStudentCheckoutNext.value = false;
+        dismissClassMode.value = false;
         currentMode.value = 'borrowing';
         lastAction.value = `${activeProfessor.value?.name ?? 'Instructor'} switched the panel to borrow item mode.`;
         pushHistory(
@@ -1494,21 +1847,23 @@ const showInstructorOptions = async () => {
     }
 
     if (result.isDenied) {
-        forceStudentCheckoutNext.value = false;
+        dismissClassMode.value = false;
         currentMode.value = 'attendance';
         lastAction.value = `${activeProfessor.value?.name ?? 'Instructor'} continued the class session.`;
         pushHistory(
             'Class continued',
-            'Attendance recording remains active.',
+            'Dismiss Class mode was disabled and normal attendance tap rules were restored.',
             'success',
         );
-        syncPanelSessionState('attendance');
-        showToast('success', 'Class continued');
+        syncPanelSessionState('attendance', {
+            dismiss_class_mode: false,
+            dismiss_class_mode_ended_at: new Date().toISOString(),
+        });
+        showToast('success', 'Class continued; normal tap rules restored');
         return;
     }
 
     if (result.dismiss === Swal.DismissReason.cancel) {
-        forceStudentCheckoutNext.value = false;
         triggerEmergencyCall();
     }
 };
@@ -1520,7 +1875,7 @@ const logoutPanel = async () => {
     currentMode.value = 'idle';
     activeProfessor.value = null;
     activeStudent.value = null;
-    forceStudentCheckoutNext.value = false;
+    dismissClassMode.value = false;
     attendanceRecords.value = [];
     lastAction.value =
         'Waiting for an instructor RFID tap to begin attendance recording.';
@@ -1569,7 +1924,7 @@ const performForcedPanelLogout = async (
     panelUnlocked.value = false;
     sessionActive.value = false;
     currentMode.value = 'idle';
-    forceStudentCheckoutNext.value = false;
+    dismissClassMode.value = false;
 
     try {
         const xsrfRaw = document.cookie
@@ -1619,6 +1974,12 @@ const checkPanelStatus = async () => {
         const payload = await response.json().catch(() => null);
         if (payload?.featureSettings) {
             panelFeatureSettings.value = payload.featureSettings;
+        }
+        if (payload?.demoAttendancePanel) {
+            demoAttendancePanelSettings.value = {
+                ...payload.demoAttendancePanel,
+                rfids: { ...(payload.demoAttendancePanel.rfids ?? {}) },
+            };
         }
         if (response.ok && payload?.logout_required) {
             await performForcedPanelLogout(payload.message);
@@ -1770,6 +2131,11 @@ const finalizeScan = () => {
     rfidBuffer = '';
 
     if (!scannedValue) return;
+    if (resolveInstructorRfidPrompt(scannedValue)) {
+        triggerPulse(scannedValue);
+        return;
+    }
+
     handleRfidScan(scannedValue);
 };
 
@@ -1836,51 +2202,26 @@ const toggleListening = () => {
 };
 
 const runDemoTap = () => {
-    if (!sessionActive.value) {
-        const demoInstructorRfid = props.demoInstructorRfids?.[0];
-        if (!demoInstructorRfid) {
-            showToast('warning', 'No seeded instructor RFID found');
-            return;
-        }
+    runConfiguredDemoTap('professorTap', 'Professor Tap RFID is not set.');
+};
 
-        handleRfidScan(demoInstructorRfid);
+const runConfiguredDemoTap = (key, missingMessage) => {
+    if (!demoAttendanceEnabled.value) return;
+
+    const rfid = demoAttendanceRfids.value[key];
+    if (!rfid) {
+        showToast('warning', missingMessage);
         return;
     }
 
-    if (currentMode.value === 'borrowing' && borrowingEnabled.value) {
-        const borrowerRfid =
-            demoStudentRfids.value[1] ?? demoStudentRfids.value[0];
-        if (!borrowerRfid) {
-            showToast('warning', 'No seeded student RFID found');
-            return;
-        }
-        handleRfidScan(borrowerRfid);
-        return;
-    }
-
-    if (demoStudentRfids.value.length === 0) {
-        showToast('warning', 'No seeded student RFID found');
-        return;
-    }
-
-    const nextRfid =
-        demoStudentRfids.value[
-            demoStudentCursor % demoStudentRfids.value.length
-        ];
-    demoStudentCursor += 1;
-    handleRfidScan(nextRfid);
+    handleRfidScan(rfid);
 };
 
 const demoProfessorRetap = () => {
-    // Re-tap active professor to open session controls.
-    const currentInstructorRfid =
-        activeProfessor.value?.rfid ?? props.demoInstructorRfids?.[0];
-    if (!currentInstructorRfid) {
-        showToast('warning', 'No seeded instructor RFID found');
-        return;
-    }
-
-    handleRfidScan(currentInstructorRfid);
+    runConfiguredDemoTap(
+        'secondProfessorTap',
+        'Second Professor Tap RFID is not set.',
+    );
 };
 
 const runDemoStudentTap = () => {
@@ -1889,17 +2230,19 @@ const runDemoStudentTap = () => {
         return;
     }
 
-    if (demoStudentRfids.value.length === 0) {
-        showToast('warning', 'No seeded student RFID found');
+    runConfiguredDemoTap('studentTap', 'Student Tap RFID is not set.');
+};
+
+const runSecondDemoStudentTap = () => {
+    if (!sessionActive.value || currentMode.value !== 'attendance') {
+        showToast('warning', 'Start attendance session first');
         return;
     }
 
-    const nextRfid =
-        demoStudentRfids.value[
-            demoStudentCursor % demoStudentRfids.value.length
-        ];
-    demoStudentCursor += 1;
-    handleRfidScan(nextRfid);
+    runConfiguredDemoTap(
+        'secondStudentTap',
+        'Second Student Tap RFID is not set.',
+    );
 };
 
 const runDemoBorrowTap = () => {
@@ -1955,6 +2298,7 @@ onMounted(() => {
                     : restoredMode;
             isListening.value = panelRuntime.isListening ?? true;
             activeProfessor.value = panelRuntime.activeProfessor ?? null;
+            dismissClassMode.value = Boolean(panelRuntime.dismissClassMode);
             if (panelRuntime.lastAction) {
                 lastAction.value = panelRuntime.lastAction;
             }
@@ -1992,7 +2336,14 @@ onUnmounted(() => {
 });
 
 watch(
-    [sessionActive, currentMode, activeProfessor, isListening, selectedRoom],
+    [
+        sessionActive,
+        currentMode,
+        activeProfessor,
+        isListening,
+        selectedRoom,
+        dismissClassMode,
+    ],
     () => {
         if (!panelUnlocked.value) return;
         persistPanelRuntime();
@@ -2234,11 +2585,13 @@ watch(
                             {{ statusSubline }}
                         </div>
                         <div
-                            v-if="forceStudentCheckoutNext"
+                            v-if="dismissClassMode"
                             class="mt-4 rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm font-bold text-teal-700"
                         >
-                            Student Logout Mode: next student tap records
-                            official check-out.
+                            Dismiss Class Mode: every checked-in student tap
+                            records official check-out. Tap the instructor RFID
+                            again and choose Continue Class to restore normal
+                            attendance rules.
                         </div>
                     </div>
 
@@ -2256,42 +2609,50 @@ watch(
                         <div class="mt-2 text-sm leading-6 text-slate-600">
                             {{ lastAction }}
                         </div>
-                        <div
-                            class="mt-4 flex items-center justify-between gap-3"
-                        >
+                        <div class="mt-4 flex items-center gap-3">
                             <div
                                 class="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white"
                             >
                                 Last RFID: {{ lastScanned || 'Waiting...' }}
                             </div>
-                            <div class="flex gap-2">
+                        </div>
+                        <div
+                            v-if="demoAttendanceEnabled"
+                            class="mt-4 rounded-2xl border border-blue-100 bg-blue-50/70 p-3"
+                        >
+                            <div
+                                class="mb-2 text-[10px] font-bold tracking-[0.18em] text-blue-500 uppercase"
+                            >
+                                Demo Taps
+                            </div>
+                            <div class="flex flex-wrap gap-2">
                                 <button
                                     type="button"
                                     class="rounded-xl bg-[#123456] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#0e2840]"
                                     @click="runDemoTap"
                                 >
-                                    {{ actionButtonLabel }}
-                                </button>
-                                <button
-                                    type="button"
-                                    class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50"
-                                    @click="demoProfessorRetap"
-                                >
-                                    Professor Re-Tap
+                                    Professor Tap
                                 </button>
                                 <button
                                     type="button"
                                     class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100"
                                     @click="runDemoStudentTap"
                                 >
-                                    Student Attendance
+                                    Student Tap
                                 </button>
                                 <button
                                     type="button"
-                                    class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-bold text-amber-700 transition hover:bg-amber-100"
-                                    @click="runDemoBorrowTap"
+                                    class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100"
+                                    @click="runSecondDemoStudentTap"
                                 >
-                                    Borrow Item Demo
+                                    Second Student Tap
+                                </button>
+                                <button
+                                    type="button"
+                                    class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50"
+                                    @click="demoProfessorRetap"
+                                >
+                                    Second Professor Tap
                                 </button>
                             </div>
                         </div>

@@ -35,4 +35,9 @@ class ClinicCase extends Model
     {
         return $this->belongsTo(EmergencyAlert::class, 'emergency_alert_id', 'emergency_alert_id');
     }
+
+    public function assignedResponder(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'handled_by_user_id', 'user_id');
+    }
 }

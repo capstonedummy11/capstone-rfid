@@ -21,6 +21,7 @@ class Section extends Model
     protected $fillable = [
         'section_id',
         'strand_id',
+        'academic_year_id',
         'section_name',
         'year_level',
         'semester',
@@ -31,6 +32,11 @@ class Section extends Model
     public function strand(): BelongsTo
     {
         return $this->belongsTo(Strand::class, 'strand_id', 'strand_id');
+    }
+
+    public function academicYear(): BelongsTo
+    {
+        return $this->belongsTo(AcademicYear::class, 'academic_year_id', 'academic_year_id');
     }
 
     public function students(): HasMany
@@ -46,5 +52,15 @@ class Section extends Model
     public function schedules(): HasMany
     {
         return $this->hasMany(Schedule::class, 'section_id', 'section_id');
+    }
+
+    public function enrollments(): HasMany
+    {
+        return $this->hasMany(StudentEnrollment::class, 'section_id', 'section_id');
+    }
+
+    public function subjectOfferings(): HasMany
+    {
+        return $this->hasMany(SubjectOffering::class, 'section_id', 'section_id');
     }
 }

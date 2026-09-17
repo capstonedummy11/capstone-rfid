@@ -16,7 +16,14 @@ const props = defineProps({
         }),
     },
     onlineClasses: { type: Array, default: () => [] },
+    academicYears: { type: Array, default: () => [] },
+    selectedAcademicYearId: { type: [Number, String, null], default: null },
 });
+
+const changeAcademicYear = (event) => router.get(window.location.pathname, {
+    academic_year_id: event.target.value || undefined,
+    student_id: props.selectedStudentId || undefined,
+}, { preserveState: true, preserveScroll: true, replace: true });
 
 const page = usePage();
 const flashSuccess = computed(() => page.props.flash?.success);
@@ -145,6 +152,17 @@ const verifyFaceAndJoin = async () => {
                     :selected-student-id="selectedStudentId"
                 />
             </div>
+            <div v-if="academicYears.length" class="mt-4">
+                <select
+                    :value="selectedAcademicYearId || ''"
+                    class="rounded-md border border-slate-300 px-3 py-2 text-sm"
+                    @change="changeAcademicYear"
+                >
+                    <option v-for="year in academicYears" :key="year.academic_year_id" :value="year.academic_year_id">
+                        {{ year.name }} ({{ year.status }})
+                    </option>
+                </select>
+            </div>
             <p
                 v-if="flashSuccess"
                 class="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700"
@@ -183,8 +201,13 @@ const verifyFaceAndJoin = async () => {
                                 Attendance:
                                 {{
                                     onlineClass.attendance_status ||
-                                    'Not joined'
+                                    (onlineClass.has_ended
+                                        ? 'Absent'
+                                        : 'Pending')
                                 }}
+                                <span v-if="onlineClass.joined_late">
+                                    (joined late)
+                                </span>
                                 | Face:
                                 {{
                                     onlineClass.require_face_recognition
@@ -202,10 +225,22 @@ const verifyFaceAndJoin = async () => {
                                 Open Link
                             </a>
                             <button
-                                class="rounded-md bg-brand px-3 py-2 text-sm font-bold text-white"
+                                class="rounded-md px-3 py-2 text-sm font-bold text-white"
+                                :class="
+                                    onlineClass.can_join
+                                        ? 'bg-brand'
+                                        : 'cursor-not-allowed bg-slate-400'
+                                "
+                                :disabled="!onlineClass.can_join"
                                 @click="joinClass(onlineClass)"
                             >
-                                Join
+                                {{
+                                    onlineClass.has_ended
+                                        ? 'Attendance Closed'
+                                        : onlineClass.status === 'cancelled'
+                                          ? 'Cancelled'
+                                          : 'Join'
+                                }}
                             </button>
                         </div>
                     </div>

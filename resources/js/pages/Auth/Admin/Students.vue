@@ -8,10 +8,17 @@
                     <div>
                         <h1 class="text-3xl font-bold">Students Management</h1>
                         <p class="text-sm text-slate-500">
-                            {{ canManageStudents ? 'Manage students using strands, sections, and RFID assignments.' : 'View students from your handled sections.' }}
+                            {{
+                                canManageStudents
+                                    ? 'Manage students using strands, sections, and RFID assignments.'
+                                    : 'View students from your handled sections.'
+                            }}
                         </p>
                     </div>
-                    <div v-if="canManageStudents" class="flex items-center gap-2">
+                    <div
+                        v-if="canManageStudents"
+                        class="flex items-center gap-2"
+                    >
                         <button
                             @click="openAddModal"
                             class="rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
@@ -67,7 +74,13 @@
                             @change="onFilterChange"
                             class="w-full rounded-md border border-slate-300 px-3 py-2"
                         >
-                            <option value="">{{ canManageStudents ? 'All Sections' : 'Select Section' }}</option>
+                            <option value="">
+                                {{
+                                    canManageStudents
+                                        ? 'All Sections'
+                                        : 'Select Section'
+                                }}
+                            </option>
                             <option
                                 v-for="section in sectionOptions"
                                 :key="section.section_id"
@@ -102,7 +115,7 @@
                             @change="onFilterChange"
                             class="w-full rounded-md border border-slate-300 px-3 py-2"
                         >
-                            <option value="">All School Years</option>
+                            <option value="all">All School Years</option>
                             <option
                                 v-for="schoolYear in availableSchoolYearOptions"
                                 :key="schoolYear"
@@ -110,6 +123,13 @@
                             >
                                 {{ schoolYear }}
                             </option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-medium text-slate-600">Semester</label>
+                        <select v-model="selectedSemester" @change="onFilterChange" class="w-full rounded-md border border-slate-300 px-3 py-2">
+                            <option value="">All Semesters</option>
+                            <option v-for="semester in semesterOptions" :key="semester" :value="semester">{{ semester }}</option>
                         </select>
                     </div>
                     <div>
@@ -142,7 +162,9 @@
 
             <section class="rounded-lg bg-white p-6 shadow-lg">
                 <div class="overflow-x-auto">
-                    <table class="w-full table-auto border-collapse">
+
+
+                    <table class="min-w-[1450px] w-full table-fixed border-collapse">
                         <thead>
                             <tr class="bg-gray-50">
                                 <th
@@ -214,31 +236,31 @@
                                 :key="student.student_id"
                                 class="hover:bg-gray-50"
                             >
-                                <td class="border border-gray-300 px-4 py-3">
+                                <td class="break-words border border-gray-300 px-3 py-3">
                                     {{ student.student_number }}
                                 </td>
-                                <td class="border border-gray-300 px-4 py-3">
+                                <td class="break-words border border-gray-300 px-3 py-3">
                                     {{ student.first_name }}
                                     {{ student.last_name }}
                                 </td>
-                                <td class="border border-gray-300 px-4 py-3">
+                                <td class="break-words border border-gray-300 px-3 py-3">
                                     {{ student.email }}
                                 </td>
-                                <td class="border border-gray-300 px-4 py-3">
+                                <td class="break-words border border-gray-300 px-3 py-3">
                                     <div class="font-medium">
                                         {{ student.strand_code ?? 'N/A' }}
                                     </div>
                                 </td>
-                                <td class="border border-gray-300 px-4 py-3">
+                                <td class="break-words border border-gray-300 px-3 py-3">
                                     {{ student.section_name ?? 'N/A' }}
                                 </td>
-                                <td class="border border-gray-300 px-4 py-3">
+                                <td class="break-words border border-gray-300 px-3 py-3">
                                     {{ student.year_level }}
                                 </td>
-                                <td class="border border-gray-300 px-4 py-3">
+                                <td class="break-words border border-gray-300 px-3 py-3">
                                     {{ student.school_year }}
                                 </td>
-                                <td class="border border-gray-300 px-4 py-3">
+                                <td class="break-words border border-gray-300 px-3 py-3">
                                     <span
                                         :class="statusClasses(student.status)"
                                         >{{
@@ -246,7 +268,7 @@
                                         }}</span
                                     >
                                 </td>
-                                <td class="border border-gray-300 px-4 py-3">
+                                <td class="break-words border border-gray-300 px-3 py-3">
                                     <span
                                         v-if="student.rfid_tag"
                                         class="text-green-600"
@@ -256,7 +278,7 @@
                                         >Not assigned</span
                                     >
                                 </td>
-                                <td class="border border-gray-300 px-4 py-3">
+                                <td class="break-words border border-gray-300 px-3 py-3">
                                     <div
                                         v-if="
                                             student.face_images &&
@@ -292,7 +314,7 @@
                                         >None</span
                                     >
                                 </td>
-                                <td class="border border-gray-300 px-4 py-3">
+                                <td class="break-words border border-gray-300 px-3 py-3">
                                     <div
                                         v-if="student.parents?.length"
                                         class="space-y-1"
@@ -302,11 +324,14 @@
                                             :key="parent.id"
                                             class="text-sm"
                                         >
-                                            <div class="font-medium text-slate-800">
+                                            <div
+                                                class="font-medium text-slate-800"
+                                            >
                                                 {{ parent.name }}
                                             </div>
                                             <div class="text-xs text-slate-500">
-                                                {{ parent.relationship }} - {{ parent.email }}
+                                                {{ parent.relationship }} -
+                                                {{ parent.email }}
                                             </div>
                                         </div>
                                     </div>
@@ -316,25 +341,57 @@
                                         >None</span
                                     >
                                 </td>
-                                <td v-if="canManageStudents" class="border border-gray-300 px-4 py-3">
+                                <td
+                                    v-if="canManageStudents"
+                                    class="break-words border border-gray-300 px-3 py-3"
+                                >
                                     <div class="flex flex-wrap items-center gap-2">
                                         <button
+                                            type="button"
                                             @click="openEditModal(student)"
-                                            class="rounded-md bg-indigo-600 px-3 py-1 text-sm text-white hover:bg-indigo-700"
+                                            aria-label="Edit student"
+                                            class="group relative rounded-md bg-indigo-600 p-2 text-white hover:bg-indigo-700"
                                         >
-                                            Edit
+                                            <Pencil class="h-4 w-4" />
+                                            <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100">Edit student</span>
                                         </button>
                                         <button
+                                            type="button"
                                             @click="openParentModal(student)"
-                                            class="rounded-md bg-emerald-600 px-3 py-1 text-sm text-white hover:bg-emerald-700"
+                                            aria-label="Manage parents"
+                                            class="group relative rounded-md bg-emerald-600 p-2 text-white hover:bg-emerald-700"
                                         >
-                                            Parents
+                                            <Users class="h-4 w-4" />
+                                            <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100">Manage parents</span>
                                         </button>
                                         <button
-                                            @click="deleteStudent(student)"
-                                            class="rounded-md bg-rose-500 px-3 py-1 text-sm text-white hover:bg-rose-600"
+                                            type="button"
+                                            @click="openEnrollmentHistory(student)"
+                                            aria-label="Enrollment history"
+                                            class="group relative rounded-md bg-sky-600 p-2 text-white hover:bg-sky-700"
                                         >
-                                            Delete
+                                            <History class="h-4 w-4" />
+                                            <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100">Enrollment history</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            @click="
+                                                resetStudentPassword(student)
+                                            "
+                                            aria-label="Reset password"
+                                            class="group relative rounded-md bg-amber-500 p-2 text-white hover:bg-amber-600"
+                                        >
+                                            <KeyRound class="h-4 w-4" />
+                                            <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100">Reset password</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            @click="deleteStudent(student)"
+                                            aria-label="Delete student"
+                                            class="group relative rounded-md bg-rose-500 p-2 text-white hover:bg-rose-600"
+                                        >
+                                            <Trash2 class="h-4 w-4" />
+                                            <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100">Delete student</span>
                                         </button>
                                     </div>
                                 </td>
@@ -522,14 +579,12 @@
                                 >
                                 <select
                                     v-model="form.semester"
+                                    :disabled="!isEditing"
                                     class="w-full rounded-md border border-slate-300 px-3 py-2"
                                     required
                                 >
-                                    <option value="1st Semester">
-                                        1st Semester
-                                    </option>
-                                    <option value="2nd Semester">
-                                        2nd Semester
+                                    <option v-for="semester in (isEditing ? semesterOptions : enrollmentSemesterOptions)" :key="semester" :value="semester">
+                                        {{ semester }}
                                     </option>
                                 </select>
                             </div>
@@ -543,12 +598,13 @@
                                 >
                                 <select
                                     v-model="form.school_year"
+                                    :disabled="!isEditing"
                                     class="w-full rounded-md border border-slate-300 px-3 py-2"
                                     required
                                 >
                                     <option value="">Select School Year</option>
                                     <option
-                                        v-for="schoolYear in availableSchoolYearOptions"
+                                        v-for="schoolYear in (isEditing ? availableSchoolYearOptions : enrollmentSchoolYearOptions)"
                                         :key="schoolYear"
                                         :value="schoolYear"
                                     >
@@ -724,6 +780,51 @@
             </div>
 
             <div
+                v-if="showEnrollmentModal && selectedStudent"
+                class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+                @click.self="closeEnrollmentHistory"
+            >
+                <div class="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl font-semibold text-slate-900">Enrollment History</h2>
+                            <p class="mt-1 text-sm text-slate-500">
+                                {{ selectedStudent.first_name }} {{ selectedStudent.last_name }} · {{ selectedStudent.student_number }}
+                            </p>
+                        </div>
+                        <button class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700" @click="closeEnrollmentHistory">Close</button>
+                    </div>
+                    <div v-if="!selectedStudent.enrollments?.length" class="mt-6 rounded-lg bg-slate-50 p-6 text-center text-sm text-slate-500">
+                        No enrollment-history record is available yet.
+                    </div>
+                    <div v-else class="mt-6 overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-200 text-sm">
+                            <thead class="bg-slate-50 text-left text-xs uppercase text-slate-500">
+                                <tr>
+                                    <th class="px-3 py-2">School year</th>
+                                    <th class="px-3 py-2">Semester</th>
+                                    <th class="px-3 py-2">Grade</th>
+                                    <th class="px-3 py-2">Section</th>
+                                    <th class="px-3 py-2">Strand</th>
+                                    <th class="px-3 py-2">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                <tr v-for="enrollment in selectedStudent.enrollments" :key="enrollment.student_enrollment_id">
+                                    <td class="px-3 py-3 font-medium text-slate-900">{{ enrollment.academic_year }}</td>
+                                    <td class="px-3 py-3 text-slate-600">{{ enrollment.semester }}</td>
+                                    <td class="px-3 py-3 text-slate-600">{{ enrollment.year_level }}</td>
+                                    <td class="px-3 py-3 text-slate-600">{{ enrollment.section_name }}</td>
+                                    <td class="px-3 py-3 text-slate-600">{{ enrollment.strand_code }}</td>
+                                    <td class="px-3 py-3 capitalize text-slate-600">{{ enrollment.status }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div
                 v-if="showParentModal && canManageStudents && selectedStudent"
                 class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
             >
@@ -802,7 +903,11 @@
                     <form @submit.prevent="submitParentForm" class="space-y-4">
                         <div class="flex items-center justify-between">
                             <h3 class="font-semibold text-slate-900">
-                                {{ selectedParent ? 'Edit Parent' : 'Create or Link Parent' }}
+                                {{
+                                    selectedParent
+                                        ? 'Edit Parent'
+                                        : 'Create or Link Parent'
+                                }}
                             </h3>
                             <button
                                 v-if="selectedParent"
@@ -816,7 +921,9 @@
 
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
-                                <label class="mb-1 block text-sm font-medium text-slate-700">
+                                <label
+                                    class="mb-1 block text-sm font-medium text-slate-700"
+                                >
                                     Parent Name *
                                 </label>
                                 <input
@@ -825,12 +932,17 @@
                                     class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                                     required
                                 />
-                                <p v-if="parentForm.errors.name" class="mt-1 text-xs text-rose-600">
+                                <p
+                                    v-if="parentForm.errors.name"
+                                    class="mt-1 text-xs text-rose-600"
+                                >
                                     {{ parentForm.errors.name }}
                                 </p>
                             </div>
                             <div>
-                                <label class="mb-1 block text-sm font-medium text-slate-700">
+                                <label
+                                    class="mb-1 block text-sm font-medium text-slate-700"
+                                >
                                     Email *
                                 </label>
                                 <input
@@ -839,7 +951,10 @@
                                     class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                                     required
                                 />
-                                <p v-if="parentForm.errors.email" class="mt-1 text-xs text-rose-600">
+                                <p
+                                    v-if="parentForm.errors.email"
+                                    class="mt-1 text-xs text-rose-600"
+                                >
                                     {{ parentForm.errors.email }}
                                 </p>
                             </div>
@@ -847,7 +962,9 @@
 
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
                             <div>
-                                <label class="mb-1 block text-sm font-medium text-slate-700">
+                                <label
+                                    class="mb-1 block text-sm font-medium text-slate-700"
+                                >
                                     Relationship *
                                 </label>
                                 <input
@@ -857,12 +974,17 @@
                                     class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                                     required
                                 />
-                                <p v-if="parentForm.errors.relationship" class="mt-1 text-xs text-rose-600">
+                                <p
+                                    v-if="parentForm.errors.relationship"
+                                    class="mt-1 text-xs text-rose-600"
+                                >
                                     {{ parentForm.errors.relationship }}
                                 </p>
                             </div>
                             <div>
-                                <label class="mb-1 block text-sm font-medium text-slate-700">
+                                <label
+                                    class="mb-1 block text-sm font-medium text-slate-700"
+                                >
                                     Phone
                                 </label>
                                 <input
@@ -872,7 +994,9 @@
                                 />
                             </div>
                             <div>
-                                <label class="mb-1 block text-sm font-medium text-slate-700">
+                                <label
+                                    class="mb-1 block text-sm font-medium text-slate-700"
+                                >
                                     Gender
                                 </label>
                                 <select
@@ -885,7 +1009,9 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="mb-1 block text-sm font-medium text-slate-700">
+                                <label
+                                    class="mb-1 block text-sm font-medium text-slate-700"
+                                >
                                     Password
                                 </label>
                                 <input
@@ -894,7 +1020,10 @@
                                     placeholder="Required for new"
                                     class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                                 />
-                                <p v-if="parentForm.errors.password" class="mt-1 text-xs text-rose-600">
+                                <p
+                                    v-if="parentForm.errors.password"
+                                    class="mt-1 text-xs text-rose-600"
+                                >
                                     {{ parentForm.errors.password }}
                                 </p>
                             </div>
@@ -913,7 +1042,11 @@
                                 class="rounded-md bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-700 disabled:opacity-50"
                                 :disabled="parentForm.processing"
                             >
-                                {{ selectedParent ? 'Update Parent' : 'Save Parent' }}
+                                {{
+                                    selectedParent
+                                        ? 'Update Parent'
+                                        : 'Save Parent'
+                                }}
                             </button>
                         </div>
                     </form>
@@ -926,6 +1059,8 @@
 <script setup lang="ts">
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import Swal from 'sweetalert2';
+import { History, KeyRound, Pencil, Trash2, Users } from 'lucide-vue-next';
 import CameraCapture from '@/components/CameraCapture.vue';
 
 interface Student {
@@ -948,6 +1083,17 @@ interface Student {
     face_images?: string[];
     status: 'active' | 'inactive' | 'graduated' | 'dropped';
     parents?: ParentAccount[];
+    enrollments?: StudentEnrollment[];
+}
+
+interface StudentEnrollment {
+    student_enrollment_id: string | number;
+    academic_year: string;
+    semester: string;
+    year_level: string | number;
+    section_name: string;
+    strand_code: string;
+    status: string;
 }
 
 interface ParentAccount {
@@ -969,6 +1115,9 @@ interface SectionOption {
     section_id: string | number;
     section_name: string;
     strand_id: string | number;
+    academic_year_id?: string | number | null;
+    semester?: string;
+    year_level?: string | number;
     school_year: string;
     label: string;
 }
@@ -988,6 +1137,7 @@ const props = defineProps({
             section: '',
             year: '',
             school_year: '',
+            semester: '',
             status: '',
         }),
     },
@@ -1003,6 +1153,11 @@ const props = defineProps({
         type: Array as () => string[],
         default: () => [],
     },
+    currentAcademicYear: {
+        type: Object as () => { name: string; active_semester: string | null } | null,
+        default: null,
+    },
+    semesterOptions: { type: Array as () => string[], default: () => ['1st Semester', '2nd Semester'] },
     currentUserRole: {
         type: String,
         default: '',
@@ -1015,7 +1170,9 @@ const props = defineProps({
 
 const page = usePage();
 const currentRole = computed(() =>
-    String(props.currentUserRole || page.props.auth?.user?.role || '').toLowerCase(),
+    String(
+        props.currentUserRole || page.props.auth?.user?.role || '',
+    ).toLowerCase(),
 );
 const canManageStudents = computed(
     () => props.canManageStudents || currentRole.value === 'admin',
@@ -1025,17 +1182,14 @@ const selectedStrand = ref(props.filters.strand ?? '');
 const selectedSection = ref(props.filters.section ?? '');
 const selectedYear = ref(props.filters.year ?? '');
 const selectedSchoolYear = ref(props.filters.school_year ?? '');
+const selectedSemester = ref(props.filters.semester ?? '');
 const selectedStatus = ref(props.filters.status ?? '');
 const showModal = ref(false);
 const isEditing = ref(false);
 const selectedStudent = ref<Student | null>(null);
 const showParentModal = ref(false);
+const showEnrollmentModal = ref(false);
 const selectedParent = ref<ParentAccount | null>(null);
-const defaultSchoolYearOptions = Array.from({ length: 6 }, (_, index) => {
-    const startYear = 2025 + index;
-    return `${startYear}-${startYear + 1}`;
-});
-
 // Face image management state
 const faceImages = ref<string[]>([]);
 const faceImageUploading = ref(false);
@@ -1098,11 +1252,21 @@ const filteredStudents = computed<Student[]>(() => {
         const matchesSchoolYear =
             selectedSchoolYear.value === '' ||
             String(student.school_year) === selectedSchoolYear.value;
+        const matchesSemester =
+            selectedSemester.value === '' || student.semester === selectedSemester.value;
         const matchesStatus =
             selectedStatus.value === '' ||
             student.status === selectedStatus.value;
 
-        return matchesSearch && matchesStrand && matchesSection && matchesYear && matchesSchoolYear && matchesStatus;
+        return (
+            matchesSearch &&
+            matchesStrand &&
+            matchesSection &&
+            matchesYear &&
+            matchesSchoolYear &&
+            matchesSemester &&
+            matchesStatus
+        );
     });
 });
 
@@ -1111,19 +1275,24 @@ const availableSections = computed<SectionOption[]>(() => {
         const matchesStrand =
             !form.strand_id ||
             String(section.strand_id) === String(form.strand_id);
-        return matchesStrand;
+        if (isEditing.value) return matchesStrand;
+        const matchesCurrentYear =
+            section.school_year === props.currentAcademicYear?.name &&
+            section.semester === props.currentAcademicYear?.active_semester &&
+            String(section.year_level) === String(form.year_level);
+        return matchesStrand && matchesCurrentYear;
     });
 });
 
 const availableSchoolYearOptions = computed(() => {
-    return Array.from(
-        new Set([
-            ...defaultSchoolYearOptions,
-            ...(props.schoolYearOptions as string[]),
-            ...(props.students as Student[]).map((student) => student.school_year),
-        ].filter(Boolean)),
-    ).sort();
+    return [...(props.schoolYearOptions as string[])];
 });
+const enrollmentSchoolYearOptions = computed(() =>
+    props.currentAcademicYear?.name ? [props.currentAcademicYear.name] : [],
+);
+const enrollmentSemesterOptions = computed(() =>
+    props.currentAcademicYear?.active_semester ? [props.currentAcademicYear.active_semester] : [],
+);
 
 const onFilterChange = () => {
     router.get(
@@ -1134,6 +1303,7 @@ const onFilterChange = () => {
             section: selectedSection.value,
             year: selectedYear.value,
             school_year: selectedSchoolYear.value,
+            semester: selectedSemester.value,
             status: selectedStatus.value,
         },
         {
@@ -1150,6 +1320,7 @@ const resetFilters = () => {
     selectedSection.value = '';
     selectedYear.value = '';
     selectedSchoolYear.value = '';
+    selectedSemester.value = '';
     selectedStatus.value = '';
     onFilterChange();
 };
@@ -1160,7 +1331,8 @@ const openAddModal = () => {
     selectedStudent.value = null;
     form.reset();
     form.status = 'active';
-    form.semester = '1st Semester';
+    form.school_year = props.currentAcademicYear?.name ?? '';
+    form.semester = props.currentAcademicYear?.active_semester ?? '';
     showModal.value = true;
 };
 
@@ -1220,6 +1392,16 @@ const closeParentModal = () => {
     resetParentForm();
 };
 
+const openEnrollmentHistory = (student: Student) => {
+    selectedStudent.value = student;
+    showEnrollmentModal.value = true;
+};
+
+const closeEnrollmentHistory = () => {
+    showEnrollmentModal.value = false;
+    selectedStudent.value = null;
+};
+
 const editParent = (parent: ParentAccount) => {
     selectedParent.value = parent;
     parentForm.clearErrors();
@@ -1272,13 +1454,18 @@ const submitParentForm = () => {
     );
 };
 
-const unlinkParent = (parent: ParentAccount) => {
+const unlinkParent = async (parent: ParentAccount) => {
     if (!selectedStudent.value) return;
-    if (
-        !confirm(
-            `Unlink ${parent.name} from ${selectedStudent.value.first_name} ${selectedStudent.value.last_name}?`,
-        )
-    ) {
+    const result = await Swal.fire({
+        icon: 'warning',
+        title: 'Unlink parent account?',
+        text: `Remove ${parent.name} from ${selectedStudent.value.first_name} ${selectedStudent.value.last_name}?`,
+        showCancelButton: true,
+        confirmButtonText: 'Unlink',
+        confirmButtonColor: '#e11d48',
+        cancelButtonText: 'Cancel',
+    });
+    if (!result.isConfirmed) {
         return;
     }
 
@@ -1301,12 +1488,51 @@ const unlinkParent = (parent: ParentAccount) => {
                                 String(selectedStudent.value?.student_id),
                         );
                         if (refreshed) selectedStudent.value = refreshed;
-                        if (String(selectedParent.value?.id) === String(parent.id)) {
+                        if (
+                            String(selectedParent.value?.id) ===
+                            String(parent.id)
+                        ) {
                             resetParentForm();
                         }
                     },
                 });
             },
+        },
+    );
+};
+
+const defaultStudentPassword = (student: Student) =>
+    `${student.first_name ?? ''}${student.last_name ?? ''}`.replace(
+        /\s+/g,
+        '',
+    ) || String(student.student_number ?? '');
+
+const resetStudentPassword = async (student: Student) => {
+    if (!canManageStudents.value) return;
+
+    const password = defaultStudentPassword(student);
+    const result = await Swal.fire({
+        icon: 'warning',
+        title: 'Reset student password?',
+        text: `The password will be reset to "${password}".`,
+        showCancelButton: true,
+        confirmButtonText: 'Reset password',
+        confirmButtonColor: '#d97706',
+        cancelButtonText: 'Cancel',
+    });
+    if (!result.isConfirmed) {
+        return;
+    }
+
+    const resetForm = useForm({});
+    resetForm.put(
+        route('admin.students.password.reset-default', {
+            id: student.student_id,
+        }),
+        {
+            preserveState: true,
+            preserveScroll: true,
+            onSuccess: () => router.reload({ only: ['students'] }),
         },
     );
 };
@@ -1450,13 +1676,18 @@ const removeFaceImage = async (index: number) => {
     }
 };
 
-const deleteStudent = (student: Student) => {
+const deleteStudent = async (student: Student) => {
     if (!canManageStudents.value) return;
-    if (
-        !confirm(
-            `Are you sure you want to delete ${student.first_name} ${student.last_name}?`,
-        )
-    ) {
+    const result = await Swal.fire({
+        icon: 'warning',
+        title: 'Delete student?',
+        text: `This will remove ${student.first_name} ${student.last_name} from the student list.`,
+        showCancelButton: true,
+        confirmButtonText: 'Delete',
+        confirmButtonColor: '#e11d48',
+        cancelButtonText: 'Cancel',
+    });
+    if (!result.isConfirmed) {
         return;
     }
 

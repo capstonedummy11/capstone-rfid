@@ -1,6 +1,6 @@
 <script setup>
 import CameraCapture from '@/components/CameraCapture.vue';
-import logo from '@/assets/images/logo.png';
+import logo from '@/assets/images/logo-only.jpg';
 import schoolPhoto from '@/assets/images/philsca.png';
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import {
@@ -509,6 +509,12 @@ const logout = () => {
                                         : 'Send OTP'
                                 }}
                             </button>
+                            <p
+                                v-if="otpSendForm.errors.otp"
+                                class="text-sm text-red-600"
+                            >
+                                {{ otpSendForm.errors.otp }}
+                            </p>
                             <input
                                 v-model="otpForm.otp"
                                 type="text"

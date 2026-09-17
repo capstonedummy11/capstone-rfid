@@ -19,9 +19,26 @@ class SystemSetting extends Model
 
     public const INVENTORY_ENABLED = 'feature.inventory_enabled';
 
+    public const PARENT_PORTAL_ENABLED = 'feature.parent_portal_enabled';
+
+    public const PARENT_EXCUSE_LETTERS_ENABLED = 'feature.parent_excuse_letters_enabled';
+
     public const FACE_RECOGNITION_ENABLED = 'feature.face_recognition_enabled';
 
+    public const DEMO_ATTENDANCE_PANEL_ENABLED = 'feature.demo_attendance_panel_enabled';
+
+    public const DEMO_ATTENDANCE_PANEL_RFIDS = 'attendance.demo_panel_rfids';
+
+    public const DEFAULT_DEMO_ATTENDANCE_PANEL_RFIDS = [
+        'professor_tap' => 'RFID-INSTRUCTOR-SAMPLE',
+        'student_tap' => 'RFID-STUDENT-1101',
+        'second_student_tap' => 'RFID-STUDENT-1102',
+        'second_professor_tap' => 'RFID-INSTRUCTOR-SAMPLE',
+    ];
+
     public const ONLINE_CLASS_FACE_RECOGNITION_DEFAULT = 'online_class.face_recognition_enabled_by_default';
+
+    public const ONLINE_CLASSES_ENABLED = 'feature.online_classes_enabled';
 
     public const PANEL_PIN_HASH = 'panel.pin_hash';
 
@@ -32,6 +49,10 @@ class SystemSetting extends Model
     public const ATTENDANCE_LATE_THRESHOLD_MINUTES = 'attendance.late_threshold_minutes';
 
     public const SECURITY_QUESTIONS = 'auth.security_questions';
+
+    public const CLINIC_EMERGENCY_SOUND_LIBRARY = 'clinic.emergency_sound_library';
+
+    public const DEFAULT_CLINIC_EMERGENCY_SOUND_ID = 'default';
 
     public const DEFAULT_SECURITY_QUESTIONS = [
         'What was the name of your first school?',
@@ -46,11 +67,32 @@ class SystemSetting extends Model
 
     public static function featureFlags(): array
     {
+        $parentPortalEnabled = static::boolean(static::PARENT_PORTAL_ENABLED, false);
+
         return [
             'borrowing_enabled' => static::boolean(static::BORROWING_ENABLED, false),
             'inventory_enabled' => static::boolean(static::INVENTORY_ENABLED, false),
+            'parent_portal_enabled' => $parentPortalEnabled,
+            'parent_excuse_letters_enabled' => $parentPortalEnabled
+                && static::boolean(static::PARENT_EXCUSE_LETTERS_ENABLED, false),
             'face_recognition_enabled' => static::boolean(static::FACE_RECOGNITION_ENABLED, true),
+            'demo_attendance_panel_enabled' => static::boolean(static::DEMO_ATTENDANCE_PANEL_ENABLED, false),
             'online_class_face_recognition_default' => static::boolean(static::ONLINE_CLASS_FACE_RECOGNITION_DEFAULT, true),
+            'online_classes_enabled' => static::boolean(static::ONLINE_CLASSES_ENABLED, true),
+        ];
+    }
+
+    public static function demoAttendancePanelSettings(): array
+    {
+        $rfids = static::array(static::DEMO_ATTENDANCE_PANEL_RFIDS, static::DEFAULT_DEMO_ATTENDANCE_PANEL_RFIDS);
+
+        return [
+            'enabled' => static::boolean(static::DEMO_ATTENDANCE_PANEL_ENABLED, false),
+            'rfids' => collect(static::DEFAULT_DEMO_ATTENDANCE_PANEL_RFIDS)
+                ->mapWithKeys(fn (string $default, string $key) => [
+                    $key => trim((string) ($rfids[$key] ?? $default)),
+                ])
+                ->all(),
         ];
     }
 
@@ -134,6 +176,68 @@ class SystemSetting extends Model
         return count($questions) >= 3 ? $questions : static::DEFAULT_SECURITY_QUESTIONS;
     }
 
+    public static function clinicEmergencySoundSettings(): array
+    {
+        $library = static::array(static::CLINIC_EMERGENCY_SOUND_LIBRARY, []);
+        $uploadedSounds = collect($library['sounds'] ?? [])
+            ->filter(fn ($sound) => is_array($sound) && ! empty($sound['id']) && ! empty($sound['path']))
+            ->map(fn (array $sound) => [
+                'id' => (string) $sound['id'],
+                'name' => trim((string) ($sound['name'] ?? 'Emergency Sound')),
+                'original_name' => trim((string) ($sound['original_name'] ?? '')),
+                'path' => (string) $sound['path'],
+                'size' => (int) ($sound['size'] ?? 0),
+                'uploaded_at' => (string) ($sound['uploaded_at'] ?? ''),
+            ])
+            ->values()
+            ->all();
+
+        $selectedId = (string) ($library['selected_id'] ?? static::DEFAULT_CLINIC_EMERGENCY_SOUND_ID);
+        $knownIds = collect($uploadedSounds)
+            ->pluck('id')
+            ->push(static::DEFAULT_CLINIC_EMERGENCY_SOUND_ID)
+            ->all();
+
+        if (! in_array($selectedId, $knownIds, true)) {
+            $selectedId = static::DEFAULT_CLINIC_EMERGENCY_SOUND_ID;
+        }
+
+        $sounds = collect([
+            [
+                'id' => static::DEFAULT_CLINIC_EMERGENCY_SOUND_ID,
+                'name' => 'Default Emergency Alert',
+                'original_name' => 'emergency-alert.mp3',
+                'url' => '/sound/emergency-alert.mp3',
+                'size' => 0,
+                'uploaded_at' => '',
+                'is_default' => true,
+            ],
+        ])
+            ->merge(collect($uploadedSounds)->map(fn (array $sound) => [
+                ...$sound,
+                'url' => route('clinic.emergency-sounds.show', ['id' => $sound['id']]),
+                'is_default' => false,
+            ]))
+            ->values()
+            ->all();
+
+        $selected = collect($sounds)->firstWhere('id', $selectedId) ?? $sounds[0];
+
+        return [
+            'selected_id' => $selectedId,
+            'selected_url' => $selected['url'],
+            'sounds' => $sounds,
+        ];
+    }
+
+    public static function setClinicEmergencySoundLibrary(array $sounds, string $selectedId): void
+    {
+        static::setArray(static::CLINIC_EMERGENCY_SOUND_LIBRARY, [
+            'selected_id' => $selectedId,
+            'sounds' => array_values($sounds),
+        ]);
+    }
+
     public static function setBoolean(string $key, bool $value): void
     {
         static::query()->updateOrCreate(
@@ -172,7 +276,7 @@ class SystemSetting extends Model
         static::query()->updateOrCreate(
             ['key' => $key],
             [
-                'value' => json_encode(array_values($value)),
+                'value' => json_encode($value),
                 'type' => 'array',
             ],
         );

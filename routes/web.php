@@ -1,14 +1,17 @@
 <?php
 
 use App\Http\Controllers\ActiveDeviceController;
+use App\Http\Controllers\AcademicYearController;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\AttendanceManagementController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BorrowController;
 use App\Http\Controllers\ClinicController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmergencyController;
+use App\Http\Controllers\FirstLoginPasswordController;
 use App\Http\Controllers\InstructorsController;
 use App\Http\Controllers\InstructorVerificationController;
 use App\Http\Controllers\InventoryController;
@@ -27,6 +30,7 @@ use App\Http\Controllers\StudentParentLoginController;
 use App\Http\Controllers\StudentsController;
 use App\Http\Controllers\SubjectController;
 use App\Http\Controllers\SystemSettingsController;
+use App\Http\Middleware\EnsureParentPortalEnabled;
 use App\Models\SystemSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -49,7 +53,7 @@ Route::get('/', function (Request $request) {
     if ($role === 'registrar') {
         return redirect()->route('registrar.dashboard');
     }
-    if (in_array($role, ['student', 'parent'], true)) {
+    if ($role === 'student' || ($role === 'parent' && SystemSetting::boolean(SystemSetting::PARENT_PORTAL_ENABLED, false))) {
         return redirect()->route('student-parent.dashboard');
     }
 
@@ -58,7 +62,7 @@ Route::get('/', function (Request $request) {
 Route::redirect('/home', '/')->name('home');
 Route::inertia('/about', 'About')->name('about');
 Route::redirect('/student-parent-login', '/')->name('studentParentLogin');
-Route::get('/login', fn () => redirect()->route('landingPage'));
+Route::get('/login', fn () => redirect()->route('landingPage'))->name('login');
 Route::get($staffLoginPath, [StaffLoginController::class, 'create'])
     ->name('staff.login');
 if ($staffLoginPath !== '/secure-login') {
@@ -76,15 +80,23 @@ Route::post($staffLoginPath, [StaffLoginController::class, 'store'])
         config('fortify.limiters.login') ? 'throttle:'.config('fortify.limiters.login') : null,
     ]))
     ->name('staff.login.store');
+Route::middleware('auth')->group(function () {
+    Route::get('/first-login/password', [FirstLoginPasswordController::class, 'edit'])->name('password.first-login');
+    Route::put('/first-login/password', [FirstLoginPasswordController::class, 'update'])
+        ->middleware('throttle:6,1')
+        ->name('password.first-login.update');
+});
 Route::get('/messages/new', [MessageController::class, 'create'])->name('messages.create');
 Route::post('/messages', [MessageController::class, 'store'])->name('messages.store');
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'role:admin,instructor,clinic,registrar,student,parent', EnsureParentPortalEnabled::class])->group(function () {
     Route::get('/messages', [MessageController::class, 'index'])->name('messages.index');
+    Route::get('/messages/unread-status', [MessageController::class, 'unreadStatus'])->name('messages.unread-status');
     Route::post('/messages/conversation', [MessageController::class, 'sendConversationMessage'])->name('messages.conversation.store');
+    Route::post('/messages/{message}/forward-to-parent', [MessageController::class, 'forwardExcuseLetterToParent'])->name('messages.forward-to-parent');
     Route::put('/messages/{message}/read', [MessageController::class, 'markRead'])->name('messages.read');
     Route::get('/messages/{message}/attachment', [MessageController::class, 'downloadAttachment'])->name('messages.attachments.show');
 });
-Route::middleware(['auth', 'role:admin,instructor,clinic,registrar'])->group(function () {
+Route::middleware(['auth', 'role:admin,instructor,clinic,registrar,student,parent', EnsureParentPortalEnabled::class])->group(function () {
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('/reports/export', [ReportController::class, 'export'])->name('reports.export');
 });
@@ -92,7 +104,7 @@ Route::get('/attendance-control-panel/login', [AttendanceController::class, 'pan
 Route::post('/panel-verify', [AttendanceController::class, 'verifyPanelPin'])->name('panelVerify');
 Route::post('/face-recognition/verify-student', [AttendanceController::class, 'verifyStudentFace'])->name('faceRecognition.verifyStudent');
 Route::get('/attendance-evidence/{attendanceLog}/{moment}', [AttendanceController::class, 'evidence'])
-    ->middleware(['auth', 'role:admin,instructor,student,parent'])
+    ->middleware(['auth', 'role:admin,instructor,student,parent', EnsureParentPortalEnabled::class])
     ->name('attendance.evidence');
 
 Route::middleware(['auth', 'role:console'])->group(function () {
@@ -128,7 +140,7 @@ Route::get('/dashboard', function (Request $request) {
     if ($role === 'registrar') {
         return redirect()->route('registrar.dashboard');
     }
-    if (in_array($role, ['student', 'parent'], true)) {
+    if ($role === 'student' || ($role === 'parent' && SystemSetting::boolean(SystemSetting::PARENT_PORTAL_ENABLED, false))) {
         return redirect()->route('student-parent.dashboard');
     }
 
@@ -170,7 +182,16 @@ Route::prefix('admin')
         Route::middleware(['role:admin,instructor', 'instructor.verified'])->group(function () {
             Route::get('/dashboard', [DashboardController::class, 'admin'])->name('dashboard');
             Route::get('/attendance/scanner', [AttendanceController::class, 'scanner'])->name('attendance.scanner');
-            Route::get('/attendance/logs', [AttendanceController::class, 'logs'])->name('attendance.logs');
+            Route::get('/attendance/logs', [AttendanceManagementController::class, 'index'])->name('attendance.logs');
+            Route::get('/attendance/subjects/{subject}', [AttendanceManagementController::class, 'dashboard'])->name('attendance.subject');
+            Route::get('/attendance/subjects/{subject}/summary', [AttendanceManagementController::class, 'summary'])->name('attendance.summary');
+            Route::get('/attendance/subjects/{subject}/students/{student}', [AttendanceManagementController::class, 'student'])->name('attendance.student');
+            Route::get('/attendance/subjects/{subject}/sessions/{session}', [AttendanceManagementController::class, 'session'])->name('attendance.session');
+            Route::get('/attendance/subjects/{subject}/summary/export/{format}', [AttendanceManagementController::class, 'exportSummary'])->name('attendance.summary.export');
+            Route::get('/attendance/subjects/{subject}/sessions/{session}/export/{format}', [AttendanceManagementController::class, 'exportSession'])->name('attendance.session.export');
+            Route::get('/attendance/logs/legacy', [AttendanceController::class, 'logs'])->name('attendance.logs.legacy');
+            Route::patch('/attendance/logs/status', [AttendanceController::class, 'updateAttendanceStatus'])->name('attendance.logs.status');
+            Route::patch('/attendance/online/status', [AttendanceManagementController::class, 'updateOnlineAttendanceStatus'])->name('attendance.online.status');
             Route::post('/attendance/scan', [AttendanceController::class, 'scan'])->name('attendance.scan');
             Route::get('/messages', [MessageController::class, 'index'])->name('messages.index');
             Route::post('/messages/{message}/reply', [MessageController::class, 'reply'])->name('messages.reply');
@@ -184,6 +205,15 @@ Route::prefix('admin')
         });
 
         Route::middleware('role:admin')->group(function () {
+            Route::get('/academic-years', [AcademicYearController::class, 'index'])->name('academic-years.index');
+            Route::post('/academic-years', [AcademicYearController::class, 'store'])->name('academic-years.store');
+            Route::put('/academic-years/{academicYear}', [AcademicYearController::class, 'update'])->name('academic-years.update');
+            Route::post('/academic-years/{academicYear}/activate', [AcademicYearController::class, 'activate'])->name('academic-years.activate');
+            Route::post('/academic-years/{academicYear}/close', [AcademicYearController::class, 'close'])->name('academic-years.close');
+            Route::post('/academic-years/{academicYear}/archive', [AcademicYearController::class, 'archive'])->name('academic-years.archive');
+            Route::post('/academic-years/{academicYear}/reopen', [AcademicYearController::class, 'reopen'])->name('academic-years.reopen');
+            Route::get('/academic-years/{academicYear}/rollover-preview', [AcademicYearController::class, 'rolloverPreview'])->name('academic-years.rollover-preview');
+            Route::post('/academic-years/{academicYear}/rollover', [AcademicYearController::class, 'rolloverExecute'])->name('academic-years.rollover');
             Route::get('/laboratories', [LaboratoryController::class, 'indexAdmin'])->name('laboratories');
             Route::post('/laboratories', [LaboratoryController::class, 'store'])->name('laboratories.store');
             Route::put('/laboratories/{id}', [LaboratoryController::class, 'update'])->name('laboratories.update');
@@ -200,6 +230,9 @@ Route::prefix('admin')
             Route::post('/subjects', [SubjectController::class, 'store'])->name('subjects.store');
             Route::put('/subjects/{id}', [SubjectController::class, 'update'])->name('subjects.update');
             Route::delete('/subjects/{id}', [SubjectController::class, 'destroy'])->name('subjects.destroy');
+            Route::post('/subjects/{subject}/offerings', [SubjectController::class, 'storeOffering'])->name('subjects.offerings.store');
+            Route::patch('/subject-offerings/{subjectOffering}/instructor', [SubjectController::class, 'removeOfferingInstructor'])->name('subjects.offerings.instructor.remove');
+            Route::delete('/subject-offerings/{subjectOffering}', [SubjectController::class, 'destroyOffering'])->name('subjects.offerings.destroy');
             Route::post('/schedules', [ScheduleController::class, 'store'])->name('schedules.store');
             Route::put('/schedules/{id}', [ScheduleController::class, 'update'])->name('schedules.update');
             Route::delete('/schedules/{id}', [ScheduleController::class, 'destroy'])->name('schedules.destroy');
@@ -216,17 +249,25 @@ Route::prefix('admin')
             Route::get('/online-class-logs', [OnlineClassController::class, 'logs'])->name('online-class-logs.index');
             Route::get('/online-class-logs/export', [OnlineClassController::class, 'exportLogs'])->name('online-class-logs.export');
             Route::get('/active-devices', [ActiveDeviceController::class, 'index'])->name('active-devices.index');
+            Route::post('/active-devices', [ActiveDeviceController::class, 'store'])->name('active-devices.store');
             Route::put('/active-devices/panel-access', [ActiveDeviceController::class, 'updatePanelAccess'])->name('active-devices.panel-access.update');
-            Route::put('/active-devices/{panelSessionId}/pin', [ActiveDeviceController::class, 'updatePanelDevicePin'])->name('active-devices.pin.update');
+            Route::put('/active-devices/{device}', [ActiveDeviceController::class, 'update'])->name('active-devices.update');
+            Route::delete('/active-devices/{device}', [ActiveDeviceController::class, 'destroy'])->name('active-devices.destroy');
+            Route::put('/active-devices/{device}/pin', [ActiveDeviceController::class, 'updatePanelDevicePin'])->name('active-devices.pin.update');
             Route::post('/active-devices/{panelSessionId}/force-logout', [ActiveDeviceController::class, 'forceLogout'])->name('active-devices.force-logout');
             Route::get('/settings', [SystemSettingsController::class, 'edit'])->name('settings.edit');
             Route::put('/settings', [SystemSettingsController::class, 'update'])->name('settings.update');
+            Route::post('/settings/emergency-sounds', [SystemSettingsController::class, 'storeEmergencySound'])->name('settings.emergency-sounds.store');
+            Route::put('/settings/emergency-sounds/{id}/select', [SystemSettingsController::class, 'selectEmergencySound'])->name('settings.emergency-sounds.select');
+            Route::delete('/settings/emergency-sounds/{id}', [SystemSettingsController::class, 'destroyEmergencySound'])->name('settings.emergency-sounds.destroy');
             Route::get('/strands', [StrandController::class, 'indexAdmin'])->name('strands.index');
             Route::post('/strands', [StrandController::class, 'store'])->name('strands.store');
             Route::put('/strands/{id}', [StrandController::class, 'update'])->name('strands.update');
             Route::delete('/strands/{id}', [StrandController::class, 'destroy'])->name('strands.destroy');
             Route::post('/students', [StudentsController::class, 'store'])->name('students.store');
             Route::put('/students/{id}', [StudentsController::class, 'update'])->name('students.update');
+            Route::put('/students/{id}/password/reset-default', [StudentsController::class, 'resetStudentAccountPassword'])
+                ->name('students.password.reset-default');
             Route::delete('/students/{id}', [StudentsController::class, 'destroy'])->name('students.destroy');
             Route::post('/students/{id}/parents', [StudentsController::class, 'storeParent'])->name('students.parents.store');
             Route::put('/students/{id}/parents/{parent}', [StudentsController::class, 'updateParent'])->name('students.parents.update');
@@ -259,6 +300,7 @@ Route::prefix('clinic')
     ->middleware(['auth', 'role:clinic,admin'])
     ->name('clinic.')
     ->group(function () {
+        Route::get('/emergency-sounds/{id}', [SystemSettingsController::class, 'showEmergencySound'])->name('emergency-sounds.show');
         Route::get('/dashboard', [ClinicController::class, 'dashboard'])->name('dashboard');
         Route::get('/case-logs', [ClinicController::class, 'caseLogs'])->name('case-logs');
         Route::post('/case-logs', [ClinicController::class, 'storeCase'])->name('case-logs.store');
@@ -282,7 +324,7 @@ Route::prefix('clinic')
     });
 
 Route::prefix('student-parent')
-    ->middleware(['auth', 'role:student,parent'])
+    ->middleware(['auth', 'role:student,parent', EnsureParentPortalEnabled::class])
     ->name('student-parent.')
     ->group(function () {
         Route::get('/dashboard', [StudentsController::class, 'portalDashboard'])->name('dashboard');

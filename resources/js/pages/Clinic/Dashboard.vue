@@ -1,6 +1,6 @@
 <script setup>
 import { router, useForm, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
     AlertTriangle,
     BellRing,
@@ -19,11 +19,32 @@ const props = defineProps({
     emergencyTypes: { type: Array, default: () => [] },
     calendarEvents: { type: Array, default: () => [] },
     emergencyDetails: { type: Array, default: () => [] },
+    clinicAccounts: { type: Array, default: () => [] },
+    assignedDispatches: { type: Array, default: () => [] },
+    emergencySound: {
+        type: Object,
+        default: () => ({
+            selected_id: 'default',
+            selected_url: '/sound/emergency-alert.mp3',
+            sounds: [],
+        }),
+    },
 });
 
 const page = usePage();
 const flashSuccess = computed(() => page.props.flash?.success);
 const editingTypeId = ref(null);
+const latestAlertId = ref(0);
+const audioUnlocked = ref(false);
+const processingAlertIds = ref(new Set());
+const selectedClinicByAlert = ref({});
+const showAudioNotice = computed(() => !audioUnlocked.value);
+let alertPollInterval = null;
+let alertAudio = null;
+
+const selectedEmergencySoundUrl = computed(
+    () => props.emergencySound?.selected_url || '/sound/emergency-alert.mp3',
+);
 
 const typeForm = useForm({
     name: '',
@@ -114,13 +135,47 @@ const editType = (type) => {
     typeForm.sort_order = type.sort_order || 0;
 };
 
+const refreshDashboard = (
+    only = [
+        'alerts',
+        'emergencyDetails',
+        'counts',
+        'calendarEvents',
+        'emergencySound',
+        'assignedDispatches',
+    ],
+) => {
+    router.reload({
+        only,
+        preserveScroll: true,
+        preserveState: true,
+    });
+};
+
+const setAlertProcessing = (id, isProcessing) => {
+    const next = new Set(processingAlertIds.value);
+
+    if (isProcessing) {
+        next.add(id);
+    } else {
+        next.delete(id);
+    }
+
+    processingAlertIds.value = next;
+};
+
+const isAlertProcessing = (id) => processingAlertIds.value.has(id);
+
 const submitType = () => {
     if (editingTypeId.value) {
         typeForm.put(
             route('clinic.emergency-types.update', editingTypeId.value),
             {
                 preserveScroll: true,
-                onSuccess: resetTypeForm,
+                onSuccess: () => {
+                    resetTypeForm();
+                    refreshDashboard(['emergencyTypes']);
+                },
             },
         );
         return;
@@ -128,7 +183,10 @@ const submitType = () => {
 
     typeForm.post(route('clinic.emergency-types.store'), {
         preserveScroll: true,
-        onSuccess: resetTypeForm,
+        onSuccess: () => {
+            resetTypeForm();
+            refreshDashboard(['emergencyTypes']);
+        },
     });
 };
 
@@ -139,6 +197,7 @@ const deleteType = (type) => {
         route('clinic.emergency-types.destroy', type.emergency_type_id),
         {
             preserveScroll: true,
+            onSuccess: () => refreshDashboard(['emergencyTypes']),
         },
     );
 };
@@ -147,25 +206,140 @@ const updateAlert = (id, status) => {
     router.put(
         route('clinic.emergency-alerts.update', { id }),
         { status },
-        { preserveScroll: true },
+        {
+            preserveScroll: true,
+            onSuccess: () => refreshDashboard(),
+        },
     );
 };
 
 const dispatchAlert = (id) => {
+    const clinicUserId = selectedClinicByAlert.value[id];
+    if (!clinicUserId) return;
+    setAlertProcessing(id, true);
+
     router.post(
         route('clinic.emergency-alerts.dispatch', { id }),
-        {},
-        { preserveScroll: true },
+        { clinic_user_id: clinicUserId },
+        {
+            preserveScroll: true,
+            onSuccess: () => refreshDashboard(),
+            onFinish: () => setAlertProcessing(id, false),
+        },
     );
 };
 
 const ignoreAlert = (id) => {
+    setAlertProcessing(id, true);
+
     router.put(
         route('clinic.emergency-alerts.update', { id }),
         { status: 'cancelled' },
-        { preserveScroll: true },
+        {
+            preserveScroll: true,
+            onSuccess: () => refreshDashboard(),
+            onFinish: () => setAlertProcessing(id, false),
+        },
     );
 };
+
+const highestAlertId = (alerts) =>
+    Math.max(
+        0,
+        ...(alerts ?? []).map((alert) => Number(alert.emergency_alert_id) || 0),
+    );
+
+const unlockAlertAudio = () => {
+    if (audioUnlocked.value || typeof window === 'undefined') return;
+
+    alertAudio ||= new Audio(selectedEmergencySoundUrl.value);
+    alertAudio.preload = 'auto';
+
+    const previousVolume = alertAudio.volume;
+    alertAudio.volume = 0;
+    alertAudio
+        .play()
+        .then(() => {
+            alertAudio.pause();
+            alertAudio.currentTime = 0;
+            alertAudio.volume = previousVolume || 1;
+            audioUnlocked.value = true;
+        })
+        .catch(() => {
+            alertAudio.volume = previousVolume || 1;
+        });
+};
+
+watch(selectedEmergencySoundUrl, (url) => {
+    if (!alertAudio) return;
+
+    alertAudio.pause();
+    alertAudio = new Audio(url);
+    alertAudio.preload = 'auto';
+    audioUnlocked.value = false;
+    registerAudioUnlockListeners();
+});
+
+const playEmergencySound = () => {
+    if (!audioUnlocked.value || !alertAudio) return;
+
+    alertAudio.pause();
+    alertAudio.currentTime = 0;
+    alertAudio.play().catch(() => {
+        audioUnlocked.value = false;
+    });
+};
+
+const registerAudioUnlockListeners = () => {
+    if (typeof window === 'undefined') return;
+
+    window.addEventListener('click', unlockAlertAudio, { once: true });
+    window.addEventListener('keydown', unlockAlertAudio, { once: true });
+};
+
+watch(
+    () => props.alerts,
+    (alerts) => {
+        const newestId = highestAlertId(alerts);
+        if (!latestAlertId.value) {
+            latestAlertId.value = newestId;
+            return;
+        }
+
+        if (newestId > latestAlertId.value) {
+            latestAlertId.value = newestId;
+            playEmergencySound();
+        }
+    },
+    { immediate: true, deep: true },
+);
+
+onMounted(() => {
+    registerAudioUnlockListeners();
+
+    alertPollInterval = window.setInterval(() => {
+        router.reload({
+            only: [
+                'alerts',
+                'emergencyDetails',
+                'counts',
+                'calendarEvents',
+                'emergencySound',
+            ],
+            preserveScroll: true,
+            preserveState: true,
+        });
+    }, 10000);
+});
+
+onBeforeUnmount(() => {
+    window.removeEventListener('click', unlockAlertAudio);
+    window.removeEventListener('keydown', unlockAlertAudio);
+
+    if (alertPollInterval) {
+        window.clearInterval(alertPollInterval);
+    }
+});
 </script>
 
 <template>
@@ -195,6 +369,14 @@ const ignoreAlert = (id) => {
                     {{ flashSuccess }}
                 </p>
             </header>
+
+            <div
+                v-if="showAudioNotice"
+                class="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800"
+            >
+                Click anywhere or press any key once to enable emergency alert
+                sound.
+            </div>
 
             <section class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <article
@@ -340,6 +522,25 @@ const ignoreAlert = (id) => {
 
             <section class="grid gap-5 xl:grid-cols-[1fr_390px]">
                 <div class="rounded-md bg-white p-4 shadow-sm">
+                    <div v-if="assignedDispatches.length" class="mb-5 rounded-md border border-blue-200 bg-blue-50 p-4">
+                        <h2 class="text-sm font-black uppercase tracking-wide text-blue-800">My Dispatch Assignments</h2>
+                        <article v-for="assignment in assignedDispatches" :key="assignment.case_id" class="mt-3 rounded-md bg-white p-3 shadow-sm">
+                            <p class="font-black text-slate-900">{{ assignment.patient_name }} · {{ assignment.case_type }}</p>
+                            <p class="mt-1 text-sm font-semibold text-blue-700">
+                                Responder sent: {{ assignment.assigned_responder_name || 'Not assigned' }}
+                            </p>
+                            <p class="mt-1 text-sm font-semibold text-rose-700">Proceed to: {{ assignment.location }}</p>
+                            <p class="mt-1 text-sm text-slate-600">{{ assignment.symptoms }}</p>
+                            <div v-if="assignment.history.length || assignment.attendance.length" class="mt-2 border-t border-slate-100 pt-2 text-xs text-slate-500">
+                                <p v-for="record in assignment.history" :key="`history-${assignment.case_id}-${record.date}-${record.summary}`">
+                                    Clinic history: {{ record.date }} · {{ record.summary }}
+                                </p>
+                                <p v-for="record in assignment.attendance" :key="`attendance-${assignment.case_id}-${record.date}`">
+                                    Attendance: {{ record.date }} · {{ record.status }}
+                                </p>
+                            </div>
+                        </article>
+                    </div>
                     <h2
                         class="mb-3 text-sm font-black tracking-wide text-slate-500 uppercase"
                     >
@@ -381,6 +582,30 @@ const ignoreAlert = (id) => {
                                     <p class="mt-2 text-sm text-slate-600">
                                         {{ detail.symptoms }}
                                     </p>
+                                    <p v-if="detail.response_seconds !== null" class="mt-1 text-xs font-bold text-emerald-700">
+                                        Dispatched in {{ detail.response_seconds }} seconds
+                                    </p>
+                                    <div
+                                        v-if="detail.patients?.length > 1"
+                                        class="mt-3 space-y-2"
+                                    >
+                                        <div
+                                            v-for="patient in detail.patients"
+                                            :key="patient.student_id || patient.student_number"
+                                            class="flex items-center gap-2 rounded-md bg-slate-50 p-2"
+                                        >
+                                            <img
+                                                v-if="patient.photo"
+                                                :src="patient.photo"
+                                                :alt="patient.name"
+                                                class="h-8 w-8 rounded-full object-cover"
+                                            />
+                                            <div class="text-xs">
+                                                <p class="font-black text-slate-800">{{ patient.name }}</p>
+                                                <p class="text-slate-500">{{ patient.student_number }} · {{ patient.section || 'No section' }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                                 <span
                                     class="rounded-full px-2 py-1 text-[10px] font-black uppercase"
@@ -395,15 +620,36 @@ const ignoreAlert = (id) => {
                                     {{ detail.category }}
                                 </span>
                             </div>
-                            <div class="mt-3 flex gap-2">
+                            <div class="mt-3">
+                                <select
+                                    v-model="selectedClinicByAlert[detail.id]"
+                                    class="mb-2 w-full rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold"
+                                    :disabled="clinicAccounts.length === 0"
+                                >
+                                    <option value="">{{ clinicAccounts.length ? 'Assign Clinic responder' : 'No active Clinic responder available' }}</option>
+                                    <option v-for="account in clinicAccounts" :key="account.user_id" :value="account.user_id">
+                                        {{ account.name }} · {{ account.email }}
+                                    </option>
+                                </select>
+                                <p v-if="clinicAccounts.length === 0" class="mb-2 rounded-md bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
+                                    Alert remains Open and queued. Activate or create a Clinic responder before dispatching.
+                                </p>
+                            </div>
+                            <div class="flex gap-2">
                                 <button
-                                    class="flex-1 rounded-md bg-rose-500 px-3 py-2 text-xs font-bold text-white"
+                                    class="flex-1 rounded-md bg-rose-500 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                                    :disabled="isAlertProcessing(detail.id) || clinicAccounts.length === 0 || !selectedClinicByAlert[detail.id]"
                                     @click="dispatchAlert(detail.id)"
                                 >
-                                    Dispatch
+                                    {{
+                                        isAlertProcessing(detail.id)
+                                            ? 'Sending...'
+                                            : 'Dispatch'
+                                    }}
                                 </button>
                                 <button
-                                    class="flex-1 rounded-md border border-slate-200 px-3 py-2 text-xs font-bold text-slate-500"
+                                    class="flex-1 rounded-md border border-slate-200 px-3 py-2 text-xs font-bold text-slate-500 disabled:cursor-not-allowed disabled:opacity-60"
+                                    :disabled="isAlertProcessing(detail.id)"
                                     @click="ignoreAlert(detail.id)"
                                 >
                                     Ignore
@@ -436,6 +682,12 @@ const ignoreAlert = (id) => {
                             placeholder="Type name"
                             class="rounded-md border border-slate-300 px-3 py-2 text-sm"
                         />
+                        <p
+                            v-if="typeForm.errors.name"
+                            class="text-xs font-semibold text-rose-600"
+                        >
+                            {{ typeForm.errors.name }}
+                        </p>
                         <div class="grid grid-cols-2 gap-2">
                             <select
                                 v-model="typeForm.category"
@@ -453,12 +705,30 @@ const ignoreAlert = (id) => {
                                 class="rounded-md border border-slate-300 px-3 py-2 text-sm"
                             />
                         </div>
+                        <p
+                            v-if="
+                                typeForm.errors.category ||
+                                typeForm.errors.sort_order
+                            "
+                            class="text-xs font-semibold text-rose-600"
+                        >
+                            {{
+                                typeForm.errors.category ||
+                                typeForm.errors.sort_order
+                            }}
+                        </p>
                         <textarea
                             v-model="typeForm.default_message"
                             rows="3"
                             placeholder="Default message"
                             class="rounded-md border border-slate-300 px-3 py-2 text-sm"
                         />
+                        <p
+                            v-if="typeForm.errors.default_message"
+                            class="text-xs font-semibold text-rose-600"
+                        >
+                            {{ typeForm.errors.default_message }}
+                        </p>
                         <label
                             class="flex items-center gap-2 text-sm font-semibold text-slate-600"
                         >

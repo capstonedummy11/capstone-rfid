@@ -13,7 +13,7 @@ import {
     removeSavedStudentParentProfile,
     setStudentParentSavePreference,
 } from '@/composables/useSavedStudentParentProfiles';
-import { useForm } from '@inertiajs/vue3';
+import { Link, useForm, usePage } from '@inertiajs/vue3';
 import { ArrowRight, Eye, EyeOff, Trash2 } from 'lucide-vue-next';
 import { computed, onMounted, ref } from 'vue';
 
@@ -24,6 +24,10 @@ const selectedIndex = ref(0);
 const useDifferentAccount = ref(true);
 const saveOnDevice = ref(false);
 const showPassword = ref(false);
+const page = usePage();
+const parentPortalEnabled = computed(() =>
+    Boolean(page.props.featureSettings?.parent_portal_enabled),
+);
 
 const selectedProfile = computed(
     () => profiles.value[selectedIndex.value] ?? null,
@@ -37,7 +41,9 @@ const form = useForm({
 
 const helperText = computed(() =>
     useDifferentAccount.value || !selectedProfile.value
-        ? 'Enter your Student or Parent account credentials.'
+        ? parentPortalEnabled.value
+            ? 'Enter your Student or Parent account credentials.'
+            : 'Enter your Student account credentials.'
         : `Welcome back, ${selectedProfile.value.name}. Enter your password to continue.`,
 );
 
@@ -144,7 +150,11 @@ const revealLoginPanel = () => {
 };
 
 onMounted(() => {
-    profiles.value = getSavedStudentParentProfiles();
+    profiles.value = getSavedStudentParentProfiles().filter(
+        (profile) =>
+            parentPortalEnabled.value ||
+            String(profile.role || '').toLowerCase() !== 'parent',
+    );
 
     if (profiles.value.length > 0) {
         selectProfile(0);
@@ -161,7 +171,11 @@ onMounted(() => {
                 class="mx-auto flex w-full max-w-[1400px] items-center justify-between px-5 py-4 md:px-12"
             >
                 <a href="/" class="flex items-center gap-3">
-                    <img :src="logo" alt="RFID logo" class="h-auto w-[170px]" />
+                    <img
+                        :src="logo"
+                        alt="Pasay City South High School"
+                        class="h-auto w-[170px]"
+                    />
                 </a>
 
                 <div
@@ -473,6 +487,12 @@ onMounted(() => {
                             >
                                 {{ form.errors.password }}
                             </p>
+                            <Link
+                                :href="route('password.request')"
+                                class="mt-3 inline-block text-sm font-semibold text-blue-600 hover:text-blue-700"
+                            >
+                                Forgot password?
+                            </Link>
 
                             <div
                                 class="mt-8 flex items-center justify-between gap-4"

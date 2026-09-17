@@ -3,13 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use App\Models\Attendance;
 use App\Models\EmergencyAlert;
 use App\Models\EmergencyHotline;
 use App\Models\EmergencyType;
+use App\Models\PatientHistory;
+use App\Models\User;
+use App\Notifications\ClinicDispatchAssigned;
 use App\Services\SemaphoreSmsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class EmergencyController
@@ -29,6 +35,22 @@ class EmergencyController
         ]);
 
         $type = EmergencyType::query()->findOrFail($validated['emergency_type_id']);
+
+        $duplicate = EmergencyAlert::query()
+            ->where('emergency_type_id', $type->emergency_type_id)
+            ->where('room', $validated['room'] ?? null)
+            ->where('status', 'open')
+            ->where('created_at', '>=', now()->subSeconds(10))
+            ->latest('emergency_alert_id')
+            ->first();
+        if ($duplicate) {
+            return response()->json([
+                'ok' => true,
+                'duplicate' => true,
+                'alert' => $duplicate->load('type'),
+                'sms' => ['sent' => false, 'reason' => 'duplicate_suppressed'],
+            ]);
+        }
 
         $alert = EmergencyAlert::create([
             'emergency_type_id' => $type->emergency_type_id,
@@ -191,7 +213,15 @@ class EmergencyController
 
     public function dispatchAlert(Request $request, int $id)
     {
+        $validated = $request->validate([
+            'clinic_user_id' => [
+                'required',
+                'integer',
+                Rule::exists('users', 'user_id')->where(fn ($query) => $query->whereRaw('LOWER(role) = ?', ['clinic'])->whereNull('deleted_at')),
+            ],
+        ]);
         $alert = EmergencyAlert::with('type')->findOrFail($id);
+        $assignedClinic = User::query()->findOrFail($validated['clinic_user_id']);
         $metadata = $alert->metadata ?? [];
         $student = null;
 
@@ -205,40 +235,105 @@ class EmergencyController
                 ->first();
         }
 
-        $patientName = $student
-            ? trim($student->first_name.' '.$student->last_name)
-            : ($alert->triggered_by_name ?: 'Unknown Patient');
+        $selectedPeople = collect($metadata['students'] ?? [])
+            ->filter(fn ($person) => is_array($person) && ! empty($person['student_name']))
+            ->values();
+        $isAreaWide = ($metadata['emergency_scope'] ?? null) === 'all';
+        $patientName = $isAreaWide
+            ? 'Everyone / Area-wide'
+            : ($selectedPeople->isNotEmpty()
+            ? $selectedPeople->pluck('student_name')->implode(', ')
+            : ($student
+                ? trim($student->first_name.' '.$student->last_name)
+                : ($alert->triggered_by_name ?: 'Unknown Patient')));
 
-        $alert->update(['status' => 'acknowledged']);
+        $dispatchedAt = now();
+        $alert->update([
+            'status' => 'acknowledged',
+            'acknowledged_at' => $alert->acknowledged_at ?? $dispatchedAt,
+            'dispatched_at' => $dispatchedAt,
+            'response_seconds' => (int) round(max(0, $alert->created_at?->diffInSeconds($dispatchedAt) ?? 0)),
+        ]);
 
-        \App\Models\ClinicCase::updateOrCreate(
-            [
-                'emergency_alert_id' => $alert->emergency_alert_id,
-                'patient_name' => $patientName,
-            ],
-            [
-                'student_id' => $student?->student_id,
-                'handled_by_user_id' => $request->user()?->user_id,
-                'patient_type' => $student ? 'student' : 'user',
-                'case_type' => $alert->type?->name ?? 'Emergency',
-                'symptoms' => $metadata['symptoms'] ?? $alert->message,
-                'action_taken' => 'Dispatched clinic response.',
-                'notes' => 'Created from clinic emergency dispatch.',
-                'status' => 'monitoring',
-                'occurred_at' => now(),
-            ],
-        );
+        $casePeople = $selectedPeople->isNotEmpty() ? $selectedPeople : collect([[
+            'student_id' => $student?->student_id,
+            'student_name' => $patientName,
+            'patient_type' => $isAreaWide ? 'area_wide' : ($student ? 'student' : 'user'),
+        ]]);
+        $clinicCases = $casePeople->map(function (array $person) use ($alert, $assignedClinic, $metadata, $dispatchedAt) {
+            $caseStudent = ! empty($person['student_id'])
+                ? \App\Models\Students::query()->find($person['student_id'])
+                : null;
+            $caseName = $person['student_name'] ?? ($caseStudent
+                ? trim($caseStudent->first_name.' '.$caseStudent->last_name)
+                : 'Unknown Patient');
 
-        $this->logActivity($request, 'create', 'clinic_cases', 'Dispatched clinic response for emergency alert '.$alert->emergency_alert_id.'.');
+            return \App\Models\ClinicCase::updateOrCreate(
+                ['emergency_alert_id' => $alert->emergency_alert_id, 'patient_name' => $caseName],
+                [
+                    'student_id' => $caseStudent?->student_id,
+                    'handled_by_user_id' => $assignedClinic->user_id,
+                    'patient_type' => $person['patient_type'] ?? ($caseStudent ? 'student' : 'user'),
+                    'case_type' => $alert->type?->name ?? 'Emergency',
+                    'symptoms' => $metadata['symptoms'] ?? $alert->message,
+                    'action_taken' => 'Dispatched clinic response.',
+                    'notes' => 'Created from clinic emergency dispatch.',
+                    'status' => 'monitoring',
+                    'occurred_at' => $dispatchedAt,
+                ],
+            );
+        });
+        $clinicCase = $clinicCases->first();
 
-        return back()->with('success', 'Emergency response dispatched.');
+        $historySummary = $clinicCases
+            ->flatMap(fn ($case) => $this->studentDispatchHistory($case->student_id ? \App\Models\Students::query()->find($case->student_id) : null))
+            ->unique()
+            ->values()
+            ->all();
+        try {
+            $assignedClinic->notify(new ClinicDispatchAssigned($alert, $clinicCase, $historySummary));
+        } catch (\Throwable $exception) {
+            Log::warning('Clinic dispatch assignment email could not be sent.', [
+                'alert_id' => $alert->emergency_alert_id,
+                'clinic_user_id' => $assignedClinic->user_id,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+
+        $this->logActivity($request, 'create', 'clinic_cases', 'Assigned clinic response for emergency alert '.$alert->emergency_alert_id.' to '.$assignedClinic->name.'.');
+
+        return back()->with('success', 'Emergency response assigned to '.$assignedClinic->name.'.');
+    }
+
+    private function studentDispatchHistory($student): array
+    {
+        if (! $student) {
+            return ['No linked student history was found for this alert.'];
+        }
+
+        $history = PatientHistory::query()
+            ->where('student_id', $student->student_id)
+            ->latest('occurred_at')
+            ->take(3)
+            ->get()
+            ->map(fn (PatientHistory $record) => 'Clinic history: '.optional($record->occurred_at)->format('Y-m-d').' - '.$record->summary)
+            ->all();
+        $attendance = Attendance::query()
+            ->where('student_id', $student->student_id)
+            ->latest('date')
+            ->take(3)
+            ->get()
+            ->map(fn (Attendance $record) => 'Attendance: '.optional($record->date)->format('Y-m-d').' - '.ucfirst((string) $record->status))
+            ->all();
+
+        return array_values([...$history, ...$attendance]) ?: ['No previous clinic or attendance history was found.'];
     }
 
     private function validateHotline(Request $request): array
     {
         return $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'category' => ['required', 'string', 'max:255'],
+            'category' => ['required', Rule::in($this->hotlineCategories())],
             'phone_number' => ['required', 'string', 'max:40'],
             'contact_person' => ['nullable', 'string', 'max:255'],
             'sms_enabled' => ['nullable', 'boolean'],
@@ -261,6 +356,11 @@ class EmergencyController
             'sort_order' => $hotline->sort_order,
             'notes' => $hotline->notes,
         ];
+    }
+
+    private function hotlineCategories(): array
+    {
+        return ['clinic', 'medical', 'fire', 'police', 'security', 'disaster', 'general', 'external'];
     }
 
     private function sendHotlineSms(array $metadata, EmergencyAlert $alert, SemaphoreSmsService $sms): array

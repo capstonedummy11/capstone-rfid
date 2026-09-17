@@ -244,6 +244,10 @@ const statusClass = (status) => {
                                     <div class="text-xs text-slate-400">
                                         {{ clinicCase.patient_type || 'N/A' }}
                                     </div>
+                                    <div class="mt-1 text-xs font-semibold text-blue-600">
+                                        Responder sent:
+                                        {{ clinicCase.assigned_responder_name || 'Not assigned' }}
+                                    </div>
                                 </td>
                                 <td class="px-3 py-3 text-slate-700">
                                     {{

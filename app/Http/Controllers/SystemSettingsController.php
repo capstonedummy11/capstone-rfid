@@ -7,6 +7,8 @@ use App\Models\SystemSetting;
 use App\Services\AwsFaceRecognitionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class SystemSettingsController
@@ -17,6 +19,7 @@ class SystemSettingsController
 
         return Inertia::render('Auth/Admin/SystemSettings', [
             'featureSettings' => SystemSetting::featureFlags(),
+            'demoAttendancePanelSettings' => SystemSetting::demoAttendancePanelSettings(),
             'faceRecognitionAvailability' => $faceAvailability,
             'attendanceSettings' => [
                 'absent_default_days' => SystemSetting::integer(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 15),
@@ -25,6 +28,7 @@ class SystemSettingsController
             'securitySettings' => [
                 'questions' => SystemSetting::securityQuestions(),
             ],
+            'clinicEmergencySoundSettings' => SystemSetting::clinicEmergencySoundSettings(),
             'title' => 'Settings',
         ]);
     }
@@ -34,8 +38,17 @@ class SystemSettingsController
         $validated = $request->validate([
             'borrowing_enabled' => ['required', 'boolean'],
             'inventory_enabled' => ['required', 'boolean'],
+            'parent_portal_enabled' => ['required', 'boolean'],
+            'parent_excuse_letters_enabled' => ['nullable', 'boolean'],
             'face_recognition_enabled' => ['required', 'boolean'],
+            'demo_attendance_panel_enabled' => ['required', 'boolean'],
+            'demo_attendance_panel_rfids' => ['required', 'array'],
+            'demo_attendance_panel_rfids.professor_tap' => ['nullable', 'string', 'max:255'],
+            'demo_attendance_panel_rfids.student_tap' => ['nullable', 'string', 'max:255'],
+            'demo_attendance_panel_rfids.second_student_tap' => ['nullable', 'string', 'max:255'],
+            'demo_attendance_panel_rfids.second_professor_tap' => ['nullable', 'string', 'max:255'],
             'online_class_face_recognition_default' => ['required', 'boolean'],
+            'online_classes_enabled' => ['required', 'boolean'],
             'absent_default_days' => ['nullable', 'integer', 'min:1', 'max:365'],
             'late_threshold_minutes' => ['required', 'integer', 'min:0', 'max:180'],
             'security_questions' => ['nullable', 'array', 'min:3', 'max:20'],
@@ -56,8 +69,24 @@ class SystemSettingsController
 
         SystemSetting::setBoolean(SystemSetting::BORROWING_ENABLED, (bool) $validated['borrowing_enabled']);
         SystemSetting::setBoolean(SystemSetting::INVENTORY_ENABLED, (bool) $validated['inventory_enabled']);
+        $parentPortalEnabled = (bool) $validated['parent_portal_enabled'];
+        SystemSetting::setBoolean(SystemSetting::PARENT_PORTAL_ENABLED, $parentPortalEnabled);
+        SystemSetting::setBoolean(
+            SystemSetting::PARENT_EXCUSE_LETTERS_ENABLED,
+            $parentPortalEnabled && (bool) ($validated['parent_excuse_letters_enabled'] ?? false),
+        );
         SystemSetting::setBoolean(SystemSetting::FACE_RECOGNITION_ENABLED, (bool) $validated['face_recognition_enabled']);
+        SystemSetting::setBoolean(SystemSetting::DEMO_ATTENDANCE_PANEL_ENABLED, (bool) $validated['demo_attendance_panel_enabled']);
+        SystemSetting::setArray(
+            SystemSetting::DEMO_ATTENDANCE_PANEL_RFIDS,
+            collect(SystemSetting::DEFAULT_DEMO_ATTENDANCE_PANEL_RFIDS)
+                ->mapWithKeys(fn (string $default, string $key) => [
+                    $key => trim((string) ($validated['demo_attendance_panel_rfids'][$key] ?? $default)),
+                ])
+                ->all(),
+        );
         SystemSetting::setBoolean(SystemSetting::ONLINE_CLASS_FACE_RECOGNITION_DEFAULT, (bool) $validated['online_class_face_recognition_default']);
+        SystemSetting::setBoolean(SystemSetting::ONLINE_CLASSES_ENABLED, (bool) $validated['online_classes_enabled']);
         if (array_key_exists('absent_default_days', $validated) && $validated['absent_default_days'] !== null) {
             SystemSetting::setInteger(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, (int) $validated['absent_default_days']);
         }
@@ -81,5 +110,129 @@ class SystemSettingsController
         ]);
 
         return back()->with('success', $warning ?? 'System settings updated.');
+    }
+
+    public function storeEmergencySound(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => ['nullable', 'string', 'max:80'],
+            'sound' => ['required', 'file', 'mimes:mp3,wav,ogg,m4a,aac', 'max:10240'],
+        ]);
+
+        $file = $validated['sound'];
+        $id = (string) Str::uuid();
+        $extension = strtolower($file->getClientOriginalExtension() ?: 'mp3');
+        $path = $file->storeAs('clinic-emergency-sounds', "{$id}.{$extension}", 'public');
+
+        if (! $path) {
+            return back()->withErrors(['sound' => 'Emergency sound could not be uploaded.']);
+        }
+
+        $settings = SystemSetting::clinicEmergencySoundSettings();
+        $sounds = collect($settings['sounds'])
+            ->reject(fn (array $sound) => (bool) ($sound['is_default'] ?? false))
+            ->map(fn (array $sound) => collect($sound)->only(['id', 'name', 'original_name', 'path', 'size', 'uploaded_at'])->all())
+            ->push([
+                'id' => $id,
+                'name' => trim((string) ($validated['name'] ?? '')) ?: pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME),
+                'original_name' => $file->getClientOriginalName(),
+                'path' => $path,
+                'size' => $file->getSize(),
+                'uploaded_at' => now()->toDateTimeString(),
+            ])
+            ->values()
+            ->all();
+
+        SystemSetting::setClinicEmergencySoundLibrary($sounds, $id);
+
+        ActivityLog::query()->create([
+            'user_id' => Auth::id(),
+            'action' => 'upload',
+            'table_name' => 'system_settings',
+            'description' => 'Uploaded clinic emergency dashboard sound.',
+        ]);
+
+        return back()->with('success', 'Emergency sound uploaded and selected.');
+    }
+
+    public function selectEmergencySound(string $id)
+    {
+        $settings = SystemSetting::clinicEmergencySoundSettings();
+        $sounds = collect($settings['sounds'])
+            ->reject(fn (array $sound) => (bool) ($sound['is_default'] ?? false));
+
+        $exists = $id === SystemSetting::DEFAULT_CLINIC_EMERGENCY_SOUND_ID
+            || $sounds->contains(fn (array $sound) => $sound['id'] === $id);
+
+        if (! $exists) {
+            abort(404);
+        }
+
+        SystemSetting::setClinicEmergencySoundLibrary(
+            $sounds->map(fn (array $sound) => collect($sound)->only(['id', 'name', 'original_name', 'path', 'size', 'uploaded_at'])->all())->values()->all(),
+            $id,
+        );
+
+        ActivityLog::query()->create([
+            'user_id' => Auth::id(),
+            'action' => 'update',
+            'table_name' => 'system_settings',
+            'description' => 'Selected clinic emergency dashboard sound.',
+        ]);
+
+        return back()->with('success', 'Emergency sound selected.');
+    }
+
+    public function destroyEmergencySound(string $id)
+    {
+        if ($id === SystemSetting::DEFAULT_CLINIC_EMERGENCY_SOUND_ID) {
+            return back()->withErrors(['sound' => 'The default emergency sound cannot be deleted.']);
+        }
+
+        $settings = SystemSetting::clinicEmergencySoundSettings();
+        $sounds = collect($settings['sounds'])
+            ->reject(fn (array $sound) => (bool) ($sound['is_default'] ?? false));
+        $sound = $sounds->firstWhere('id', $id);
+
+        if (! $sound) {
+            abort(404);
+        }
+
+        Storage::disk('public')->delete($sound['path']);
+
+        $remainingSounds = $sounds
+            ->reject(fn (array $entry) => $entry['id'] === $id)
+            ->map(fn (array $entry) => collect($entry)->only(['id', 'name', 'original_name', 'path', 'size', 'uploaded_at'])->all())
+            ->values()
+            ->all();
+        $selectedId = $settings['selected_id'] === $id
+            ? SystemSetting::DEFAULT_CLINIC_EMERGENCY_SOUND_ID
+            : $settings['selected_id'];
+
+        SystemSetting::setClinicEmergencySoundLibrary($remainingSounds, $selectedId);
+
+        ActivityLog::query()->create([
+            'user_id' => Auth::id(),
+            'action' => 'delete',
+            'table_name' => 'system_settings',
+            'description' => 'Deleted clinic emergency dashboard sound.',
+        ]);
+
+        return back()->with('success', 'Emergency sound deleted.');
+    }
+
+    public function showEmergencySound(string $id)
+    {
+        abort_if($id === SystemSetting::DEFAULT_CLINIC_EMERGENCY_SOUND_ID, 404);
+
+        $sound = collect(SystemSetting::clinicEmergencySoundSettings()['sounds'])
+            ->firstWhere('id', $id);
+
+        abort_if(! $sound || ! Storage::disk('public')->exists($sound['path']), 404);
+
+        return Storage::disk('public')->response(
+            $sound['path'],
+            $sound['original_name'] ?: 'clinic-emergency-sound',
+        );
     }
 }

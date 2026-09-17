@@ -3,6 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use App\Models\AcademicYear;
+use App\Models\Attendance;
+use App\Models\OnlineClass;
+use App\Models\Schedule;
+use App\Models\Section;
+use App\Models\StudentEnrollment;
+use App\Models\SubjectOffering;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
@@ -12,7 +19,7 @@ class ActivityLogController
 {
     private const FILTERS = [
         'search', 'date_from', 'date_to', 'module', 'action', 'user', 'user_role',
-        'outcome', 'severity', 'subject_type', 'subject_id', 'ip_address',
+        'outcome', 'severity', 'subject_type', 'subject_id', 'ip_address', 'academic_year_id', 'semester',
     ];
 
     public function indexAdmin(Request $request)
@@ -21,6 +28,7 @@ class ActivityLogController
             'logs' => $this->filteredQuery($request)->paginate(25)->withQueryString(),
             'filters' => $request->only(self::FILTERS),
             'options' => [
+                'academicYears' => AcademicYear::query()->orderByDesc('starts_on')->get(['academic_year_id', 'name', 'status', 'active_semester']),
                 'modules' => $this->distinctOptions('module', 'table_name'),
                 'actions' => $this->distinctOptions('action'),
                 'roles' => $this->distinctOptions('user_role'),
@@ -79,6 +87,27 @@ class ActivityLogController
             ->when($request->filled('subject_type'), fn (Builder $query) => $query->where('subject_type', $request->input('subject_type')))
             ->when($request->filled('subject_id'), fn (Builder $query) => $query->where('subject_id', $request->input('subject_id')))
             ->when($request->filled('ip_address'), fn (Builder $query) => $query->where('ip_address', $request->input('ip_address')))
+            ->when($request->filled('academic_year_id') || $request->filled('semester'), function (Builder $query) use ($request) {
+                $yearId = $request->integer('academic_year_id') ?: null;
+                $semester = trim((string) $request->input('semester', ''));
+                $contexts = [];
+                if ($yearId) {
+                    $contexts[AcademicYear::class] = AcademicYear::query()->whereKey($yearId)->select('academic_year_id');
+                }
+                $contexts += [
+                    Section::class => Section::query()->when($yearId, fn ($q) => $q->where('academic_year_id', $yearId))->when($semester !== '', fn ($q) => $q->where('semester', $semester))->select('section_id'),
+                    SubjectOffering::class => SubjectOffering::query()->when($yearId, fn ($q) => $q->where('academic_year_id', $yearId))->when($semester !== '', fn ($q) => $q->where('semester', $semester))->select('subject_offering_id'),
+                    Schedule::class => Schedule::query()->when($yearId, fn ($q) => $q->where('academic_year_id', $yearId))->when($semester !== '', fn ($q) => $q->where('semester', $semester))->select('scheduled_id'),
+                    StudentEnrollment::class => StudentEnrollment::query()->when($yearId, fn ($q) => $q->where('academic_year_id', $yearId))->when($semester !== '', fn ($q) => $q->where('semester', $semester))->select('student_enrollment_id'),
+                    Attendance::class => Attendance::query()->when($yearId, fn ($q) => $q->where('academic_year_id', $yearId))->when($semester !== '', fn ($q) => $q->whereHas('schedule', fn ($schedule) => $schedule->where('semester', $semester)))->select('attendance_id'),
+                    OnlineClass::class => OnlineClass::query()->when($yearId, fn ($q) => $q->where('academic_year_id', $yearId))->when($semester !== '', fn ($q) => $q->whereHas('schedule', fn ($schedule) => $schedule->where('semester', $semester)))->select('online_class_id'),
+                ];
+                $query->where(function (Builder $contextQuery) use ($contexts) {
+                    foreach ($contexts as $type => $ids) {
+                        $contextQuery->orWhere(fn (Builder $match) => $match->where('subject_type', $type)->whereIn('subject_id', $ids));
+                    }
+                });
+            })
             ->latest('created_at')->latest('logs_id');
     }
 

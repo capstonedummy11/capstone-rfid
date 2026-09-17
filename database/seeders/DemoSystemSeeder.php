@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\ActivityLog;
+use App\Models\AcademicYear;
 use App\Models\Borrowing;
 use App\Models\BorrowingItem;
 use App\Models\ClinicCase;
@@ -17,6 +18,8 @@ use App\Models\Section;
 use App\Models\Strand;
 use App\Models\Students;
 use App\Models\Subject;
+use App\Models\SubjectOffering;
+use App\Models\StudentEnrollment;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
@@ -31,7 +34,7 @@ class DemoSystemSeeder extends Seeder
     {
         $users = $this->seedUsers();
         $academic = $this->seedAcademicSetup($users['instructor']);
-        $students = $this->seedStudents($academic['strand'], $academic['sections']);
+        $students = $this->seedStudents($academic['academicYear'], $academic['strand'], $academic['sections']);
         $items = $this->seedInventoryItems();
 
         $this->seedBorrowing($students, $users['instructor'], $items);
@@ -87,6 +90,17 @@ class DemoSystemSeeder extends Seeder
 
     private function seedAcademicSetup(User $instructorUser): array
     {
+        $academicYear = AcademicYear::query()->firstOrCreate(
+            ['name' => $this->schoolYear],
+            [
+                'starts_on' => '2026-06-01',
+                'ends_on' => '2027-03-31',
+                'status' => AcademicYear::STATUS_ACTIVE,
+                'active_semester' => '1st Semester',
+                'activated_at' => now(),
+            ],
+        );
+
         $strand = Strand::updateOrCreate(
             ['strand_code' => 'TVL-ICT'],
             [
@@ -127,6 +141,7 @@ class DemoSystemSeeder extends Seeder
             ],
             [
                 'strand_id' => $strand->strand_id,
+                'academic_year_id' => $academicYear->academic_year_id,
                 'year_level' => $section['year_level'],
                 'semester' => $section['semester'],
                 'status' => 'active',
@@ -157,6 +172,7 @@ class DemoSystemSeeder extends Seeder
         ];
 
         $subjects = [];
+        $offerings = [];
         $schedules = [];
 
         foreach ($subjectRows as $row) {
@@ -176,6 +192,19 @@ class DemoSystemSeeder extends Seeder
                 ],
             );
 
+            $offering = SubjectOffering::updateOrCreate(
+                [
+                    'academic_year_id' => $academicYear->academic_year_id,
+                    'semester' => $row['section']->semester,
+                    'section_id' => $row['section']->section_id,
+                    'subject_id' => $subject->subject_id,
+                ],
+                [
+                    'instructor_id' => $instructor->instructor_id,
+                    'status' => 'active',
+                ],
+            );
+
             $schedule = Schedule::updateOrCreate(
                 [
                     'section_id' => $row['section']->section_id,
@@ -183,28 +212,34 @@ class DemoSystemSeeder extends Seeder
                 ],
                 [
                     'laboratory_id' => $row['lab']->laboratory_id,
+                    'academic_year_id' => $academicYear->academic_year_id,
+                    'subject_offering_id' => $offering->subject_offering_id,
                     'instructor_id' => $instructor->instructor_id,
                     'weekdays' => $row['weekdays'],
                     'time_start' => $row['time_start'],
                     'time_end' => $row['time_end'],
                     'room' => $row['lab']->name,
+                    'semester' => $row['section']->semester,
                 ],
             );
 
             $subjects[] = $subject;
+            $offerings[] = $offering;
             $schedules[] = $schedule;
         }
 
         return [
+            'academicYear' => $academicYear,
             'strand' => $strand,
             'instructor' => $instructor,
             'sections' => $sections,
             'subjects' => collect($subjects),
+            'offerings' => collect($offerings),
             'schedules' => collect($schedules),
         ];
     }
 
-    private function seedStudents(Strand $strand, $sections)
+    private function seedStudents(AcademicYear $academicYear, Strand $strand, $sections)
     {
         $rows = [
             ['section' => $sections[0], 'number' => 'SHS-ICT-1101', 'first' => 'Andrea', 'last' => 'Santos', 'gender' => 'female', 'rfid' => 'RFID-STUDENT-1101'],
@@ -214,8 +249,8 @@ class DemoSystemSeeder extends Seeder
             ['section' => $sections[1], 'number' => 'SHS-ICT-1202', 'first' => 'Nina', 'last' => 'Dela Cruz', 'gender' => 'female', 'rfid' => 'RFID-STUDENT-1202'],
         ];
 
-        return collect($rows)->map(function (array $row) use ($strand) {
-            return Students::updateOrCreate(
+        return collect($rows)->map(function (array $row) use ($academicYear, $strand) {
+            $student = Students::updateOrCreate(
                 ['student_number' => $row['number']],
                 [
                     'section_id' => $row['section']->section_id,
@@ -234,6 +269,24 @@ class DemoSystemSeeder extends Seeder
                     'status' => 'active',
                 ],
             );
+
+            StudentEnrollment::updateOrCreate(
+                [
+                    'student_id' => $student->student_id,
+                    'academic_year_id' => $academicYear->academic_year_id,
+                    'semester' => $row['section']->semester,
+                ],
+                [
+                    'section_id' => $row['section']->section_id,
+                    'strand_id' => $strand->strand_id,
+                    'year_level' => $row['section']->year_level,
+                    'status' => 'enrolled',
+                    'enrolled_at' => $academicYear->starts_on,
+                    'ended_at' => null,
+                ],
+            );
+
+            return $student;
         })->values();
     }
 
@@ -347,6 +400,8 @@ class DemoSystemSeeder extends Seeder
                 'time_start' => '08:00:00',
                 'time_end' => null,
                 'status' => 'attendance',
+                'academic_year_id' => $schedule->academic_year_id,
+                'subject_offering_id' => $schedule->subject_offering_id,
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -359,11 +414,20 @@ class DemoSystemSeeder extends Seeder
             ->where('room', $schedule->room)
             ->value('attendance_id');
 
+        $primaryEnrollment = StudentEnrollment::query()
+            ->where('student_id', $students[0]->student_id)
+            ->where('academic_year_id', $schedule->academic_year_id)
+            ->where('semester', $schedule->semester)
+            ->first();
+
         DB::table('attendances')->updateOrInsert(
             ['attendance_id' => $sessionId],
             [
                 'student_id' => $students[0]->student_id,
                 'schedule_id' => $schedule->scheduled_id,
+                'academic_year_id' => $schedule->academic_year_id,
+                'subject_offering_id' => $schedule->subject_offering_id,
+                'student_enrollment_id' => $primaryEnrollment?->student_enrollment_id,
                 'date' => $today->toDateString(),
                 'time_start' => '08:00:00',
                 'time_end' => '09:30:00',
@@ -390,6 +454,14 @@ class DemoSystemSeeder extends Seeder
                     'student_id' => $student->student_id,
                 ],
                 [
+                    'main_attendance_id' => $sessionId,
+                    'academic_year_id' => $schedule->academic_year_id,
+                    'subject_offering_id' => $schedule->subject_offering_id,
+                    'student_enrollment_id' => StudentEnrollment::query()
+                        ->where('student_id', $student->student_id)
+                        ->where('academic_year_id', $schedule->academic_year_id)
+                        ->where('semester', $schedule->semester)
+                        ->value('student_enrollment_id'),
                     'time_in' => $timeIn,
                     'time_out' => $timeOut,
                     'status' => $status,

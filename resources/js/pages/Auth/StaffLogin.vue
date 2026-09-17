@@ -3,7 +3,7 @@ import featureImage from '@/assets/images/Container.png';
 import featureImage2 from '@/assets/images/Container 2.png';
 import featureImage3 from '@/assets/images/Container 3.png';
 import container4 from '@/assets/images/Container 4.png';
-import logo from '@/assets/images/logo.png';
+import logo from '@/assets/images/logo-only.jpg';
 import schoolPhoto from '@/assets/images/philsca.png';
 import {
     getSavedStaffProfiles,
@@ -408,6 +408,12 @@ onUnmounted(() => {
                     >
                         {{ form.errors.password }}
                     </p>
+                    <Link
+                        :href="route('password.request', { from: 'staff' })"
+                        class="mt-3 inline-block text-sm font-semibold text-blue-600 hover:text-blue-700"
+                    >
+                        Forgot password?
+                    </Link>
 
                     <div class="mt-10 flex items-center justify-between gap-4">
                         <button

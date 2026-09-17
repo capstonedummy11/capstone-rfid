@@ -12,6 +12,9 @@ class OnlineClassNotification extends Model
     protected $fillable = [
         'online_class_id',
         'student_id',
+        'academic_year_id',
+        'subject_offering_id',
+        'student_enrollment_id',
         'event',
         'title',
         'body',

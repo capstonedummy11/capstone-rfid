@@ -1,5 +1,5 @@
 <script setup>
-import { Link } from '@inertiajs/vue3';
+import { Link, router } from '@inertiajs/vue3';
 import {
     Bell,
     CalendarDays,
@@ -18,9 +18,16 @@ const props = defineProps({
     schedules: { type: Array, default: () => [] },
     attendance: { type: Array, default: () => [] },
     onlineClasses: { type: Array, default: () => [] },
+    academicYears: { type: Array, default: () => [] },
+    selectedAcademicYearId: { type: [Number, String, null], default: null },
+    selectedSemester: { type: String, default: '' },
 });
 
 const isInstructor = computed(() => props.role === 'instructor');
+const changeAcademicContext = (field, value) => router.get(window.location.pathname, {
+    academic_year_id: field === 'academic_year_id' ? value || undefined : props.selectedAcademicYearId || undefined,
+    semester: field === 'semester' ? value || undefined : props.selectedSemester || undefined,
+}, { preserveState: true, preserveScroll: true, replace: true });
 
 const cards = computed(() => [
     {
@@ -99,6 +106,24 @@ const statusClass = (status) => {
                 </div>
 
                 <div class="flex flex-wrap gap-2">
+                    <select
+                        :value="selectedAcademicYearId || ''"
+                        class="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-sm"
+                        @change="changeAcademicContext('academic_year_id', $event.target.value)"
+                    >
+                        <option v-for="year in academicYears" :key="year.academic_year_id" :value="year.academic_year_id">
+                            {{ year.name }} ({{ year.status }})
+                        </option>
+                    </select>
+                    <select
+                        :value="selectedSemester"
+                        class="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-sm"
+                        @change="changeAcademicContext('semester', $event.target.value)"
+                    >
+                        <option value="">All Semesters</option>
+                        <option value="1st Semester">1st Semester</option>
+                        <option value="2nd Semester">2nd Semester</option>
+                    </select>
                     <Link
                         :href="route('admin.schedules.index')"
                         class="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-sm"
@@ -146,7 +171,7 @@ const statusClass = (status) => {
 
             <section class="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
                 <div
-                    class="rounded-md border border-slate-200 bg-white shadow-sm"
+                    class="w-full overflow-auto rounded-md border border-slate-200 bg-white"
                 >
                     <div
                         class="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between"
@@ -171,8 +196,8 @@ const statusClass = (status) => {
                         </Link>
                     </div>
 
-                    <div class="overflow-x-auto">
-                        <table class="w-full min-w-[760px] text-left text-sm">
+                    <div class="w-full">
+                        <table class="overflow-x-auto text-left text-sm">
                             <thead
                                 class="bg-slate-50 text-xs text-slate-500 uppercase"
                             >
@@ -303,7 +328,7 @@ const statusClass = (status) => {
 
             <section class="grid gap-5 xl:grid-cols-[1fr_320px]">
                 <div
-                    class="rounded-md border border-slate-200 bg-white shadow-sm"
+                    class="overflow-x-auto rounded-md border border-slate-200 bg-white shadow-sm"
                 >
                     <div
                         class="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between"

@@ -55,7 +55,7 @@ class InstructorVerificationController
             return back()->withErrors(['face' => 'No enrolled face image is available for this instructor.']);
         }
 
-        $result = (new AwsFaceRecognitionService())->compareBase64WithStoredImage($validated['image'], $faceImages[0]);
+        $result = (new AwsFaceRecognitionService)->compareBase64WithStoredImage($validated['image'], $faceImages[0]);
 
         if ($result === null) {
             return back()->withErrors(['face' => 'Face recognition is not available. Use OTP or security question.']);
@@ -73,6 +73,10 @@ class InstructorVerificationController
     public function sendOtp(Request $request)
     {
         $user = $request->user();
+        if (! $user || ! filter_var($user->email, FILTER_VALIDATE_EMAIL)) {
+            return back()->withErrors(['otp' => 'A valid instructor email address is required before an OTP can be sent.']);
+        }
+
         $otp = (string) random_int(100000, 999999);
 
         $request->session()->put('instructor_login_otp', Hash::make($otp));
@@ -87,9 +91,13 @@ class InstructorVerificationController
                 'user_id' => $user->user_id,
                 'message' => $e->getMessage(),
             ]);
+
+            $request->session()->forget(['instructor_login_otp', 'instructor_login_otp_expires_at']);
+
+            return back()->withErrors(['otp' => 'The OTP email could not be sent. Please try again or use another verification method.']);
         }
 
-        return back()->with('success', 'OTP sent to your email if mail is configured.');
+        return back()->with('success', 'OTP sent to '.$user->email.'. It expires in 10 minutes.');
     }
 
     public function verifyOtp(Request $request)

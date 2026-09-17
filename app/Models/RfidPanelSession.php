@@ -18,6 +18,8 @@ class RfidPanelSession extends Model
     'status',
     'subject_code',
     'schedule_id',
+    'academic_year_id',
+    'subject_offering_id',
     'opened_by_user_id',
     'is_listening',
     'listening_started_at',
@@ -42,5 +44,14 @@ class RfidPanelSession extends Model
   public function openedBy()
   {
     return $this->belongsTo(User::class, 'opened_by_user_id', 'user_id');
+  }
+
+  protected static function booted(): void
+  {
+    static::saving(function (RfidPanelSession $session) {
+      $schedule = $session->schedule_id ? Schedule::query()->find($session->schedule_id) : null;
+      $session->academic_year_id = $schedule?->academic_year_id;
+      $session->subject_offering_id = $schedule?->subject_offering_id;
+    });
   }
 }

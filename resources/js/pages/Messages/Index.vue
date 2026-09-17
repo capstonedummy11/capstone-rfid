@@ -2,7 +2,15 @@
 import LinkedStudentSelector from '@/components/StudentPortal/LinkedStudentSelector.vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
-import { FileText, Image, Search, Send } from 'lucide-vue-next';
+import {
+    FileText,
+    Forward,
+    Image,
+    Paperclip,
+    Search,
+    Send,
+    X,
+} from 'lucide-vue-next';
 
 const props = defineProps({
     messages: { type: Array, default: () => [] },
@@ -35,14 +43,20 @@ const form = useForm({
     body: '',
     attachment: null,
 });
+const fileInput = ref(null);
+const canSend = computed(
+    () =>
+        Boolean(form.recipient_user_id) &&
+        (form.body.trim().length > 0 || Boolean(form.attachment)),
+);
 
 const filteredRecipients = computed(() => {
     const term = search.value.trim().toLowerCase();
+    if (term.length < 3) return [];
+
     const list = props.recipients.filter(
         (recipient) => Number(recipient.user_id) !== currentUserId.value,
     );
-
-    if (!term) return list;
 
     return list.filter((recipient) =>
         [recipient.name, recipient.email, recipient.role].some((value) =>
@@ -107,6 +121,7 @@ watch(
     (items) => {
         if (!selectedConversationKey.value && items.length > 0) {
             selectedConversationKey.value = items[0].key;
+            form.recipient_user_id = items[0].partner.id;
         }
     },
     { immediate: true },
@@ -118,6 +133,16 @@ const selectedConversation = computed(
             (conversation) =>
                 conversation.key === selectedConversationKey.value,
         ) ?? null,
+);
+
+watch(
+    selectedConversation,
+    (conversation) => {
+        if (conversation && !selectedRecipient.value) {
+            form.recipient_user_id = conversation.partner.id;
+        }
+    },
+    { immediate: true },
 );
 
 const conversationForUser = (userId) =>
@@ -151,6 +176,7 @@ watch(
 );
 
 const selectRecipient = (recipient) => {
+    search.value = '';
     const existingConversation = conversationForUser(recipient.user_id);
     if (existingConversation) {
         selectConversation(existingConversation);
@@ -161,13 +187,14 @@ const selectRecipient = (recipient) => {
     selectedConversationKey.value = '';
     form.recipient_user_id = recipient.user_id;
     form.body = '';
-    form.attachment = null;
+    clearAttachment();
 };
 
 const selectConversation = (conversation) => {
     selectedConversationKey.value = conversation.key;
     selectedRecipient.value = null;
     form.recipient_user_id = conversation.partner.id;
+    clearAttachment();
 };
 
 const sendMessage = () => {
@@ -181,6 +208,7 @@ const sendMessage = () => {
         preserveScroll: true,
         onSuccess: () => {
             form.reset('body', 'attachment');
+            if (fileInput.value) fileInput.value.value = '';
             selectedRecipient.value = null;
             form.recipient_user_id = recipientId;
             selectedConversationKey.value = `user-${recipientId}`;
@@ -200,6 +228,73 @@ const roleLabel = (role) =>
         .split('_')
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
         .join(' ');
+
+const formatBytes = (bytes) => {
+    const size = Number(bytes || 0);
+    if (!size) return '';
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+    return `${(size / 1024 / 1024).toFixed(1)} MB`;
+};
+
+const clearAttachment = () => {
+    form.attachment = null;
+    if (fileInput.value) fileInput.value.value = '';
+};
+
+const forwardMessage = ref(null);
+const forwardForm = useForm({
+    parent_user_id: '',
+    body: '',
+});
+
+const canForwardToParent = (message) =>
+    ['admin', 'instructor'].includes(currentRole.value) &&
+    Number(message.sender_user_id) !== currentUserId.value &&
+    message.student_id &&
+    message.is_pdf &&
+    message.parents?.length > 0;
+
+const forwardStudentName = computed(
+    () => forwardMessage.value?.student_name || 'Student',
+);
+const forwardDate = computed(() => {
+    if (!forwardMessage.value?.created_at) return '';
+
+    return new Date(forwardMessage.value.created_at).toLocaleDateString(
+        undefined,
+        { month: 'long', day: 'numeric', year: 'numeric' },
+    );
+});
+const forwardSubject = computed(
+    () => `Excuse Letter - ${forwardStudentName.value} - ${forwardDate.value}`,
+);
+
+const openForwardModal = (message) => {
+    forwardMessage.value = message;
+    forwardForm.parent_user_id = message.parents?.[0]?.user_id || '';
+    forwardForm.body = `Please find attached the excuse letter for your child.\n\nKindly review the attached document.\n\nRegards,\n${page.props.auth?.user?.name || 'School Staff'}`;
+};
+
+const closeForwardModal = () => {
+    if (forwardForm.processing) return;
+    forwardMessage.value = null;
+    forwardForm.reset();
+};
+
+const sendForwardEmail = () => {
+    if (!forwardMessage.value) return;
+
+    forwardForm.post(
+        route('messages.forward-to-parent', {
+            message: forwardMessage.value.id,
+        }),
+        {
+            preserveScroll: true,
+            onSuccess: closeForwardModal,
+        },
+    );
+};
 </script>
 
 <template>
@@ -242,6 +337,7 @@ const roleLabel = (role) =>
                         />
                     </div>
                     <div
+                        v-if="search.trim().length > 0"
                         class="mt-2 max-h-44 overflow-y-auto rounded-md border border-slate-100"
                     >
                         <button
@@ -260,7 +356,19 @@ const roleLabel = (role) =>
                             </span>
                         </button>
                         <p
-                            v-if="filteredRecipients.length === 0"
+                            v-if="
+                                search.trim().length > 0 &&
+                                search.trim().length < 3
+                            "
+                            class="p-3 text-sm text-slate-400"
+                        >
+                            Type at least 3 characters to search.
+                        </p>
+                        <p
+                            v-else-if="
+                                search.trim().length >= 3 &&
+                                filteredRecipients.length === 0
+                            "
                             class="p-3 text-sm text-slate-400"
                         >
                             No users found.
@@ -347,9 +455,33 @@ const roleLabel = (role) =>
                         <p class="text-xs font-bold opacity-80">
                             {{ message.sender }}
                         </p>
-                        <p class="mt-2 text-sm whitespace-pre-line">
+                        <p
+                            v-if="message.body"
+                            class="mt-2 text-sm whitespace-pre-line"
+                        >
                             {{ message.body }}
                         </p>
+                        <a
+                            v-if="
+                                message.is_image &&
+                                message.attachment_preview_url
+                            "
+                            :href="message.attachment_url"
+                            class="mt-3 block overflow-hidden rounded-lg bg-black/10"
+                            :title="
+                                message.attachment_name || 'Image attachment'
+                            "
+                        >
+                            <img
+                                :src="message.attachment_preview_url"
+                                :alt="
+                                    message.attachment_name ||
+                                    'Image attachment'
+                                "
+                                class="max-h-72 w-full object-cover"
+                                loading="lazy"
+                            />
+                        </a>
                         <a
                             v-if="message.attachment_url"
                             :href="message.attachment_url"
@@ -363,7 +495,23 @@ const roleLabel = (role) =>
                             <span class="truncate">
                                 {{ message.attachment_name || 'Attachment' }}
                             </span>
+                            <span
+                                v-if="message.attachment_size"
+                                class="shrink-0 opacity-75"
+                            >
+                                {{ formatBytes(message.attachment_size) }}
+                            </span>
                         </a>
+                        <button
+                            v-if="canForwardToParent(message)"
+                            type="button"
+                            class="mt-2 inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-100"
+                            title="Forward excuse letter to parent by email"
+                            @click.stop="openForwardModal(message)"
+                        >
+                            <Forward class="h-3.5 w-3.5" />
+                            Email parent
+                        </button>
                         <p class="mt-2 text-[11px] opacity-70">
                             {{ message.created_label }}
                         </p>
@@ -390,25 +538,48 @@ const roleLabel = (role) =>
                         <textarea
                             v-model="form.body"
                             class="min-h-20 w-full resize-none bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
-                            placeholder="Type a message..."
-                            required
+                            placeholder="Type a message or attach a file..."
                         />
                         <div
                             class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
                         >
-                            <input
-                                type="file"
-                                class="text-sm text-slate-500"
-                                @change="
-                                    form.attachment =
-                                        $event.target.files?.[0] || null
-                                "
-                            />
+                            <div class="flex min-w-0 flex-1 items-center gap-2">
+                                <label
+                                    class="inline-flex cursor-pointer items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+                                >
+                                    <Paperclip class="h-4 w-4" />
+                                    Attach
+                                    <input
+                                        ref="fileInput"
+                                        type="file"
+                                        class="sr-only"
+                                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,.gif,.txt"
+                                        @change="
+                                            form.attachment =
+                                                $event.target.files?.[0] || null
+                                        "
+                                    />
+                                </label>
+                                <div
+                                    v-if="form.attachment"
+                                    class="flex min-w-0 items-center gap-2 rounded-md bg-white px-3 py-2 text-xs text-slate-600"
+                                >
+                                    <FileText class="h-4 w-4 shrink-0" />
+                                    <span class="truncate">
+                                        {{ form.attachment.name }}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        class="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                                        @click="clearAttachment"
+                                    >
+                                        <X class="h-3.5 w-3.5" />
+                                    </button>
+                                </div>
+                            </div>
                             <button
                                 class="inline-flex items-center gap-2 rounded-md bg-brand px-5 py-2 text-sm font-bold text-white disabled:opacity-60"
-                                :disabled="
-                                    form.processing || !form.recipient_user_id
-                                "
+                                :disabled="form.processing || !canSend"
                             >
                                 <Send class="h-4 w-4" />
                                 {{ form.processing ? 'Sending...' : 'Send' }}
@@ -417,6 +588,119 @@ const roleLabel = (role) =>
                     </div>
                 </form>
             </section>
+        </div>
+
+        <div
+            v-if="forwardMessage"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
+            @click.self="closeForwardModal"
+        >
+            <div
+                class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white shadow-2xl"
+            >
+                <div
+                    class="flex items-center justify-between border-b border-slate-200 px-5 py-4"
+                >
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900">
+                            Forward excuse letter by email
+                        </h3>
+                        <p class="text-sm text-slate-500">
+                            Review the email template before sending the PDF.
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        class="rounded-md p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                        @click="closeForwardModal"
+                    >
+                        <X class="h-5 w-5" />
+                    </button>
+                </div>
+
+                <form class="space-y-4 p-5" @submit.prevent="sendForwardEmail">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 uppercase"
+                            >Send to parent</label
+                        >
+                        <select
+                            v-model="forwardForm.parent_user_id"
+                            class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                            required
+                        >
+                            <option
+                                v-for="parent in forwardMessage.parents"
+                                :key="parent.user_id"
+                                :value="parent.user_id"
+                            >
+                                {{ parent.name }} — {{ parent.email }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 uppercase"
+                            >Subject</label
+                        >
+                        <input
+                            :value="forwardSubject"
+                            readonly
+                            class="mt-1 w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700"
+                        />
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 uppercase"
+                            >Message template</label
+                        >
+                        <textarea
+                            v-model="forwardForm.body"
+                            class="mt-1 min-h-32 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                            required
+                        />
+                    </div>
+
+                    <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                        <p class="text-xs font-bold tracking-wide text-slate-500 uppercase">
+                            Email preview
+                        </p>
+                        <p class="mt-3 text-sm text-slate-700">
+                            Dear Parent,
+                        </p>
+                        <p class="mt-3 whitespace-pre-line text-sm text-slate-700">
+                            {{ forwardForm.body }}
+                        </p>
+                        <p class="mt-3 text-sm text-slate-700">
+                            Student:
+                            <strong>{{ forwardStudentName }}</strong>
+                            <br />
+                            Date: <strong>{{ forwardDate }}</strong>
+                        </p>
+                        <p class="mt-3 text-sm text-slate-700">
+                            Attachment:
+                            <strong>{{ forwardMessage.attachment_name }}</strong>
+                        </p>
+                    </div>
+
+                    <div class="flex justify-end gap-2">
+                        <button
+                            type="button"
+                            class="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+                            @click="closeForwardModal"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            class="inline-flex items-center gap-2 rounded-md bg-brand px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
+                            :disabled="forwardForm.processing"
+                        >
+                            <Send class="h-4 w-4" />
+                            {{ forwardForm.processing ? 'Sending...' : 'Send email' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </template>

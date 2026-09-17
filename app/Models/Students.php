@@ -65,6 +65,27 @@ class Students extends Model
         return $this->hasMany(Attendance::class, 'student_id', 'student_id');
     }
 
+    public function enrollments(): HasMany
+    {
+        return $this->hasMany(StudentEnrollment::class, 'student_id', 'student_id');
+    }
+
+    public function currentEnrollment(): ?StudentEnrollment
+    {
+        $activeYearId = AcademicYear::currentOrLatest()?->academic_year_id;
+
+        if ($activeYearId) {
+            return $this->enrollments()
+                ->where('academic_year_id', $activeYearId)
+                ->orderByDesc('student_enrollment_id')
+                ->first();
+        }
+
+        return $this->enrollments()
+            ->latest('student_enrollment_id')
+            ->first();
+    }
+
     public function parentUsers(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'parent_student_links', 'student_id', 'parent_user_id')

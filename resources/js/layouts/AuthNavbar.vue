@@ -1,6 +1,6 @@
 <script setup>
 import { router, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import {
     Bell,
     FileText,
@@ -22,11 +22,15 @@ import Graduation from '@/components/Icon/Graduation.vue';
 import Instructor from '@/components/Icon/Instructor.vue';
 import LogoutIcon from '@/components/Icon/LogoutIcon.vue';
 import Reports from '@/components/Icon/Reports.vue';
-import RFID from '@/components/Icon/RFID.vue';
+// import RFID from '@/components/Icon/RFID.vue';
 import Schedule from '@/components/Icon/Schedule.vue';
 import Section from '@/components/Icon/Section.vue';
-import Trash from '@/components/Icon/Trash.vue';
 import Inventory from '@/components/Icon/Inventory.vue';
+
+const isNavOpen = defineModel('isNavOpen', { default: true });
+const props = defineProps({
+    unreadMessageCount: { type: Number, default: 0 },
+});
 
 const page = usePage();
 const currentRole = computed(() =>
@@ -59,15 +63,46 @@ const sections = [
                 route: route('registrar.dashboard'),
                 roles: ['registrar'],
             },
-            // {
-            //     icon: Graduation,
-            //     text: 'School Year',
-            //     roles: ['admin'],
-            // },
+            {
+                icon: Graduation,
+                text: 'Academic Years',
+                route: route('admin.academic-years.index'),
+                roles: ['admin'],
+            },
             {
                 icon: Graduation,
                 text: 'Strands',
                 route: route('admin.strands.index'),
+                roles: ['admin'],
+            },
+            {
+                icon: Section,
+                text: 'Section',
+                route: route('admin.sections.index'),
+                roles: ['admin'],
+            },
+            {
+                icon: Instructor,
+                text: 'Instructor',
+                route: route('admin.instructors.index'),
+                roles: ['admin'],
+            },
+            {
+                icon: Graduation,
+                text: 'Subjects',
+                route: route('admin.subjects.index'),
+                roles: ['admin'],
+            },
+            {
+                icon: Instructor,
+                text: 'Students',
+                route: route('admin.students.index'),
+                roles: ['admin'],
+            },
+            {
+                icon: ShieldCheck,
+                text: 'User Management',
+                route: route('admin.users.index'),
                 roles: ['admin'],
             },
         ],
@@ -83,27 +118,9 @@ const sections = [
             },
             {
                 icon: Instructor,
-                text: 'Instructor',
-                route: route('admin.instructors.index'),
-                roles: ['admin'],
-            },
-            {
-                icon: ShieldCheck,
-                text: 'User Management',
-                route: route('admin.users.index'),
-                roles: ['admin'],
-            },
-            {
-                icon: Instructor,
                 text: 'Students',
                 route: route('admin.students.index'),
-                roles: ['admin', 'instructor'],
-            },
-            {
-                icon: Section,
-                text: 'Section',
-                route: route('admin.sections.index'),
-                roles: ['admin'],
+                roles: ['instructor'],
             },
             {
                 icon: Attendance,
@@ -122,6 +139,7 @@ const sections = [
                 text: 'Online Classes',
                 route: route('admin.online-classes.index'),
                 roles: ['admin', 'instructor'],
+                feature: 'online_classes_enabled',
             },
         ],
     },
@@ -176,12 +194,6 @@ const sections = [
         title: 'System',
         links: [
             {
-                icon: Graduation,
-                text: 'Subjects',
-                route: route('admin.subjects.index'),
-                roles: ['admin'],
-            },
-            {
                 icon: Borrowing,
                 text: 'Borrowing',
                 route: route('admin.borrow'),
@@ -212,6 +224,7 @@ const sections = [
                 text: 'Online Class Logs',
                 route: route('admin.online-class-logs.index'),
                 roles: ['admin'],
+                feature: 'online_classes_enabled',
             },
             {
                 icon: MonitorCheck,
@@ -237,17 +250,14 @@ const sections = [
                 route: route('clinic.emergency-hotlines.index'),
                 roles: ['clinic'],
             },
-            {
-                icon: Trash,
-                text: 'Trash',
-                roles: ['admin'],
-            },
-            {
-                icon: RFID,
-                text: 'RFID',
-                route: route('admin.rfid'),
-                roles: ['admin'],
-            },
+            // RFID assignment is handled inside Student and Instructor
+            // Management, so the standalone admin navigation item is hidden.
+            // {
+            //     icon: RFID,
+            //     text: 'RFID',
+            //     route: route('admin.rfid'),
+            //     roles: ['admin'],
+            // },
             {
                 icon: Settings,
                 text: 'Settings',
@@ -256,7 +266,7 @@ const sections = [
             },
             {
                 icon: Graduation,
-                text: 'Biometric Enrollment',
+                text: 'Student Biometric Enrollment',
                 route: route('registrar.biometric-enrollment'),
                 roles: ['registrar'],
             },
@@ -303,11 +313,12 @@ const confirmLogout = async () => {
 
 <template>
     <nav
-        class="flex h-screen w-[250px] shrink-0 flex-col bg-white text-default drop-shadow-xl"
+        class="flex h-screen shrink-0 flex-col bg-white text-default drop-shadow-xl"
+        :class="isNavOpen ? 'w-[250px]' : 'w-0'"
     >
         <div class="min-h-0 flex-1 overflow-y-auto">
             <template v-for="section in visibleSections" :key="section.title">
-                <header class="p-4 text-nav-header">
+                <header class="flex justify-between p-4 text-nav-header">
                     <h1 class="text-[18px]">{{ section.title }}</h1>
                 </header>
 
@@ -316,8 +327,14 @@ const confirmLogout = async () => {
                         v-for="item in section.links"
                         :key="item.text"
                         :icon="item.icon"
-                        :text="item.text"
+                        :text="isNavOpen ? item.text : ''"
                         :route="item.route"
+                        :badge="
+                            item.text === 'Messages'
+                                ? props.unreadMessageCount
+                                : 0
+                        "
+                        @click="isNavOpen = false"
                     />
                 </div>
             </template>
@@ -325,9 +342,10 @@ const confirmLogout = async () => {
 
         <!-- Logout Button -->
         <button
+            v-if="isNavOpen"
             type="button"
             @click="confirmLogout"
-            class="auth-nav-link group w-full shrink-0 border-t-2 text-left"
+            class="auth-nav-link group w-full shrink-0 cursor-pointer border-t-2 text-left"
         >
             <LogoutIcon class="text-[#A3AED0] group-hover:text-brand" />
             <h1>Logout</h1>

@@ -5,10 +5,15 @@ use App\Models\EmergencyAlert;
 use App\Models\EmergencyHotline;
 use App\Models\EmergencyType;
 use App\Models\PatientHistory;
+use App\Models\Section;
+use App\Models\Strand;
+use App\Models\Students;
 use App\Models\User;
+use App\Notifications\ClinicDispatchAssigned;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
@@ -145,6 +150,39 @@ test('clinic can manage emergency types from dashboard tools', function () {
         'action' => 'create',
         'table_name' => 'emergency_types',
     ]);
+});
+
+test('clinic dashboard shows only open emergency details cards', function () {
+    $fixture = clinicFixture();
+
+    EmergencyAlert::query()->create([
+        'emergency_type_id' => $fixture['type']->emergency_type_id,
+        'room' => 'Laboratory 1',
+        'triggered_by_name' => 'Open Alert',
+        'severity' => 'urgent',
+        'status' => 'open',
+        'message' => 'Needs clinic response.',
+        'metadata' => [],
+    ]);
+
+    EmergencyAlert::query()->create([
+        'emergency_type_id' => $fixture['type']->emergency_type_id,
+        'room' => 'Laboratory 2',
+        'triggered_by_name' => 'Handled Alert',
+        'severity' => 'urgent',
+        'status' => 'acknowledged',
+        'message' => 'Already handled.',
+        'metadata' => [],
+    ]);
+
+    $this->actingAs($fixture['clinic'])
+        ->get(route('clinic.dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Clinic/Dashboard')
+            ->has('emergencyDetails', 1)
+            ->where('emergencyDetails.0.patient_name', 'Open Alert')
+        );
 });
 
 test('clinic emergency hotline crud writes admin-visible activity logs', function () {
@@ -288,6 +326,187 @@ test('attendance panel sends semaphore sms for sms enabled hotline', function ()
 
 test('clinic dispatch creates case record and writes activity log', function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
+    Notification::fake();
+    $fixture = clinicFixture();
+    $responder = User::factory()->create([
+        'name' => 'Assigned Clinic Responder',
+        'email' => 'assigned.clinic@example.com',
+        'role' => 'clinic',
+    ]);
+    $alert = EmergencyAlert::query()->create([
+        'emergency_type_id' => $fixture['type']->emergency_type_id,
+        'room' => 'B202',
+        'triggered_by_name' => 'Sample Instructor',
+        'severity' => 'urgent',
+        'message' => 'Clinic emergency.',
+        'metadata' => [],
+    ]);
+
+    $this->actingAs($fixture['clinic'])
+        ->post(route('clinic.emergency-alerts.dispatch', $alert->emergency_alert_id), [
+            'clinic_user_id' => $responder->user_id,
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Emergency response assigned to Assigned Clinic Responder.');
+
+    $this->assertDatabaseHas('clinic_cases', [
+        'emergency_alert_id' => $alert->emergency_alert_id,
+        'handled_by_user_id' => $responder->user_id,
+        'status' => 'monitoring',
+    ]);
+
+    $this->assertDatabaseHas('emergency_alerts', [
+        'emergency_alert_id' => $alert->emergency_alert_id,
+        'status' => 'acknowledged',
+    ]);
+
+    $this->assertDatabaseHas('activity_logs', [
+        'user_id' => $fixture['clinic']->user_id,
+        'action' => 'create',
+        'table_name' => 'clinic_cases',
+    ]);
+
+    Notification::assertSentTo($responder, ClinicDispatchAssigned::class);
+
+    $this->actingAs($fixture['clinic'])
+        ->get(route('clinic.case-logs'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('cases.0.patient_name', 'Sample Instructor')
+            ->where('cases.0.assigned_responder_name', 'Assigned Clinic Responder')
+            ->where('cases.0.assigned_responder_email', 'assigned.clinic@example.com'));
+});
+
+test('duplicate panel alerts are suppressed within ten seconds', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    $fixture = clinicFixture();
+    $payload = [
+        'emergency_type_id' => $fixture['type']->emergency_type_id,
+        'room' => 'B202',
+        'triggered_by_name' => 'Sample Instructor',
+        'message' => 'Duplicate protection test.',
+        'metadata' => ['emergency_scope' => 'all'],
+    ];
+
+    $this->actingAs($fixture['console'])->postJson(route('attendanceControlPanel.emergencyAlert'), $payload)->assertOk();
+    $this->actingAs($fixture['console'])->postJson(route('attendanceControlPanel.emergencyAlert'), $payload)
+        ->assertOk()
+        ->assertJsonPath('duplicate', true)
+        ->assertJsonPath('sms.reason', 'duplicate_suppressed');
+
+    expect(EmergencyAlert::query()->count())->toBe(1);
+});
+
+test('multi student dispatch creates one clinic case per selected student and records response time', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    Notification::fake();
+    $fixture = clinicFixture();
+    $responder = User::factory()->create(['role' => 'clinic']);
+    $strand = Strand::query()->create([
+        'strand_code' => 'EM',
+        'strand_name' => 'Emergency Test',
+        'department' => 'SHS',
+        'status' => 'active',
+    ]);
+    $section = Section::query()->create([
+        'strand_id' => $strand->strand_id,
+        'section_name' => 'Emergency Section',
+        'year_level' => 11,
+        'school_year' => '2026-2027',
+        'semester' => '1st Semester',
+        'status' => 'active',
+    ]);
+    $students = collect([
+        ['student_number' => 'EM-001', 'first_name' => 'First', 'last_name' => 'Student', 'email' => 'first.emergency@example.com'],
+        ['student_number' => 'EM-002', 'first_name' => 'Second', 'last_name' => 'Student', 'email' => 'second.emergency@example.com'],
+    ])->map(fn ($data) => Students::query()->create($data + [
+        'section_id' => $section->section_id,
+        'strand_id' => $strand->strand_id,
+        'gender' => 'female',
+        'year_level' => 11,
+        'semester' => '1st Semester',
+        'school_year' => '2026-2027',
+        'status' => 'active',
+        'face_images' => [],
+    ]));
+    $alert = EmergencyAlert::query()->create([
+        'emergency_type_id' => $fixture['type']->emergency_type_id,
+        'room' => 'B202',
+        'triggered_by_name' => 'Sample Instructor',
+        'severity' => 'urgent',
+        'message' => 'Multiple students need help.',
+        'metadata' => [
+            'students' => $students->map(fn ($student) => [
+                'student_id' => $student->student_id,
+                'student_name' => trim($student->first_name.' '.$student->last_name),
+            ])->all(),
+        ],
+    ]);
+
+    $this->actingAs($fixture['clinic'])
+        ->post(route('clinic.emergency-alerts.dispatch', $alert->emergency_alert_id), ['clinic_user_id' => $responder->user_id])
+        ->assertRedirect();
+
+    expect(\App\Models\ClinicCase::query()->where('emergency_alert_id', $alert->emergency_alert_id)->count())->toBe(2);
+    $alert->refresh();
+    expect($alert->acknowledged_at)->not->toBeNull()
+        ->and($alert->dispatched_at)->not->toBeNull()
+        ->and($alert->response_seconds)->toBeInt();
+});
+
+test('area wide dispatch creates one generic incident case', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    Notification::fake();
+    $fixture = clinicFixture();
+    $alert = EmergencyAlert::query()->create([
+        'emergency_type_id' => $fixture['type']->emergency_type_id,
+        'room' => 'B202',
+        'triggered_by_name' => 'Sample Instructor',
+        'severity' => 'critical',
+        'message' => 'Area-wide evacuation required.',
+        'metadata' => ['emergency_scope' => 'all', 'students' => []],
+    ]);
+
+    $this->actingAs($fixture['clinic'])
+        ->post(route('clinic.emergency-alerts.dispatch', $alert->emergency_alert_id), [
+            'clinic_user_id' => $fixture['clinic']->user_id,
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('clinic_cases', [
+        'emergency_alert_id' => $alert->emergency_alert_id,
+        'student_id' => null,
+        'patient_name' => 'Everyone / Area-wide',
+        'patient_type' => 'area_wide',
+        'status' => 'monitoring',
+    ]);
+});
+
+test('clinic dispatch requires an active clinic responder', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    $fixture = clinicFixture();
+    $instructor = User::factory()->create(['role' => 'instructor']);
+    $alert = EmergencyAlert::query()->create([
+        'emergency_type_id' => $fixture['type']->emergency_type_id,
+        'room' => 'B202',
+        'triggered_by_name' => 'Sample Instructor',
+        'severity' => 'urgent',
+        'message' => 'Clinic emergency.',
+        'metadata' => [],
+    ]);
+
+    $this->actingAs($fixture['clinic'])
+        ->post(route('clinic.emergency-alerts.dispatch', $alert->emergency_alert_id), [
+            'clinic_user_id' => $instructor->user_id,
+        ])
+        ->assertSessionHasErrors('clinic_user_id');
+
+    $this->assertDatabaseMissing('clinic_cases', [
+        'emergency_alert_id' => $alert->emergency_alert_id,
+    ]);
+});
+
+test('clinic can ignore emergency detail card by cancelling alert', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
     $fixture = clinicFixture();
     $alert = EmergencyAlert::query()->create([
         'emergency_type_id' => $fixture['type']->emergency_type_id,
@@ -299,20 +518,15 @@ test('clinic dispatch creates case record and writes activity log', function () 
     ]);
 
     $this->actingAs($fixture['clinic'])
-        ->post(route('clinic.emergency-alerts.dispatch', $alert->emergency_alert_id))
+        ->put(route('clinic.emergency-alerts.update', $alert->emergency_alert_id), [
+            'status' => 'cancelled',
+        ])
         ->assertRedirect()
-        ->assertSessionHas('success', 'Emergency response dispatched.');
+        ->assertSessionHas('success', 'Emergency alert updated.');
 
-    $this->assertDatabaseHas('clinic_cases', [
+    $this->assertDatabaseHas('emergency_alerts', [
         'emergency_alert_id' => $alert->emergency_alert_id,
-        'handled_by_user_id' => $fixture['clinic']->user_id,
-        'status' => 'monitoring',
-    ]);
-
-    $this->assertDatabaseHas('activity_logs', [
-        'user_id' => $fixture['clinic']->user_id,
-        'action' => 'create',
-        'table_name' => 'clinic_cases',
+        'status' => 'cancelled',
     ]);
 });
 

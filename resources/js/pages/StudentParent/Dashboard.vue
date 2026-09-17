@@ -155,7 +155,7 @@ const statusClass = (status) => {
                 >
                     <p class="text-sm font-bold text-slate-900">Today's Year</p>
                     <p class="mt-2 text-2xl font-black text-[#172554]">
-                        {{ student?.school_year || '2026 - 2027' }}
+                        {{ student?.school_year || 'Academic year not set' }}
                     </p>
                     <p class="mt-1 text-xs text-slate-500">
                         {{ student?.strand || 'Academic Program' }} |

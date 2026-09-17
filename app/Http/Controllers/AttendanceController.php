@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use App\Models\AcademicYear;
 use App\Models\Attendance;
 use App\Models\AttendanceLog;
 use App\Models\Borrowing;
@@ -16,6 +17,7 @@ use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\Students;
 use App\Models\Subject;
+use App\Models\StudentEnrollment;
 use App\Models\SystemSetting;
 use App\Models\User;
 use App\Services\AwsFaceRecognitionService;
@@ -55,7 +57,7 @@ class AttendanceController
         if (! $session) {
             $session = new RfidPanelSession;
             $session->room = $validated['room'];
-            $session->panel_id = SystemSetting::string(SystemSetting::PANEL_DEVICE_LABEL, 'Attendance Console');
+            $session->panel_id = $this->panelLabelForRoom($validated['room']);
         }
 
         $status = $validated['status'];
@@ -94,6 +96,13 @@ class AttendanceController
 
         $today = now()->toDateString();
         $nowTime = now()->format('H:i:s');
+        $scheduleContext = $this->attendanceAcademicContext($validated['schedule_id'] ?? null);
+        if (($validated['schedule_id'] ?? null) && ! $scheduleContext['academic_year_id']) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'The selected schedule is not linked to the current academic year.',
+            ], 422);
+        }
         $attendanceSession = DB::table('attendance_sessions')
             ->where('room', $validated['room'])
             ->whereDate('date', $today)
@@ -105,6 +114,8 @@ class AttendanceController
                 DB::table('attendance_sessions')->insert([
                     'subject_code' => $validated['subject_code'] ?? null,
                     'schedule_id' => $validated['schedule_id'] ?? null,
+                    'academic_year_id' => $scheduleContext['academic_year_id'],
+                    'subject_offering_id' => $scheduleContext['subject_offering_id'],
                     'date' => $today,
                     'time_start' => $nowTime,
                     'time_end' => null,
@@ -119,6 +130,8 @@ class AttendanceController
                     ->update([
                         'subject_code' => $validated['subject_code'] ?? $attendanceSession->subject_code,
                         'schedule_id' => $validated['schedule_id'] ?? $attendanceSession->schedule_id,
+                        'academic_year_id' => $scheduleContext['academic_year_id'] ?? $attendanceSession->academic_year_id,
+                        'subject_offering_id' => $scheduleContext['subject_offering_id'] ?? $attendanceSession->subject_offering_id,
                         'status' => 'attendance',
                         'time_start' => $attendanceSession->time_start ?: $nowTime,
                         'time_end' => null,
@@ -197,14 +210,13 @@ class AttendanceController
 
         $currentSchedule = null;
         if ($scheduleId) {
-            $currentSchedule = Schedule::query()->find($scheduleId);
+            $currentSchedule = Schedule::query()->forActiveAcademicYear()->find($scheduleId);
         }
 
         $currentSubject = null;
         if ($subjectCode && $currentSchedule) {
             $currentSubject = Subject::query()
                 ->where('subject_code', $subjectCode)
-                ->where('section_id', $currentSchedule->section_id)
                 ->first();
         }
 
@@ -215,26 +227,43 @@ class AttendanceController
             ], 422);
         }
 
-        // Main guard: a student must belong to the active schedule section.
-        if ((int) $student->section_id !== (int) $currentSchedule->section_id) {
+        $eligibleEnrollment = $currentSchedule->academic_year_id
+            ? \App\Models\StudentEnrollment::query()
+                ->where('student_id', $student->student_id)
+                ->where('academic_year_id', $currentSchedule->academic_year_id)
+                ->where('section_id', $currentSchedule->section_id)
+                ->whereIn('status', ['active', 'enrolled'])
+                ->when($currentSchedule->semester, fn ($query) => $query->where('semester', $currentSchedule->semester))
+                ->first()
+            : null;
+
+        // The current class roster comes from the schedule's year enrollment, not the student's mutable profile.
+        if (($currentSchedule->academic_year_id && ! $eligibleEnrollment)
+            || (! $currentSchedule->academic_year_id && (int) $student->section_id !== (int) $currentSchedule->section_id)) {
             return response()->json([
                 'ok' => false,
-                'message' => 'Student is not in this class section.',
+                'message' => 'Student has no active enrollment for this class section and academic year.',
             ], 422);
+        }
+        if (! $currentSchedule->academic_year_id) {
+            \App\Services\LegacyAcademicFallbackMonitor::record('attendance.tap_legacy_section', ['schedule_id' => $currentSchedule->scheduled_id, 'student_id' => $student->student_id]);
         }
 
         // Optional guard: if subject year level is set, ensure it aligns too.
-        if ($currentSubject && ! is_null($currentSubject->year_level) && (int) $student->year_level !== (int) $currentSubject->year_level) {
+        $eligibleYearLevel = $eligibleEnrollment?->year_level ?? $student->year_level;
+        if ($currentSubject && ! is_null($currentSubject->year_level) && (int) $eligibleYearLevel !== (int) $currentSubject->year_level) {
             return response()->json([
                 'ok' => false,
                 'message' => 'Student year level does not match this class.',
             ], 422);
         }
 
-        $verification = $request->session()->pull($this->attendanceVerificationKey(
+        $verificationKey = $this->attendanceVerificationKey(
             (int) $attendanceSession->attendance_id,
             (int) $student->student_id,
-        ));
+        );
+
+        $verification = $request->session()->get($verificationKey);
 
         if (! is_array($verification) || (int) ($verification['expires_at'] ?? 0) < now()->timestamp) {
             return response()->json([
@@ -269,9 +298,9 @@ class AttendanceController
 
             if (! $attendance) {
                 if ($forceCheckout) {
-                    $logId = $this->insertInvalidAttendanceTapLog($attendanceSession->attendance_id, $student, $scheduleId, $now, 'Invalid Tap', $sequence, $validated['room'], 'Student logout was requested, but the student has no check-in for this class.');
+                    $logId = $this->insertInvalidAttendanceTapLog($attendanceSession->attendance_id, $student, $scheduleId, $now, 'Invalid Tap', $sequence, $validated['room'], 'Dismiss Class checkout was requested, but the student has no check-in for this class.');
 
-                    return [null, $logId, 'invalid_tap', 'Invalid Tap', false, 'Student has no check-in record to log out from this class.', false];
+                    return [null, $logId, 'invalid_tap', 'Invalid Tap', false, 'Student has no check-in record to check out from this dismissed class.', false];
                 }
 
                 $lateThreshold = SystemSetting::integer(SystemSetting::ATTENDANCE_LATE_THRESHOLD_MINUTES, 15);
@@ -321,7 +350,7 @@ class AttendanceController
             if ($isCheckoutTap) {
                 $finalStatus = $attendance->check_in_status === 'late' ? 'late' : 'present';
                 $remarks = $forceCheckout
-                    ? 'Official check-out recorded by instructor student logout override.'
+                    ? 'Official check-out recorded while the instructor Dismiss Class mode was active.'
                     : 'Official check-out recorded.';
 
                 $attendance->update([
@@ -380,6 +409,8 @@ class AttendanceController
                 'message' => $message,
             ], 428);
         }
+
+        $request->session()->forget($verificationKey);
 
         $displayStatus = $attendance ? $this->attendanceDisplayStatus($attendance, $attendanceSession) : 'Invalid Tap';
 
@@ -458,7 +489,7 @@ class AttendanceController
 
         $scheduleId = $validated['schedule_id'] ?? $attendanceSession->schedule_id;
         $subjectCode = $validated['subject_code'] ?? $attendanceSession->subject_code;
-        $currentSchedule = $scheduleId ? Schedule::query()->find($scheduleId) : null;
+        $currentSchedule = $scheduleId ? Schedule::query()->forActiveAcademicYear()->find($scheduleId) : null;
 
         if (! $currentSchedule) {
             return response()->json([
@@ -467,7 +498,14 @@ class AttendanceController
             ], 422);
         }
 
-        if ((int) $student->section_id !== (int) $currentSchedule->section_id) {
+        $eligibleEnrollment = $currentSchedule->academic_year_id ? \App\Models\StudentEnrollment::query()
+            ->where('student_id', $student->student_id)->where('academic_year_id', $currentSchedule->academic_year_id)
+            ->where('section_id', $currentSchedule->section_id)
+            ->whereIn('status', ['active', 'enrolled'])
+            ->when($currentSchedule->semester, fn ($query) => $query->where('semester', $currentSchedule->semester))
+            ->first() : null;
+        if (($currentSchedule->academic_year_id && ! $eligibleEnrollment)
+            || (! $currentSchedule->academic_year_id && (int) $student->section_id !== (int) $currentSchedule->section_id)) {
             return response()->json([
                 'ok' => false,
                 'message' => 'Student is not enrolled in this class section.',
@@ -478,11 +516,10 @@ class AttendanceController
         if ($subjectCode) {
             $currentSubject = Subject::query()
                 ->where('subject_code', $subjectCode)
-                ->where('section_id', $currentSchedule->section_id)
                 ->first();
         }
 
-        if ($currentSubject && ! is_null($currentSubject->year_level) && (int) $student->year_level !== (int) $currentSubject->year_level) {
+        if ($currentSubject && ! is_null($currentSubject->year_level) && (int) ($eligibleEnrollment?->year_level ?? $student->year_level) !== (int) $currentSubject->year_level) {
             return response()->json([
                 'ok' => false,
                 'message' => 'Student year level does not match this class.',
@@ -984,6 +1021,7 @@ class AttendanceController
 
             if ($room) {
                 $matchingSchedules = Schedule::query()
+                    ->forActiveAcademicYear()
                     ->leftJoin('subjects', function ($join) {
                         $join->on('subjects.subject_code', '=', 'schedules.subject_code')
                             ->on('subjects.section_id', '=', 'schedules.section_id');
@@ -1035,12 +1073,14 @@ class AttendanceController
                     }
                 } else {
                     $matchingByRoomDay = Schedule::query()
+                        ->forActiveAcademicYear()
                         ->whereRaw('LOWER(TRIM(room)) = ?', [$normalizedRoom])
                         ->get(['weekdays'])
                         ->filter(fn ($s) => $this->matchesWeekday((string) ($s->weekdays ?? ''), $weekday, $weekdayFull))
                         ->count();
 
                     $matchingByInstructorDayTime = Schedule::query()
+                        ->forActiveAcademicYear()
                         ->join('subjects', function ($join) use ($instructor) {
                             $join->on('subjects.subject_code', '=', 'schedules.subject_code')
                                 ->on('subjects.section_id', '=', 'schedules.section_id')
@@ -1101,6 +1141,18 @@ class AttendanceController
 
         if ($student) {
             $student->loadMissing(['strand', 'section']);
+            $activeAcademicYearId = AcademicYear::currentOrLatest()?->academic_year_id;
+            $activeEnrollment = $activeAcademicYearId
+                ? StudentEnrollment::query()
+                    ->with(['strand', 'section'])
+                    ->where('student_id', $student->student_id)
+                    ->where('academic_year_id', $activeAcademicYearId)
+                    ->whereIn('status', ['active', 'enrolled'])
+                    ->latest('student_enrollment_id')
+                    ->first()
+                : null;
+            $placementStrand = $activeEnrollment?->strand ?? $student->strand;
+            $placementSection = $activeEnrollment?->section ?? $student->section;
 
             $nameParts = [
                 (string) $student->first_name,
@@ -1119,10 +1171,10 @@ class AttendanceController
                     'studentId' => $student->student_number,
                     'name' => $fullName,
                     'rfid' => $student->rfid_tag,
-                    'year' => $student->year_level.' Year',
-                    'course' => $student->strand?->strand_code ?? $student->section?->strand?->strand_code,
-                    'strand' => $student->strand?->strand_code ?? $student->section?->strand?->strand_code,
-                    'section' => $student->section?->section_name,
+                    'year' => ($activeEnrollment?->year_level ?? $student->year_level).' Year',
+                    'course' => $placementStrand?->strand_code ?? $placementSection?->strand?->strand_code,
+                    'strand' => $placementStrand?->strand_code ?? $placementSection?->strand?->strand_code,
+                    'section' => $placementSection?->section_name,
                     'avatarSeed' => $fullName,
                     'hasFaceImage' => count($student->face_images ?? []) > 0,
                     'faceImageCount' => count($student->face_images ?? []),
@@ -1283,7 +1335,7 @@ class AttendanceController
 
     public function controlPanel()
     {
-        $panelRoom = session('panel.room');
+        $panelRoom = $this->currentPanelRoom();
 
         if (! $panelRoom) {
             return redirect()->route('attendanceControlPanel.login');
@@ -1298,8 +1350,9 @@ class AttendanceController
     public function panelLogin()
     {
         $isConsole = strtolower(trim((string) Auth::user()?->role)) === 'console';
+        $panelRoom = $this->currentPanelRoom();
 
-        if ($isConsole && session('panel.room')) {
+        if ($isConsole && $panelRoom) {
             return redirect()->route('attendanceControlPanel');
         }
 
@@ -1319,11 +1372,20 @@ class AttendanceController
         $pinHash = '';
         $room = trim((string) ($validated['room'] ?? ''));
         if ($room !== '') {
+            $assignedDevice = PanelDevice::query()
+                ->whereHas('laboratory', fn ($query) => $query->where('name', $room))
+                ->first();
+            if ($assignedDevice && ! $assignedDevice->is_active) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'The attendance device assigned to this laboratory is disabled.',
+                ], 403);
+            }
             $latestSession = RfidPanelSession::query()
                 ->where('room', $room)
                 ->orderByDesc('panel_session_id')
                 ->first();
-            $panelLabel = trim((string) ($latestSession?->panel_id ?? ''));
+            $panelLabel = trim((string) ($assignedDevice?->label ?? $latestSession?->panel_id ?? ''));
 
             if ($panelLabel !== '') {
                 $pinHash = (string) PanelDevice::query()
@@ -1374,6 +1436,7 @@ class AttendanceController
         ]);
 
         session(['panel.room' => $validated['room']]);
+        $this->openPanelRoomSession($validated['room'], $request->user());
 
         return response()->json(['success' => true]);
     }
@@ -1432,7 +1495,7 @@ class AttendanceController
 
     public function panelStatus(Request $request): JsonResponse
     {
-        $room = trim((string) ($request->input('room') ?? session('panel.room')));
+        $room = trim((string) ($request->input('room') ?? $this->currentPanelRoom()));
 
         if ($room === '') {
             return response()->json([
@@ -1456,15 +1519,75 @@ class AttendanceController
             'logout_required' => $logoutRequired,
             'status' => $session?->status ?? 'offline',
             'featureSettings' => SystemSetting::featureFlags(),
+            'demoAttendancePanel' => SystemSetting::demoAttendancePanelSettings(),
             'message' => $logoutRequired ? 'This panel was logged out by an administrator.' : null,
         ]);
     }
 
+    private function currentPanelRoom(): ?string
+    {
+        $room = trim((string) session('panel.room', ''));
+
+        if ($room !== '') {
+            return $room;
+        }
+
+        $user = Auth::user();
+        if (strtolower(trim((string) $user?->role)) !== 'console') {
+            return null;
+        }
+
+        $query = RfidPanelSession::query()
+            ->whereNull('ended_at')
+            ->where('status', '!=', 'offline')
+            ->latest('panel_session_id');
+
+        $session = (clone $query)
+            ->where('opened_by_user_id', $user?->user_id)
+            ->first()
+            ?? $query->first();
+
+        $room = trim((string) ($session?->room ?? ''));
+        if ($room === '') {
+            return null;
+        }
+
+        session(['panel.room' => $room]);
+
+        return $room;
+    }
+
+    private function openPanelRoomSession(string $room, ?User $user): void
+    {
+        $session = RfidPanelSession::query()
+            ->where('room', $room)
+            ->whereNull('ended_at')
+            ->latest('panel_session_id')
+            ->first();
+
+        if (! $session) {
+            $session = new RfidPanelSession;
+            $session->room = $room;
+            $session->panel_id = $this->panelLabelForRoom($room);
+        }
+
+        $session->status = 'online';
+        $session->opened_by_user_id = $user?->user_id;
+        $session->is_listening = true;
+        $session->listening_started_at ??= now();
+        $session->paused_at = null;
+        $session->ended_at = null;
+        $session->save();
+    }
+
     private function panelPayload(): array
     {
+        $activeAcademicYearId = AcademicYear::currentOrLatest()?->academic_year_id;
+
         return [
             'rooms' => $this->panelRooms(),
             'panelDeviceLabel' => SystemSetting::string(SystemSetting::PANEL_DEVICE_LABEL, 'Attendance Console'),
+            'demoAttendancePanel' => SystemSetting::demoAttendancePanelSettings(),
             'demoInstructorRfids' => User::query()
                 ->whereRaw('LOWER(role) = ?', ['instructor'])
                 ->whereNotNull('rfid_tag')
@@ -1478,6 +1601,9 @@ class AttendanceController
                 ->whereNotNull('rfid_tag')
                 ->where('rfid_tag', '!=', '')
                 ->where('status', 'active')
+                ->when($activeAcademicYearId, fn ($query) => $query->whereHas('enrollments', fn ($enrollment) => $enrollment
+                    ->where('academic_year_id', $activeAcademicYearId)
+                    ->whereIn('status', ['active', 'enrolled'])))
                 ->orderBy('student_number')
                 ->pluck('rfid_tag')
                 ->values()
@@ -1529,9 +1655,41 @@ class AttendanceController
                 ])
                 ->values()
                 ->all(),
+            'emergencyStudents' => Students::query()
+                ->with(['section:section_id,section_name', 'strand:strand_id,strand_code'])
+                ->where('status', 'active')
+                ->when($activeAcademicYearId, fn ($query) => $query->whereHas('enrollments', fn ($enrollment) => $enrollment
+                    ->where('academic_year_id', $activeAcademicYearId)
+                    ->whereIn('status', ['active', 'enrolled'])))
+                ->orderBy('last_name')
+                ->orderBy('first_name')
+                ->get()
+                ->map(function (Students $student) {
+                    $faceImages = array_values(array_filter($student->face_images ?? []));
+
+                    return [
+                        'id' => $student->student_id,
+                        'student_number' => $student->student_number,
+                        'name' => trim($student->first_name.' '.($student->middle_name ? $student->middle_name.' ' : '').$student->last_name),
+                        'rfid' => $student->rfid_tag,
+                        'section' => $student->section?->section_name,
+                        'strand' => $student->strand?->strand_code,
+                        'photo' => isset($faceImages[0]) ? Storage::url($faceImages[0]) : null,
+                    ];
+                })
+                ->values()
+                ->all(),
             'studentToastSeconds' => config('panel.student_toast_seconds', 15),
             'studentInfoVisibleSeconds' => config('panel.student_info_visible_seconds', 10),
         ];
+    }
+
+    private function panelLabelForRoom(string $room): string
+    {
+        return (string) (PanelDevice::query()
+            ->whereHas('laboratory', fn ($query) => $query->where('name', $room))
+            ->value('label')
+            ?: SystemSetting::string(SystemSetting::PANEL_DEVICE_LABEL, 'Attendance Console'));
     }
 
     private function panelRooms(): array
@@ -1681,6 +1839,7 @@ class AttendanceController
             : null;
         $handledSectionIds = $isInstructor
             ? Schedule::query()
+                ->forActiveAcademicYear()
                 ->where('instructor_id', $instructorId ?: 0)
                 ->pluck('section_id')
                 ->unique()
@@ -1688,6 +1847,7 @@ class AttendanceController
             : collect();
 
         $currentSchedule = Schedule::query()
+            ->forActiveAcademicYear()
             ->with(['subject.user', 'section.strand', 'instructor.user'])
             ->when($isInstructor, fn ($scheduleQuery) => $scheduleQuery->where('instructor_id', $instructorId ?: 0))
             ->orderByDesc('scheduled_id')
@@ -1849,6 +2009,8 @@ class AttendanceController
             ->orderByDesc('attendance_logs.id')
             ->select([
                 'attendance_logs.id',
+                'attendance_logs.student_id',
+                'attendance_logs.schedule_id',
                 'attendance_logs.time_in',
                 'attendance_logs.time_out',
                 'attendance_logs.status',
@@ -1889,10 +2051,13 @@ class AttendanceController
                 'strands.strand_code',
             ])
             ->get()
-            ->map(function ($log) {
+            ->map(function ($log) use ($isInstructor, $absentDefaultDays) {
                 return [
                     'id' => $log->id,
                     'session_id' => $log->session_id,
+                    'main_attendance_id' => $log->main_attendance_id,
+                    'student_id' => $log->student_id,
+                    'schedule_id' => $log->schedule_id,
                     'student' => trim(($log->first_name ?? '').' '.($log->last_name ?? '')) ?: 'Unknown Student',
                     'student_number' => $log->student_number,
                     'subject' => $log->subject_name ?? 'N/A',
@@ -1916,11 +2081,16 @@ class AttendanceController
                     'time_in_image_url' => $log->time_in_face_path ? route('attendance.evidence', ['attendanceLog' => $log->id, 'moment' => 'time-in']) : null,
                     'time_out_image_url' => $log->time_out_face_path ? route('attendance.evidence', ['attendanceLog' => $log->id, 'moment' => 'time-out']) : null,
                     'verification_method' => $log->verification_method,
+                    'editable' => $isInstructor && Carbon::parse($log->date)->betweenIncluded(
+                        now()->subDays(max(1, min(365, $absentDefaultDays)) - 1)->startOfDay(),
+                        now()->endOfDay()
+                    ),
                 ];
             })
             ->values();
 
         $logs = $this->appendAbsentAttendanceLogs($logs, $filters, $isAdmin, $isInstructor, $instructorId, $absentDefaultDays);
+        $logs = $this->combineAttendanceLogRows($logs);
 
         $sessionOptionsQuery = DB::table('attendance_sessions');
         $sessionJoin($sessionOptionsQuery);
@@ -1990,6 +2160,7 @@ class AttendanceController
             'currentUserRole' => $role,
             'canInspectAllAttendance' => $isAdmin,
             'absentDefaultDays' => $absentDefaultDays,
+            'canEditAttendance' => $isInstructor,
             'attendanceSessionOptions' => $sessionOptions,
             'subjectOptions' => $subjectOptionsQuery
                 ->when($isInstructor, fn ($subjectQuery) => $subjectQuery->where('schedules.instructor_id', $instructorId ?: 0))
@@ -2025,6 +2196,155 @@ class AttendanceController
                 ])
                 ->values() : [],
         ]);
+    }
+
+    public function updateAttendanceStatus(Request $request)
+    {
+        $validated = $request->validate([
+            'session_id' => ['required', 'integer'],
+            'student_id' => ['required', 'integer', 'exists:students,student_id'],
+            'status' => ['required', 'in:present,late,absent,excused'],
+            'remarks' => ['nullable', 'string', 'max:1000', 'required_if:status,excused'],
+        ]);
+
+        $user = $request->user();
+        $editorRole = strtolower(trim((string) $user?->role));
+        abort_unless(in_array($editorRole, ['admin', 'instructor'], true), 403);
+
+        $instructorId = $editorRole === 'instructor'
+            ? Instructor::query()->where('user_id', $user->user_id)->value('instructor_id')
+            : null;
+        abort_if($editorRole === 'instructor' && ! $instructorId, 403, 'No instructor profile is linked to this account.');
+
+        $session = DB::table('attendance_sessions')
+            ->join('schedules', 'schedules.scheduled_id', '=', 'attendance_sessions.schedule_id')
+            ->where('attendance_sessions.attendance_id', $validated['session_id'])
+            ->when($editorRole === 'instructor', fn ($query) => $query->where('schedules.instructor_id', $instructorId))
+            ->select([
+                'attendance_sessions.attendance_id',
+                'attendance_sessions.schedule_id',
+                'attendance_sessions.subject_code',
+                'attendance_sessions.date',
+                'attendance_sessions.room',
+                'attendance_sessions.time_start',
+                'attendance_sessions.time_end',
+                'schedules.section_id',
+                'attendance_sessions.academic_year_id',
+            ])
+            ->first();
+
+        abort_unless($session, 403, 'You may only edit attendance within your permitted subject scope.');
+
+        abort_if(
+            $session->academic_year_id && \App\Models\AcademicYear::query()
+                ->whereKey($session->academic_year_id)
+                ->whereIn('status', [\App\Models\AcademicYear::STATUS_CLOSED, \App\Models\AcademicYear::STATUS_ARCHIVED])
+                ->exists(),
+            422,
+            'Attendance from a closed or archived academic year is read-only.'
+        );
+
+        $student = Students::query()
+            ->whereKey($validated['student_id'])
+            ->when($session->academic_year_id,
+                fn ($query) => $query->whereHas('enrollments', fn ($enrollment) => $enrollment
+                    ->where('academic_year_id', $session->academic_year_id)
+                    ->where('section_id', $session->section_id)),
+                fn ($query) => $query->where('section_id', $session->section_id)
+            )
+            ->firstOrFail();
+
+        $editDays = max(1, min(365, SystemSetting::integer(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 15)));
+        $sessionDate = Carbon::parse($session->date)->startOfDay();
+        $earliestEditableDate = now()->subDays($editDays - 1)->startOfDay();
+        abort_if(
+            $sessionDate->lt($earliestEditableDate) || $sessionDate->gt(now()->endOfDay()),
+            422,
+            "Attendance can only be edited within the latest {$editDays} day(s)."
+        );
+
+        DB::transaction(function () use ($request, $validated, $session, $student, $user) {
+            $attendance = Attendance::query()
+                ->where('student_id', $student->student_id)
+                ->where('schedule_id', $session->schedule_id)
+                ->whereDate('date', $session->date)
+                ->first();
+
+            $oldStatus = strtolower((string) ($attendance?->status ?: 'absent'));
+            $remarks = trim((string) ($validated['remarks'] ?? ''));
+            $auditRemark = sprintf(
+                '%s %s changed attendance from %s to %s.%s',
+                ucfirst(strtolower((string) $user->role)),
+                $user->name,
+                ucfirst($oldStatus),
+                ucfirst($validated['status']),
+                $remarks !== '' ? ' Note: '.$remarks : ''
+            );
+
+            if (! $attendance) {
+                $attendance = Attendance::query()->create([
+                    'student_id' => $student->student_id,
+                    'schedule_id' => $session->schedule_id,
+                    'date' => $session->date,
+                    'time_start' => $session->time_start,
+                    'time_end' => $session->time_end,
+                    'time_in' => null,
+                    'time_out' => null,
+                    'check_in_status' => in_array($validated['status'], ['present', 'late'], true) ? $validated['status'] : null,
+                    'status' => $validated['status'],
+                    'room_status' => 'outside',
+                    'total_taps' => 0,
+                    'remarks' => $remarks !== '' ? $remarks : $auditRemark,
+                    'subject_code' => $session->subject_code,
+                    'room' => $session->room,
+                ]);
+            } else {
+                $attendance->update([
+                    'status' => $validated['status'],
+                    'check_in_status' => in_array($validated['status'], ['present', 'late'], true) ? $validated['status'] : null,
+                    'remarks' => $remarks !== '' ? $remarks : $auditRemark,
+                ]);
+            }
+
+            AttendanceLog::query()->create([
+                'attendance_id' => $session->attendance_id,
+                'main_attendance_id' => $attendance->attendance_id,
+                'student_id' => $student->student_id,
+                'schedule_id' => $session->schedule_id,
+                'status' => $validated['status'],
+                'verification_method' => 'instructor_manual_edit',
+                'is_late' => $validated['status'] === 'late',
+                'tap_datetime' => now(),
+                'tap_type' => 'Manual Edit',
+                'device_scanner_id' => 'Instructor Portal',
+                'location' => $session->room,
+                'validation_result' => 'Manual Override',
+                'remarks' => $auditRemark,
+            ]);
+
+            ActivityLog::query()->create([
+                'event_id' => (string) Str::uuid(),
+                'user_id' => $user->user_id,
+                'user_name' => $user->name,
+                'user_role' => $user->role,
+                'action' => 'attendance_status_changed',
+                'table_name' => 'attendances',
+                'module' => 'attendance',
+                'outcome' => 'success',
+                'severity' => 'info',
+                'subject_type' => 'attendance',
+                'subject_id' => (string) $attendance->attendance_id,
+                'route_name' => $request->route()?->getName(),
+                'http_method' => $request->method(),
+                'ip_address' => $request->ip(),
+                'user_agent' => Str::limit((string) $request->userAgent(), 1000, ''),
+                'status_code' => 200,
+                'description' => $auditRemark.' Student: '.$student->student_number.'.',
+                'created_at' => now(),
+            ]);
+        });
+
+        return back()->with('success', 'Attendance status updated and logged.');
     }
 
     public function evidence(Request $request, AttendanceLog $attendanceLog, string $moment): StreamedResponse
@@ -2070,6 +2390,7 @@ class AttendanceController
         ]);
 
         $schedule = Schedule::query()
+            ->forActiveAcademicYear()
             ->with(['subject.user', 'section.strand'])
             ->orderByDesc('scheduled_id')
             ->first();
@@ -2199,6 +2520,9 @@ class AttendanceController
             'main_attendance_id' => $attendance->attendance_id,
             'student_id' => $student->student_id,
             'schedule_id' => $scheduleId,
+            'academic_year_id' => $attendance->academic_year_id,
+            'subject_offering_id' => $attendance->subject_offering_id,
+            'student_enrollment_id' => $attendance->student_enrollment_id,
             'time_in' => $tapTime->format('H:i:s'),
             'time_out' => $isCheckout ? $tapTime->format('H:i:s') : null,
             'status' => $attendance->status,
@@ -2221,11 +2545,16 @@ class AttendanceController
 
     private function insertInvalidAttendanceTapLog(int $sessionId, Students $student, ?int $scheduleId, \Carbon\CarbonInterface $tapTime, string $tapType, int $sequence, string $room, string $remarks): int
     {
+        $context = $this->attendanceAcademicContext($scheduleId, (int) $student->student_id);
+
         return (int) DB::table('attendance_logs')->insertGetId([
             'attendance_id' => $sessionId,
             'main_attendance_id' => null,
             'student_id' => $student->student_id,
             'schedule_id' => $scheduleId,
+            'academic_year_id' => $context['academic_year_id'],
+            'subject_offering_id' => $context['subject_offering_id'],
+            'student_enrollment_id' => $context['student_enrollment_id'],
             'time_in' => $tapTime->format('H:i:s'),
             'time_out' => null,
             'status' => 'invalid',
@@ -2239,6 +2568,27 @@ class AttendanceController
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    private function attendanceAcademicContext(?int $scheduleId, ?int $studentId = null): array
+    {
+        $schedule = $scheduleId ? Schedule::query()->find($scheduleId) : null;
+        $enrollmentId = null;
+        if ($studentId && $schedule?->academic_year_id) {
+            $enrollments = \App\Models\StudentEnrollment::query()
+                ->where('student_id', $studentId)
+                ->where('academic_year_id', $schedule->academic_year_id)
+                ->where('section_id', $schedule->section_id)
+                ->whereIn('status', ['active', 'enrolled']);
+            $enrollment = $schedule->semester ? (clone $enrollments)->where('semester', $schedule->semester)->first() : null;
+            $enrollmentId = ($enrollment ?? $enrollments->first())?->student_enrollment_id;
+        }
+
+        return [
+            'academic_year_id' => $schedule?->academic_year_id,
+            'subject_offering_id' => $schedule?->subject_offering_id,
+            'student_enrollment_id' => $enrollmentId,
+        ];
     }
 
     private function instructorRfidAuthorizesTemporaryMovement(?Schedule $schedule, ?string $instructorRfid): bool
@@ -2265,6 +2615,10 @@ class AttendanceController
 
         if ($status === 'absent') {
             return 'Absent';
+        }
+
+        if ($status === 'excused') {
+            return 'Excused';
         }
 
         if ($timeIn && ! $timeOut) {
@@ -2380,6 +2734,7 @@ class AttendanceController
             ->orderByDesc('attendance_sessions.time_start')
             ->select([
                 'attendance_sessions.attendance_id as session_id',
+                'attendance_sessions.schedule_id',
                 'attendance_sessions.date',
                 'attendance_sessions.room',
                 'attendance_sessions.time_start',
@@ -2421,6 +2776,9 @@ class AttendanceController
                 $absentLogs->push([
                     'id' => 'absent-'.$session->session_id.'-'.$student->student_id,
                     'session_id' => $session->session_id,
+                    'main_attendance_id' => null,
+                    'student_id' => $student->student_id,
+                    'schedule_id' => $session->schedule_id,
                     'student' => trim(($student->first_name ?? '').' '.($student->last_name ?? '')) ?: 'Unknown Student',
                     'student_number' => $student->student_number,
                     'subject' => $session->subject_name ?? 'N/A',
@@ -2441,11 +2799,78 @@ class AttendanceController
                     'validation_result' => 'Absent',
                     'remarks' => 'No valid check-in tap was recorded for this scheduled class.',
                     'status' => 'Absent',
+                    'time_in_image_url' => null,
+                    'time_out_image_url' => null,
+                    'verification_method' => null,
+                    'evidence_events' => [],
+                    'editable' => $isInstructor && Carbon::parse($session->date)->betweenIncluded(
+                        now()->subDays($absentDefaultDays - 1)->startOfDay(),
+                        now()->endOfDay()
+                    ),
                 ]);
             }
         }
 
         return $logs->concat($absentLogs)->values();
+    }
+
+    private function combineAttendanceLogRows($logs)
+    {
+        return collect($logs)
+            ->groupBy(function (array $log) {
+                if ($log['main_attendance_id'] ?? null) {
+                    return 'attendance-'.$log['main_attendance_id'];
+                }
+
+                if (($log['tap_type'] ?? null) !== 'No Tap') {
+                    return implode('|', [
+                        'session',
+                        $log['session_id'] ?? '',
+                        $log['student_number'] ?? $log['student'] ?? '',
+                        $log['date'] ?? '',
+                        $log['subject'] ?? '',
+                    ]);
+                }
+
+                return 'log-'.$log['id'];
+            })
+            ->map(function ($items) {
+                $orderedEvents = $items
+                    ->sortBy(fn (array $item) => $item['tap_sequence_number'] ?? 999999)
+                    ->values()
+                    ->map(fn (array $item) => [
+                        'id' => $item['id'],
+                        'tap_type' => $item['tap_type'],
+                        'tap_sequence_number' => $item['tap_sequence_number'],
+                        'time' => $item['time'],
+                        'room_status' => $item['room_status'],
+                        'validation_result' => $item['validation_result'],
+                        'remarks' => $item['remarks'],
+                        'time_in_image_url' => $item['time_in_image_url'] ?? null,
+                        'time_out_image_url' => $item['time_out_image_url'] ?? null,
+                        'verification_method' => $item['verification_method'] ?? null,
+                    ])
+                    ->all();
+
+                $summary = $items->firstWhere('tap_type', 'Check-out')
+                    ?? $items->firstWhere('tap_type', 'Check-in')
+                    ?? $items->first();
+
+                $timeInEvent = collect($orderedEvents)->first(fn (array $event) => $event['tap_type'] === 'Check-in' && $event['time_in_image_url']);
+                $timeOutEvent = collect($orderedEvents)->first(fn (array $event) => $event['tap_type'] === 'Check-out' && $event['time_out_image_url']);
+
+                $summary['id'] = $summary['main_attendance_id'] ?? $summary['id'];
+                $summary['tap_type'] = 'Attendance';
+                $summary['tap_sequence_number'] = count($orderedEvents);
+                $summary['time'] = count($orderedEvents).' tap'.(count($orderedEvents) === 1 ? '' : 's');
+                $summary['time_in_image_url'] = $timeInEvent['time_in_image_url'] ?? null;
+                $summary['time_out_image_url'] = $timeOutEvent['time_out_image_url'] ?? null;
+                $summary['evidence_events'] = $orderedEvents;
+
+                return $summary;
+            })
+            ->sortByDesc(fn (array $log) => trim(($log['date'] ?? '').' '.($log['time_in'] ?? '').' '.$log['id']))
+            ->values();
     }
 
     private function matchesWeekday(string $weekdays, string $weekdayAbbr, string $weekdayFull): bool
