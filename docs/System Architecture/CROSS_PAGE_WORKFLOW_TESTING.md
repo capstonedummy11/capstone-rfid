@@ -1,6 +1,6 @@
 # Cross-Page Workflow Testing
 
-Documentation home: [Documentation Index and Source-of-Truth Map](DOCUMENTATION_INDEX.md).
+Documentation home: [Documentation Index and Source-of-Truth Map](../DOCUMENTATION_INDEX.md).
 
 This procedural guide defines how to test features where data created on one page must be consumed by another page. An example is creating a student in Admin Student Management and then using the generated account on the Student Login page.
 

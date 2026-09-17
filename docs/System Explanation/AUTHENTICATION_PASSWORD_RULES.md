@@ -1,6 +1,6 @@
 # Authentication and Password Rules
 
-Documentation home: [Documentation Index and Source-of-Truth Map](DOCUMENTATION_INDEX.md).
+Documentation home: [Documentation Index and Source-of-Truth Map](../DOCUMENTATION_INDEX.md).
 
 This is the canonical reference for login entry points, password recovery, temporary passwords, and first-login enforcement.
 

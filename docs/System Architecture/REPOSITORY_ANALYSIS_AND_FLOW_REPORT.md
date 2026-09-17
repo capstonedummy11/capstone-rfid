@@ -1,8 +1,8 @@
 # Repository Analysis And Flow Verification Report
 
-Documentation home: [Documentation Index and Source-of-Truth Map](DOCUMENTATION_INDEX.md).
+Documentation home: [Documentation Index and Source-of-Truth Map](../DOCUMENTATION_INDEX.md).
 
-For exact RFID attendance behavior, refer to [Attendance Control Panel Tapping Rules](ATTENDANCE_CONTROL_PANEL_TAPPING_RULES.md); this report summarizes that workflow.
+For exact RFID attendance behavior, refer to [Attendance Control Panel Tapping Rules](../System%20Explanation/ATTENDANCE_CONTROL_PANEL_TAPPING_RULES.md); this report summarizes that workflow.
 
 Generated for the current merged repository state.
 
@@ -26,7 +26,7 @@ The merge conflict pass preserved the attendance panel work from the attendance-
 | Seeders        | `database/seeders`                                                       |
 | Migrations     | `database/migrations`                                                    |
 | Frontend pages | `resources/js/pages`                                                     |
-| Existing docs  | `docs/README.md`, `docs/*.md`, `docs/DATABASE.md`, `docs/SYSTEM_FLOW.md` |
+| Existing docs  | `docs/README.md`, the three documentation folders, `System Architecture/DATABASE.md`, and `System Architecture/SYSTEM_FLOW.md` |
 | Tests          | `tests/Feature`, `tests/Unit`                                            |
 | Ignore rules   | `.gitignore`                                                             |
 

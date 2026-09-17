@@ -2,7 +2,7 @@
 
 Several files discuss demonstrations because they serve different presentation needs. This document is the canonical guide for choosing among them and keeps their shared context in one place.
 
-Return to the [Documentation Index](DOCUMENTATION_INDEX.md).
+Return to the [Documentation Index](../DOCUMENTATION_INDEX.md).
 
 ## Shared Demonstration Context
 
@@ -17,7 +17,7 @@ The demonstration should prove one connected workflow:
 7. Student and parent use attendance, excuse letters, notifications, and Messenger.
 8. Staff demonstrate online classes, clinic/emergency workflows, inventory, reports, and audit logs.
 
-Exact RFID decisions always come from [Attendance Control Panel Tapping Rules](ATTENDANCE_CONTROL_PANEL_TAPPING_RULES.md). Complete application behavior comes from [System Flow](SYSTEM_FLOW.md).
+Exact RFID decisions always come from [Attendance Control Panel Tapping Rules](ATTENDANCE_CONTROL_PANEL_TAPPING_RULES.md). Complete application behavior comes from [System Flow](../System%20Architecture/SYSTEM_FLOW.md).
 
 ## Which Demonstration File to Use
 
@@ -35,11 +35,11 @@ These documents are complementary formats, not independent sources of business r
 Every demonstrated claim should be traceable to a canonical source:
 
 - System capabilities and limitations: [Project README](README.md)
-- End-to-end feature behavior: [System Flow](SYSTEM_FLOW.md)
+- End-to-end feature behavior: [System Flow](../System%20Architecture/SYSTEM_FLOW.md)
 - Attendance tapping: [Attendance Control Panel Tapping Rules](ATTENDANCE_CONTROL_PANEL_TAPPING_RULES.md)
 - Operator steps: [User Operations Tutorial](USER_OPERATIONS_TUTORIAL.md)
-- Database claims: [Database Documentation](DATABASE.md)
-- Verified implementation and gaps: [Repository Analysis and Flow Report](REPOSITORY_ANALYSIS_AND_FLOW_REPORT.md)
+- Database claims: [Database Documentation](../System%20Architecture/DATABASE.md)
+- Verified implementation and gaps: [Repository Analysis and Flow Report](../System%20Architecture/REPOSITORY_ANALYSIS_AND_FLOW_REPORT.md)
 
 ## Avoiding Duplicate Updates
 

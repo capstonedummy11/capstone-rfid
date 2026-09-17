@@ -1,6 +1,6 @@
 # System Flow
 
-Documentation home: [Documentation Index and Source-of-Truth Map](DOCUMENTATION_INDEX.md).
+Documentation home: [Documentation Index and Source-of-Truth Map](../DOCUMENTATION_INDEX.md).
 
 This document is the detailed operating flow for the RFID Borrowing and Attendance System. It connects the user roles, setup records, attendance panel, registrar enrollment, student/parent portal, clinic workflows, reports, and audit records into one readable sequence.
 
@@ -37,9 +37,9 @@ flowchart TD
 
 ## Role Entry And Redirect Flow
 
-Canonical password flow: [Authentication and Password Rules](AUTHENTICATION_PASSWORD_RULES.md). Non-Console users can recover passwords by email, and new non-Console accounts are intercepted by server middleware until their temporary password is changed.
+Canonical password flow: [Authentication and Password Rules](../System%20Explanation/AUTHENTICATION_PASSWORD_RULES.md). Non-Console users can recover passwords by email, and new non-Console accounts are intercepted by server middleware until their temporary password is changed.
 
-Canonical role definitions: [Roles and Functionality](ROLES_AND_FUNCTIONALITY.md).
+Canonical role definitions: [Roles and Functionality](../System%20Explanation/ROLES_AND_FUNCTIONALITY.md).
 
 The public root route `/` is the student/parent login page for guests. Authenticated users are redirected by role.
 
@@ -67,7 +67,7 @@ Role access is controlled mostly through route middleware:
 
 ## Setup Dependency Flow
 
-For the room-to-panel relationship, see [Laboratories and Devices](LABORATORIES_AND_DEVICES.md). Create the physical laboratory first, then assign its managed device and device-specific PIN.
+For the room-to-panel relationship, see [Laboratories and Devices](../System%20Explanation/LABORATORIES_AND_DEVICES.md). Create the physical laboratory first, then assign its managed device and device-specific PIN.
 
 The system has important setup dependencies. Creating records in this order prevents missing dropdowns, failed schedule creation, and failed attendance scans.
 
@@ -337,7 +337,7 @@ Routes:
 
 ## Attendance Panel Flow
 
-Canonical reference: [Attendance Control Panel Tapping Rules](ATTENDANCE_CONTROL_PANEL_TAPPING_RULES.md). This section describes the broader flow; the linked file controls exact RFID tapping rules.
+Canonical reference: [Attendance Control Panel Tapping Rules](../System%20Explanation/ATTENDANCE_CONTROL_PANEL_TAPPING_RULES.md). This section describes the broader flow; the linked file controls exact RFID tapping rules.
 
 Page names:
 
@@ -796,7 +796,7 @@ Clinic dashboard sound behavior:
 Clinic dashboard emergency action rules:
 
 - The Emergency Details panel shows only `open` emergency alerts so it behaves as the active clinic response queue.
-- Dispatch requires a selected Clinic responder, updates the alert to `acknowledged`, creates or updates the linked clinic case with that responder as handler, emails the responder the location and available recent student history, refreshes dashboard assignments and counts, and removes the card from the active queue. See [Clinic Dispatch Assignment](CLINIC_DISPATCH.md) for the canonical rules.
+- Dispatch requires a selected Clinic responder, updates the alert to `acknowledged`, creates or updates the linked clinic case with that responder as handler, emails the responder the location and available recent student history, refreshes dashboard assignments and counts, and removes the card from the active queue. See [Clinic Dispatch Assignment](../System%20Explanation/CLINIC_DISPATCH.md) for the canonical rules.
 - Ignore updates the alert to `cancelled`, refreshes dashboard counts, and removes the card from the active queue.
 - The Emergency Types form can add, edit, soft-delete, sort, and activate/deactivate emergency type records used by the attendance panel and clinic flows.
 

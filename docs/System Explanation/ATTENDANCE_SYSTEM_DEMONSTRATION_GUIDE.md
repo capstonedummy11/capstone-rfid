@@ -1,6 +1,6 @@
 # Attendance System: Blank-State Setup and Complete Demonstration Guide
 
-Documentation home: [Documentation Index](DOCUMENTATION_INDEX.md). Demonstration family: [Demonstration Documentation Map](DEMONSTRATION_DOCUMENTATION.md).
+Documentation home: [Documentation Index](../DOCUMENTATION_INDEX.md). Demonstration family: [Demonstration Documentation Map](DEMONSTRATION_DOCUMENTATION.md).
 
 This guide assumes the application and database migrations are already installed, but the database contains only one account: **`root.admin`**. There are no laboratories, strands, sections, subjects, instructors, students, schedules, RFID assignments, face images, emergency types, hotlines, attendance sessions, or reports.
 

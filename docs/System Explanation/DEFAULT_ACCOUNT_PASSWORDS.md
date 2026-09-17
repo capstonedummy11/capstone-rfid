@@ -1,6 +1,6 @@
 # Default Account Passwords
 
-Documentation home: [Documentation Index and Source-of-Truth Map](DOCUMENTATION_INDEX.md).
+Documentation home: [Documentation Index and Source-of-Truth Map](../DOCUMENTATION_INDEX.md).
 
 Login recovery and mandatory first-login behavior are defined in [Authentication and Password Rules](AUTHENTICATION_PASSWORD_RULES.md).
 

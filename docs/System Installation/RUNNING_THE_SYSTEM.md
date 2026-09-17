@@ -1,6 +1,6 @@
 # Running The RFID System (From Zero)
 
-Documentation home: [Documentation Index and Source-of-Truth Map](DOCUMENTATION_INDEX.md).
+Documentation home: [Documentation Index and Source-of-Truth Map](../DOCUMENTATION_INDEX.md).
 
 This guide is for a brand-new machine. Follow the steps in order.
 

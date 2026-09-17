@@ -1,6 +1,6 @@
 # Step-By-Step System Use Tutorial
 
-Documentation home: [Documentation Index and Source-of-Truth Map](DOCUMENTATION_INDEX.md).
+Documentation home: [Documentation Index and Source-of-Truth Map](../DOCUMENTATION_INDEX.md).
 
 This guide explains the practical order for using the system after it is already opened and you can log in. It does not cover software installation, server setup, or deployment.
 

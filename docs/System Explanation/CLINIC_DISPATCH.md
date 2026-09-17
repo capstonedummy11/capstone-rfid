@@ -44,6 +44,6 @@ These development passwords must be changed according to [Authentication and Pas
 ## Related References
 
 - [Roles and Functionality](ROLES_AND_FUNCTIONALITY.md)
-- [System Flow](SYSTEM_FLOW.md)
+- [System Flow](../System%20Architecture/SYSTEM_FLOW.md)
 - [User Operations Tutorial](USER_OPERATIONS_TUTORIAL.md)
 - [Default Account Passwords](DEFAULT_ACCOUNT_PASSWORDS.md)

@@ -1,6 +1,6 @@
 # Full System Demonstration Script
 
-Documentation home: [Documentation Index](DOCUMENTATION_INDEX.md). Demonstration family: [Demonstration Documentation Map](DEMONSTRATION_DOCUMENTATION.md).
+Documentation home: [Documentation Index](../DOCUMENTATION_INDEX.md). Demonstration family: [Demonstration Documentation Map](DEMONSTRATION_DOCUMENTATION.md).
 
 For attendance-panel demonstrations, use [Attendance Control Panel Tapping Rules](ATTENDANCE_CONTROL_PANEL_TAPPING_RULES.md) as the canonical behavior reference.
 

@@ -1,6 +1,6 @@
 # Roles and Functionality
 
-Documentation home: [Documentation Index and Source-of-Truth Map](DOCUMENTATION_INDEX.md).
+Documentation home: [Documentation Index and Source-of-Truth Map](../DOCUMENTATION_INDEX.md).
 
 This is the canonical reference for system roles, their responsibilities, available functionality, and access boundaries.
 
@@ -198,7 +198,7 @@ Dispatch:
 7. Shows the case in the responder's **My Dispatch Assignments** panel.
 8. Records the assignment and sets the case to Monitoring.
 
-The exact assignment and notification rules are defined in [Clinic Dispatch Assignment](CLINIC_DISPATCH.md). 6. Writes an activity log. 7. Removes the alert from the active Open queue.
+The exact assignment and notification rules are defined in [Clinic Dispatch Assignment](CLINIC_DISPATCH.md). Dispatch also writes an activity log and removes the alert from the active Open queue by changing it to Acknowledged.
 
 Dispatch is an internal workflow. It does not automatically call emergency services. Live SMS depends on a configured hotline and working external SMS provider.
 

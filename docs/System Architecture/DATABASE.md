@@ -1,6 +1,6 @@
 # Database Documentation
 
-Documentation home: [Documentation Index and Source-of-Truth Map](DOCUMENTATION_INDEX.md).
+Documentation home: [Documentation Index and Source-of-Truth Map](../DOCUMENTATION_INDEX.md).
 
 This project uses Laravel migrations and seeders to build a MySQL-ready database for the RFID Attendance Monitoring, Borrowing, Inventory, Clinic, Registrar, Online Class, and Student/Parent Portal system.
 
@@ -151,7 +151,7 @@ Panel PIN behavior:
 
 ## Key Relationships
 
-`panel_devices.laboratory_id` links one managed device to one physical laboratory. See [Laboratories and Devices](LABORATORIES_AND_DEVICES.md) for CRUD and operational ownership.
+`panel_devices.laboratory_id` links one managed device to one physical laboratory. See [Laboratories and Devices](../System%20Explanation/LABORATORIES_AND_DEVICES.md) for CRUD and operational ownership.
 
 - `users.role` controls dashboard access and major account behavior.
 - `students.section_id` links students to `sections`.

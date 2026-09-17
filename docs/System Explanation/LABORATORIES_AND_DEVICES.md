@@ -1,6 +1,6 @@
 # Laboratories and Devices
 
-Documentation home: [Documentation Index and Source-of-Truth Map](DOCUMENTATION_INDEX.md).
+Documentation home: [Documentation Index and Source-of-Truth Map](../DOCUMENTATION_INDEX.md).
 
 This is the canonical reference for the relationship between physical laboratories and managed attendance-panel devices.
 

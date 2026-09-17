@@ -1,6 +1,6 @@
 # Page Files and Database Impact Map
 
-Documentation home: [Documentation Index and Source-of-Truth Map](DOCUMENTATION_INDEX.md).
+Documentation home: [Documentation Index and Source-of-Truth Map](../DOCUMENTATION_INDEX.md).
 
 This document maps every Vue page currently present under `resources/js/pages` to the database tables affected by the page's normal backend workflow.
 
@@ -126,8 +126,8 @@ This document maps every Vue page currently present under `resources/js/pages` t
 | Page file                                         | Purpose                                                       | Database effect                                                                                                                                                                                                                      |
 | ------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `resources/js/pages/Clinic/Dashboard.vue`         | Clinic dashboard, emergency queue, dispatch, and assignments. | **Read:** `emergency_alerts`, `emergency_types`, `clinic_cases`, `patient_histories`, `students`, `attendances`, `users`; dispatch/status actions **write:** `emergency_alerts`, `clinic_cases`, `activity_logs`; email is external. |
-| `resources/js/pages/Clinic/CaseLogs.vue`          | Clinic case records.                                          | **Read:** `clinic_cases`, `students`, `users`, `emergency_alerts`; current private notes identify this page as source-backed/read-only for manual CRUD, so no confirmed manual write from the page.                                  |
-| `resources/js/pages/Clinic/PatientHistory.vue`    | Patient-history records.                                      | **Read:** `patient_histories`, `students`, `users`, `clinic_cases`; current private notes identify this page as source-backed/read-only for manual CRUD.                                                                             |
+| `resources/js/pages/Clinic/CaseLogs.vue`          | Clinic case records.                                          | **Read/write:** `clinic_cases`; **read:** `students`, `users`, `emergency_alerts`; **write through Create History:** `patient_histories`; **indirect:** `activity_logs`. The current page provides add/edit forms and a case-to-history action. |
+| `resources/js/pages/Clinic/PatientHistory.vue`    | Patient-history records.                                      | **Read/write/delete:** `patient_histories`; **read:** `students`, `users`, `clinic_cases`; **indirect:** `activity_logs`. The current page provides add/edit/delete forms. |
 | `resources/js/pages/Clinic/EmergencyHotlines.vue` | Emergency hotline management.                                 | **Read/write/delete:** `emergency_hotlines`; **indirect:** `activity_logs`. External SMS configuration/delivery is not a database table.                                                                                             |
 | `resources/js/pages/Clinic/Reports.vue`           | Clinic-specific reports.                                      | **Read:** `clinic_cases`, `patient_histories`, `emergency_alerts`, `emergency_types`, `students`, `users`; exports are read-only.                                                                                                    |
 

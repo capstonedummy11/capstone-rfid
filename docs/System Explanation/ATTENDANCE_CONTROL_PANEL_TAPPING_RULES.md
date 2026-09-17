@@ -1,6 +1,6 @@
 # Attendance Control Panel Tapping Rules
 
-Documentation home: [Documentation Index and Source-of-Truth Map](DOCUMENTATION_INDEX.md).
+Documentation home: [Documentation Index and Source-of-Truth Map](../DOCUMENTATION_INDEX.md).
 
 This is the canonical reference for RFID tapping behavior on the Attendance Control Panel. Other documentation may summarize the flow, but this file controls when descriptions differ.
 

@@ -1,6 +1,6 @@
 # System Flow Demonstration
 
-Documentation home: [Documentation Index](DOCUMENTATION_INDEX.md). Demonstration family: [Demonstration Documentation Map](DEMONSTRATION_DOCUMENTATION.md).
+Documentation home: [Documentation Index](../DOCUMENTATION_INDEX.md). Demonstration family: [Demonstration Documentation Map](DEMONSTRATION_DOCUMENTATION.md).
 
 This document combines the whole-system operating flow from `SYSTEM_FLOW.md` with the blank-state setup and detailed attendance behavior from `ATTENDANCE_SYSTEM_DEMONSTRATION_GUIDE.md`.
 

@@ -1,6 +1,6 @@
 # Academic Year Implementation Impact Map
 
-Documentation home: [Documentation Index and Source-of-Truth Map](DOCUMENTATION_INDEX.md).
+Documentation home: [Documentation Index and Source-of-Truth Map](../DOCUMENTATION_INDEX.md).
 
 This document is the pre-implementation change map for adding safe multi-school-year support. It identifies the affected user-facing page files, backend files, and database tables before any schema or application behavior is changed.
 

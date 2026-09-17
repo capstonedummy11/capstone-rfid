@@ -1,6 +1,6 @@
 # Full System Capabilities Presentation And Demonstration
 
-Documentation home: [Documentation Index](DOCUMENTATION_INDEX.md). Demonstration family: [Demonstration Documentation Map](DEMONSTRATION_DOCUMENTATION.md).
+Documentation home: [Documentation Index](../DOCUMENTATION_INDEX.md). Demonstration family: [Demonstration Documentation Map](DEMONSTRATION_DOCUMENTATION.md).
 
 Attendance-panel statements in this presentation summarize the canonical [Attendance Control Panel Tapping Rules](ATTENDANCE_CONTROL_PANEL_TAPPING_RULES.md).
 

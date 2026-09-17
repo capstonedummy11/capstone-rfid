@@ -1,6 +1,6 @@
 # Academic Year Implementation Plan
 
-Documentation home: [Documentation Index and Source-of-Truth Map](DOCUMENTATION_INDEX.md).
+Documentation home: [Documentation Index and Source-of-Truth Map](../DOCUMENTATION_INDEX.md).
 
 Related planning references:
 
@@ -753,11 +753,11 @@ Each pull request should be deployable with compatibility preserved and should i
 
 Update these canonical documents as behavior becomes real:
 
-- `docs/DATABASE.md`
-- `docs/SYSTEM_FLOW.md`
-- `docs/USER_OPERATIONS_TUTORIAL.md`
-- `docs/ROLES_AND_FUNCTIONALITY.md`
-- `docs/TESTING.md`
+- `docs/System Architecture/DATABASE.md`
+- `docs/System Architecture/SYSTEM_FLOW.md`
+- `docs/System Explanation/USER_OPERATIONS_TUTORIAL.md`
+- `docs/System Explanation/ROLES_AND_FUNCTIONALITY.md`
+- `docs/System Architecture/TESTING.md`
 - `docs/README.md`
 - `docs/DOCUMENTATION_INDEX.md`
 

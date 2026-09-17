@@ -1,144 +1,75 @@
 # Documentation Index
 
-Use this file as the map for the project documentation. It tells you which file to open first, which files are the source of truth, and which files are supporting references.
+## Start here
 
-## Start Here
+| Need | Source of truth |
+| --- | --- |
+| Plain-language system overview | [System Explanation](System%20Explanation/README.md) |
+| Every page, action, condition, and result | [Pages and Features](System%20Explanation/PAGES_AND_FEATURES.md) |
+| Role capabilities and boundaries | [Roles and Functionality](System%20Explanation/ROLES_AND_FUNCTIONALITY.md) |
+| Human operating steps | [User Operations Tutorial](System%20Explanation/USER_OPERATIONS_TUTORIAL.md) |
+| Hidden, automatic, notification, and scheduled behavior | [Automatic and Conditional Behavior](System%20Explanation/AUTOMATIC_AND_CONDITIONAL_BEHAVIOR.md) |
+| Internal architecture and feature data flows | [Architecture and Feature Flows](System%20Architecture/ARCHITECTURE_AND_FEATURE_FLOWS.md) |
+| Routes and endpoints | [Routes and Endpoints](System%20Architecture/ROUTES_AND_ENDPOINTS.md) |
+| Tables, fields, and relationships | [Database Schema Reference](System%20Architecture/DATABASE_SCHEMA_REFERENCE.md) |
+| Install, configure, run, build, and deploy | [System Installation](System%20Installation/README.md) |
+| Tests and release checks | [Testing](System%20Architecture/TESTING.md) |
 
-| Goal                                      | Read this                                                           |
-| ----------------------------------------- | ------------------------------------------------------------------- |
-| Understand the whole project              | [Project README](README.md)                                         |
-| Install and run the system                | [Running the System](RUNNING_THE_SYSTEM.md)                         |
-| Find required software downloads          | [Installation Links](INSTALLATION_LINKS.md)                         |
-| Operate the system step by step           | [User Operations Tutorial](USER_OPERATIONS_TUTORIAL.md)             |
-| Understand system behavior and role flows | [System Flow](SYSTEM_FLOW.md)                                       |
-| Understand academic years and rollover    | [Academic Year and Rollover Guide](ACADEMIC_YEAR_LEVELING_GUIDE.md) |
-| Understand database tables and migrations | [Database Documentation](DATABASE.md)                               |
-| Run tests and regression checks           | [Testing and Regression Guide](TESTING.md)                          |
-| Test data shared across connected pages   | [Cross-Page Workflow Testing](CROSS_PAGE_WORKFLOW_TESTING.md)       |
-| Prepare a capstone demonstration          | [Demonstration Documentation Map](DEMONSTRATION_DOCUMENTATION.md)   |
+## Folder map
 
-## Source of Truth
+### System Explanation
 
-When documents overlap, follow the source-of-truth file in this table.
+- `README.md` — non-technical overview, roles, and setup order.
+- `PAGES_AND_FEATURES.md` — complete active/unwired page catalog using the seven required page questions.
+- `AUTOMATIC_AND_CONDITIONAL_BEHAVIOR.md` — feature flags, automation, background/scheduled work, notifications, and conditional UI.
+- `ROLES_AND_FUNCTIONALITY.md` — detailed role reference.
+- `USER_OPERATIONS_TUTORIAL.md` — step-by-step procedures.
+- `AUTHENTICATION_PASSWORD_RULES.md` and `DEFAULT_ACCOUNT_PASSWORDS.md` — account lifecycle and non-production fixtures.
+- `ACADEMIC_YEAR_LEVELING_GUIDE.md` — academic lifecycle and rollover.
+- `ATTENDANCE_CONTROL_PANEL_TAPPING_RULES.md` — canonical tap-state behavior.
+- `LABORATORIES_AND_DEVICES.md` — room/device/PIN rules.
+- `EMERGENCY_FLOW.md` and `CLINIC_DISPATCH.md` — emergency and Clinic ownership behavior.
+- `ATTENDANCE_SYSTEM_DEMONSTRATION_GUIDE.md`, `SYSTEM_FLOW_DEMONSTRATION.md`, `FULL_SYSTEM_DEMONSTRATION_SCRIPT.md`, `CAPSTONE_PRESENTATION.md`, and `DEMONSTRATION_DOCUMENTATION.md` — presentation/rehearsal material.
 
-| Subject                                   | Source of truth                                                                        | Supporting files                                                     |
-| ----------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| Project scope, roles, routes, limitations | [README.md](README.md)                                                                 | Presentation and analysis docs summarize it                          |
-| End-to-end application behavior           | [SYSTEM_FLOW.md](SYSTEM_FLOW.md)                                                       | Tutorials and demo docs convert it into steps                        |
-| Human operating procedure                 | [USER_OPERATIONS_TUTORIAL.md](USER_OPERATIONS_TUTORIAL.md)                             | Demo scripts use shorter versions                                    |
-| Attendance tapping rules                  | [ATTENDANCE_CONTROL_PANEL_TAPPING_RULES.md](ATTENDANCE_CONTROL_PANEL_TAPPING_RULES.md) | Attendance demo guide rehearses those rules                          |
-| Academic year and rollover behavior       | [ACADEMIC_YEAR_LEVELING_GUIDE.md](ACADEMIC_YEAR_LEVELING_GUIDE.md)                     | Implementation plan and final verification explain build details     |
-| Database schema and relationships         | [DATABASE.md](DATABASE.md)                                                             | Impact maps summarize affected tables                                |
-| Login and password rules                  | [AUTHENTICATION_PASSWORD_RULES.md](AUTHENTICATION_PASSWORD_RULES.md)                   | Default-password doc lists account defaults                          |
-| Role responsibilities                     | [ROLES_AND_FUNCTIONALITY.md](ROLES_AND_FUNCTIONALITY.md)                               | System flow references role behavior                                 |
-| Clinic dispatch rules                     | [CLINIC_DISPATCH.md](CLINIC_DISPATCH.md)                                               | Emergency flow references Clinic response                            |
-| Emergency flow                            | [EMERGENCY_FLOW.md](EMERGENCY_FLOW.md)                                                 | Tutorial and demo docs provide shorter versions                      |
-| Laboratory and device rules               | [LABORATORIES_AND_DEVICES.md](LABORATORIES_AND_DEVICES.md)                             | Attendance docs reference devices                                    |
-| Test commands and expectations            | [TESTING.md](TESTING.md)                                                               | Cross-page workflow testing adds one testing pattern                 |
-| Demonstration structure                   | [DEMONSTRATION_DOCUMENTATION.md](DEMONSTRATION_DOCUMENTATION.md)                       | Full script, system-flow demo, and slides are presentation artifacts |
+### System Architecture
 
-## File Guide
+- `README.md` — technical entry point.
+- `ARCHITECTURE_AND_FEATURE_FLOWS.md` — stack, layers, authentication, services, data flow, external integrations, and known gaps.
+- `ROUTES_AND_ENDPOINTS.md` — HTTP and command surface.
+- `DATABASE_SCHEMA_REFERENCE.md` — final migrated tables, fields, foreign keys, and storage boundary.
+- `DATABASE.md` — migration groups, seeders, attendance data, and compatibility notes.
+- `SYSTEM_FLOW.md` — detailed business/data flow.
+- `PAGE_DATABASE_IMPACT_MAP.md` — page-level read/write impact.
+- `REPOSITORY_ANALYSIS_AND_FLOW_REPORT.md` — evidence-oriented source review.
+- `ACADEMIC_YEAR_IMPLEMENTATION_PLAN.md`, `ACADEMIC_YEAR_IMPLEMENTATION_IMPACT.md`, `ACADEMIC_YEAR_FINAL_VERIFICATION.md`, and `LEGACY_ACADEMIC_DEPENDENCY_AUDIT.md` — academic-year design/history/release notes.
+- `TESTING.md` and `CROSS_PAGE_WORKFLOW_TESTING.md` — verification guidance.
+- `REUSABLE_LANDING_ROUTES.md` — retained reusable-page developer note.
 
-### Core System Docs
+### System Installation
 
-- [README.md](README.md) - High-level project overview, implemented modules, routes, verification, and known limitations.
-- [SYSTEM_FLOW.md](SYSTEM_FLOW.md) - Detailed business flow across authentication, admin setup, attendance, messages, reports, clinic, inventory, and audit behavior.
-- [USER_OPERATIONS_TUTORIAL.md](USER_OPERATIONS_TUTORIAL.md) - Step-by-step operating instructions for administrators, instructors, registrar staff, clinic staff, students, and parents.
-- [ROLES_AND_FUNCTIONALITY.md](ROLES_AND_FUNCTIONALITY.md) - Responsibilities and access boundaries for each role.
-- [REPOSITORY_ANALYSIS_AND_FLOW_REPORT.md](REPOSITORY_ANALYSIS_AND_FLOW_REPORT.md) - Evidence-oriented repository analysis and implementation summary.
+- `README.md` — canonical setup/deployment/operations guide.
+- `RUNNING_THE_SYSTEM.md` — shorter Windows/XAMPP walkthrough.
+- `INSTALLATION_LINKS.md` — official software download entry points.
 
-### Setup and Accounts
+## Source-of-truth order
 
-- [RUNNING_THE_SYSTEM.md](RUNNING_THE_SYSTEM.md) - Environment setup, database setup, development server, production build, and troubleshooting.
-- [INSTALLATION_LINKS.md](INSTALLATION_LINKS.md) - Short list of external installer links.
-- [DEFAULT_ACCOUNT_PASSWORDS.md](DEFAULT_ACCOUNT_PASSWORDS.md) - Default-password rules for seeded and newly created accounts.
-- [AUTHENTICATION_PASSWORD_RULES.md](AUTHENTICATION_PASSWORD_RULES.md) - Login, recovery, first-login password change, and role access rules.
+When text overlaps, use this order:
 
-### Academic Year Docs
+1. Current executable implementation and migrations.
+2. The new canonical page, automation, architecture, route, schema, and installation references listed above.
+3. Specialized behavior guide such as Attendance Tapping or Academic Year Leveling.
+4. Tutorial and demonstration material.
+5. Historical implementation plans and verification notes.
 
-- [ACADEMIC_YEAR_LEVELING_GUIDE.md](ACADEMIC_YEAR_LEVELING_GUIDE.md) - Plain-language guide for academic years, active semester, full academic rollover, semester-only rollover, Grade 12 archiving, section mapping, and what data is not copied.
-- [ACADEMIC_YEAR_IMPLEMENTATION_PLAN.md](ACADEMIC_YEAR_IMPLEMENTATION_PLAN.md) - Technical implementation plan and phased build notes for academic-year support.
-- [ACADEMIC_YEAR_IMPLEMENTATION_IMPACT.md](ACADEMIC_YEAR_IMPLEMENTATION_IMPACT.md) - Impact map for pages, backend files, and database tables affected by academic-year support.
-- [ACADEMIC_YEAR_FINAL_VERIFICATION.md](ACADEMIC_YEAR_FINAL_VERIFICATION.md) - Final reconciliation and release-check notes for academic-year behavior.
-- [LEGACY_ACADEMIC_DEPENDENCY_AUDIT.md](LEGACY_ACADEMIC_DEPENDENCY_AUDIT.md) - Audit of older academic assignment fields and rollback safety.
+Historical plans describe intended phases and may contain statements that were later superseded. They remain useful evidence but are not a substitute for the current architecture and schema references.
 
-### Attendance and Devices
+## Maintenance rule
 
-- [ATTENDANCE_CONTROL_PANEL_TAPPING_RULES.md](ATTENDANCE_CONTROL_PANEL_TAPPING_RULES.md) - Canonical RFID tap-state rules for attendance.
-- [ATTENDANCE_SYSTEM_DEMONSTRATION_GUIDE.md](ATTENDANCE_SYSTEM_DEMONSTRATION_GUIDE.md) - Longer rehearsal guide for demonstrating attendance behavior.
-- [LABORATORIES_AND_DEVICES.md](LABORATORIES_AND_DEVICES.md) - Laboratory, device, PIN, ownership, and disable rules.
+When code changes:
 
-### Clinic and Emergency
-
-- [CLINIC_DISPATCH.md](CLINIC_DISPATCH.md) - Clinic responder assignment, notification, and case ownership rules.
-- [EMERGENCY_FLOW.md](EMERGENCY_FLOW.md) - Emergency panel flow, hotline behavior, Clinic Case lifecycle, timers, and status charts.
-
-### Database and Impact Maps
-
-- [DATABASE.md](DATABASE.md) - Database setup commands, migration groups, relationships, seeders, and caveats.
-- [PAGE_DATABASE_IMPACT_MAP.md](PAGE_DATABASE_IMPACT_MAP.md) - Page-by-page database read/write/delete impact map.
-
-### Testing
-
-- [TESTING.md](TESTING.md) - Test commands, regression expectations, and troubleshooting.
-- [CROSS_PAGE_WORKFLOW_TESTING.md](CROSS_PAGE_WORKFLOW_TESTING.md) - How to test data created on one page and reused on another page.
-
-### Demonstration and Presentation
-
-- [DEMONSTRATION_DOCUMENTATION.md](DEMONSTRATION_DOCUMENTATION.md) - Map of all demo and presentation files.
-- [FULL_SYSTEM_DEMONSTRATION_SCRIPT.md](FULL_SYSTEM_DEMONSTRATION_SCRIPT.md) - Concise live-demo script.
-- [SYSTEM_FLOW_DEMONSTRATION.md](SYSTEM_FLOW_DEMONSTRATION.md) - Detailed presenter actions, expected results, and recovery guidance.
-- [CAPSTONE_PRESENTATION.md](CAPSTONE_PRESENTATION.md) - Slide-by-slide capstone presentation outline.
-- `capstone-rfid-system-presentation.pptx` - Rendered presentation artifact. Keep it aligned with the Markdown presentation and canonical docs.
-
-### Smaller Technical References
-
-- [REUSABLE_LANDING_ROUTES.md](REUSABLE_LANDING_ROUTES.md) - Developer reference for reusable landing-page routes and components.
-
-## Recommended Reading Paths
-
-### New Developer
-
-1. [README.md](README.md)
-2. [RUNNING_THE_SYSTEM.md](RUNNING_THE_SYSTEM.md)
-3. [SYSTEM_FLOW.md](SYSTEM_FLOW.md)
-4. [DATABASE.md](DATABASE.md)
-5. The source-of-truth file for the feature being changed
-
-### System Operator
-
-1. [USER_OPERATIONS_TUTORIAL.md](USER_OPERATIONS_TUTORIAL.md)
-2. [ATTENDANCE_CONTROL_PANEL_TAPPING_RULES.md](ATTENDANCE_CONTROL_PANEL_TAPPING_RULES.md), if operating attendance
-3. [ACADEMIC_YEAR_LEVELING_GUIDE.md](ACADEMIC_YEAR_LEVELING_GUIDE.md), if managing school years or rollover
-4. [DEFAULT_ACCOUNT_PASSWORDS.md](DEFAULT_ACCOUNT_PASSWORDS.md), if provisioning accounts
-
-### Capstone Presenter
-
-1. [DEMONSTRATION_DOCUMENTATION.md](DEMONSTRATION_DOCUMENTATION.md)
-2. [CAPSTONE_PRESENTATION.md](CAPSTONE_PRESENTATION.md)
-3. [FULL_SYSTEM_DEMONSTRATION_SCRIPT.md](FULL_SYSTEM_DEMONSTRATION_SCRIPT.md)
-4. [SYSTEM_FLOW_DEMONSTRATION.md](SYSTEM_FLOW_DEMONSTRATION.md)
-5. [ATTENDANCE_CONTROL_PANEL_TAPPING_RULES.md](ATTENDANCE_CONTROL_PANEL_TAPPING_RULES.md)
-
-### Evaluator or Auditor
-
-1. [README.md](README.md)
-2. [REPOSITORY_ANALYSIS_AND_FLOW_REPORT.md](REPOSITORY_ANALYSIS_AND_FLOW_REPORT.md)
-3. [SYSTEM_FLOW.md](SYSTEM_FLOW.md)
-4. [DATABASE.md](DATABASE.md)
-5. [ACADEMIC_YEAR_FINAL_VERIFICATION.md](ACADEMIC_YEAR_FINAL_VERIFICATION.md)
-
-## Combined or Removed Docs
-
-- `ACADEMIC_ROLLOVER_EXPLANATION.md` was merged into [ACADEMIC_YEAR_LEVELING_GUIDE.md](ACADEMIC_YEAR_LEVELING_GUIDE.md) so academic-year and rollover behavior has one readable guide.
-
-## Maintenance Rule
-
-When a feature changes:
-
-1. Update the source-of-truth document first.
-2. Update [README.md](README.md) if scope, routes, roles, setup, or limitations changed.
-3. Update [USER_OPERATIONS_TUTORIAL.md](USER_OPERATIONS_TUTORIAL.md) if user steps changed.
-4. Update [SYSTEM_FLOW.md](SYSTEM_FLOW.md) if business logic or data movement changed.
-5. Update demo files only when the visible demonstration changes.
-6. Update this index when a document is added, removed, renamed, or combined.
+1. Update the page catalog for visible behavior/access/action changes.
+2. Update automatic behavior for jobs, notifications, statuses, feature switches, or hidden conditions.
+3. Update architecture/routes/schema for controller, service, endpoint, migration, relationship, or integration changes.
+4. Update installation for dependencies, environment variables, workers, scheduler, storage, or deployment changes.
+5. Update specialized tutorials/demonstrations only when their workflow changes.
+6. Run the Markdown link checker described in the testing guide.

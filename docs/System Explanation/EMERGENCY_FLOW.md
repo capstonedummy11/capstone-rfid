@@ -1,6 +1,6 @@
 # Emergency Alert and Clinic Response Flow
 
-Documentation home: [Documentation Index and Source-of-Truth Map](DOCUMENTATION_INDEX.md).
+Documentation home: [Documentation Index and Source-of-Truth Map](../DOCUMENTATION_INDEX.md).
 
 This is the canonical reference for emergency alerts sent from the Attendance Control Panel and handled by Clinic. For responder assignment and notification details, also see [Clinic Dispatch Assignment](CLINIC_DISPATCH.md).
 
