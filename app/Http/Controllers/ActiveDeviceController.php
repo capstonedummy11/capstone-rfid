@@ -172,7 +172,7 @@ class ActiveDeviceController
             $isOpen = $session && ! $session->ended_at && $status !== 'offline';
             $isActive = $isOpen && in_array($status, ['attendance', 'borrowing'], true);
             $isWaiting = $isOpen && in_array($status, ['online', 'paused'], true);
-            $schedule = $session->schedule;
+            $schedule = $session?->schedule;
 
             return [
                 'panel_device_id' => $device->panel_device_id,

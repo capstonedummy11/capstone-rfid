@@ -7,7 +7,7 @@ This is the canonical guide for running automated tests and verifying the applic
 - `npm run build`: passed; Vite compiled all 2,480 modules and Wayfinder generated route/action types.
 - Full migration chain: passed against a clean temporary SQLite database through all migrations, including the 2026-09-08 Parent settings migrations.
 - `php artisan route:list --except-vendor --json`: passed with the compatible PHP 8.5.8 executable.
-- `php artisan test --compact`: passed with **160 tests and 1,554 assertions**. The suite includes editable rollover Section/Subject Offering selection through the HTTP preview/execute routes, academic-year Student placement, attendance session completion, report filtering, Parent Portal, Parent excuse-letter, and System Settings contracts.
+- `php artisan test --compact`: passed with **161 tests and 1,574 assertions**. The suite includes null-session-safe Laboratories/Devices pages, editable rollover Section/Subject Offering selection through the HTTP preview/execute routes, academic-year Student placement, attendance session completion, report filtering, Parent Portal, Parent excuse-letter, and System Settings contracts.
 
 ## Requirements
 
