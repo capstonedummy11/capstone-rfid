@@ -41,7 +41,7 @@ class AcademicYearRolloverService
                 'section_name' => $section->section_name,
                 'year_level' => $section->year_level,
                 'semester' => $section->semester,
-                'will_rollover' => ! $transition['advance_grade'] || (int) $section->year_level === 11,
+                'will_rollover' => true,
             ])
             ->values();
         $sourceOfferings = DB::table('subject_offerings as offerings')
@@ -75,7 +75,7 @@ class AcademicYearRolloverService
                 'source_section_name' => $offering->source_section_name,
                 'source_year_level' => $offering->source_year_level,
                 'semester' => $offering->semester,
-                'will_rollover' => ! $transition['advance_grade'] || (int) $offering->source_year_level === 11,
+                'will_rollover' => true,
             ])
             ->values();
 
@@ -137,27 +137,21 @@ class AcademicYearRolloverService
             foreach ($preview['items'] as $previewItem) {
                 $choice = collect($decisions)->firstWhere('source_student_enrollment_id', $previewItem['source_student_enrollment_id']);
                 $decision = $choice['decision'] ?? $previewItem['recommended_decision'];
-                $selectedSourceSectionId = $choice['destination_source_section_id'] ?? null;
-                if ($selectedSourceSectionId !== null && ! array_key_exists((int) $selectedSourceSectionId, $sectionMap)) {
-                    throw ValidationException::withMessages([
-                        'decisions' => 'A student destination must reference a section selected for rollover.',
-                    ]);
-                }
-                $destinationSectionId = $selectedSourceSectionId !== null
-                    ? $sectionMap[(int) $selectedSourceSectionId]
-                    : ($choice['destination_section_id'] ?? ($sectionMap[$previewItem['source_section_id']] ?? null));
-                $sourceSectionIncluded = collect($sectionMappings)->contains(
-                    fn (array $mapping) => (int) $mapping['source_section_id'] === (int) $previewItem['source_section_id']
-                        && (bool) ($mapping['include'] ?? true)
-                );
+                $destinationSectionId = null;
                 $destinationEnrollmentId = null;
                 $status = 'skipped';
                 $message = null;
 
-                if (in_array($decision, ['promote', 'retain'], true) && ! $sourceSectionIncluded) {
-                    $message = 'Source section was not selected for rollover.';
-                    $counts['skipped']++;
-                } elseif (in_array($decision, ['promote', 'retain'], true)) {
+                if (in_array($decision, ['promote', 'retain'], true)) {
+                    $selectedSourceSectionId = $choice['destination_source_section_id'] ?? null;
+                    if ($selectedSourceSectionId !== null && ! array_key_exists((int) $selectedSourceSectionId, $sectionMap)) {
+                        throw ValidationException::withMessages([
+                            'decisions' => 'A student destination must reference a section selected for rollover.',
+                        ]);
+                    }
+                    $destinationSectionId = $selectedSourceSectionId !== null
+                        ? $sectionMap[(int) $selectedSourceSectionId]
+                        : ($choice['destination_section_id'] ?? ($sectionMap[$previewItem['source_section_id']] ?? null));
                     if (! $destinationSectionId) {
                         throw ValidationException::withMessages(['rollover' => "Destination section is required for student {$previewItem['student_id']}."]);
                     }
@@ -231,8 +225,13 @@ class AcademicYearRolloverService
                 continue;
             }
             $destinationId = $mapping['destination_section_id'] ?? null;
+            $destinationYearLevel = (int) $sourceSection->year_level;
+            if (isset($mapping['destination_year_level']) && (int) $mapping['destination_year_level'] !== $destinationYearLevel) {
+                throw ValidationException::withMessages([
+                    'section_mappings' => 'A rolled-over section must keep its source grade level.',
+                ]);
+            }
             if (! $destinationId && ! empty($mapping['destination_name'])) {
-                $destinationYearLevel = (int) ($mapping['destination_year_level'] ?? ($transition['advance_grade'] && (int) $sourceSection->year_level === 11 ? 12 : $sourceSection->year_level));
                 $destinationId = DB::table('sections')->where('academic_year_id', $destination->academic_year_id)->where('section_name', $mapping['destination_name'])->where('semester', $transition['destination_semester'])->value('section_id');
                 $destinationId ??= DB::table('sections')->insertGetId([
                     'academic_year_id' => $destination->academic_year_id, 'strand_id' => $sourceSection->strand_id,
@@ -242,8 +241,7 @@ class AcademicYearRolloverService
             }
             if ($destinationId) {
                 $destinationSection = DB::table('sections')->where('section_id', $destinationId)->where('academic_year_id', $destination->academic_year_id)->first();
-                $expectedYearLevel = (int) ($mapping['destination_year_level'] ?? ($transition['advance_grade'] && (int) $sourceSection->year_level === 11 ? 12 : $sourceSection->year_level));
-                if (! $destinationSection || $destinationSection->semester !== $transition['destination_semester'] || (int) $destinationSection->year_level !== $expectedYearLevel) {
+                if (! $destinationSection || $destinationSection->semester !== $transition['destination_semester'] || (int) $destinationSection->year_level !== $destinationYearLevel) {
                     throw ValidationException::withMessages(['rollover' => 'Every destination section must use the destination semester and selected grade level.']);
                 }
                 $map[$sourceSection->section_id] = (int) $destinationId;

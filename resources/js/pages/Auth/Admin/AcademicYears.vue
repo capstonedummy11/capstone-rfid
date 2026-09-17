@@ -123,9 +123,7 @@ const loadPreview = async () => {
             include: Boolean(section.will_rollover),
             destination_section_id: '',
             destination_name: section.section_name,
-            destination_year_level: data.transition.advance_grade
-                ? 12
-                : Number(section.year_level),
+            destination_year_level: Number(section.year_level),
         }));
         subjectSelections.value = data.source_offerings.map((offering) => ({
             ...offering,
@@ -136,7 +134,10 @@ const loadPreview = async () => {
                 item.source_student_enrollment_id,
                 {
                     decision: item.recommended_decision,
-                    destination_choice: '',
+                    destination_choice: defaultDestinationChoice(
+                        item,
+                        item.recommended_decision,
+                    ),
                 },
             ]),
         );
@@ -159,6 +160,21 @@ const executeRollover = async () => {
         return Swal.fire(
             'Mapping required',
             'Select or name a destination for every copied section.',
+            'error',
+        );
+    const missingStudentDestination = preview.value.items.some((item) => {
+        const studentDecision =
+            studentDecisions.value[item.source_student_enrollment_id];
+
+        return (
+            ['promote', 'retain'].includes(studentDecision?.decision) &&
+            !studentDecision?.destination_choice
+        );
+    });
+    if (missingStudentDestination)
+        return Swal.fire(
+            'Student destination required',
+            'Select a destination section for every promoted or retained student.',
             'error',
         );
     const result = await Swal.fire({
@@ -219,10 +235,6 @@ const studentsForSection = (mapping) =>
 const openSectionStudents = (mapping) => {
     selectedSectionStudents.value = mapping;
 };
-const isArchivedSectionMapping = (mapping) =>
-    rolloverMode.value === 'year' &&
-    preview.value?.transition?.advance_grade &&
-    Number(mapping.source_year_level) === 12;
 const destinationSectionsForMapping = (mapping) =>
     preview.value?.destination_sections?.filter(
         (section) =>
@@ -246,8 +258,9 @@ const sourceSectionIdFromChoice = (choice) => {
 
     return Number(choice.slice('rollover:'.length));
 };
-const requiredDestinationYearLevel = (item) =>
-    studentDecisions.value[item.source_student_enrollment_id]?.decision ===
+const requiredDestinationYearLevel = (item, decision = null) =>
+    (decision ??
+        studentDecisions.value[item.source_student_enrollment_id]?.decision) ===
     'promote'
         ? 12
         : Number(item.year_level);
@@ -256,15 +269,44 @@ const selectedRolloverSectionsForStudent = (item) =>
         (mapping) =>
             mapping.include &&
             Number(mapping.destination_year_level) ===
-                requiredDestinationYearLevel(item) &&
-            Number(mapping.source_section_id) !==
-                Number(item.source_section_id),
+                requiredDestinationYearLevel(item),
     );
 const existingDestinationSectionsForStudent = (item) =>
     preview.value?.destination_sections?.filter(
         (section) =>
             Number(section.year_level) === requiredDestinationYearLevel(item),
     ) ?? [];
+const defaultDestinationChoice = (item, decision) => {
+    if (!['promote', 'retain'].includes(decision)) return '';
+
+    const requiredYearLevel = requiredDestinationYearLevel(item, decision);
+    const eligibleMappings = sectionMappings.value.filter(
+        (mapping) =>
+            mapping.include &&
+            Number(mapping.destination_year_level) === requiredYearLevel,
+    );
+    const ownMapping = eligibleMappings.find(
+        (mapping) =>
+            Number(mapping.source_section_id) ===
+            Number(item.source_section_id),
+    );
+    const defaultMapping =
+        decision === 'retain' && ownMapping
+            ? ownMapping
+            : eligibleMappings.length === 1
+              ? eligibleMappings[0]
+              : null;
+
+    return defaultMapping ? `rollover:${defaultMapping.source_section_id}` : '';
+};
+const resetStudentDestinationForDecision = (item) => {
+    const studentDecision =
+        studentDecisions.value[item.source_student_enrollment_id];
+    studentDecision.destination_choice = defaultDestinationChoice(
+        item,
+        studentDecision.decision,
+    );
+};
 const clearStudentSelectionsForMapping = (mapping) => {
     if (mapping.include) return;
 
@@ -309,25 +351,6 @@ const subjectDestinationLabel = (subject) => {
         );
     }
     return mapping.destination_name || 'New destination section';
-};
-const mappedSectionLabelForStudent = (item) => {
-    const mapping = sectionMappings.value.find(
-        (candidate) =>
-            Number(candidate.source_section_id) ===
-            Number(item.source_section_id),
-    );
-    if (!mapping?.include) return 'No destination - section excluded';
-    if (mapping.destination_section_id) {
-        const section = preview.value?.destination_sections?.find(
-            (candidate) =>
-                Number(candidate.section_id) ===
-                Number(mapping.destination_section_id),
-        );
-        return section
-            ? `${section.section_name} - Grade ${section.year_level}`
-            : 'Selected destination section';
-    }
-    return `${mapping.destination_name} - Grade ${mapping.destination_year_level}`;
 };
 const selectedSubjectCount = computed(
     () =>
@@ -770,11 +793,7 @@ watch(
                                         v-if="!mapping.include"
                                         class="mt-3 rounded-md bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600"
                                     >
-                                        {{
-                                            isArchivedSectionMapping(mapping)
-                                                ? 'Archived / graduated - no destination section'
-                                                : 'Excluded from rollover - no destination section'
-                                        }}
+                                        Section definition not copied
                                     </div>
 
                                     <div
@@ -831,22 +850,12 @@ watch(
                                             {{ mapping.destination_name }}
                                         </div>
 
-                                        <select
-                                            v-model="
-                                                mapping.destination_year_level
-                                            "
-                                            :disabled="
-                                                rolloverMode === 'semester'
-                                            "
-                                            class="rounded-md border-slate-300 text-sm disabled:bg-slate-100"
+                                        <div
+                                            class="rounded-md bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700"
                                         >
-                                            <option :value="11">
-                                                Grade 11
-                                            </option>
-                                            <option :value="12">
-                                                Grade 12
-                                            </option>
-                                        </select>
+                                            Grade
+                                            {{ mapping.destination_year_level }}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -890,8 +899,9 @@ watch(
                                     Destination Sections
                                 </h4>
                                 <p class="mb-3 text-xs text-slate-500">
-                                    Select an existing destination Section or
-                                    edit the name and grade of a new Section.
+                                    Copy each selected Sections-table row with
+                                    the same grade, or map it to an existing
+                                    destination Section of that grade.
                                 </p>
                                 <div class="space-y-2">
                                     <div
@@ -918,10 +928,11 @@ watch(
                                             <div
                                                 class="rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-600 lg:col-span-3"
                                             >
-                                                Not copied. Students in this
-                                                section will not receive an
-                                                automatic destination
-                                                enrollment.
+                                                Section row and its Subject
+                                                Offerings are not copied.
+                                                Students can still be assigned
+                                                independently to another
+                                                destination Section.
                                             </div>
                                         </template>
                                         <template v-else>
@@ -962,22 +973,14 @@ watch(
                                                 class="rounded-md border-slate-300 text-sm disabled:bg-slate-100"
                                                 placeholder="Destination Section name"
                                             />
-                                            <select
-                                                v-model="
-                                                    mapping.destination_year_level
-                                                "
-                                                :disabled="
-                                                    rolloverMode === 'semester'
-                                                "
-                                                class="rounded-md border-slate-300 text-sm disabled:bg-slate-100"
+                                            <div
+                                                class="rounded-md bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700"
                                             >
-                                                <option :value="11">
-                                                    Grade 11
-                                                </option>
-                                                <option :value="12">
-                                                    Grade 12
-                                                </option>
-                                            </select>
+                                                Grade
+                                                {{
+                                                    mapping.destination_year_level
+                                                }}
+                                            </div>
                                         </template>
                                     </div>
                                 </div>
@@ -1197,6 +1200,11 @@ watch(
                                                         ].decision
                                                     "
                                                     class="rounded-md border-slate-300 text-sm"
+                                                    @change="
+                                                        resetStudentDestinationForDecision(
+                                                            item,
+                                                        )
+                                                    "
                                                 >
                                                     <option value="promote">
                                                         Promote
@@ -1232,20 +1240,16 @@ watch(
                                                                 .source_student_enrollment_id
                                                         ].destination_choice
                                                     "
-                                                    :disabled="
-                                                        !isSectionIncluded(
-                                                            item.source_section_id,
-                                                        )
-                                                    "
                                                     class="w-full rounded-md border-slate-300 text-sm"
                                                 >
                                                     <option value="">
-                                                        Use mapped section:
+                                                        Select a Grade
                                                         {{
-                                                            mappedSectionLabelForStudent(
+                                                            requiredDestinationYearLevel(
                                                                 item,
                                                             )
                                                         }}
+                                                        destination section
                                                     </option>
                                                     <optgroup
                                                         v-if="

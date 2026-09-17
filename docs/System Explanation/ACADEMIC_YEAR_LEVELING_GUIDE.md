@@ -106,7 +106,7 @@ Only enrollments from the source current semester are processed. Dropped, transf
 5. Select the destination academic year for full academic rollover.
 6. Click **Preview**.
 7. Click **Review and edit sections & subjects**.
-8. Keep each selected source Section mapped to an existing compatible destination Section, or recreate it with the reviewed name and destination grade. Clear the Section checkbox when it must not roll over.
+8. Select the Sections-table rows to recreate in the destination year. Each recreated Section keeps its source name and grade, or can reuse an existing compatible destination Section.
 9. Review the Subject Offerings and clear any offering that should not continue into the destination semester.
 10. Confirm Grade 12 students that should be archived.
 11. Save the preview changes and execute the reviewed academic rollover.
@@ -128,18 +128,19 @@ The preview shows:
 
 For Grade 12 during full academic rollover, the preview shows that the student is archived unless the admin changes the decision.
 
-## Why Sections Are Mapped
+## Section Definitions and Student Placement
 
-Sections are mapped because the source section and destination section are not always the same.
+Section rollover copies academic structure; it does not promote a whole class. A selected source Section is recreated in the destination academic year with the same name, grade, and semester, or mapped to an existing compatible destination Section.
 
 For example:
 
-- Grade 11 ICT-A may become Grade 12 ICT-A.
-- Grade 11 ICT-B may become Grade 12 ICT-B.
+- Grade 11 ICT-A can be recreated as Grade 11 ICT-A in the destination year.
+- Grade 12 ICT-A can be recreated as Grade 12 ICT-A in the destination year.
+- A promoted Grade 11 student can be placed in the recreated Grade 12 ICT-A Section.
 - A student may need to be retained in the same grade level.
 - A draft destination year may already have sections created.
 
-The map tells the system exactly where each promoted or retained student should be enrolled. Each student uses the mapped Section automatically; a per-student override is needed only for an exception. If the source Section is not selected, the system does not create an automatic destination enrollment for its students.
+The Section checkbox controls whether that Sections-table row and its selected Subject Offerings are copied. It does not move or block the source Section's students as a group. Each promoted or retained student receives an explicit destination Section selected from the Sections chosen for rollover or from Sections that already exist in the destination year.
 
 ## Grade 12 Archive Rule
 
@@ -147,7 +148,7 @@ During full academic rollover, Grade 12 students have no normal next grade level
 
 Because of that:
 
-- Grade 12 sections do not require a destination section.
+- Grade 12 Section definitions may still be copied for the incoming Grade 11 cohort.
 - Grade 12 students are marked as archived or graduated by default.
 - The UI should display them as archived instead of asking for a destination section.
 
