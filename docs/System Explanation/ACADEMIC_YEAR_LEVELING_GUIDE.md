@@ -8,7 +8,7 @@ Use this document when you need to understand what **Academic Rollover** does, w
 
 Academic Rollover moves student placement forward without copying historical teaching or attendance records.
 
-- **Full academic rollover** moves completed 2nd Semester records into 1st Semester of the next academic year.
+- **Full academic rollover** recreates selected Sections and Subject Offerings in the next academic year while preserving their semester.
 - **Semester-only rollover** moves 1st Semester records into 2nd Semester inside the same academic year.
 - Grade 11 students move to Grade 12 during full academic rollover.
 - Grade 12 students are archived as graduated by default during full academic rollover.
@@ -35,7 +35,7 @@ Only one academic year should be active for normal daily operations.
 
 Each academic year can have an active semester.
 
-The active semester helps pages default to the correct current context. On the Academic Years page, the admin can change the active semester for the active academic year.
+The active semester helps pages default to the correct current context. On the Academic Years page, the admin can change the active semester for the active academic year. Rollover never changes this field automatically.
 
 Active semester is not the same as rollover:
 
@@ -56,7 +56,7 @@ Use full academic rollover when the school year is finished and students need to
 
 Current behavior:
 
-- Source 2nd Semester moves to destination 1st Semester.
+- The selected source semester remains the same in the destination academic year.
 - Grade 11 students move to Grade 12 unless retained.
 - Grade 12 students are archived as graduated by default.
 - Grade 12 students do not need a destination section unless the admin changes the decision to retain or review.
@@ -66,7 +66,7 @@ Example:
 
 | Source                            | Destination                       |
 | --------------------------------- | --------------------------------- |
-| 2026-2027, Grade 11, 2nd Semester | 2027-2028, Grade 12, 1st Semester |
+| 2026-2027, Grade 11, 2nd Semester | 2027-2028, Grade 12, 2nd Semester |
 | 2026-2027, Grade 12, 2nd Semester | Archived as graduated             |
 
 ### Semester-Only Rollover
@@ -95,7 +95,7 @@ Only enrollments from the source current semester are processed. Dropped, transf
 | Rollover type     | Destination semester                 | Student level                              | Grade 12                                                |
 | ----------------- | ------------------------------------ | ------------------------------------------ | ------------------------------------------------------- |
 | Semester-only     | 2nd Semester                         | Remains in the same grade                  | Remains enrolled for 2nd Semester                       |
-| Academic rollover | 1st Semester of the destination year | Grade 11 becomes Grade 12, unless retained | Graduated by default; may be retained or sent to review |
+| Academic rollover | Same semester in the destination year | Grade 11 becomes Grade 12, unless retained | Graduated by default; may be retained or sent to review |
 
 ## How the Admin Uses Rollover
 
@@ -106,7 +106,7 @@ Only enrollments from the source current semester are processed. Dropped, transf
 5. Select the destination academic year for full academic rollover.
 6. Click **Preview**.
 7. Click **Review and edit sections & subjects**.
-8. Map each source Section to an existing destination Section, or edit the name and grade of a new destination Section.
+8. Keep each selected source Section mapped to an existing compatible destination Section, or recreate it with the reviewed name and destination grade. Clear the Section checkbox when it must not roll over.
 9. Review the Subject Offerings and clear any offering that should not continue into the destination semester.
 10. Confirm Grade 12 students that should be archived.
 11. Save the preview changes and execute the reviewed academic rollover.
@@ -139,7 +139,7 @@ For example:
 - A student may need to be retained in the same grade level.
 - A draft destination year may already have sections created.
 
-The map tells the system exactly where each promoted or retained student should be enrolled.
+The map tells the system exactly where each promoted or retained student should be enrolled. Each student uses the mapped Section automatically; a per-student override is needed only for an exception. If the source Section is not selected, the system does not create an automatic destination enrollment for its students.
 
 ## Grade 12 Archive Rule
 

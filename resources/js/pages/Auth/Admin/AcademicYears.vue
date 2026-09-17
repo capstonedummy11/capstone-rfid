@@ -120,9 +120,9 @@ const loadPreview = async () => {
             source_section_id: section.section_id,
             source_label: `${section.section_name} · Grade ${section.year_level} · ${section.semester}`,
             source_year_level: Number(section.year_level),
+            include: Boolean(section.will_rollover),
             destination_section_id: '',
-            destination_name:
-                rolloverMode.value === 'semester' ? section.section_name : '',
+            destination_name: section.section_name,
             destination_year_level: data.transition.advance_grade
                 ? 12
                 : Number(section.year_level),
@@ -151,7 +151,7 @@ const loadPreview = async () => {
 const executeRollover = async () => {
     const invalid = sectionMappings.value.some(
         (mapping) =>
-            !isArchivedSectionMapping(mapping) &&
+            mapping.include &&
             !mapping.destination_section_id &&
             !mapping.destination_name.trim(),
     );
@@ -187,7 +187,9 @@ const executeRollover = async () => {
             source_subject_offering_id: Number(
                 selection.source_subject_offering_id,
             ),
-            include: Boolean(selection.include),
+            include:
+                Boolean(selection.include) &&
+                isSectionIncluded(selection.source_section_id),
         })),
         decisions: preview.value.items.map((item) => ({
             source_student_enrollment_id: item.source_student_enrollment_id,
@@ -227,6 +229,13 @@ const destinationSectionsForMapping = (mapping) =>
             String(section.year_level) ===
             String(mapping.destination_year_level),
     ) ?? [];
+const isSectionIncluded = (sourceSectionId) =>
+    Boolean(
+        sectionMappings.value.find(
+            (mapping) =>
+                Number(mapping.source_section_id) === Number(sourceSectionId),
+        )?.include,
+    );
 const sectionMappingForSubject = (subject) =>
     sectionMappings.value.find(
         (mapping) =>
@@ -236,7 +245,7 @@ const sectionMappingForSubject = (subject) =>
 const subjectDestinationLabel = (subject) => {
     if (!subject.include) return 'Excluded from rollover';
     const mapping = sectionMappingForSubject(subject);
-    if (!mapping || isArchivedSectionMapping(mapping)) return 'Not included';
+    if (!mapping?.include) return 'Section excluded from rollover';
     if (mapping.destination_section_id) {
         return (
             preview.value?.destination_sections?.find(
@@ -248,8 +257,31 @@ const subjectDestinationLabel = (subject) => {
     }
     return mapping.destination_name || 'New destination section';
 };
+const mappedSectionLabelForStudent = (item) => {
+    const mapping = sectionMappings.value.find(
+        (candidate) =>
+            Number(candidate.source_section_id) ===
+            Number(item.source_section_id),
+    );
+    if (!mapping?.include) return 'No destination - section excluded';
+    if (mapping.destination_section_id) {
+        const section = preview.value?.destination_sections?.find(
+            (candidate) =>
+                Number(candidate.section_id) ===
+                Number(mapping.destination_section_id),
+        );
+        return section
+            ? `${section.section_name} - Grade ${section.year_level}`
+            : 'Selected destination section';
+    }
+    return `${mapping.destination_name} - Grade ${mapping.destination_year_level}`;
+};
 const selectedSubjectCount = computed(
-    () => subjectSelections.value.filter((subject) => subject.include).length,
+    () =>
+        subjectSelections.value.filter(
+            (subject) =>
+                subject.include && isSectionIncluded(subject.source_section_id),
+        ).length,
 );
 const isArchivedStudent = (item) =>
     rolloverMode.value === 'year' &&
@@ -364,9 +396,10 @@ watch(
                         activating it.
                     </p>
                     <p>
-                        Academic rollover moves 2nd Semester records into 1st
-                        Semester of the destination year. Grade 11 students move
-                        to Grade 12, while Grade 12 students are archived unless
+                        Academic rollover recreates selected Sections and
+                        Subject Offerings in the destination year while
+                        preserving their semester. Grade 11 students move to
+                        Grade 12, while Grade 12 students are archived unless
                         you review or retain them.
                     </p>
                     <p>
@@ -666,20 +699,31 @@ watch(
                             :key="mapping.source_section_id"
                             class="grid gap-2 rounded-lg border border-slate-200 p-3 lg:grid-cols-[1.2fr_1fr_1fr_120px]"
                         >
-                            <button
-                                type="button"
-                                class="text-left text-sm font-semibold text-blue-700 hover:text-blue-900 hover:underline"
-                                @click="openSectionStudents(mapping)"
-                            >
-                                {{ mapping.source_label }} ·
-                                {{ studentsForSection(mapping).length }}
-                                students
-                            </button>
+                            <div class="flex items-center gap-2">
+                                <input
+                                    v-model="mapping.include"
+                                    type="checkbox"
+                                    class="rounded border-slate-300 text-blue-600"
+                                />
+                                <button
+                                    type="button"
+                                    class="text-left text-sm font-semibold text-blue-700 hover:text-blue-900 hover:underline"
+                                    @click="openSectionStudents(mapping)"
+                                >
+                                    {{ mapping.source_label }} ·
+                                    {{ studentsForSection(mapping).length }}
+                                    students
+                                </button>
+                            </div>
                             <div
-                                v-if="isArchivedSectionMapping(mapping)"
+                                v-if="!mapping.include"
                                 class="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700"
                             >
-                                Archived / graduated
+                                {{
+                                    isArchivedSectionMapping(mapping)
+                                        ? 'Archived / graduated'
+                                        : 'Excluded from rollover'
+                                }}
                             </div>
                             <div
                                 v-else-if="rolloverMode === 'semester'"
@@ -708,7 +752,7 @@ watch(
                                 </option>
                             </select>
                             <div
-                                v-if="isArchivedSectionMapping(mapping)"
+                                v-if="!mapping.include"
                                 class="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-500"
                             >
                                 No destination section
@@ -729,10 +773,10 @@ watch(
                                 {{ mapping.destination_name }}
                             </div>
                             <div
-                                v-if="isArchivedSectionMapping(mapping)"
+                                v-if="!mapping.include"
                                 class="rounded-md bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600"
                             >
-                                Archived
+                                Not selected
                             </div>
                             <select
                                 v-else
@@ -792,23 +836,24 @@ watch(
                                         :key="`review-section-${mapping.source_section_id}`"
                                         class="grid gap-2 rounded-lg border border-slate-200 p-3 lg:grid-cols-[1.2fr_1fr_1fr_120px]"
                                     >
-                                        <div
-                                            class="text-sm font-semibold text-slate-800"
+                                        <label
+                                            class="flex items-center gap-2 text-sm font-semibold text-slate-800"
                                         >
+                                            <input
+                                                v-model="mapping.include"
+                                                type="checkbox"
+                                                class="rounded border-slate-300 text-blue-600"
+                                            />
                                             {{ mapping.source_label }}
-                                        </div>
-                                        <template
-                                            v-if="
-                                                isArchivedSectionMapping(
-                                                    mapping,
-                                                )
-                                            "
-                                        >
+                                        </label>
+                                        <template v-if="!mapping.include">
                                             <div
                                                 class="rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-600 lg:col-span-3"
                                             >
-                                                Not copied: Grade 12 is archived
-                                                by default.
+                                                Not copied. Students in this
+                                                section will not receive an
+                                                automatic destination
+                                                enrollment.
                                             </div>
                                         </template>
                                         <template v-else>
@@ -881,7 +926,7 @@ watch(
                                         <p class="text-xs text-slate-500">
                                             Clear a checkbox to leave that
                                             Subject out of the destination
-                                            semester.
+                                            academic context.
                                         </p>
                                     </div>
                                     <span
@@ -931,7 +976,9 @@ watch(
                                                         "
                                                         type="checkbox"
                                                         :disabled="
-                                                            !subject.will_rollover
+                                                            !isSectionIncluded(
+                                                                subject.source_section_id,
+                                                            )
                                                         "
                                                         class="rounded border-slate-300 text-indigo-600 disabled:opacity-50"
                                                     />
@@ -1117,10 +1164,19 @@ watch(
                                                                 .source_student_enrollment_id
                                                         ].destination_section_id
                                                     "
+                                                    :disabled="
+                                                        !isSectionIncluded(
+                                                            item.source_section_id,
+                                                        )
+                                                    "
                                                     class="w-full rounded-md border-slate-300 text-sm"
                                                 >
                                                     <option value="">
-                                                        Use mapped section
+                                                        {{
+                                                            mappedSectionLabelForStudent(
+                                                                item,
+                                                            )
+                                                        }}
                                                     </option>
                                                     <option
                                                         v-for="section in preview.destination_sections.filter(

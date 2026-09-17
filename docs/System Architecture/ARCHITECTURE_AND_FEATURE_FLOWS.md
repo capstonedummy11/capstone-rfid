@@ -161,9 +161,9 @@ Emergency sound is a browser-side notification driven by polling/refresh data an
 
 ## Academic rollover algorithm
 
-1. Validate same-year First-to-Second semester mode or different-year active/closed source plus draft destination.
+1. Validate same-year First-to-Second semester mode or different-year active/closed source plus draft destination. Rollover does not change `active_semester`.
 2. Load source-semester enrollments and recommend dropped, graduated, retain, promote, or review.
-3. Validate/create explicitly mapped destination sections with correct grade/semester.
+3. Reuse or create explicitly selected destination Sections with the reviewed grade while preserving the source semester for full-year rollover.
 4. For promote/retain, create the destination enrollment if missing and update current student compatibility placement.
 5. For graduated, mark current Student status graduated; skipped decisions create no enrollment.
 6. Upsert per-student rollover item and complete the transaction/audit.

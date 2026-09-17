@@ -153,6 +153,7 @@ class AcademicYearController
             'destination_semester' => ['nullable', Rule::in(['1st Semester', '2nd Semester'])],
             'section_mappings' => ['required', 'array'],
             'section_mappings.*.source_section_id' => ['required', 'integer', 'exists:sections,section_id'],
+            'section_mappings.*.include' => ['required', 'boolean'],
             'section_mappings.*.destination_section_id' => ['nullable', 'integer', 'exists:sections,section_id'],
             'section_mappings.*.destination_name' => ['nullable', 'string', 'max:255'],
             'section_mappings.*.destination_year_level' => ['nullable', 'integer', 'in:11,12'],

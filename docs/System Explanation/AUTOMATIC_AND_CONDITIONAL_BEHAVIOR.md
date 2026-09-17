@@ -93,8 +93,9 @@ Admin controls the switches on **System Settings**. The application shares their
 - Only one academic year can be active. Activating one closes the previously active year.
 - Closed and archived years are read-only for normal section, offering, schedule, online-class, and attendance changes. Reopening requires a reason and is audited.
 - Semester rollover keeps students in the same academic year and grade, moving from First to Second Semester.
-- Full rollover maps students into a different draft year: Grade 11 normally becomes Grade 12; Grade 12 normally becomes graduated; dropped/transferred/inactive records are skipped; operators may review decisions.
+- Full rollover maps students into a different draft year while preserving the selected source semester: Grade 11 normally becomes Grade 12; Grade 12 normally becomes graduated; dropped/transferred/inactive records are skipped; operators may review decisions.
 - Rollover creates/matches reviewed destination Sections, copies only the Subject Offerings selected in preview, creates enrollment records, updates current Student placement, and records a detailed audit. Instructor assignments and Schedules are intentionally not copied.
+- Rollover never changes an academic year's active semester. The administrator changes the active semester explicitly through the Academic Years lifecycle controls.
 - Attendance, messages, letters, clinic data, borrowing, files, and audit history are never copied during rollover.
 
 ## General auditing
