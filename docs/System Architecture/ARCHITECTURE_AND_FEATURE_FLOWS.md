@@ -30,7 +30,7 @@
 
 ```text
 Browser action
-  -> Laravel web middleware (cookies/session/shared Inertia props/audit/first-password)
+  -> Laravel web middleware (cookies/session/session-identity binding/shared Inertia props/audit/first-password)
   -> authentication and role/feature-specific middleware
   -> controller validation and record-scope authorization
   -> service/business logic and transaction where needed
@@ -43,15 +43,17 @@ Browser action
 
 ## Authentication and authorization
 
-1. `StudentParentLoginController` accepts only `student`/`parent`; a disabled Parent Portal logs a Parent back out with a neutral failure.
-2. `StaffLoginController` accepts only `admin`/`instructor`/`registrar`/`clinic`; Instructor is redirected to verification.
-3. Console uses the public panel verification endpoint to check room/device PIN, then authenticates/maintains a role-restricted Console session.
-4. `EnsurePasswordIsChanged` gates non-Console accounts with `must_change_password`.
-5. `CheckRole` enforces route roles; queries add object-level scope checks.
-6. `EnsureInstructorVerified` gates shared Admin/Instructor pages after each new Instructor login.
-7. `EnsureParentPortalEnabled` blocks Parent access to portal, messages, reports, and evidence while leaving Student access intact.
-8. Root Admin is a boolean privilege on an Admin account. `AdminUserController` enforces Root-only Admin management, prevents self-deletion, and protects the last Root Admin.
-9. Fortify supplies password reset, email verification, password confirmation, and two-factor flows. Login is limited to five attempts/minute per normalized email and IP.
+1. Each successful login regenerates the Laravel session ID and records a unique login instance plus its bound user in that server-side session. Different browser cookie jars remain independent; one browser profile keeps one active account.
+2. `EnsureAuthenticatedSessionIdentity` validates the bound user on every authenticated web request and invalidates only the affected session if an identity mismatch is detected.
+3. `StudentParentLoginController` accepts only `student`/`parent`; a disabled Parent Portal logs a Parent back out with a neutral failure.
+4. `StaffLoginController` accepts only `admin`/`instructor`/`registrar`/`clinic`; Instructor is redirected to verification.
+5. Console uses the public panel verification endpoint to check room/device PIN, then authenticates/maintains a role-restricted Console session.
+6. `EnsurePasswordIsChanged` gates non-Console accounts with `must_change_password`.
+7. `CheckRole` enforces route roles; queries add object-level scope checks.
+8. `EnsureInstructorVerified` gates shared Admin/Instructor pages after each new Instructor login.
+9. `EnsureParentPortalEnabled` blocks Parent access to portal, messages, reports, and evidence while leaving Student access intact.
+10. Root Admin is a boolean privilege on an Admin account. `AdminUserController` enforces Root-only Admin management, prevents self-deletion, and protects the last Root Admin.
+11. Fortify supplies password reset, email verification, password confirmation, and two-factor flows. Login is limited to five attempts/minute per normalized email and IP.
 
 ## Shared frontend behavior
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\SystemSetting;
+use App\Support\AuthenticatedSession;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
@@ -48,6 +49,8 @@ class StudentParentLoginController
                 'email' => __('auth.failed'),
             ]);
         }
+
+        AuthenticatedSession::issue($request, $user);
 
         return redirect()->route('student-parent.dashboard');
     }

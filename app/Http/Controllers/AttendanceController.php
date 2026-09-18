@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ActivityLog;
 use App\Models\AcademicYear;
+use App\Models\ActivityLog;
 use App\Models\Attendance;
 use App\Models\AttendanceLog;
 use App\Models\Borrowing;
@@ -14,14 +14,14 @@ use App\Models\Item;
 use App\Models\PanelDevice;
 use App\Models\RfidPanelSession;
 use App\Models\Schedule;
-use App\Models\Section;
+use App\Models\StudentEnrollment;
 use App\Models\Students;
 use App\Models\Subject;
-use App\Models\StudentEnrollment;
 use App\Models\SystemSetting;
 use App\Models\User;
 use App\Services\AwsFaceRecognitionService;
 use App\Services\CompreFaceService;
+use App\Support\AuthenticatedSession;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -1427,6 +1427,7 @@ class AttendanceController
 
         Auth::login($consoleUser);
         $request->session()->regenerate();
+        AuthenticatedSession::issue($request, $consoleUser);
 
         return response()->json(['success' => true]);
     }

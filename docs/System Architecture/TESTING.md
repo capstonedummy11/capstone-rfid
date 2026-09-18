@@ -2,12 +2,12 @@
 
 This is the canonical guide for running automated tests and verifying the application after a feature update.
 
-## Current Verification Snapshot (2026-09-17)
+## Current Verification Snapshot (2026-09-18)
 
 - `npm run build`: passed; Vite compiled all 2,480 modules and Wayfinder generated route/action types.
 - Full migration chain: passed against a clean temporary SQLite database through all migrations, including the 2026-09-08 Parent settings migrations.
 - `php artisan route:list --except-vendor --json`: passed with the compatible PHP 8.5.8 executable.
-- `php artisan test --compact`: passed with **161 tests and 1,574 assertions**. The suite includes null-session-safe Laboratories/Devices pages, editable rollover Section/Subject Offering selection through the HTTP preview/execute routes, academic-year Student placement, attendance session completion, report filtering, Parent Portal, Parent excuse-letter, and System Settings contracts.
+- `php artisan test --compact`: passed with **195 tests and 2,541 assertions**. The suite includes independent browser session cookies, same-browser account blocking, session-identity mismatch handling, null-session-safe Laboratories/Devices pages, editable rollover Section/Subject Offering selection through the HTTP preview/execute routes, academic-year Student placement, attendance session completion, report filtering, Parent Portal, Parent excuse-letter, and System Settings contracts.
 
 ## Requirements
 
@@ -42,6 +42,7 @@ The command is defined in `composer.json` and explicitly runs the relevant featu
 | Feature                                                                                                                       | Primary automated coverage                                                                   |
 | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | Instructor email OTP                                                                                                          | `tests/Feature/Auth/AuthenticationTest.php`                                                  |
+| Independent browser/device sessions, same-browser account blocking, and session identity mismatch handling                    | `tests/Feature/Auth/AuthenticationTest.php`                                                  |
 | Parent and Instructor excuse-letter notifications                                                                             | `tests/Feature/StudentParentPortalTest.php`                                                  |
 | Instructor Messenger text and generated PDF attachment                                                                        | `tests/Feature/StudentParentPortalTest.php`                                                  |
 | Five-minute Messenger email cooldown per sender–recipient pair                                                                | `tests/Feature/StudentParentPortalTest.php`                                                  |

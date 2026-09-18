@@ -16,6 +16,16 @@ The compatibility path `/login` redirects to the public Student/Parent entry poi
 
 The public Student/Parent interface does not display the secure staff login. The shared Forgot Password page has one context-aware back button: when opened from the secure Staff login it returns there; otherwise it returns to the Student/Parent login. After a successful staff password reset, the system redirects that account to the secure staff login.
 
+## Browser and Device Sessions
+
+Each successful login regenerates the Laravel session ID and issues a unique login-instance ID inside that server-side session. The browser stores only its own encrypted session cookie; authenticated requests resolve the user from that session and verify that the session remains bound to the same user. No application-wide "current user" value is shared between requests or devices.
+
+- One browser profile has one active account because it has one cookie jar. Sign out before changing accounts in that profile.
+- A different browser, private window, browser profile, or device has an independent cookie and can remain signed in at the same time.
+- A new login does not invalidate sessions in other browsers or devices.
+- If stored session identity and authenticated identity ever disagree, the affected session is invalidated and receives a clear sign-in-again response instead of silently switching users.
+- Production uses the database session driver, whose `sessions.id` primary key keeps each browser session separate. Do not key authenticated state by IP address, a static cache key, or a process-wide variable.
+
 ## Instructor Email OTP
 
 After successful staff authentication, an Instructor is sent to the Instructor Verification screen. The Instructor can request a six-digit OTP through the registered email address. The OTP expires after 10 minutes and is stored only as a hash in the session. Face verification and configured security questions remain alternative Instructor verification methods.

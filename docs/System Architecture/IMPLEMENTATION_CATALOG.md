@@ -57,6 +57,12 @@ This catalog maps implementation classes and frontend building blocks to their r
 | `SemaphoreSmsService` | Formats/sends hotline emergency SMS and returns structured success/failure. |
 | `LegacyAcademicFallbackMonitor` | Counts reads that use deprecated academic assignment data. |
 
+## Support classes
+
+| Class | Responsibility |
+| --- | --- |
+| `AuthenticatedSession` | Issues per-login UUID metadata, binds a server session to one authenticated user, and exposes identity checks used by login flows and middleware. |
+
 ## Models
 
 | Domain | Models |
@@ -78,6 +84,7 @@ Model responsibilities are deliberately small: fillable/casts/relationships and 
 | Middleware | Responsibility |
 | --- | --- |
 | `CheckRole` | Normalizes role and enforces allowed-role route lists. |
+| `EnsureAuthenticatedSessionIdentity` | Verifies each authenticated request against its session-bound user and invalidates only a mismatched browser session. |
 | `EnsureInstructorVerified` | Redirects unverified Instructor sessions to verification. |
 | `EnsureParentPortalEnabled` | Rejects Parent routes while the feature is off. |
 | `EnsurePasswordIsChanged` | Forces temporary-password replacement except allow-listed auth routes. |

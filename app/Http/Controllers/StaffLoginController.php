@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\AuthenticatedSession;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
@@ -54,6 +55,8 @@ class StaffLoginController
                 'email' => 'This secure login is only for admin, instructor, registrar, and clinic accounts.',
             ]);
         }
+
+        AuthenticatedSession::issue($request, $user);
 
         return $this->redirectForRole($role);
     }

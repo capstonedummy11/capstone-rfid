@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Support\AuthenticatedSession;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -22,6 +23,8 @@ class AuthController
         $user = User::create($register);
 
         Auth::login($user);
+        $request->session()->regenerate();
+        AuthenticatedSession::issue($request, $user);
 
         return redirect()->route('dashboard')->with('success', 'Registered successfully!');
     }
