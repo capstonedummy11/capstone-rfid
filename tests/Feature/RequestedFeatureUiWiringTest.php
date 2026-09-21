@@ -42,5 +42,9 @@ test('excuse letter defaults an empty end date to the selected start date', func
     expect($excuseLetters)
         ->toContain("import { computed, reactive, ref, watch } from 'vue'")
         ->toContain('if (startDate && !form.to_date)')
-        ->toContain('form.to_date = startDate;');
+        ->toContain('form.to_date = startDate;')
+        ->toContain('const validateLetterForm = () =>')
+        ->toContain("setError('subject', 'Enter the excuse-letter subject.')")
+        ->toContain("setError('attachment', 'The attachment must not exceed 5 MB.')")
+        ->toContain('novalidate');
 });

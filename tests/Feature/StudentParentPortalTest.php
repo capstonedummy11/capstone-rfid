@@ -504,6 +504,19 @@ test('parent-created excuse letter is signed and downloads as pdf', function () 
             'from_date' => '2026-07-01',
             'to_date' => '2026-07-02',
             'reason' => 'Medical appointment.',
+            'parent_signature' => '',
+        ])
+        ->assertRedirect()
+        ->assertSessionHasErrors('parent_signature');
+
+    $this->assertDatabaseCount('student_excuse_letters', 0);
+
+    $this->actingAs($fixture['parentUser'])
+        ->post(route('student-parent.excuse-letters.store', ['student_id' => $fixture['student']->student_id]), [
+            'subject' => 'Programming I',
+            'from_date' => '2026-07-01',
+            'to_date' => '2026-07-02',
+            'reason' => 'Medical appointment.',
             'parent_signature' => 'Maria Santos',
         ])
         ->assertRedirect()

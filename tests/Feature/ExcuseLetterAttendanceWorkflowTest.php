@@ -211,6 +211,26 @@ test('current enrollment instructor can be searched and receives an excuse lette
 
     $this->actingAs($studentUser)
         ->post(route('student-parent.excuse-letters.store'), [
+            'subject' => '',
+            'from_date' => '',
+            'to_date' => '',
+            'reason' => '',
+            'attachment' => UploadedFile::fake()->create('invalid.exe', 6000, 'application/octet-stream'),
+        ])
+        ->assertRedirect()
+        ->assertSessionHasErrors([
+            'subject',
+            'from_date',
+            'to_date',
+            'reason',
+            'attachment',
+        ]);
+
+    $this->assertDatabaseCount('student_excuse_letters', 0);
+    expect(Storage::disk('public')->allFiles('student-excuse-letters'))->toBe([]);
+
+    $this->actingAs($studentUser)
+        ->post(route('student-parent.excuse-letters.store'), [
             'subject' => $subject->subject_name,
             'from_date' => '2026-07-14',
             'to_date' => '2027-05-03',

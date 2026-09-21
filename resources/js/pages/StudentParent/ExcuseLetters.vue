@@ -70,14 +70,121 @@ const clearAttachment = () => {
     }
 };
 
-const submitLetter = () => {
-    form.clearErrors();
+const allowedAttachmentExtensions = [
+    'pdf',
+    'doc',
+    'docx',
+    'jpg',
+    'jpeg',
+    'png',
+];
+const maximumAttachmentBytes = 5 * 1024 * 1024;
+type LetterFormField =
+    | 'subject'
+    | 'from_date'
+    | 'to_date'
+    | 'reason'
+    | 'parent_signature'
+    | 'recipient_user_ids'
+    | 'attachment';
+
+const validateLetterForm = () => {
+    let isValid = true;
+    const setError = (field: LetterFormField, message: string) => {
+        form.setError(field, message);
+        isValid = false;
+    };
+
+    if (!form.subject.trim()) {
+        setError('subject', 'Enter the excuse-letter subject.');
+    } else if (form.subject.trim().length > 255) {
+        setError('subject', 'The subject must not exceed 255 characters.');
+    }
+
+    if (!form.from_date) {
+        setError('from_date', 'Select the start date.');
+    } else if (
+        props.activeAcademicYear?.starts_on &&
+        form.from_date < props.activeAcademicYear.starts_on
+    ) {
+        setError(
+            'from_date',
+            `The start date must be on or after ${props.activeAcademicYear.starts_on}.`,
+        );
+    } else if (
+        props.activeAcademicYear?.ends_on &&
+        form.from_date > props.activeAcademicYear.ends_on
+    ) {
+        setError(
+            'from_date',
+            `The start date must be on or before ${props.activeAcademicYear.ends_on}.`,
+        );
+    }
+
+    if (!form.to_date) {
+        setError('to_date', 'Select the end date.');
+    } else if (form.from_date && form.to_date < form.from_date) {
+        setError('to_date', 'The end date must be on or after the start date.');
+    } else if (
+        props.activeAcademicYear?.starts_on &&
+        form.to_date < props.activeAcademicYear.starts_on
+    ) {
+        setError(
+            'to_date',
+            `The end date must be on or after ${props.activeAcademicYear.starts_on}.`,
+        );
+    } else if (
+        props.activeAcademicYear?.ends_on &&
+        form.to_date > props.activeAcademicYear.ends_on
+    ) {
+        setError(
+            'to_date',
+            `The end date must be on or before ${props.activeAcademicYear.ends_on}.`,
+        );
+    }
+
+    if (!form.reason.trim()) {
+        setError('reason', 'Enter the reason for the excuse letter.');
+    } else if (form.reason.trim().length > 5000) {
+        setError('reason', 'The reason must not exceed 5,000 characters.');
+    }
+
+    if (isParent.value && !form.parent_signature.trim()) {
+        setError('parent_signature', 'Enter the Parent signature.');
+    } else if (form.parent_signature.trim().length > 255) {
+        setError(
+            'parent_signature',
+            'The Parent signature must not exceed 255 characters.',
+        );
+    }
 
     if (recipientSearch.value.trim() !== '') {
-        form.setError(
+        setError(
             'recipient_user_ids',
             'Select the instructor from the search results, or clear the search to send to all assigned instructors.',
         );
+    }
+
+    if (form.attachment) {
+        const extension = form.attachment.name.split('.').pop()?.toLowerCase();
+
+        if (!extension || !allowedAttachmentExtensions.includes(extension)) {
+            setError(
+                'attachment',
+                'Use a PDF, Word document, JPG, or PNG attachment.',
+            );
+        } else if (form.attachment.size > maximumAttachmentBytes) {
+            setError('attachment', 'The attachment must not exceed 5 MB.');
+        }
+    }
+
+    return isValid;
+};
+
+const submitLetter = () => {
+    form.clearErrors();
+
+    if (!validateLetterForm()) {
         return;
     }
 
@@ -243,6 +350,7 @@ const letterRecipients = (letter) => {
                 <form
                     v-if="canSubmitLetter"
                     class="mt-4 flex flex-col gap-3"
+                    novalidate
                     @submit.prevent="submitLetter"
                 >
                     <div
@@ -284,6 +392,12 @@ const letterRecipients = (letter) => {
                                     Add
                                 </button>
                             </div>
+                            <p
+                                v-if="form.errors.recipient_user_ids"
+                                class="mt-1 text-xs font-medium text-rose-600"
+                            >
+                                {{ form.errors.recipient_user_ids }}
+                            </p>
                             <div
                                 v-if="recipientSearch.trim()"
                                 class="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-slate-200 bg-white p-1 shadow-lg"
@@ -364,8 +478,19 @@ const letterRecipients = (letter) => {
                         <input
                             v-model="form.subject"
                             class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm normal-case"
-                            required
+                            :class="{
+                                'border-rose-400': form.errors.subject,
+                            }"
+                            maxlength="255"
+                            :aria-invalid="Boolean(form.errors.subject)"
+                            @input="form.clearErrors('subject')"
                         />
+                        <span
+                            v-if="form.errors.subject"
+                            class="mt-1 block text-xs font-medium text-rose-600 normal-case"
+                        >
+                            {{ form.errors.subject }}
+                        </span>
                     </label>
                     <div class="grid grid-cols-2 gap-2">
                         <label
@@ -381,7 +506,7 @@ const letterRecipients = (letter) => {
                                 :class="{
                                     'border-rose-400': form.errors.from_date,
                                 }"
-                                required
+                                :aria-invalid="Boolean(form.errors.from_date)"
                                 @change="form.clearErrors('from_date')"
                             />
                             <span
@@ -407,7 +532,7 @@ const letterRecipients = (letter) => {
                                 :class="{
                                     'border-rose-400': form.errors.to_date,
                                 }"
-                                required
+                                :aria-invalid="Boolean(form.errors.to_date)"
                                 @change="form.clearErrors('to_date')"
                             />
                             <span
@@ -431,8 +556,19 @@ const letterRecipients = (letter) => {
                         <textarea
                             v-model="form.reason"
                             class="mt-1 h-36 w-full rounded-md border border-slate-300 px-3 py-2 text-sm normal-case"
-                            required
+                            :class="{
+                                'border-rose-400': form.errors.reason,
+                            }"
+                            maxlength="5000"
+                            :aria-invalid="Boolean(form.errors.reason)"
+                            @input="form.clearErrors('reason')"
                         />
+                        <span
+                            v-if="form.errors.reason"
+                            class="mt-1 block text-xs font-medium text-rose-600 normal-case"
+                        >
+                            {{ form.errors.reason }}
+                        </span>
                     </label>
                     <label
                         v-if="isParent"
@@ -442,9 +578,22 @@ const letterRecipients = (letter) => {
                         <input
                             v-model="form.parent_signature"
                             class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm normal-case"
+                            :class="{
+                                'border-rose-400': form.errors.parent_signature,
+                            }"
                             placeholder="Type your full name"
-                            required
+                            maxlength="255"
+                            :aria-invalid="
+                                Boolean(form.errors.parent_signature)
+                            "
+                            @input="form.clearErrors('parent_signature')"
                         />
+                        <span
+                            v-if="form.errors.parent_signature"
+                            class="mt-1 block text-xs font-medium text-rose-600 normal-case"
+                        >
+                            {{ form.errors.parent_signature }}
+                        </span>
                     </label>
                     <div>
                         <p class="text-xs font-bold text-slate-500 uppercase">
@@ -490,6 +639,12 @@ const letterRecipients = (letter) => {
                         </div>
                         <p class="mt-1 text-xs text-slate-400">
                             PDF, Word document, JPG, or PNG up to 5 MB.
+                        </p>
+                        <p
+                            v-if="form.errors.attachment"
+                            class="mt-1 text-xs font-medium text-rose-600"
+                        >
+                            {{ form.errors.attachment }}
                         </p>
                     </div>
                     <button

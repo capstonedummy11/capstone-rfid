@@ -661,6 +661,15 @@ Instructor review and result email:
 
 Only the Instructor who received that specific linked delivery can decide it once. When a letter was sent to multiple Instructors, each Instructor has an independent decision.
 
+Excuse-letter form validation:
+
+- Subject and reason are required and enforce their server limits.
+- From and To are required, To cannot precede From, and both must remain in the active academic year.
+- A Parent-created letter requires the Parent signature.
+- A typed Instructor search must be selected or cleared; a blank recipient selection means all assigned Instructors.
+- Attachments are optional, limited to PDF, Word, JPG, JPEG, or PNG, and cannot exceed 5 MB.
+- Client-side checks provide immediate field messages. Laravel repeats every rule before storing the attachment or letter.
+
 ## 24. Use Emergency Alerts And Emergency Text Area
 
 Emergency alert creation is available from the attendance panel:
