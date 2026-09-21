@@ -5,6 +5,6 @@ test('server logging writes errors to Laravel daily files and the server error l
         ->toMatchArray([
             'driver' => 'stack',
             'channels' => ['daily', 'errorlog'],
-            'ignore_exceptions' => false,
+            'ignore_exceptions' => true,
         ]);
 });

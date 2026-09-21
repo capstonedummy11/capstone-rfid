@@ -61,7 +61,7 @@ return [
         'server' => [
             'driver' => 'stack',
             'channels' => explode(',', (string) env('LOG_SERVER_CHANNELS', 'daily,errorlog')),
-            'ignore_exceptions' => false,
+            'ignore_exceptions' => true,
         ],
 
         'single' => [

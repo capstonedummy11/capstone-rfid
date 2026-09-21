@@ -89,7 +89,24 @@ LOG_LEVEL=error
 LOG_DAILY_DAYS=14
 ```
 
-After changing server environment values, run `php artisan config:clear` or rebuild the production configuration cache. Ensure the web-server account can write to `storage/logs` and `bootstrap/cache`. Laravel automatically reports unexpected exceptions; expected form validation is returned to the page as field errors and is intentionally not treated as a server failure. Log context includes the route, request method/path, and authenticated user ID, but excludes request bodies and passwords.
+After changing server environment values, run `php artisan config:clear` or rebuild the production configuration cache. Ensure the web-server account can write to `storage/logs` and `bootstrap/cache`. Laravel automatically reports unexpected exceptions; expected form validation is returned to the page as field errors and is intentionally not treated as a server failure. The server stack ignores failures from an individual log destination so an unwritable daily file cannot prevent the PHP/web-server error-log destination from receiving the original exception.
+
+If the site returns HTTP 500 immediately after a code update, complete the deployment lifecycle before changing application code:
+
+```bash
+composer install --no-dev --optimize-autoloader
+npm ci
+npm run build
+php artisan optimize:clear
+php artisan migrate --force
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+```
+
+The deployed web-server account must have write access to `storage` and `bootstrap/cache`. Inspect the newest `storage/logs/laravel-YYYY-MM-DD.log` entry and the hosting control panel/PHP/web-server error log for the original exception. Common update-time causes are a migration that was not run, a missing/stale Vite build, stale Laravel caches, incomplete Composer dependencies, or incorrect writable-directory ownership. Do not enable `APP_DEBUG` on a public production server.
+
+The Instructor excuse-letter review migration uses short explicit foreign-key names because MySQL limits identifiers to 64 characters. It also detects existing columns and keys, so rerunning `php artisan migrate --force` safely resumes an earlier attempt that stopped at the foreign-key creation step. Do not manually remove the partially added columns before retrying.
 
 ### Attendance panel and face services
 
