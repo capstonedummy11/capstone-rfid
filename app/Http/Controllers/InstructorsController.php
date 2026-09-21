@@ -69,7 +69,7 @@ class InstructorsController
                 'instructor_id' => $instructor->instructor_id,
                 'user_id' => $instructor->user_id,
                 'instructor_number' => $instructor->instructor_number,
-                'first_name' => $this->getFirstName($user->name),
+                'first_name' => $user->name,
                 'middle_name' => $user->middle_name ?? '',
                 'last_name' => $user->last_name ?? '',
                 'email' => $user->email,
@@ -129,6 +129,8 @@ class InstructorsController
             'status' => 'required|in:active,inactive,on_leave',
         ]);
 
+        $temporaryPassword = $this->defaultPassword($validated['first_name'], $validated['last_name']);
+
         // Create user record
         $user = User::create([
             'name' => $validated['first_name'],
@@ -138,7 +140,7 @@ class InstructorsController
             'phone' => $validated['phone'] ?? null,
             'gender' => $validated['gender'] ?? null,
             'rfid_tag' => $validated['rfid_tag'] ?? null,
-            'password' => bcrypt('password'), // Default password
+            'password' => Hash::make($temporaryPassword),
             'must_change_password' => true,
             'role' => 'instructor',
             'is_root_admin' => false,
@@ -152,7 +154,10 @@ class InstructorsController
             'status' => $validated['status'],
         ]);
 
-        return back()->with('success', 'Instructor added successfully.');
+        return back()->with(
+            'success',
+            'Instructor added successfully. Temporary password: '.$temporaryPassword.'.'
+        );
     }
 
     /**
@@ -220,7 +225,10 @@ class InstructorsController
 
         abort_if(! $user || strtolower((string) $user->role) !== 'instructor', 404);
 
-        $temporaryPassword = 'password';
+        $temporaryPassword = $this->defaultPassword(
+            (string) $user->name,
+            (string) $user->last_name
+        );
 
         DB::transaction(function () use ($user, $temporaryPassword) {
             $user->forceFill([
@@ -282,11 +290,8 @@ class InstructorsController
         return back()->with('success', 'Instructor deleted successfully.');
     }
 
-    /**
-     * Extract first name from full name
-     */
-    private function getFirstName($fullName)
+    private function defaultPassword(string $firstName, string $lastName): string
     {
-        return explode(' ', trim($fullName))[0] ?? $fullName;
+        return Str::lower(preg_replace('/\s+/u', '', $firstName.$lastName) ?? '');
     }
 }

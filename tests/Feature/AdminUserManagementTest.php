@@ -3,6 +3,8 @@
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
@@ -123,6 +125,43 @@ test('standard admin can create clinic and registrar users but cannot manage adm
         'is_root_admin' => false,
     ]);
 
+    $managedClinic = User::query()->where('email', 'clinic.managed@example.com')->firstOrFail();
+    $managedRegistrar = User::query()->where('email', 'registrar.managed@example.com')->firstOrFail();
+
+    foreach ([$managedClinic, $managedRegistrar] as $managedUser) {
+        $managedUser->forceFill([
+            'password' => Hash::make('private-password'),
+            'must_change_password' => false,
+            'remember_token' => 'existing-token-'.$managedUser->user_id,
+        ])->save();
+
+        DB::table('sessions')->insert([
+            'id' => 'managed-session-'.$managedUser->user_id,
+            'user_id' => $managedUser->user_id,
+            'ip_address' => '127.0.0.1',
+            'user_agent' => 'Feature test',
+            'payload' => 'test-session-payload',
+            'last_activity' => now()->timestamp,
+        ]);
+
+        $this->actingAs($standardAdmin)
+            ->put(route('admin.users.password.reset-default', $managedUser->user_id))
+            ->assertRedirect()
+            ->assertSessionHas('success');
+    }
+
+    $managedClinic->refresh();
+    $managedRegistrar->refresh();
+
+    expect(Hash::check('clinicmanaged', $managedClinic->password))->toBeTrue()
+        ->and($managedClinic->must_change_password)->toBeTrue()
+        ->and($managedClinic->remember_token)->not->toBe('existing-token-'.$managedClinic->user_id)
+        ->and(Hash::check('registrarmanaged', $managedRegistrar->password))->toBeTrue()
+        ->and($managedRegistrar->must_change_password)->toBeTrue()
+        ->and($managedRegistrar->remember_token)->not->toBe('existing-token-'.$managedRegistrar->user_id);
+    $this->assertDatabaseMissing('sessions', ['id' => 'managed-session-'.$managedClinic->user_id]);
+    $this->assertDatabaseMissing('sessions', ['id' => 'managed-session-'.$managedRegistrar->user_id]);
+
     $this->actingAs($standardAdmin)
         ->post(route('admin.users.store'), [
             'name' => 'Blocked Admin',
@@ -141,6 +180,10 @@ test('standard admin can create clinic and registrar users but cannot manage adm
             'is_root_admin' => false,
         ])
         ->assertForbidden();
+
+    $this->actingAs($standardAdmin)
+        ->put(route('admin.users.password.reset-default', $targetAdmin->user_id))
+        ->assertStatus(422);
 
     $this->actingAs($standardAdmin)
         ->put(route('admin.users.update', $clinic->user_id), [

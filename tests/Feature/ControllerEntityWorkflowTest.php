@@ -249,7 +249,7 @@ test('instructor controller creates linked user then updates index and deletes t
 
     $this->actingAs($admin)->post(route('admin.instructors.store'), [
         'instructor_number' => 'INS-CTRL-001',
-        'first_name' => 'Control',
+        'first_name' => 'Control Name',
         'middle_name' => null,
         'last_name' => 'Instructor',
         'email' => 'control.instructor@example.test',
@@ -258,9 +258,14 @@ test('instructor controller creates linked user then updates index and deletes t
         'strand_id' => $strand->strand_id,
         'rfid_tag' => 'INS-CTRL-RFID',
         'status' => 'active',
-    ])->assertRedirect()->assertSessionHas('success');
+    ])->assertRedirect()->assertSessionHas(
+        'success',
+        fn (string $message) => str_contains($message, 'controlnameinstructor')
+    );
 
     $instructor = Instructor::query()->with('user')->where('instructor_number', 'INS-CTRL-001')->firstOrFail();
+    expect(Hash::check('controlnameinstructor', $instructor->user->password))->toBeTrue()
+        ->and($instructor->user->must_change_password)->toBeTrue();
 
     $this->actingAs($admin)->get(route('admin.instructors.index', ['search' => 'INS-CTRL-001']))
         ->assertOk()
@@ -312,7 +317,7 @@ test('instructor controller creates linked user then updates index and deletes t
         ->assertSessionHas('success');
 
     $instructor->user->refresh();
-    expect(Hash::check('password', $instructor->user->password))->toBeTrue()
+    expect(Hash::check('controlinstructor', $instructor->user->password))->toBeTrue()
         ->and($instructor->user->must_change_password)->toBeTrue()
         ->and($instructor->user->remember_token)->not->toBe('existing-remember-token');
     $this->assertDatabaseMissing('sessions', ['id' => 'instructor-session-to-revoke']);
@@ -414,11 +419,39 @@ test('schedule controller creates from offering then updates indexes and deletes
     $this->actingAs($admin)->post(route('admin.schedules.store'), [
         'subject_offering_id' => $offering->subject_offering_id,
         'laboratory_id' => $laboratory->laboratory_id,
-        'weekdays' => 'Mon',
+        'weekdays' => 'Tue',
         'time_start' => '08:15',
-        'time_end' => '09:15',
+        'time_end' => '09:45',
         'room' => 'A101',
-    ])->assertRedirect()->assertSessionHasErrors(['time_start', 'time_end']);
+    ])->assertRedirect()->assertSessionHas('success');
+
+    $quarterHourSchedule = Schedule::query()->firstOrFail();
+    $this->assertDatabaseHas('schedules', [
+        'scheduled_id' => $quarterHourSchedule->scheduled_id,
+        'weekdays' => 'Tue',
+        'time_start' => '08:15:00',
+        'time_end' => '09:45:00',
+    ]);
+
+    $this->actingAs($admin)->put(route('admin.schedules.update', $quarterHourSchedule->scheduled_id), [
+        'subject_offering_id' => $offering->subject_offering_id,
+        'laboratory_id' => $laboratory->laboratory_id,
+        'weekdays' => 'Wed',
+        'time_start' => '08:45',
+        'time_end' => '10:15',
+        'room' => 'A101',
+    ])->assertRedirect()->assertSessionHas('success');
+
+    $this->assertDatabaseHas('schedules', [
+        'scheduled_id' => $quarterHourSchedule->scheduled_id,
+        'weekdays' => 'Wed',
+        'time_start' => '08:45:00',
+        'time_end' => '10:15:00',
+    ]);
+
+    $this->actingAs($admin)->delete(route('admin.schedules.destroy', $quarterHourSchedule->scheduled_id))
+        ->assertRedirect()
+        ->assertSessionHas('success');
     $this->assertDatabaseCount('schedules', 0);
 
     $this->actingAs($admin)->post(route('admin.schedules.store'), [
@@ -636,7 +669,7 @@ test('student controller creates enrollment account parent link reset update and
         'relationship' => 'Mother',
     ])->assertRedirect()->assertSessionHas('success');
     $parent = User::query()->where('email', 'control.parent@example.test')->firstOrFail();
-    expect(Hash::check('ControlParent', $parent->password))->toBeTrue()
+    expect(Hash::check('controlparent', $parent->password))->toBeTrue()
         ->and($parent->must_change_password)->toBeTrue();
     $parentPasswordHash = $parent->password;
 
@@ -660,7 +693,7 @@ test('student controller creates enrollment account parent link reset update and
     $this->actingAs($admin)->put(route('admin.students.password.reset-default', $student->student_id))
         ->assertRedirect()
         ->assertSessionHas('success');
-    expect(Hash::check('ControlStudent', $studentUser->fresh()->password))->toBeTrue();
+    expect(Hash::check('controlstudent', $studentUser->fresh()->password))->toBeTrue();
 
     $this->actingAs($admin)->put(route('admin.students.update', $student->student_id), [
         'student_number' => 'STU-CTRL-002',

@@ -37,7 +37,7 @@ Console-only `/attendance-control-panel` endpoints include page GET plus POST op
 Prefix `/admin`, auth:
 
 - Admin or verified Instructor: dashboard; attendance scanner/logs/subject/summary/student/session/export/status; messages/reply; online-class CRUD/cancel; Student list; Schedule list.
-- Admin only: Academic Year lifecycle/rollover; Laboratory CRUD; Borrowing/return; RFID update/clear; Section, Subject/Offering, Schedule, Inventory/Item, Strand, Student/Parent, Instructor, User CRUD; Student and Instructor administrative password resets; Activity and Online Class log exports; Active Device/PIN/session management; System Settings/sound library; prototype students-management route.
+- Admin only: Academic Year lifecycle/rollover; Laboratory CRUD; Borrowing/return; RFID update/clear; Section, Subject/Offering, Schedule, Inventory/Item, Strand, Student/Parent, Instructor, User CRUD; Student, Instructor, Clinic, and Registrar administrative password resets; Activity and Online Class log exports; Active Device/PIN/session management; System Settings/sound library; prototype students-management route.
 
 Endpoint names and controller methods are declared in `routes/web.php`; the runtime route list is authoritative when duplicate URIs exist. In particular, the final `GET /admin/inventory` closure is named `admin.inventory` and supersedes the earlier same-URI index route in the runtime list.
 

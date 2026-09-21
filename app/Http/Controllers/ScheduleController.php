@@ -173,7 +173,7 @@ class ScheduleController
             'room'          => 'nullable|string|max:255',
         ]);
 
-        $this->assertHalfHourTimes($validated);
+        $this->assertQuarterHourTimes($validated);
         $validated = $this->resolveOffering($validated);
         $validated['weekdays'] = $this->normalizeWeekdays($validated['weekdays']);
         $this->assertNoScheduleConflict($validated);
@@ -207,7 +207,7 @@ class ScheduleController
             'room'          => 'nullable|string|max:255',
         ]);
 
-        $this->assertHalfHourTimes($validated);
+        $this->assertQuarterHourTimes($validated);
         $validated = $this->resolveOffering($validated);
         $validated['weekdays'] = $this->normalizeWeekdays($validated['weekdays']);
         $this->assertNoScheduleConflict($validated, $schedule->scheduled_id);
@@ -322,14 +322,14 @@ class ScheduleController
             ->implode(',');
     }
 
-    private function assertHalfHourTimes(array $validated): void
+    private function assertQuarterHourTimes(array $validated): void
     {
         $errors = [];
 
         foreach (['time_start' => 'Start time', 'time_end' => 'End time'] as $field => $label) {
             $minutes = (int) substr($validated[$field], 3, 2);
-            if ($minutes % 30 !== 0) {
-                $errors[$field] = "{$label} must use a 30-minute interval.";
+            if ($minutes % 15 !== 0) {
+                $errors[$field] = "{$label} must use a 15-minute interval.";
             }
         }
 

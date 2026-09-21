@@ -29,6 +29,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -1138,14 +1139,14 @@ class StudentsController
 
     private function defaultStudentPassword(Students $student): string
     {
-        $password = preg_replace('/\s+/', '', trim($student->first_name.$student->last_name));
+        $password = Str::lower(preg_replace('/\s+/u', '', trim($student->first_name.$student->last_name)) ?? '');
 
-        return $password !== '' ? $password : (string) $student->student_number;
+        return $password !== '' ? $password : Str::lower((string) $student->student_number);
     }
 
     private function defaultParentPassword(string $firstName, string $lastName): string
     {
-        return preg_replace('/\s+/', '', trim($firstName.$lastName));
+        return Str::lower(preg_replace('/\s+/u', '', trim($firstName.$lastName)) ?? '');
     }
 
     private function sendApprovedExcuseLetterToTeachers(StudentExcuseLetter $letter, User $sender): int

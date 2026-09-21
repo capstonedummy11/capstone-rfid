@@ -208,7 +208,7 @@ For each instructor, prepare:
 - Email or staff account information.
 - Assigned strand or related profile details if used by the form.
 
-If an Instructor forgets the account password, select **Reset password** in that Instructor's row and confirm. The password returns to the documented temporary value `password`, active Instructor sessions end, and the Instructor must create a private password at the next login before completing Instructor verification.
+If an Instructor forgets the account password, select **Reset password** in that Instructor's row and confirm. The password returns to the documented lowercase `firstnamelastname` temporary value with spaces removed, active Instructor sessions end, and the Instructor must create a private password at the next login before completing Instructor verification.
 
 Why this comes before schedules:
 

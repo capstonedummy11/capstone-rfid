@@ -46,21 +46,44 @@ test('instructor password reset uses application confirmation and success modals
         ->toContain('role="tooltip"')
         ->toContain('aria-modal="true"')
         ->toContain('confirmResetInstructorPassword')
+        ->toContain('defaultInstructorPassword')
+        ->toContain(".replace(/\\s+/g, '').toLowerCase()")
+        ->toContain('resetConfirmationPassword')
+        ->toContain('resetSuccessPassword')
         ->toContain('confirmResetInstructorSecurityQuestions')
         ->toContain('Password reset successfully')
         ->toContain('Security questions reset')
         ->not->toContain('if (!confirm(`Reset ${name}\'s password');
 });
 
-test('schedule time inputs and grid use half hour intervals', function () {
+test('student default password preview removes spaces and uses lowercase', function () {
+    $students = file_get_contents(resource_path('js/pages/Auth/Admin/Students.vue'));
+
+    expect($students)
+        ->toContain('const defaultStudentPassword')
+        ->toContain(').toLowerCase()');
+});
+
+test('clinic and registrar rows expose an application password reset flow', function () {
+    $users = file_get_contents(resource_path('js/pages/Auth/Admin/UserManagement.vue'));
+
+    expect($users)
+        ->toContain('user.can_reset_password')
+        ->toContain("route('admin.users.password.reset-default', user.id)")
+        ->toContain('Reset {{ roleLabel(passwordResetUser.role) }} password?')
+        ->toContain('passwordResetForm.processing')
+        ->toContain('passwordResetSuccess');
+});
+
+test('schedule create and update time inputs use quarter hour intervals', function () {
     $schedules = file_get_contents(resource_path('js/pages/Auth/Admin/Schedules.vue'));
 
     expect($schedules)
-        ->toContain('step="1800"')
-        ->toContain('const SLOT_MINUTES = 30;')
-        ->toContain('Start time must use a 30-minute interval.')
-        ->toContain('End time must use a 30-minute interval.')
-        ->not->toContain('step="900"');
+        ->toContain('step="900"')
+        ->toContain('const SLOT_MINUTES = 15;')
+        ->toContain('Start time must use a 15-minute interval.')
+        ->toContain('End time must use a 15-minute interval.')
+        ->not->toContain('step="1800"');
 });
 
 test('excuse letter defaults an empty end date to the selected start date', function () {

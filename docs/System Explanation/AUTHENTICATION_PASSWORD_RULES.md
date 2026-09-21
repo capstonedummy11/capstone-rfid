@@ -60,7 +60,7 @@ Console accounts are excluded.
 
 ## Administrative Password Resets
 
-When an administrator resets a Student or Instructor account to its documented default password, the account is marked to require a new private password at the next login. Instructor resets also revoke remember-me access and delete the Instructor's active database sessions.
+When an administrator resets a Student, Instructor, Clinic, or Registrar account to its documented default password, the account is marked to require a new private password at the next login. Instructor, Clinic, and Registrar resets also revoke remember-me access and delete the account's active database sessions. Clinic and Registrar reset passwords use the lowercase account Name with spaces removed; Admin accounts are excluded from this action.
 
 Default-password formulas and account provisioning details are documented in [Default Account Passwords](DEFAULT_ACCOUNT_PASSWORDS.md).
 

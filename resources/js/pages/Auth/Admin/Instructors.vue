@@ -285,8 +285,8 @@
         >
           <h2 id="reset-password-title" class="text-xl font-semibold text-slate-900">Reset Instructor password?</h2>
           <p class="mt-3 text-sm leading-6 text-slate-600">
-            Reset {{ resetConfirmationInstructorName }}'s password to <strong>password</strong>? Their active sessions will end,
-            and they must create a private password at the next login.
+            Reset {{ resetConfirmationInstructorName }}'s password to <strong>{{ resetConfirmationPassword }}</strong>? Their active
+            sessions will end, and they must create a private password at the next login.
           </p>
           <p v-if="resetForm.errors.reset" class="mt-3 rounded-md bg-rose-50 p-3 text-sm text-rose-700" role="alert">
             {{ resetForm.errors.reset }}
@@ -327,12 +327,13 @@
           </div>
           <h2 id="reset-password-success-title" class="mt-4 text-xl font-semibold text-slate-900">Password reset successfully</h2>
           <p class="mt-3 text-sm leading-6 text-slate-600">
-            {{ resetSuccessInstructorName }} must create a private password at the next login. Their active sessions have ended.
+            {{ resetSuccessInstructorName }}'s temporary password is <strong>{{ resetSuccessPassword }}</strong>. They must create a
+            private password at the next login. Their active sessions have ended.
           </p>
           <button
             type="button"
             class="mt-6 rounded-md bg-emerald-600 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-            @click="resetSuccessInstructorName = ''"
+            @click="closeResetSuccess"
           >
             OK
           </button>
@@ -466,6 +467,7 @@ const isEditing = ref(false);
 const selectedInstructor = ref<Instructor | null>(null);
 const resetConfirmationInstructor = ref<Instructor | null>(null);
 const resetSuccessInstructorName = ref('');
+const resetSuccessPassword = ref('');
 const securityQuestionResetInstructor = ref<Instructor | null>(null);
 const securityQuestionResetSuccessName = ref('');
 
@@ -489,6 +491,14 @@ const securityQuestionResetForm = useForm({});
 const resetConfirmationInstructorName = computed(() => {
   const instructor = resetConfirmationInstructor.value;
   return instructor ? `${instructor.first_name} ${instructor.last_name}`.trim() : '';
+});
+
+const defaultInstructorPassword = (instructor: Instructor): string =>
+  `${instructor.first_name ?? ''}${instructor.last_name ?? ''}`.replace(/\s+/g, '').toLowerCase();
+
+const resetConfirmationPassword = computed(() => {
+  const instructor = resetConfirmationInstructor.value;
+  return instructor ? defaultInstructorPassword(instructor) : '';
 });
 
 const securityQuestionResetInstructorName = computed(() => {
@@ -631,12 +641,18 @@ const confirmResetInstructorPassword = () => {
     preserveScroll: true,
     onSuccess: () => {
       resetSuccessInstructorName.value = `${instructor.first_name} ${instructor.last_name}`.trim();
+      resetSuccessPassword.value = defaultInstructorPassword(instructor);
       resetConfirmationInstructor.value = null;
     },
     onError: (errors) => {
       resetForm.setError('reset', Object.values(errors).flat().join(', ') || 'The password could not be reset. Please try again.');
     },
   });
+};
+
+const closeResetSuccess = () => {
+  resetSuccessInstructorName.value = '';
+  resetSuccessPassword.value = '';
 };
 
 const resetInstructorSecurityQuestions = (instructor: Instructor) => {

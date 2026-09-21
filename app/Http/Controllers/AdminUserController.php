@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
@@ -90,6 +92,36 @@ class AdminUserController extends Controller
         return back()->with('success', 'User account updated.');
     }
 
+    public function resetPassword(Request $request, int $id)
+    {
+        $actor = $request->user();
+        $user = User::query()->findOrFail($id);
+        $role = strtolower((string) $user->role);
+
+        abort_unless(in_array($role, ['clinic', 'registrar'], true), 422, 'Only Clinic and Registrar passwords can be reset here.');
+
+        $temporaryPassword = $this->defaultPassword($user);
+
+        DB::transaction(function () use ($user, $temporaryPassword) {
+            $user->forceFill([
+                'password' => Hash::make($temporaryPassword),
+                'must_change_password' => true,
+                'remember_token' => Str::random(60),
+            ])->save();
+
+            DB::table('sessions')
+                ->where('user_id', $user->user_id)
+                ->delete();
+        });
+
+        $this->logActivity($actor, 'update', 'users', 'Reset '.$role.' password for '.$user->email.'.');
+
+        return back()->with(
+            'success',
+            ucfirst($role).' password reset to '.$temporaryPassword.'. They must create a private password at the next login.'
+        );
+    }
+
     public function destroy(Request $request, int $id)
     {
         $actor = $request->user();
@@ -164,6 +196,7 @@ class AdminUserController extends Controller
             'created_at' => optional($user->created_at)->format('Y-m-d H:i'),
             'can_update' => ! $targetIsAdmin || $actorIsRoot,
             'can_delete' => $actor?->user_id !== $user->user_id && (! $targetIsAdmin || $actorIsRoot),
+            'can_reset_password' => in_array(strtolower((string) $user->role), ['clinic', 'registrar'], true),
         ];
     }
 
@@ -195,6 +228,13 @@ class AdminUserController extends Controller
             ->whereRaw('LOWER(role) = ?', ['admin'])
             ->where('is_root_admin', true)
             ->count();
+    }
+
+    private function defaultPassword(User $user): string
+    {
+        $name = trim($user->name.' '.($user->last_name ?? ''));
+
+        return Str::lower(preg_replace('/\s+/u', '', $name) ?? '');
     }
 
     private function logActivity(?User $actor, string $action, string $tableName, string $description): void

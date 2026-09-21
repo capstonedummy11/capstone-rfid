@@ -194,7 +194,7 @@
                 id="schedule-time-start"
                 v-model="form.time_start"
                 type="time"
-                step="1800"
+                step="900"
                 :aria-invalid="Boolean(form.errors.time_start)"
                 :aria-describedby="form.errors.time_start ? 'schedule-time-start-error' : undefined"
                 :class="[
@@ -213,7 +213,7 @@
                 id="schedule-time-end"
                 v-model="form.time_end"
                 type="time"
-                step="1800"
+                step="900"
                 :aria-invalid="Boolean(form.errors.time_end)"
                 :aria-describedby="form.errors.time_end ? 'schedule-time-end-error' : undefined"
                 :class="[
@@ -371,7 +371,7 @@ const days = [
   { key: 'Sat', label: 'Saturday' },
 ];
 
-const SLOT_MINUTES = 30;
+const SLOT_MINUTES = 15;
 const SCHEDULE_START_MINUTES = 7 * 60;
 const SCHEDULE_END_MINUTES = 21 * 60;
 const timeSlots: string[] = Array.from({ length: (SCHEDULE_END_MINUTES - SCHEDULE_START_MINUTES) / SLOT_MINUTES }, (_, index) => {
@@ -563,14 +563,14 @@ const submitForm = () => {
     form.setError('time_start', 'Please select a start time.');
     isValid = false;
   } else if (parseMinutes(form.time_start) % SLOT_MINUTES !== 0) {
-    form.setError('time_start', 'Start time must use a 30-minute interval.');
+    form.setError('time_start', 'Start time must use a 15-minute interval.');
     isValid = false;
   }
   if (!form.time_end) {
     form.setError('time_end', 'Please select an end time.');
     isValid = false;
   } else if (parseMinutes(form.time_end) % SLOT_MINUTES !== 0) {
-    form.setError('time_end', 'End time must use a 30-minute interval.');
+    form.setError('time_end', 'End time must use a 15-minute interval.');
     isValid = false;
   } else if (form.time_start && form.time_end <= form.time_start) {
     form.setError('time_end', 'End time must be later than start time.');

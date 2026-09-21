@@ -20,6 +20,8 @@ const props = defineProps({
 const page = usePage();
 const flashSuccess = computed(() => page.props.flash?.success);
 const editingId = ref(null);
+const passwordResetUser = ref(null);
+const passwordResetSuccess = ref(null);
 
 const form = useForm({
     name: '',
@@ -29,6 +31,7 @@ const form = useForm({
     password: '',
     is_root_admin: false,
 });
+const passwordResetForm = useForm({});
 
 const statCards = computed(() => [
     {
@@ -98,6 +101,50 @@ const submit = () => {
         preserveScroll: true,
         onSuccess: resetForm,
     });
+};
+
+const defaultPassword = (user) =>
+    `${user.name ?? ''}${user.last_name ?? ''}`
+        .replace(/\s+/g, '')
+        .toLowerCase();
+
+const openPasswordReset = (user) => {
+    if (!user.can_reset_password) return;
+    passwordResetForm.clearErrors();
+    passwordResetUser.value = user;
+};
+
+const closePasswordReset = () => {
+    if (passwordResetForm.processing) return;
+    passwordResetUser.value = null;
+};
+
+const confirmPasswordReset = () => {
+    const user = passwordResetUser.value;
+    if (!user || passwordResetForm.processing) return;
+
+    const password = defaultPassword(user);
+    passwordResetForm.put(
+        route('admin.users.password.reset-default', user.id),
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                passwordResetSuccess.value = {
+                    name: user.name,
+                    role: roleLabel(user.role),
+                    password,
+                };
+                passwordResetUser.value = null;
+            },
+            onError: (errors) => {
+                passwordResetForm.setError(
+                    'reset',
+                    Object.values(errors).flat().join(', ') ||
+                        'The password could not be reset. Please try again.',
+                );
+            },
+        },
+    );
 };
 
 const deleteUser = (user) => {
@@ -392,6 +439,25 @@ const deleteUser = (user) => {
                                     </td>
                                     <td class="px-4 py-3">
                                         <div class="flex justify-end gap-2">
+                                            <div
+                                                v-if="user.can_reset_password"
+                                                class="group relative"
+                                            >
+                                                <button
+                                                    type="button"
+                                                    class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-amber-200 text-amber-600 hover:bg-amber-50 focus:ring-2 focus:ring-amber-200 focus:outline-none"
+                                                    aria-label="Reset password"
+                                                    @click="openPasswordReset(user)"
+                                                >
+                                                    <KeyRound class="h-4 w-4" />
+                                                </button>
+                                                <span
+                                                    role="tooltip"
+                                                    class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+                                                >
+                                                    Reset password
+                                                </span>
+                                            </div>
                                             <button
                                                 type="button"
                                                 :disabled="!user.can_update"
@@ -426,6 +492,99 @@ const deleteUser = (user) => {
                     </div>
                 </div>
             </section>
+        </div>
+
+        <div
+            v-if="passwordResetUser"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            role="presentation"
+            @click.self="closePasswordReset"
+        >
+            <div
+                class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="managed-user-reset-title"
+            >
+                <h2
+                    id="managed-user-reset-title"
+                    class="text-xl font-black text-slate-950"
+                >
+                    Reset {{ roleLabel(passwordResetUser.role) }} password?
+                </h2>
+                <p class="mt-3 text-sm leading-6 text-slate-600">
+                    Reset {{ passwordResetUser.name }}'s password to
+                    <strong>{{ defaultPassword(passwordResetUser) }}</strong>?
+                    Their active sessions will end, and they must create a
+                    private password at the next login.
+                </p>
+                <p
+                    v-if="passwordResetForm.errors.reset"
+                    class="mt-3 rounded-md bg-rose-50 p-3 text-sm text-rose-700"
+                    role="alert"
+                >
+                    {{ passwordResetForm.errors.reset }}
+                </p>
+                <div class="mt-6 flex justify-end gap-3">
+                    <button
+                        type="button"
+                        class="rounded-md border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                        :disabled="passwordResetForm.processing"
+                        @click="closePasswordReset"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        class="rounded-md bg-amber-600 px-4 py-2 text-sm font-bold text-white hover:bg-amber-700 disabled:opacity-60"
+                        :disabled="passwordResetForm.processing"
+                        @click="confirmPasswordReset"
+                    >
+                        {{
+                            passwordResetForm.processing
+                                ? 'Resetting...'
+                                : 'Reset password'
+                        }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div
+            v-if="passwordResetSuccess"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            role="presentation"
+        >
+            <div
+                class="w-full max-w-md rounded-lg bg-white p-6 text-center shadow-xl"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="managed-user-reset-success-title"
+            >
+                <div
+                    class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-700"
+                >
+                    <ShieldCheck class="h-8 w-8" aria-hidden="true" />
+                </div>
+                <h2
+                    id="managed-user-reset-success-title"
+                    class="mt-4 text-xl font-black text-slate-950"
+                >
+                    {{ passwordResetSuccess.role }} password reset
+                </h2>
+                <p class="mt-3 text-sm leading-6 text-slate-600">
+                    {{ passwordResetSuccess.name }}'s temporary password is
+                    <strong>{{ passwordResetSuccess.password }}</strong>. They
+                    must create a private password at the next login.
+                </p>
+                <button
+                    type="button"
+                    class="mt-6 rounded-md bg-emerald-600 px-5 py-2 text-sm font-bold text-white hover:bg-emerald-700"
+                    @click="passwordResetSuccess = null"
+                >
+                    OK
+                </button>
+            </div>
         </div>
     </div>
 </template>

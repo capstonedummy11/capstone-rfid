@@ -1686,7 +1686,7 @@ const defaultStudentPassword = (student: Student) =>
     `${student.first_name ?? ''}${student.last_name ?? ''}`.replace(
         /\s+/g,
         '',
-    ) || String(student.student_number ?? '');
+    ).toLowerCase() || String(student.student_number ?? '').toLowerCase();
 
 const resetStudentPassword = async (student: Student) => {
     if (!canManageStudents.value) return;

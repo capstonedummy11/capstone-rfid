@@ -246,6 +246,8 @@ Route::prefix('admin')
             Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
             Route::post('/users', [AdminUserController::class, 'store'])->name('users.store');
             Route::put('/users/{id}', [AdminUserController::class, 'update'])->name('users.update');
+            Route::put('/users/{id}/password/reset-default', [AdminUserController::class, 'resetPassword'])
+                ->name('users.password.reset-default');
             Route::delete('/users/{id}', [AdminUserController::class, 'destroy'])->name('users.destroy');
             Route::get('/online-class-logs', [OnlineClassController::class, 'logs'])->name('online-class-logs.index');
             Route::get('/online-class-logs/export', [OnlineClassController::class, 'exportLogs'])->name('online-class-logs.export');

@@ -185,7 +185,7 @@ The unused private `copyOfferingsAndSchedules` helper remains in the service, bu
 
 ## Current implementation gaps requiring explicit treatment
 
-- Schedule create/update requires 30-minute (`:00` or `:30`) time boundaries and rejects overlapping assignments that share a section, Instructor, laboratory, or room on the same weekday; adjacent end/start times are allowed.
+- Schedule create/update requires 15-minute (`:00`, `:15`, `:30`, or `:45`) time boundaries and rejects overlapping assignments that share a section, Instructor, laboratory, or room on the same weekday; adjacent end/start times are allowed.
 - Online Classes feature switch is not a universal route-level kill switch.
 - Enrollment status vocabulary is inconsistent (`enrolled` versus `active`) in online-class/report queries.
 - Student Management face buttons reference unregistered Admin route names.

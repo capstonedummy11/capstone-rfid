@@ -14,11 +14,11 @@ This document is the canonical reference for how the application assigns an init
 | ----------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | Root Admin              | **Admin User Management**, created by an existing Root Admin | No fixed default. The creator enters a password with at least 8 characters.                                 | Yes                                           | Only a Root Admin can create another Admin or grant Root Admin privileges.                               |
 | Admin                   | **Admin User Management**, created by a Root Admin           | No fixed default. The creator enters a password with at least 8 characters.                                 | Yes                                           | A normal Admin cannot create another Admin.                                                              |
-| Clinic                  | **Admin User Management**                                    | No fixed default. The creator enters a password with at least 8 characters.                                 | Yes                                           | The entered value is a temporary first-login password.                                                   |
-| Registrar               | **Admin User Management**                                    | No fixed default. The creator enters a password with at least 8 characters.                                 | Yes                                           | The entered value is a temporary first-login password.                                                   |
-| Instructor              | **Admin Instructor Management**                              | `password`                                                                                                  | Yes                                           | The same temporary value is restored by **Reset password**. Active sessions end when an Admin resets it. |
-| Student                 | **Admin Student Management**                                 | `FirstName` + `LastName`, with every space removed                                                          | Yes                                           | Capitalization is preserved. The student number is the fallback if both names are empty.                 |
-| Parent                  | **Manage Parents** in Student Management                     | `FirstName` + `LastName`, with every space removed                                                          | Yes                                           | The create form has no password field. Linking an existing Parent preserves the current password.        |
+| Clinic                  | **Admin User Management**                                    | Creator-entered password; Admin reset uses the lowercase Name with spaces removed                           | Yes                                           | Reset ends active sessions and requires a private password at next login.                                 |
+| Registrar               | **Admin User Management**                                    | Creator-entered password; Admin reset uses the lowercase Name with spaces removed                           | Yes                                           | Reset ends active sessions and requires a private password at next login.                                 |
+| Instructor              | **Admin Instructor Management**                              | Lowercase `FirstName` + `LastName`, with every space removed                                                | Yes                                           | The same formula is restored by **Reset password**. Active sessions end when an Admin resets it.         |
+| Student                 | **Admin Student Management**                                 | Lowercase `FirstName` + `LastName`, with every space removed                                                | Yes                                           | The lowercase student number is the fallback if both names are empty.                                    |
+| Parent                  | **Manage Parents** in Student Management                     | Lowercase `FirstName` + `LastName`, with every space removed                                                | Yes                                           | The create form has no password field. Linking an existing Parent preserves the current password.        |
 | Self-registered Student | Public registration                                          | No default. The user chooses and confirms a password; the legacy public form accepts at least 6 characters. | Current code sets the first-login-change flag | Public registration policy should be reviewed before production deployment.                              |
 | Runtime Console         | Attendance Panel room/PIN verification                       | A random 40-character internal password is generated by the server.                                         | No                                            | Operators do not use this generated password. They authenticate using the configured panel/device PIN.   |
 
@@ -26,17 +26,19 @@ This document is the canonical reference for how the application assigns an init
 
 ### Admin User Management
 
-This page creates Root Admin, Admin, Clinic, and Registrar accounts. The person creating the account must enter the temporary password; the application does not supply a shared default. The password must contain at least 8 characters, is stored as a hash, and the new account is marked for mandatory password replacement.
+This page creates Root Admin, Admin, Clinic, and Registrar accounts. The person creating the account must enter the temporary password; the application does not supply a shared creation default. The password must contain at least 8 characters, is stored as a hash, and the new account is marked for mandatory password replacement.
+
+Clinic and Registrar rows include **Reset password**. Resetting generates a temporary password from the account's Name field, removes every space, and converts the result to lowercase. For example, `Maria Santos` becomes `mariasantos`. The reset ends active sessions and requires a private password at the next login. Admin and Root Admin accounts are deliberately excluded from this reset action.
 
 ### Instructor Management
 
-Instructor creation uses the fixed temporary password:
+Instructor creation uses the Instructor's first name followed by last name, with every space removed and the complete result converted to lowercase:
 
 ```text
-password
+firstnamelastname
 ```
 
-The Instructor must replace it before proceeding to Instructor verification or normal role pages.
+For example, `Maria Dela Cruz` receives `mariadelacruz`. The **Reset password** action recalculates the temporary password from the Instructor's current first and last names. The Instructor must replace it before proceeding to Instructor verification or normal role pages.
 
 ### Student and Parent Management
 
@@ -60,17 +62,17 @@ Examples:
 
 | Student name   | Initial password |
 | -------------- | ---------------- |
-| Juan Dela Cruz | `JuanDelaCruz`   |
-| Andrea Santos  | `AndreaSantos`   |
-| Nina Dela Cruz | `NinaDelaCruz`   |
+| Juan Dela Cruz | `juandelacruz`   |
+| Andrea Santos  | `andreasantos`   |
+| Nina Dela Cruz | `ninadelacruz`   |
 
-Capitalization is preserved from the saved first and last names. If both names are unexpectedly empty, the student number is used as a fallback.
+The complete result is converted to lowercase. If both names are unexpectedly empty, the lowercase student number is used as a fallback.
 
 Updating a student record does not automatically replace the existing password. The **Reset Default Password** action explicitly resets it using the current first-name-plus-last-name formula.
 
 ## Parent Password Formula
 
-When Admin Student Management creates a new Parent account, the initial password is the Parent's first name followed by last name with every space removed. Capitalization is preserved. For example, `Maria Dela Cruz` receives `MariaDelaCruz`. The create form does not accept a manually entered password, and the Parent must replace this temporary password at first login.
+When Admin Student Management creates a new Parent account, the initial password is the Parent's first name followed by last name with every space removed and converted to lowercase. For example, `Maria Dela Cruz` receives `mariadelacruz`. The create form does not accept a manually entered password, and the Parent must replace this temporary password at first login.
 
 ## Existing Parent Accounts
 
@@ -118,5 +120,5 @@ Seeder passwords are development fixtures and do not override the operational ac
 - Passwords are stored as hashes; plaintext values are shown here only to document creation rules and local fixtures.
 - Every normal non-Console account is intended to replace its temporary password on first login.
 - Never send a temporary password and its username through the same insecure channel.
-- Do not use the seeded accounts or fixed Instructor password in production without completing the mandatory password change.
+- Do not use seeded or generated temporary passwords in production without completing the mandatory password change.
 - Prefer Laravel's email password-reset flow for established accounts. Administrative default-password reset is a recovery fallback, not the normal password-change method.
