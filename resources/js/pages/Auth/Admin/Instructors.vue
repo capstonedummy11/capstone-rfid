@@ -95,7 +95,25 @@
                 <td class="border border-gray-300 px-4 py-3">
                   <div class="flex items-center gap-2">
                     <button @click="openEditModal(instructor)" class="rounded-md bg-indigo-600 px-3 py-1 text-sm text-white hover:bg-indigo-700">Edit</button>
-                    <button @click="resetInstructorPassword(instructor)" class="rounded-md bg-amber-500 px-3 py-1 text-sm text-white hover:bg-amber-600">Reset password</button>
+                    <div class="group relative">
+                      <button
+                        type="button"
+                        @click="resetInstructorPassword(instructor)"
+                        aria-label="Reset password"
+                        class="rounded-md bg-amber-500 p-2 text-white hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-300"
+                      >
+                        <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                          <path d="M15.5 7.5a4.5 4.5 0 1 0-2.8 4.15L15 14h2v2h2v2h2v-3.17l-5.02-5.02A4.5 4.5 0 0 0 15.5 7.5Z" stroke-linecap="round" stroke-linejoin="round" />
+                          <path d="M8 7.5h.01" stroke-linecap="round" />
+                        </svg>
+                      </button>
+                      <span
+                        role="tooltip"
+                        class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+                      >
+                        Reset password
+                      </span>
+                    </div>
                     <button @click="deleteInstructor(instructor)" class="rounded-md bg-rose-500 px-3 py-1 text-sm text-white hover:bg-rose-600">Delete</button>
                   </div>
                 </td>
@@ -231,6 +249,75 @@
           </form>
         </div>
       </div>
+
+      <!-- Reset password confirmation modal -->
+      <div
+        v-if="resetConfirmationInstructor"
+        class="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
+        role="presentation"
+        @click.self="closeResetConfirmation"
+      >
+        <div
+          class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="reset-password-title"
+        >
+          <h2 id="reset-password-title" class="text-xl font-semibold text-slate-900">Reset Instructor password?</h2>
+          <p class="mt-3 text-sm leading-6 text-slate-600">
+            Reset {{ resetConfirmationInstructorName }}'s password to <strong>password</strong>? Their active sessions will end,
+            and they must create a private password at the next login.
+          </p>
+          <p v-if="resetForm.errors.reset" class="mt-3 rounded-md bg-rose-50 p-3 text-sm text-rose-700" role="alert">
+            {{ resetForm.errors.reset }}
+          </p>
+          <div class="mt-6 flex justify-end gap-3">
+            <button
+              type="button"
+              class="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              :disabled="resetForm.processing"
+              @click="closeResetConfirmation"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              class="rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+              :disabled="resetForm.processing"
+              @click="confirmResetInstructorPassword"
+            >
+              {{ resetForm.processing ? 'Resetting...' : 'Reset password' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reset password success modal -->
+      <div v-if="resetSuccessInstructorName" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4" role="presentation">
+        <div
+          class="w-full max-w-md rounded-lg bg-white p-6 text-center shadow-xl"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="reset-password-success-title"
+        >
+          <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-700" aria-hidden="true">
+            <svg viewBox="0 0 24 24" class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="m5 12 4 4L19 6" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </div>
+          <h2 id="reset-password-success-title" class="mt-4 text-xl font-semibold text-slate-900">Password reset successfully</h2>
+          <p class="mt-3 text-sm leading-6 text-slate-600">
+            {{ resetSuccessInstructorName }} must create a private password at the next login. Their active sessions have ended.
+          </p>
+          <button
+            type="button"
+            class="mt-6 rounded-md bg-emerald-600 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+            @click="resetSuccessInstructorName = ''"
+          >
+            OK
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -277,6 +364,8 @@ const selectedStatus = ref(props.filters.status ?? '');
 const showModal = ref(false);
 const isEditing = ref(false);
 const selectedInstructor = ref<Instructor | null>(null);
+const resetConfirmationInstructor = ref<Instructor | null>(null);
+const resetSuccessInstructorName = ref('');
 
 const form = useForm({
   instructor_id: '',
@@ -290,6 +379,13 @@ const form = useForm({
   strand_id: '',
   rfid_tag: '',
   status: 'active',
+});
+
+const resetForm = useForm({});
+
+const resetConfirmationInstructorName = computed(() => {
+  const instructor = resetConfirmationInstructor.value;
+  return instructor ? `${instructor.first_name} ${instructor.last_name}`.trim() : '';
 });
 
 const filteredInstructors = computed<Instructor[]>(() => {
@@ -409,15 +505,29 @@ const deleteInstructor = (instructor: Instructor) => {
 };
 
 const resetInstructorPassword = (instructor: Instructor) => {
-  const name = `${instructor.first_name} ${instructor.last_name}`.trim();
-  if (!confirm(`Reset ${name}'s password to "password"? Their active sessions will end, and they must create a private password at the next login.`)) {
-    return;
-  }
+  resetForm.clearErrors();
+  resetConfirmationInstructor.value = instructor;
+};
 
-  const resetForm = useForm({});
+const closeResetConfirmation = () => {
+  if (resetForm.processing) return;
+  resetConfirmationInstructor.value = null;
+};
+
+const confirmResetInstructorPassword = () => {
+  const instructor = resetConfirmationInstructor.value;
+  if (!instructor || resetForm.processing) return;
+
   resetForm.put(route('admin.instructors.password.reset-default', { id: instructor.instructor_id }), {
     preserveState: true,
     preserveScroll: true,
+    onSuccess: () => {
+      resetSuccessInstructorName.value = `${instructor.first_name} ${instructor.last_name}`.trim();
+      resetConfirmationInstructor.value = null;
+    },
+    onError: (errors) => {
+      resetForm.setError('reset', Object.values(errors).flat().join(', ') || 'The password could not be reset. Please try again.');
+    },
   });
 };
 

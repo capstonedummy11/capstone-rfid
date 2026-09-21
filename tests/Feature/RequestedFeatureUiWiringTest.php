@@ -36,6 +36,19 @@ test('public student and parent recovery page does not expose staff login', func
         ->not->toContain('>Staff login<');
 });
 
+test('instructor password reset uses application confirmation and success modals', function () {
+    $instructors = file_get_contents(resource_path('js/pages/Auth/Admin/Instructors.vue'));
+
+    expect($instructors)
+        ->toContain('Reset Instructor password?')
+        ->toContain('aria-label="Reset password"')
+        ->toContain('role="tooltip"')
+        ->toContain('aria-modal="true"')
+        ->toContain('confirmResetInstructorPassword')
+        ->toContain('Password reset successfully')
+        ->not->toContain('if (!confirm(`Reset ${name}\'s password');
+});
+
 test('excuse letter defaults an empty end date to the selected start date', function () {
     $excuseLetters = file_get_contents(resource_path('js/pages/StudentParent/ExcuseLetters.vue'));
 
