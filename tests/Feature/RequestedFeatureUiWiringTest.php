@@ -42,11 +42,25 @@ test('instructor password reset uses application confirmation and success modals
     expect($instructors)
         ->toContain('Reset Instructor password?')
         ->toContain('aria-label="Reset password"')
+        ->toContain('aria-label="Reset security questions"')
         ->toContain('role="tooltip"')
         ->toContain('aria-modal="true"')
         ->toContain('confirmResetInstructorPassword')
+        ->toContain('confirmResetInstructorSecurityQuestions')
         ->toContain('Password reset successfully')
+        ->toContain('Security questions reset')
         ->not->toContain('if (!confirm(`Reset ${name}\'s password');
+});
+
+test('schedule time inputs and grid use half hour intervals', function () {
+    $schedules = file_get_contents(resource_path('js/pages/Auth/Admin/Schedules.vue'));
+
+    expect($schedules)
+        ->toContain('step="1800"')
+        ->toContain('const SLOT_MINUTES = 30;')
+        ->toContain('Start time must use a 30-minute interval.')
+        ->toContain('End time must use a 30-minute interval.')
+        ->not->toContain('step="900"');
 });
 
 test('excuse letter defaults an empty end date to the selected start date', function () {

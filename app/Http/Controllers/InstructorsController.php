@@ -240,6 +240,32 @@ class InstructorsController
         );
     }
 
+    public function resetSecurityQuestions(int $id)
+    {
+        $instructor = Instructor::query()->with('user')->findOrFail($id);
+        $user = $instructor->user;
+
+        abort_if(! $user || strtolower((string) $user->role) !== 'instructor', 404);
+
+        DB::transaction(function () use ($user) {
+            $user->forceFill([
+                'security_question' => null,
+                'security_answer_hash' => null,
+                'security_questions' => null,
+                'remember_token' => Str::random(60),
+            ])->save();
+
+            DB::table('sessions')
+                ->where('user_id', $user->user_id)
+                ->delete();
+        });
+
+        return back()->with(
+            'success',
+            'Instructor security questions reset. They must create three new security questions at the next verification.'
+        );
+    }
+
     /**
      * Remove the specified resource from storage.
      */

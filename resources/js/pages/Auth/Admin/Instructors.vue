@@ -114,6 +114,26 @@
                         Reset password
                       </span>
                     </div>
+                    <div class="group relative">
+                      <button
+                        type="button"
+                        @click="resetInstructorSecurityQuestions(instructor)"
+                        aria-label="Reset security questions"
+                        class="rounded-md bg-sky-600 p-2 text-white hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-300"
+                      >
+                        <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" stroke-linecap="round" stroke-linejoin="round" />
+                          <path d="M9.8 9a2.25 2.25 0 1 1 3.42 1.92c-.75.45-1.22.87-1.22 1.83" stroke-linecap="round" />
+                          <path d="M12 16h.01" stroke-linecap="round" />
+                        </svg>
+                      </button>
+                      <span
+                        role="tooltip"
+                        class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+                      >
+                        Reset security questions
+                      </span>
+                    </div>
                     <button @click="deleteInstructor(instructor)" class="rounded-md bg-rose-500 px-3 py-1 text-sm text-white hover:bg-rose-600">Delete</button>
                   </div>
                 </td>
@@ -318,6 +338,86 @@
           </button>
         </div>
       </div>
+
+      <!-- Reset security questions confirmation modal -->
+      <div
+        v-if="securityQuestionResetInstructor"
+        class="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
+        role="presentation"
+        @click.self="closeSecurityQuestionResetConfirmation"
+      >
+        <div
+          class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="reset-security-questions-title"
+        >
+          <h2 id="reset-security-questions-title" class="text-xl font-semibold text-slate-900">Reset security questions?</h2>
+          <p class="mt-3 text-sm leading-6 text-slate-600">
+            Reset {{ securityQuestionResetInstructorName }}'s saved security questions? Their active sessions will end, and they
+            must create three new questions at the next verification. Their password will not change.
+          </p>
+          <p
+            v-if="securityQuestionResetForm.errors.reset"
+            class="mt-3 rounded-md bg-rose-50 p-3 text-sm text-rose-700"
+            role="alert"
+          >
+            {{ securityQuestionResetForm.errors.reset }}
+          </p>
+          <div class="mt-6 flex justify-end gap-3">
+            <button
+              type="button"
+              class="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              :disabled="securityQuestionResetForm.processing"
+              @click="closeSecurityQuestionResetConfirmation"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              class="rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
+              :disabled="securityQuestionResetForm.processing"
+              @click="confirmResetInstructorSecurityQuestions"
+            >
+              {{ securityQuestionResetForm.processing ? 'Resetting...' : 'Reset questions' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reset security questions success modal -->
+      <div
+        v-if="securityQuestionResetSuccessName"
+        class="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
+        role="presentation"
+      >
+        <div
+          class="w-full max-w-md rounded-lg bg-white p-6 text-center shadow-xl"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="reset-security-questions-success-title"
+        >
+          <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-700" aria-hidden="true">
+            <svg viewBox="0 0 24 24" class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="m5 12 4 4L19 6" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </div>
+          <h2 id="reset-security-questions-success-title" class="mt-4 text-xl font-semibold text-slate-900">
+            Security questions reset
+          </h2>
+          <p class="mt-3 text-sm leading-6 text-slate-600">
+            {{ securityQuestionResetSuccessName }} must create three new security questions at the next verification. Their active
+            sessions have ended.
+          </p>
+          <button
+            type="button"
+            class="mt-6 rounded-md bg-emerald-600 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+            @click="securityQuestionResetSuccessName = ''"
+          >
+            OK
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -366,6 +466,8 @@ const isEditing = ref(false);
 const selectedInstructor = ref<Instructor | null>(null);
 const resetConfirmationInstructor = ref<Instructor | null>(null);
 const resetSuccessInstructorName = ref('');
+const securityQuestionResetInstructor = ref<Instructor | null>(null);
+const securityQuestionResetSuccessName = ref('');
 
 const form = useForm({
   instructor_id: '',
@@ -382,9 +484,15 @@ const form = useForm({
 });
 
 const resetForm = useForm({});
+const securityQuestionResetForm = useForm({});
 
 const resetConfirmationInstructorName = computed(() => {
   const instructor = resetConfirmationInstructor.value;
+  return instructor ? `${instructor.first_name} ${instructor.last_name}`.trim() : '';
+});
+
+const securityQuestionResetInstructorName = computed(() => {
+  const instructor = securityQuestionResetInstructor.value;
   return instructor ? `${instructor.first_name} ${instructor.last_name}`.trim() : '';
 });
 
@@ -527,6 +635,36 @@ const confirmResetInstructorPassword = () => {
     },
     onError: (errors) => {
       resetForm.setError('reset', Object.values(errors).flat().join(', ') || 'The password could not be reset. Please try again.');
+    },
+  });
+};
+
+const resetInstructorSecurityQuestions = (instructor: Instructor) => {
+  securityQuestionResetForm.clearErrors();
+  securityQuestionResetInstructor.value = instructor;
+};
+
+const closeSecurityQuestionResetConfirmation = () => {
+  if (securityQuestionResetForm.processing) return;
+  securityQuestionResetInstructor.value = null;
+};
+
+const confirmResetInstructorSecurityQuestions = () => {
+  const instructor = securityQuestionResetInstructor.value;
+  if (!instructor || securityQuestionResetForm.processing) return;
+
+  securityQuestionResetForm.put(route('admin.instructors.security-questions.reset', { id: instructor.instructor_id }), {
+    preserveState: true,
+    preserveScroll: true,
+    onSuccess: () => {
+      securityQuestionResetSuccessName.value = `${instructor.first_name} ${instructor.last_name}`.trim();
+      securityQuestionResetInstructor.value = null;
+    },
+    onError: (errors) => {
+      securityQuestionResetForm.setError(
+        'reset',
+        Object.values(errors).flat().join(', ') || 'The security questions could not be reset. Please try again.',
+      );
     },
   });
 };

@@ -317,6 +317,37 @@ test('instructor controller creates linked user then updates index and deletes t
         ->and($instructor->user->remember_token)->not->toBe('existing-remember-token');
     $this->assertDatabaseMissing('sessions', ['id' => 'instructor-session-to-revoke']);
 
+    $instructor->user->forceFill([
+        'security_question' => 'What was the name of your first school?',
+        'security_answer_hash' => Hash::make('north high'),
+        'security_questions' => [
+            ['question' => 'What was the name of your first school?', 'answer_hash' => Hash::make('north high')],
+            ['question' => 'What is your mother\'s maiden name?', 'answer_hash' => Hash::make('rivera')],
+            ['question' => 'What was the name of your first pet?', 'answer_hash' => Hash::make('buddy')],
+        ],
+        'remember_token' => 'security-question-remember-token',
+    ])->save();
+    DB::table('sessions')->insert([
+        'id' => 'security-question-session-to-revoke',
+        'user_id' => $instructor->user_id,
+        'ip_address' => '127.0.0.1',
+        'user_agent' => 'Feature test',
+        'payload' => 'test-session-payload',
+        'last_activity' => now()->timestamp,
+    ]);
+
+    $this->actingAs($admin)
+        ->put(route('admin.instructors.security-questions.reset', $instructor->instructor_id))
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    $instructor->user->refresh();
+    expect($instructor->user->security_question)->toBeNull()
+        ->and($instructor->user->security_answer_hash)->toBeNull()
+        ->and($instructor->user->security_questions)->toBeNull()
+        ->and($instructor->user->remember_token)->not->toBe('security-question-remember-token');
+    $this->assertDatabaseMissing('sessions', ['id' => 'security-question-session-to-revoke']);
+
     $this->actingAs($admin)->delete(route('admin.instructors.destroy', $instructor->instructor_id))
         ->assertRedirect()
         ->assertSessionHas('success');
@@ -376,6 +407,16 @@ test('schedule controller creates from offering then updates indexes and deletes
         'weekdays' => 'Mon',
         'time_start' => '08:10',
         'time_end' => '09:10',
+        'room' => 'A101',
+    ])->assertRedirect()->assertSessionHasErrors(['time_start', 'time_end']);
+    $this->assertDatabaseCount('schedules', 0);
+
+    $this->actingAs($admin)->post(route('admin.schedules.store'), [
+        'subject_offering_id' => $offering->subject_offering_id,
+        'laboratory_id' => $laboratory->laboratory_id,
+        'weekdays' => 'Mon',
+        'time_start' => '08:15',
+        'time_end' => '09:15',
         'room' => 'A101',
     ])->assertRedirect()->assertSessionHasErrors(['time_start', 'time_end']);
     $this->assertDatabaseCount('schedules', 0);

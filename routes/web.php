@@ -278,6 +278,8 @@ Route::prefix('admin')
             Route::put('/instructors/{id}', [InstructorsController::class, 'update'])->name('instructors.update');
             Route::put('/instructors/{id}/password/reset-default', [InstructorsController::class, 'resetPassword'])
                 ->name('instructors.password.reset-default');
+            Route::put('/instructors/{id}/security-questions/reset', [InstructorsController::class, 'resetSecurityQuestions'])
+                ->name('instructors.security-questions.reset');
             Route::delete('/instructors/{id}', [InstructorsController::class, 'destroy'])->name('instructors.destroy');
             Route::inertia('/students-management', 'StudentsManagement', ['title' => 'Students Management'])->name('studentsManagement');
             // Route::inertia('/instructors-management', 'InstructorsManagement', ['title' => 'Instructor Management'])->name('instructorsManagement');

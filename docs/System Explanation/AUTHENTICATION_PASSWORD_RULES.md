@@ -64,6 +64,8 @@ When an administrator resets a Student or Instructor account to its documented d
 
 Default-password formulas and account provisioning details are documented in [Default Account Passwords](DEFAULT_ACCOUNT_PASSWORDS.md).
 
+An administrator can also reset an Instructor's security questions without changing the password. This clears both the legacy single-question fields and the current three-question set, rotates remember-me access, and ends active Instructor sessions. At the next verification, the Instructor must create three new security questions before that verification method is available again.
+
 ## Security and Audit Notes
 
 - Passwords are stored as hashes.
