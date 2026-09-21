@@ -118,3 +118,5 @@ Manual edits do not delete or rewrite original tap evidence.
 ## 10. Audit Data
 
 The system keeps one main attendance row per student, schedule, and date. Individual event records include Check-in, Temporary Exit, Temporary Return, Check-out, Invalid Tap, Ignored Tap, and Manual Edit. Event details can include sequence, time, room/device, validation, verification method, evidence paths, and remarks.
+
+The live Attendance Taps panel counts unique students, not individual tap events. Each student appears once; selecting the student's card expands the complete event history for that active class session without removing or merging the underlying audit records.

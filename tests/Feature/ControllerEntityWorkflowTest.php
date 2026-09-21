@@ -9,6 +9,8 @@ use App\Models\Instructor;
 use App\Models\Inventory;
 use App\Models\Item;
 use App\Models\Laboratory;
+use App\Models\Message;
+use App\Models\OnlineClass;
 use App\Models\PanelDevice;
 use App\Models\Schedule;
 use App\Models\Section;
@@ -20,6 +22,7 @@ use App\Models\SystemSetting;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -289,6 +292,31 @@ test('instructor controller creates linked user then updates index and deletes t
         'rfid_tag' => 'INS-CTRL-RFID-2',
     ]);
 
+    $instructor->user->forceFill([
+        'password' => Hash::make('private-instructor-password'),
+        'must_change_password' => false,
+        'remember_token' => 'existing-remember-token',
+    ])->save();
+    DB::table('sessions')->insert([
+        'id' => 'instructor-session-to-revoke',
+        'user_id' => $instructor->user_id,
+        'ip_address' => '127.0.0.1',
+        'user_agent' => 'Feature test',
+        'payload' => 'test-session-payload',
+        'last_activity' => now()->timestamp,
+    ]);
+
+    $this->actingAs($admin)
+        ->put(route('admin.instructors.password.reset-default', $instructor->instructor_id))
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    $instructor->user->refresh();
+    expect(Hash::check('password', $instructor->user->password))->toBeTrue()
+        ->and($instructor->user->must_change_password)->toBeTrue()
+        ->and($instructor->user->remember_token)->not->toBe('existing-remember-token');
+    $this->assertDatabaseMissing('sessions', ['id' => 'instructor-session-to-revoke']);
+
     $this->actingAs($admin)->delete(route('admin.instructors.destroy', $instructor->instructor_id))
         ->assertRedirect()
         ->assertSessionHas('success');
@@ -297,7 +325,7 @@ test('instructor controller creates linked user then updates index and deletes t
 
 test('schedule controller creates from offering then updates indexes and deletes the schedule', function () {
     $admin = User::factory()->create(['role' => 'admin']);
-    ['section' => $section] = controllerEntityAcademicContext();
+    ['section' => $section, 'strand' => $strand] = controllerEntityAcademicContext();
     $laboratory = Laboratory::query()->create([
         'name' => 'Schedule Lab',
         'description' => 'Schedule controller test lab.',
@@ -309,13 +337,48 @@ test('schedule controller creates from offering then updates indexes and deletes
         'subject_code' => 'SCHED-CTRL',
         'unit' => 3,
     ]);
+    $instructorUser = User::factory()->create(['role' => 'instructor']);
+    $instructor = Instructor::query()->create([
+        'user_id' => $instructorUser->user_id,
+        'strand_id' => $strand->strand_id,
+        'instructor_number' => 'INS-SCHED-CTRL',
+        'status' => 'active',
+    ]);
     $offering = SubjectOffering::query()->create([
         'academic_year_id' => $section->academic_year_id,
         'subject_id' => $subject->subject_id,
         'section_id' => $section->section_id,
+        'instructor_id' => $instructor->instructor_id,
         'semester' => '1st Semester',
         'status' => 'active',
     ]);
+
+    $this->actingAs($admin)->post(route('admin.schedules.store'), [
+        'subject_offering_id' => null,
+        'laboratory_id' => $laboratory->laboratory_id,
+        'section_id' => null,
+        'subject_code' => null,
+        'weekdays' => '',
+        'time_start' => '',
+        'time_end' => '',
+    ])->assertRedirect()->assertSessionHasErrors([
+        'section_id',
+        'subject_code',
+        'weekdays',
+        'time_start',
+        'time_end',
+    ]);
+    $this->assertDatabaseCount('schedules', 0);
+
+    $this->actingAs($admin)->post(route('admin.schedules.store'), [
+        'subject_offering_id' => $offering->subject_offering_id,
+        'laboratory_id' => $laboratory->laboratory_id,
+        'weekdays' => 'Mon',
+        'time_start' => '08:10',
+        'time_end' => '09:10',
+        'room' => 'A101',
+    ])->assertRedirect()->assertSessionHasErrors(['time_start', 'time_end']);
+    $this->assertDatabaseCount('schedules', 0);
 
     $this->actingAs($admin)->post(route('admin.schedules.store'), [
         'subject_offering_id' => $offering->subject_offering_id,
@@ -331,11 +394,112 @@ test('schedule controller creates from offering then updates indexes and deletes
 
     $schedule = Schedule::query()->where('subject_offering_id', $offering->subject_offering_id)->firstOrFail();
 
+    $this->actingAs($admin)->post(route('admin.schedules.store'), [
+        'subject_offering_id' => $offering->subject_offering_id,
+        'laboratory_id' => $laboratory->laboratory_id,
+        'instructor_id' => null,
+        'section_id' => null,
+        'subject_code' => null,
+        'weekdays' => 'Funday',
+        'time_start' => '12:00',
+        'time_end' => '13:00',
+        'room' => 'A101',
+    ])->assertRedirect()->assertSessionHasErrors('weekdays');
+    $this->assertDatabaseCount('schedules', 1);
+
+    $this->actingAs($admin)->post(route('admin.schedules.store'), [
+        'subject_offering_id' => $offering->subject_offering_id,
+        'laboratory_id' => $laboratory->laboratory_id,
+        'instructor_id' => null,
+        'section_id' => null,
+        'subject_code' => null,
+        'weekdays' => 'Monday',
+        'time_start' => '08:30',
+        'time_end' => '09:30',
+        'room' => 'A101',
+    ])->assertRedirect()->assertSessionHasErrors('time_start');
+    $this->assertDatabaseCount('schedules', 1);
+
+    $this->actingAs($admin)->post(route('admin.schedules.store'), [
+        'subject_offering_id' => $offering->subject_offering_id,
+        'laboratory_id' => $laboratory->laboratory_id,
+        'instructor_id' => null,
+        'section_id' => null,
+        'subject_code' => null,
+        'weekdays' => 'Mon',
+        'time_start' => '09:00',
+        'time_end' => '10:00',
+        'room' => 'A101',
+    ])->assertRedirect()->assertSessionHas('success');
+
+    $adjacentSchedule = Schedule::query()
+        ->where('scheduled_id', '!=', $schedule->scheduled_id)
+        ->where('weekdays', 'Mon')
+        ->firstOrFail();
+    $this->actingAs($admin)->delete(route('admin.schedules.destroy', $adjacentSchedule->scheduled_id))
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    $sundaySchedule = Schedule::query()->create([
+        'academic_year_id' => $section->academic_year_id,
+        'subject_offering_id' => $offering->subject_offering_id,
+        'laboratory_id' => $laboratory->laboratory_id,
+        'instructor_id' => $instructor->instructor_id,
+        'section_id' => $section->section_id,
+        'subject_code' => $subject->subject_code,
+        'semester' => '1st Semester',
+        'weekdays' => 'Sun',
+        'time_start' => '08:00:00',
+        'time_end' => '12:00:00',
+        'room' => 'A101',
+    ]);
+
+    $this->actingAs($admin)->put(route('admin.schedules.update', $sundaySchedule->scheduled_id), [
+        'subject_offering_id' => $offering->subject_offering_id,
+        'laboratory_id' => $laboratory->laboratory_id,
+        'instructor_id' => null,
+        'section_id' => null,
+        'subject_code' => null,
+        'weekdays' => 'Mon',
+        'time_start' => '08:30',
+        'time_end' => '09:30',
+        'room' => 'A101',
+    ])->assertRedirect()->assertSessionHasErrors('time_start');
+
+    $this->assertDatabaseHas('schedules', [
+        'scheduled_id' => $sundaySchedule->scheduled_id,
+        'weekdays' => 'Sun',
+        'time_start' => '08:00:00',
+        'time_end' => '12:00:00',
+    ]);
+
+    $this->actingAs($admin)->delete(route('admin.schedules.destroy', $sundaySchedule->scheduled_id))
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
     $this->actingAs($admin)->get(route('admin.schedules.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('Auth/Admin/Schedules')
             ->where('schedules.0.scheduled_id', $schedule->scheduled_id));
+
+    $this->actingAs($admin)->put(route('admin.schedules.update', $schedule->scheduled_id), [
+        'subject_offering_id' => $offering->subject_offering_id,
+        'laboratory_id' => $laboratory->laboratory_id,
+        'instructor_id' => null,
+        'section_id' => null,
+        'subject_code' => null,
+        'weekdays' => 'Tue',
+        'time_start' => '11:00',
+        'time_end' => '10:00',
+        'room' => 'A102',
+    ])->assertRedirect()->assertSessionHasErrors('time_end');
+
+    $this->assertDatabaseHas('schedules', [
+        'scheduled_id' => $schedule->scheduled_id,
+        'weekdays' => 'Mon',
+        'room' => 'A101',
+    ]);
 
     $this->actingAs($admin)->put(route('admin.schedules.update', $schedule->scheduled_id), [
         'subject_offering_id' => $offering->subject_offering_id,
@@ -354,6 +518,30 @@ test('schedule controller creates from offering then updates indexes and deletes
         'weekdays' => 'Tue',
         'room' => 'A102',
     ]);
+
+    DB::table('online_classes')->insert([
+        'schedule_id' => $schedule->scheduled_id,
+        'academic_year_id' => $section->academic_year_id,
+        'subject_offering_id' => $offering->subject_offering_id,
+        'instructor_id' => $instructor->instructor_id,
+        'section_id' => $section->section_id,
+        'subject_code' => $subject->subject_code,
+        'title' => 'Protected schedule history',
+        'meeting_link' => 'https://example.test/class',
+        'scheduled_date' => '2026-09-21',
+        'start_time' => '10:00:00',
+        'end_time' => '11:00:00',
+        'status' => 'completed',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $this->actingAs($admin)->delete(route('admin.schedules.destroy', $schedule->scheduled_id))
+        ->assertRedirect()
+        ->assertSessionHasErrors('schedule');
+    $this->assertDatabaseHas('schedules', ['scheduled_id' => $schedule->scheduled_id]);
+
+    DB::table('online_classes')->where('schedule_id', $schedule->scheduled_id)->delete();
 
     $this->actingAs($admin)->delete(route('admin.schedules.destroy', $schedule->scheduled_id))
         ->assertRedirect()
@@ -399,23 +587,28 @@ test('student controller creates enrollment account parent link reset update and
             ->where('students.0.student_id', $student->student_id));
 
     $this->actingAs($admin)->post(route('admin.students.parents.store', $student->student_id), [
-        'name' => 'Control Parent',
+        'first_name' => 'Control',
+        'last_name' => 'Parent',
         'email' => 'control.parent@example.test',
         'phone' => '09170000004',
         'gender' => 'female',
         'relationship' => 'Mother',
-        'password' => 'parent-password',
     ])->assertRedirect()->assertSessionHas('success');
     $parent = User::query()->where('email', 'control.parent@example.test')->firstOrFail();
+    expect(Hash::check('ControlParent', $parent->password))->toBeTrue()
+        ->and($parent->must_change_password)->toBeTrue();
+    $parentPasswordHash = $parent->password;
 
     $this->actingAs($admin)->put(route('admin.students.parents.update', [$student->student_id, $parent->user_id]), [
-        'name' => 'Control Parent Updated',
+        'first_name' => 'Control',
+        'last_name' => 'Parent Updated',
         'email' => 'control.parent.updated@example.test',
         'phone' => '09170000005',
         'gender' => 'female',
         'relationship' => 'Guardian',
         'password' => null,
     ])->assertRedirect()->assertSessionHas('success');
+    expect($parent->fresh()->password)->toBe($parentPasswordHash);
 
     $this->assertDatabaseHas('parent_student_links', [
         'student_id' => $student->student_id,
@@ -463,6 +656,150 @@ test('student controller creates enrollment account parent link reset update and
         ->assertRedirect()
         ->assertSessionHas('success');
     $this->assertSoftDeleted('students', ['student_id' => $student->student_id]);
+});
+
+test('message instructor create form validates and stores an encrypted inbox message', function () {
+    $instructor = User::factory()->create(['role' => 'instructor']);
+
+    $this->post(route('messages.store'), [
+        'instructor_user_id' => $instructor->user_id,
+        'sender_type' => 'student',
+        'sender_name' => 'Form Tester',
+        'body' => '',
+    ])->assertRedirect()->assertSessionHasErrors('body');
+    $this->assertDatabaseCount('messages', 0);
+
+    $this->post(route('messages.store'), [
+        'instructor_user_id' => $instructor->user_id,
+        'sender_type' => 'student',
+        'sender_name' => 'Form Tester',
+        'sender_email' => 'form.tester@example.test',
+        'student_number' => 'FORM-001',
+        'body' => 'Please review my attendance concern.',
+    ])->assertRedirect()->assertSessionHas('success');
+
+    $message = Message::query()->firstOrFail();
+    expect($message->subject)->toBe('Instructor conversation')
+        ->and($message->body)->toBe('Please review my attendance concern.');
+    $this->assertDatabaseHas('messages', [
+        'message_id' => $message->message_id,
+        'instructor_user_id' => $instructor->user_id,
+        'sender_type' => 'student',
+        'body' => 'Encrypted message',
+    ]);
+});
+
+test('online class modal validates creates and soft deletes a class', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    ['year' => $year, 'strand' => $strand, 'section' => $section] = controllerEntityAcademicContext();
+    $instructorUser = User::factory()->create(['role' => 'instructor']);
+    $instructor = Instructor::query()->create([
+        'user_id' => $instructorUser->user_id,
+        'strand_id' => $strand->strand_id,
+        'instructor_number' => 'INS-ONLINE-MODAL',
+        'status' => 'active',
+    ]);
+    $subject = Subject::query()->create([
+        'subject_name' => 'Online Modal Testing',
+        'subject_code' => 'ONLINE-MODAL',
+        'unit' => 3,
+    ]);
+    $offering = SubjectOffering::query()->create([
+        'academic_year_id' => $year->academic_year_id,
+        'subject_id' => $subject->subject_id,
+        'section_id' => $section->section_id,
+        'instructor_id' => $instructor->instructor_id,
+        'semester' => '1st Semester',
+        'status' => 'active',
+    ]);
+    $schedule = Schedule::query()->create([
+        'academic_year_id' => $year->academic_year_id,
+        'subject_offering_id' => $offering->subject_offering_id,
+        'instructor_id' => $instructor->instructor_id,
+        'section_id' => $section->section_id,
+        'subject_code' => $subject->subject_code,
+        'semester' => '1st Semester',
+        'weekdays' => 'Mon',
+        'time_start' => '08:00:00',
+        'time_end' => '09:00:00',
+        'room' => 'Virtual Room',
+    ]);
+
+    $this->actingAs($admin)->post(route('admin.online-classes.store'), [
+        'schedule_id' => $schedule->scheduled_id,
+        'title' => '',
+        'meeting_link' => 'not-a-url',
+        'scheduled_date' => 'invalid-date',
+        'start_time' => '09:00',
+        'end_time' => '08:00',
+        'require_face_recognition' => false,
+    ])->assertRedirect()->assertSessionHasErrors([
+        'title',
+        'meeting_link',
+        'scheduled_date',
+        'end_time',
+    ]);
+    $this->assertDatabaseCount('online_classes', 0);
+
+    $this->actingAs($admin)->post(route('admin.online-classes.store'), [
+        'schedule_id' => $schedule->scheduled_id,
+        'title' => 'Controller Online Class',
+        'description' => 'Created from the modal workflow test.',
+        'meeting_link' => 'https://example.test/online-class',
+        'scheduled_date' => '2026-09-28',
+        'start_time' => '08:00',
+        'end_time' => '09:00',
+        'require_face_recognition' => false,
+    ])->assertRedirect()->assertSessionHas('success');
+
+    $onlineClass = OnlineClass::query()->firstOrFail();
+    $this->assertDatabaseHas('online_classes', [
+        'online_class_id' => $onlineClass->online_class_id,
+        'schedule_id' => $schedule->scheduled_id,
+        'academic_year_id' => $year->academic_year_id,
+        'subject_offering_id' => $offering->subject_offering_id,
+        'title' => 'Controller Online Class',
+    ]);
+
+    $this->actingAs($admin)->delete(route('admin.online-classes.destroy', $onlineClass))
+        ->assertRedirect()
+        ->assertSessionHas('success');
+    $this->assertSoftDeleted('online_classes', [
+        'online_class_id' => $onlineClass->online_class_id,
+    ]);
+});
+
+test('rfid clear actions remove student and instructor assignments', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    ['year' => $year, 'strand' => $strand, 'section' => $section] = controllerEntityAcademicContext();
+    $student = Students::query()->create([
+        'section_id' => $section->section_id,
+        'strand_id' => $strand->strand_id,
+        'student_number' => 'RFID-CLEAR-001',
+        'first_name' => 'RFID',
+        'last_name' => 'Student',
+        'email' => 'rfid.clear.student@example.test',
+        'gender' => 'female',
+        'year_level' => 11,
+        'semester' => '1st Semester',
+        'school_year' => $year->name,
+        'rfid_tag' => 'RFID-STUDENT-CLEAR',
+        'status' => 'active',
+    ]);
+    $instructor = User::factory()->create([
+        'role' => 'instructor',
+        'rfid_tag' => 'RFID-INSTRUCTOR-CLEAR',
+    ]);
+
+    $this->actingAs($admin)->delete(route('admin.rfid.destroy', ['type' => 'student', 'id' => $student->student_id]))
+        ->assertRedirect(route('admin.rfid'))
+        ->assertSessionHas('success');
+    $this->actingAs($admin)->delete(route('admin.rfid.destroy', ['type' => 'instructor', 'id' => $instructor->user_id]))
+        ->assertRedirect(route('admin.rfid'))
+        ->assertSessionHas('success');
+
+    expect($student->fresh()->rfid_tag)->toBeNull()
+        ->and($instructor->fresh()->rfid_tag)->toBeNull();
 });
 
 test('laboratory and active device controllers create update index pin and delete managed device context', function () {

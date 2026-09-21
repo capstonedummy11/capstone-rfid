@@ -208,6 +208,8 @@ For each instructor, prepare:
 - Email or staff account information.
 - Assigned strand or related profile details if used by the form.
 
+If an Instructor forgets the account password, select **Reset password** in that Instructor's row and confirm. The password returns to the documented temporary value `password`, active Instructor sessions end, and the Instructor must create a private password at the next login before completing Instructor verification.
+
 Why this comes before schedules:
 
 - Schedules require an instructor assignment.
@@ -647,6 +649,16 @@ Important rule:
 
 - Student-created letters need parent approval before download.
 - Parent-created letters are already approved because the parent created and signed them.
+
+Instructor review and result email:
+
+1. The assigned Instructor opens `/messages` and selects the conversation containing the generated excuse-letter PDF.
+2. Select **Approve** or **Deny** on that excuse-letter message.
+3. Select **Student**, **Parent**, or both. Parent sends to every linked Parent with a valid email address.
+4. Review or edit the prepared email subject and message, then submit the decision.
+5. The system emails the selected recipients, includes the generated PDF when available, and records the Instructor, decision time, final template, and actual recipients.
+
+Only the Instructor who received that specific linked delivery can decide it once. When a letter was sent to multiple Instructors, each Instructor has an independent decision.
 
 ## 24. Use Emergency Alerts And Emergency Text Area
 

@@ -36,6 +36,10 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AttendanceController
 {
+    private const FACE_MISMATCH_MESSAGE = 'Face recognition failed to match.';
+
+    private const AWS_FACE_UNAVAILABLE_MESSAGE = 'AWS face recognition is not working.';
+
     public function updatePanelSessionState(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -431,6 +435,7 @@ class AttendanceController
             'message' => $message,
             'record' => [
                 'id' => $attendanceLogId,
+                'student_id' => $student->student_id,
                 'attendance_id' => $attendance?->attendance_id,
                 'rfid' => $student->rfid_tag,
                 'name' => trim($student->first_name.' '.$student->last_name),
@@ -448,7 +453,7 @@ class AttendanceController
         ]);
     }
 
-    public function studentFaceCheck(Request $request): JsonResponse
+    public function studentFaceCheck(Request $request, AwsFaceRecognitionService $faceService): JsonResponse
     {
         $validated = $request->validate([
             'rfid' => ['required', 'string', 'max:255'],
@@ -631,7 +636,6 @@ class AttendanceController
             ], 422);
         }
 
-        $faceService = new AwsFaceRecognitionService;
         $faceResult = null;
         $bestMismatch = null;
 
@@ -665,7 +669,7 @@ class AttendanceController
                     'ok' => false,
                     'verified' => false,
                     'provider_unavailable' => true,
-                    'message' => 'AWS face recognition is unavailable and the captured attendance photo could not be stored.',
+                    'message' => self::AWS_FACE_UNAVAILABLE_MESSAGE,
                 ], 503);
             }
 
@@ -677,7 +681,7 @@ class AttendanceController
                 'provider' => 'aws_rekognition',
                 'provider_unavailable' => true,
                 'capture_recorded' => true,
-                'message' => 'Warning: AWS face recognition is unavailable. The student photo was captured and attached to this attendance event.',
+                'message' => self::AWS_FACE_UNAVAILABLE_MESSAGE,
             ]);
         }
 
@@ -688,7 +692,7 @@ class AttendanceController
                 'provider' => $faceResult['provider'],
                 'similarity' => $faceResult['similarity'],
                 'threshold' => $faceResult['threshold'],
-                'message' => 'Face mismatch. Camera image does not match the enrolled student photo.',
+                'message' => self::FACE_MISMATCH_MESSAGE,
             ], 422);
         }
 
@@ -719,7 +723,7 @@ class AttendanceController
         ]);
     }
 
-    public function instructorFaceCheck(Request $request): JsonResponse
+    public function instructorFaceCheck(Request $request, AwsFaceRecognitionService $faceService): JsonResponse
     {
         $validated = $request->validate([
             'instructor_rfid' => ['required', 'string', 'max:255'],
@@ -776,7 +780,7 @@ class AttendanceController
             ], 422);
         }
 
-        $faceResult = (new AwsFaceRecognitionService)->compareBase64WithStoredImage(
+        $faceResult = $faceService->compareBase64WithStoredImage(
             $validated['image'],
             $faceImages[0],
         );
@@ -785,7 +789,7 @@ class AttendanceController
             return response()->json([
                 'ok' => false,
                 'verified' => false,
-                'message' => 'AWS face recognition is unavailable or could not verify the instructor face.',
+                'message' => self::AWS_FACE_UNAVAILABLE_MESSAGE,
             ], 503);
         }
 
@@ -796,7 +800,7 @@ class AttendanceController
                 'provider' => $faceResult['provider'],
                 'similarity' => $faceResult['similarity'],
                 'threshold' => $faceResult['threshold'],
-                'message' => 'Instructor face mismatch. Attendance was not recorded.',
+                'message' => self::FACE_MISMATCH_MESSAGE,
             ], 422);
         }
 
@@ -914,6 +918,7 @@ class AttendanceController
             return response()->json([
                 'ok' => true,
                 'records' => [],
+                'total_students' => 0,
             ]);
         }
 
@@ -927,6 +932,7 @@ class AttendanceController
             ->orderByDesc('attendance_logs.id')
             ->select([
                 'attendance_logs.id',
+                'attendance_logs.student_id',
                 'attendance_logs.time_in',
                 'attendance_logs.time_out',
                 'attendance_logs.status',
@@ -956,6 +962,7 @@ class AttendanceController
             ->map(function ($record) {
                 return [
                     'id' => $record->id,
+                    'student_id' => $record->student_id,
                     'rfid' => $record->rfid_tag,
                     'name' => trim(($record->first_name ?? '').' '.($record->last_name ?? '')),
                     'course' => $record->strand_code,
@@ -976,9 +983,23 @@ class AttendanceController
             })
             ->values();
 
+        $studentRecords = $records
+            ->groupBy(fn (array $record) => (string) ($record['student_id'] ?? $record['rfid']))
+            ->map(function ($events, string $studentKey) {
+                $events = $events->values();
+                $summary = $events->first();
+                $summary['id'] = 'student-'.$studentKey;
+                $summary['tap_count'] = $events->count();
+                $summary['events'] = $events->all();
+
+                return $summary;
+            })
+            ->values();
+
         return response()->json([
             'ok' => true,
-            'records' => $records,
+            'records' => $studentRecords,
+            'total_students' => $studentRecords->count(),
         ]);
     }
 
@@ -1257,7 +1278,7 @@ class AttendanceController
         ]);
     }
 
-    public function verifyStudentFace(Request $request): JsonResponse
+    public function verifyStudentFace(Request $request, AwsFaceRecognitionService $faceService): JsonResponse
     {
         $validated = $request->validate([
             'image' => ['required', 'string'],
@@ -1296,7 +1317,7 @@ class AttendanceController
             ], 422);
         }
 
-        $faceResult = (new AwsFaceRecognitionService)->compareBase64WithStoredImage(
+        $faceResult = $faceService->compareBase64WithStoredImage(
             $validated['image'],
             $faceImages[0],
         );
@@ -1305,7 +1326,7 @@ class AttendanceController
             return response()->json([
                 'ok' => false,
                 'verified' => false,
-                'message' => 'AWS face recognition is unavailable or could not compare the images.',
+                'message' => self::AWS_FACE_UNAVAILABLE_MESSAGE,
             ], 503);
         }
 
@@ -1316,7 +1337,7 @@ class AttendanceController
                 'provider' => $faceResult['provider'],
                 'similarity' => $faceResult['similarity'],
                 'threshold' => $faceResult['threshold'],
-                'message' => 'Face mismatch.',
+                'message' => self::FACE_MISMATCH_MESSAGE,
             ], 422);
         }
 
@@ -2421,6 +2442,28 @@ class AttendanceController
 
         $now = Carbon::now();
         $status = $schedule->time_start && $now->format('H:i:s') > $schedule->time_start ? 'late' : 'present';
+        $attendanceSessionId = DB::table('attendance_sessions')
+            ->where('schedule_id', $schedule->scheduled_id)
+            ->whereDate('date', $now->toDateString())
+            ->where('status', 'attendance')
+            ->latest('attendance_id')
+            ->value('attendance_id');
+
+        if (! $attendanceSessionId) {
+            $attendanceSessionId = DB::table('attendance_sessions')->insertGetId([
+                'subject_code' => $schedule->subject_code,
+                'schedule_id' => $schedule->scheduled_id,
+                'academic_year_id' => $schedule->academic_year_id,
+                'subject_offering_id' => $schedule->subject_offering_id,
+                'date' => $now->toDateString(),
+                'time_start' => $schedule->time_start ?? $now->format('H:i:s'),
+                'time_end' => null,
+                'status' => 'attendance',
+                'room' => $schedule->room,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
 
         $attendance = Attendance::query()->firstOrNew([
             'student_id' => $student->student_id,
@@ -2438,13 +2481,14 @@ class AttendanceController
                 'time_end' => $schedule->time_end,
                 'time_in' => $now->format('H:i:s'),
                 'status' => $status,
-                'subject' => $schedule->subject->subject_name,
+                'subject_code' => $schedule->subject_code,
                 'room' => $schedule->room,
+                'total_taps' => 1,
             ]);
             $attendance->save();
 
             AttendanceLog::create([
-                'attendance_id' => $attendance->attendance_id,
+                'attendance_id' => $attendanceSessionId,
                 'main_attendance_id' => $attendance->attendance_id,
                 'student_id' => $student->student_id,
                 'schedule_id' => $schedule->scheduled_id,
@@ -2459,6 +2503,7 @@ class AttendanceController
         } elseif (! $attendance->time_out) {
             $attendance->update([
                 'time_out' => $now->format('H:i:s'),
+                'total_taps' => 2,
             ]);
 
             $latestLog = AttendanceLog::query()
@@ -2473,7 +2518,7 @@ class AttendanceController
                 ]);
             } else {
                 AttendanceLog::create([
-                    'attendance_id' => $attendance->attendance_id,
+                    'attendance_id' => $attendanceSessionId,
                     'main_attendance_id' => $attendance->attendance_id,
                     'student_id' => $student->student_id,
                     'schedule_id' => $schedule->scheduled_id,

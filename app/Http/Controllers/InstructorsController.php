@@ -6,6 +6,9 @@ use App\Models\Instructor;
 use App\Models\Strand;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class InstructorsController
@@ -33,7 +36,7 @@ class InstructorsController
 
         // Apply search filter
         if ($search) {
-            $term = '%' . strtolower($search) . '%';
+            $term = '%'.strtolower($search).'%';
 
             $query->where(function ($searchQuery) use ($term) {
                 $searchQuery
@@ -61,6 +64,7 @@ class InstructorsController
 
         $instructors = $query->get()->map(function ($instructor) {
             $user = $instructor->user;
+
             return [
                 'instructor_id' => $instructor->instructor_id,
                 'user_id' => $instructor->user_id,
@@ -175,15 +179,15 @@ class InstructorsController
         $instructor = Instructor::with('user')->findOrFail($id);
 
         $validated = $request->validate([
-            'instructor_number' => 'required|unique:instructors,instructor_number,' . $id . ',instructor_id',
+            'instructor_number' => 'required|unique:instructors,instructor_number,'.$id.',instructor_id',
             'first_name' => 'required|string|max:255',
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $instructor->user_id . ',user_id',
+            'email' => 'required|email|unique:users,email,'.$instructor->user_id.',user_id',
             'phone' => 'nullable|string|max:20',
             'gender' => 'nullable|in:male,female',
             'strand_id' => 'required|exists:strands,strand_id',
-            'rfid_tag' => 'nullable|string|unique:users,rfid_tag,' . $instructor->user_id . ',user_id',
+            'rfid_tag' => 'nullable|string|unique:users,rfid_tag,'.$instructor->user_id.',user_id',
             'status' => 'required|in:active,inactive,on_leave',
         ]);
 
@@ -209,13 +213,40 @@ class InstructorsController
         return back()->with('success', 'Instructor updated successfully.');
     }
 
+    public function resetPassword(int $id)
+    {
+        $instructor = Instructor::query()->with('user')->findOrFail($id);
+        $user = $instructor->user;
+
+        abort_if(! $user || strtolower((string) $user->role) !== 'instructor', 404);
+
+        $temporaryPassword = 'password';
+
+        DB::transaction(function () use ($user, $temporaryPassword) {
+            $user->forceFill([
+                'password' => Hash::make($temporaryPassword),
+                'must_change_password' => true,
+                'remember_token' => Str::random(60),
+            ])->save();
+
+            DB::table('sessions')
+                ->where('user_id', $user->user_id)
+                ->delete();
+        });
+
+        return back()->with(
+            'success',
+            'Instructor password reset to '.$temporaryPassword.'. They must create a private password at the next login.'
+        );
+    }
+
     /**
      * Remove the specified resource from storage.
      */
     public function destroy($id)
     {
         $instructor = Instructor::with('user')->findOrFail($id);
-        
+
         if ($instructor->user) {
             $instructor->user->delete();
         } else {

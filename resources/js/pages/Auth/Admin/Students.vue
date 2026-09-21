@@ -1033,24 +1033,43 @@
                             </button>
                         </div>
 
-                        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
                             <div>
                                 <label
                                     class="mb-1 block text-sm font-medium text-slate-700"
                                 >
-                                    Parent Name *
+                                    First Name *
                                 </label>
                                 <input
-                                    v-model="parentForm.name"
+                                    v-model="parentForm.first_name"
                                     type="text"
                                     class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                                     required
                                 />
                                 <p
-                                    v-if="parentForm.errors.name"
+                                    v-if="parentForm.errors.first_name"
                                     class="mt-1 text-xs text-rose-600"
                                 >
-                                    {{ parentForm.errors.name }}
+                                    {{ parentForm.errors.first_name }}
+                                </p>
+                            </div>
+                            <div>
+                                <label
+                                    class="mb-1 block text-sm font-medium text-slate-700"
+                                >
+                                    Last Name *
+                                </label>
+                                <input
+                                    v-model="parentForm.last_name"
+                                    type="text"
+                                    class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                    required
+                                />
+                                <p
+                                    v-if="parentForm.errors.last_name"
+                                    class="mt-1 text-xs text-rose-600"
+                                >
+                                    {{ parentForm.errors.last_name }}
                                 </p>
                             </div>
                             <div>
@@ -1074,7 +1093,21 @@
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+                        <p
+                            v-if="!selectedParent"
+                            class="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700"
+                        >
+                            The temporary password is generated from the parent's first and last name without spaces. The parent must replace it after signing in.
+                        </p>
+
+                        <div
+                            :class="[
+                                'grid grid-cols-1 gap-4',
+                                selectedParent
+                                    ? 'md:grid-cols-4'
+                                    : 'md:grid-cols-3',
+                            ]"
+                        >
                             <div>
                                 <label
                                     class="mb-1 block text-sm font-medium text-slate-700"
@@ -1122,7 +1155,7 @@
                                     <option value="female">Female</option>
                                 </select>
                             </div>
-                            <div>
+                            <div v-if="selectedParent">
                                 <label
                                     class="mb-1 block text-sm font-medium text-slate-700"
                                 >
@@ -1131,7 +1164,7 @@
                                 <input
                                     v-model="parentForm.password"
                                     type="password"
-                                    placeholder="Required for new"
+                                    placeholder="Leave blank to keep current"
                                     class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                                 />
                                 <p
@@ -1172,8 +1205,6 @@
 
 <script setup lang="ts">
 import { router, useForm, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
-import Swal from 'sweetalert2';
 import {
     Archive,
     History,
@@ -1182,6 +1213,8 @@ import {
     Trash2,
     Users,
 } from 'lucide-vue-next';
+import Swal from 'sweetalert2';
+import { computed, ref } from 'vue';
 import CameraCapture from '@/components/CameraCapture.vue';
 
 interface Student {
@@ -1220,6 +1253,8 @@ interface StudentEnrollment {
 interface ParentAccount {
     id: string | number;
     name: string;
+    first_name: string;
+    last_name: string;
     email: string;
     phone?: string;
     gender?: string;
@@ -1346,7 +1381,8 @@ const form = useForm({
 });
 
 const parentForm = useForm({
-    name: '',
+    first_name: '',
+    last_name: '',
     email: '',
     phone: '',
     gender: '',
@@ -1549,7 +1585,8 @@ const closeEnrollmentHistory = () => {
 const editParent = (parent: ParentAccount) => {
     selectedParent.value = parent;
     parentForm.clearErrors();
-    parentForm.name = parent.name;
+    parentForm.first_name = parent.first_name;
+    parentForm.last_name = parent.last_name;
     parentForm.email = parent.email;
     parentForm.phone = parent.phone ?? '';
     parentForm.gender = parent.gender ?? '';

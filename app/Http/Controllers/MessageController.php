@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class MessageController
@@ -166,7 +167,13 @@ class MessageController
             ->values();
 
         $messages = StudentPortalMessage::query()
-            ->with(['sender:user_id,name,email,role', 'recipient:user_id,name,email,role', 'student.parentUsers:user_id,name,email,role'])
+            ->with([
+                'sender:user_id,name,email,role',
+                'recipient:user_id,name,email,role',
+                'student.parentUsers:user_id,name,email,role',
+                'excuseLetter',
+                'excuseLetterReviewedBy:user_id,name,last_name',
+            ])
             ->where(function ($query) use ($user) {
                 $query
                     ->where('sender_user_id', $user->user_id)
@@ -208,6 +215,33 @@ class MessageController
                 'is_image' => $this->isImageAttachment($message),
                 'is_pdf' => strtolower((string) $message->attachment_mime) === 'application/pdf'
                     || str_ends_with(strtolower((string) $message->attachment_name), '.pdf'),
+                'excuse_letter_id' => $message->student_excuse_letter_id,
+                'excuse_letter_status' => $message->excuse_letter_review_decision
+                    ? 'instructor_'.$message->excuse_letter_review_decision
+                    : $message->excuseLetter?->status,
+                'can_review_excuse_letter' => $role === 'instructor'
+                    && (int) $message->recipient_user_id === (int) $user->user_id
+                    && (string) $message->excuseLetter?->status === 'approved'
+                    && ! $message->excuse_letter_reviewed_at,
+                'excuse_letter_review' => $message->excuseLetter ? [
+                    'reviewed_by' => $message->excuseLetterReviewedBy
+                        ? trim($message->excuseLetterReviewedBy->name.' '.($message->excuseLetterReviewedBy->last_name ?? ''))
+                        : null,
+                    'reviewed_at' => $message->excuse_letter_reviewed_at?->toDateTimeString(),
+                    'student' => [
+                        'available' => filter_var($message->student?->email, FILTER_VALIDATE_EMAIL) !== false,
+                        'name' => $message->student ? trim($message->student->first_name.' '.$message->student->last_name) : 'Student',
+                        'email' => $message->student?->email,
+                    ],
+                    'parents' => $message->student?->parentUsers
+                        ?->filter(fn (User $parent) => filter_var($parent->email, FILTER_VALIDATE_EMAIL))
+                        ->map(fn (User $parent) => [
+                            'name' => trim($parent->name.' '.($parent->last_name ?? '')),
+                            'email' => $parent->email,
+                        ])
+                        ->values()
+                        ->all() ?? [],
+                ] : null,
                 'read_at' => $message->read_at?->toDateTimeString(),
                 'created_at' => $message->created_at?->toDateTimeString(),
                 'created_label' => $message->created_at?->diffForHumans(),
@@ -269,6 +303,102 @@ class MessageController
         $this->logActivity('create', 'student_portal_messages', 'Forwarded excuse letter '.$message->student_portal_message_id.' for '.$studentName.' to parent '.$parent->email);
 
         return back()->with('success', 'Excuse letter emailed to '.$parent->name.'.');
+    }
+
+    public function reviewExcuseLetter(Request $request, StudentPortalMessage $message)
+    {
+        $instructor = $request->user();
+        abort_unless(strtolower((string) $instructor?->role) === 'instructor', 403);
+
+        abort_unless(
+            $message->student_excuse_letter_id
+                && (int) $message->recipient_user_id === (int) $instructor->user_id,
+            403,
+            'This excuse letter was not assigned to this instructor.',
+        );
+        $message->loadMissing(['excuseLetter', 'student.parentUsers']);
+        $letter = $message->excuseLetter;
+        abort_unless($letter, 404);
+
+        if ((string) $letter->status !== 'approved' || $message->excuse_letter_reviewed_at) {
+            throw ValidationException::withMessages([
+                'decision' => 'This excuse letter has already been reviewed or is not ready for instructor review.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'decision' => ['required', Rule::in(['approved', 'denied'])],
+            'recipients' => ['required', 'array', 'min:1'],
+            'recipients.*' => ['required', 'string', 'distinct', Rule::in(['student', 'parent'])],
+            'email_subject' => ['required', 'string', 'max:255'],
+            'email_body' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $student = $message->student;
+        abort_unless($student, 422, 'The student for this excuse letter is unavailable.');
+
+        $emailRecipients = collect();
+        if (in_array('student', $validated['recipients'], true)) {
+            if (! filter_var($student->email, FILTER_VALIDATE_EMAIL)) {
+                throw ValidationException::withMessages([
+                    'recipients' => 'The student does not have a valid email address.',
+                ]);
+            }
+            $emailRecipients->push([
+                'role' => 'student',
+                'name' => trim($student->first_name.' '.$student->last_name),
+                'email' => $student->email,
+            ]);
+        }
+
+        if (in_array('parent', $validated['recipients'], true)) {
+            $parents = $student->parentUsers
+                ->filter(fn (User $parent) => filter_var($parent->email, FILTER_VALIDATE_EMAIL));
+            if ($parents->isEmpty()) {
+                throw ValidationException::withMessages([
+                    'recipients' => 'The student does not have a linked parent with a valid email address.',
+                ]);
+            }
+            $parents->each(fn (User $parent) => $emailRecipients->push([
+                'role' => 'parent',
+                'name' => trim($parent->name.' '.($parent->last_name ?? '')),
+                'email' => $parent->email,
+            ]));
+        }
+
+        $emailRecipients = $emailRecipients->unique('email')->values();
+        $attachmentPath = $message->attachment_path;
+        $hasAttachment = $attachmentPath && Storage::disk('public')->exists($attachmentPath);
+
+        foreach ($emailRecipients as $recipient) {
+            Mail::raw($validated['email_body'], function ($mail) use ($recipient, $validated, $message, $attachmentPath, $hasAttachment) {
+                $mail->to($recipient['email'])->subject($validated['email_subject']);
+                if ($hasAttachment) {
+                    $mail->attach(Storage::disk('public')->path($attachmentPath), [
+                        'as' => $message->attachment_name ?: 'excuse-letter.pdf',
+                        'mime' => 'application/pdf',
+                    ]);
+                }
+            });
+        }
+
+        $message->update([
+            'excuse_letter_review_decision' => $validated['decision'],
+            'excuse_letter_reviewed_by_user_id' => $instructor->user_id,
+            'excuse_letter_reviewed_at' => now(),
+            'excuse_letter_review_email_subject' => $validated['email_subject'],
+            'excuse_letter_review_email_body' => $validated['email_body'],
+            'excuse_letter_review_recipients' => $emailRecipients->all(),
+        ]);
+
+        $decisionLabel = $validated['decision'] === 'approved' ? 'approved' : 'denied';
+        $this->logActivity(
+            'update',
+            'student_excuse_letters',
+            'Instructor '.$decisionLabel.' excuse letter '.$letter->student_excuse_letter_id.' and emailed '.$emailRecipients->count().' recipient(s).',
+        );
+
+        return back()->with('success', 'Excuse letter '.$decisionLabel.' and email sent to '.$emailRecipients->count().' recipient(s).');
     }
 
     public function sendConversationMessage(Request $request)

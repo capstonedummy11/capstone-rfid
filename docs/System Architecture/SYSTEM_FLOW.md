@@ -201,8 +201,8 @@ Routes:
 
 1. An admin selects the `Parents` action on a student row.
 2. The modal lists linked parent portal accounts with name, email, relationship, and phone.
-3. When the submitted email is new, the system creates a `users` row with role `parent` and requires a password.
-4. When the submitted email already belongs to a parent account, the system links that existing account to the selected student and can update the parent profile fields.
+3. When the submitted email is new, the system creates a `users` row with role `parent`, generates the temporary password from first name plus last name with spaces removed, and requires replacement at first login.
+4. When the submitted email already belongs to a parent account, the system links that existing account to the selected student, preserves its password, and can update the parent profile fields.
 5. Emails that belong to non-parent users cannot be linked as parent accounts.
 6. The parent-student relationship label is saved on `parent_student_links.relationship`.
 7. Unlink removes only the student association. The parent user account remains available for other linked students.
@@ -254,6 +254,15 @@ Routes:
 3. The attachment link uses an authenticated download route.
 4. Only the student or linked parent for the selected student can download the attachment.
 
+### 4. Instructor Decision And Email
+
+1. Each generated excuse-letter Messenger record stores an explicit foreign-key link to its source letter.
+2. The recipient Instructor sees **Approve** and **Deny** while the parent-approved letter awaits a decision.
+3. The dialog provides an editable email template and Student/Parent recipient checkboxes.
+4. The server confirms that the signed-in Instructor received that exact linked letter; client-supplied email addresses are never accepted.
+5. Stored Student/Parent addresses are resolved, the generated PDF is attached when available, and the selected recipients are emailed.
+6. That Instructor's delivered message becomes `approved` or `denied`; reviewer, time, template, and resolved recipients are stored on the message. A second decision on the same delivery is rejected, while another recipient Instructor can still decide independently.
+
 ## Authenticated Messenger Flow
 
 Page names:
@@ -266,6 +275,7 @@ Routes:
 - `/messages/conversation` - sends a new chat message.
 - `/messages/{message}/read` - marks a received message as read.
 - `/messages/{message}/attachment` - downloads a message attachment when the current user is sender or recipient; image attachments can also be returned inline for chat preview.
+- `/messages/{message}/excuse-letter-review` - lets the recipient Instructor decide that explicitly linked letter delivery and email selected Student/Parent recipients.
 - `/student-parent/messages` - compatibility route that opens the same messenger for student and parent accounts.
 - `/admin/messages` - compatibility route that opens the same messenger for admin and instructor accounts.
 

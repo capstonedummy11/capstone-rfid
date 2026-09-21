@@ -100,6 +100,7 @@ const lastAction = ref(
     'Waiting for an instructor RFID tap to begin attendance recording.',
 );
 const attendanceRecords = ref([]);
+const expandedAttendanceStudents = ref({});
 const scanHistory = ref([
     {
         id: 'boot',
@@ -180,6 +181,22 @@ const modeClass = computed(
 );
 
 const attendanceCount = computed(() => attendanceRecords.value.length);
+
+const studentRecordKey = (record) =>
+    String(record?.student_id ?? record?.rfid ?? record?.id ?? '');
+
+const isStudentDetailsExpanded = (record) =>
+    expandedAttendanceStudents.value[studentRecordKey(record)] === true;
+
+const toggleStudentDetails = (record) => {
+    const key = studentRecordKey(record);
+    if (!key) return;
+
+    expandedAttendanceStudents.value = {
+        ...expandedAttendanceStudents.value,
+        [key]: !expandedAttendanceStudents.value[key],
+    };
+};
 
 const activeProfessorSchedule = computed(() => {
     const professor = activeProfessor.value;
@@ -683,7 +700,7 @@ const endAttendanceSession = () => {
 
     pushHistory(
         'Attendance ended',
-        `${activeProfessor.value.name} closed the session with ${attendanceRecords.value.length} recorded student tap${attendanceRecords.value.length === 1 ? '' : 's'}.`,
+        `${activeProfessor.value.name} closed the session with ${attendanceCount.value} recorded student${attendanceCount.value === 1 ? '' : 's'}.`,
         'warning',
     );
 
@@ -994,6 +1011,7 @@ const recordAttendance = async (student) => {
 
     const mappedRecord = {
         id: savedRecord.id ?? `${student.id}-${Date.now()}`,
+        student_id: savedRecord.student_id ?? student.id,
         attendance_id: savedRecord.attendance_id ?? null,
         rfid: savedRecord.rfid ?? student.rfid,
         name: savedRecord.name ?? student.name,
@@ -1010,12 +1028,32 @@ const recordAttendance = async (student) => {
         status: savedStatus,
     };
 
-    attendanceRecords.value = [
+    const recordKey = studentRecordKey(mappedRecord);
+    const existingRecord = attendanceRecords.value.find(
+        (record) => studentRecordKey(record) === recordKey,
+    );
+    const existingEvents = Array.isArray(existingRecord?.events)
+        ? existingRecord.events
+        : [];
+    const events = [
         mappedRecord,
+        ...existingEvents.filter((event) => event.id !== mappedRecord.id),
+    ];
+    const studentRecord = {
+        ...existingRecord,
+        ...mappedRecord,
+        id: `student-${recordKey}`,
+        tap_count: events.length,
+        events,
+    };
+
+    attendanceRecords.value = [
+        studentRecord,
         ...attendanceRecords.value.filter(
-            (record) => record.id !== mappedRecord.id,
+            (record) => studentRecordKey(record) !== recordKey,
         ),
     ];
+    await loadAttendanceLogsFromServer();
 
     lastAction.value = `${student.name}: ${tapType} at ${timestamp}. Status: ${savedStatus}.`;
     pushHistory(
@@ -2838,45 +2876,105 @@ watch(
                         <li
                             v-for="record in attendanceRecords"
                             :key="record.id"
-                            class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"
+                            class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
                         >
-                            <div
-                                class="flex items-center justify-between gap-3"
+                            <button
+                                type="button"
+                                class="w-full p-3 text-left hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
+                                :aria-expanded="isStudentDetailsExpanded(record)"
+                                @click="toggleStudentDetails(record)"
                             >
-                                <div>
-                                    <div
-                                        class="text-sm font-bold text-slate-900"
-                                    >
-                                        {{ record.name }}
+                                <div
+                                    class="flex items-center justify-between gap-3"
+                                >
+                                    <div>
+                                        <div
+                                            class="text-sm font-bold text-slate-900"
+                                        >
+                                            {{ record.name }}
+                                        </div>
+                                        <div class="mt-0.5 text-xs text-slate-500">
+                                            {{ record.course }} •
+                                            {{ record.section }}
+                                        </div>
                                     </div>
-                                    <div class="mt-0.5 text-xs text-slate-500">
-                                        {{ record.course }} •
-                                        {{ record.section }}
+                                    <div
+                                        class="rounded-lg bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700"
+                                    >
+                                        {{ record.status }}
                                     </div>
                                 </div>
                                 <div
-                                    class="rounded-lg bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700"
+                                    class="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500"
                                 >
-                                    {{ record.status }}
+                                    <span>RFID: {{ record.rfid }}</span>
+                                    <span>
+                                        {{ record.tap_count || 0 }} tap(s) ·
+                                        {{ isStudentDetailsExpanded(record) ? 'Hide details' : 'Show all details' }}
+                                    </span>
                                 </div>
-                            </div>
-                            <div
-                                class="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500"
-                            >
-                                <span>RFID: {{ record.rfid }}</span>
-                                <span
-                                    >{{ record.tap_type || 'Check-in' }} Â·
-                                    {{ record.time }}</span
+                                <div
+                                    class="mt-2 grid grid-cols-3 gap-2 rounded-xl bg-slate-50 px-3 py-2 text-[11px] text-slate-600"
                                 >
-                            </div>
+                                    <span>In: {{ record.time_in || '-' }}</span>
+                                    <span>Out: {{ record.time_out || '-' }}</span>
+                                    <span>{{ record.room_status || 'Inside' }}</span>
+                                </div>
+                            </button>
+
                             <div
-                                class="mt-2 grid grid-cols-3 gap-2 rounded-xl bg-slate-50 px-3 py-2 text-[11px] text-slate-600"
+                                v-if="isStudentDetailsExpanded(record)"
+                                class="space-y-2 border-t border-slate-200 bg-slate-50 p-3"
                             >
-                                <span>In: {{ record.time_in || '-' }}</span>
-                                <span>Out: {{ record.time_out || '-' }}</span>
-                                <span>{{
-                                    record.room_status || 'Inside'
-                                }}</span>
+                                <article
+                                    v-for="event in record.events || []"
+                                    :key="event.id"
+                                    class="rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600"
+                                >
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div>
+                                            <div class="font-bold text-slate-900">
+                                                {{ event.tap_type || 'Tap' }} #{{ event.tap_sequence_number || '-' }}
+                                            </div>
+                                            <div class="mt-0.5 text-slate-500">{{ event.time || 'N/A' }}</div>
+                                        </div>
+                                        <span class="rounded-md bg-slate-100 px-2 py-1 font-semibold">
+                                            {{ event.validation_result || event.status || 'N/A' }}
+                                        </span>
+                                    </div>
+                                    <dl class="mt-3 grid grid-cols-2 gap-x-3 gap-y-2">
+                                        <div>
+                                            <dt class="font-semibold text-slate-700">Room status</dt>
+                                            <dd>{{ event.room_status || '-' }}</dd>
+                                        </div>
+                                        <div>
+                                            <dt class="font-semibold text-slate-700">Verification</dt>
+                                            <dd>{{ event.verification_method || '-' }}</dd>
+                                        </div>
+                                    </dl>
+                                    <p v-if="event.remarks" class="mt-3 rounded-lg bg-slate-50 px-2 py-1.5">
+                                        {{ event.remarks }}
+                                    </p>
+                                    <div
+                                        v-if="event.time_in_image_url || event.time_out_image_url"
+                                        class="mt-3 flex flex-wrap gap-2"
+                                    >
+                                        <a
+                                            v-if="event.time_in_image_url"
+                                            :href="event.time_in_image_url"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            class="font-semibold text-emerald-700 underline"
+                                        >View check-in evidence</a>
+                                        <a
+                                            v-if="event.time_out_image_url"
+                                            :href="event.time_out_image_url"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            class="font-semibold text-emerald-700 underline"
+                                        >View check-out evidence</a>
+                                    </div>
+                                </article>
                             </div>
                         </li>
                     </ul>

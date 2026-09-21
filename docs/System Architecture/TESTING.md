@@ -2,12 +2,12 @@
 
 This is the canonical guide for running automated tests and verifying the application after a feature update.
 
-## Current Verification Snapshot (2026-09-18)
+## Current Verification Snapshot (2026-09-21)
 
-- `npm run build`: passed; Vite compiled all 2,480 modules and Wayfinder generated route/action types.
+- `npm run build`: passed; Vite compiled all 2,481 modules and Wayfinder generated route/action types.
 - Full migration chain: passed against a clean temporary SQLite database through all migrations, including the 2026-09-08 Parent settings migrations.
 - `php artisan route:list --except-vendor --json`: passed with the compatible PHP 8.5.8 executable.
-- `php artisan test --compact`: passed with **195 tests and 2,541 assertions**. The suite includes independent browser session cookies, same-browser account blocking, session-identity mismatch handling, null-session-safe Laboratories/Devices pages, editable rollover Section/Subject Offering selection through the HTTP preview/execute routes, academic-year Student placement, attendance session completion, report filtering, Parent Portal, Parent excuse-letter, and System Settings contracts.
+- `php artisan test --compact`: passed with **200 tests and 2,701 assertions**. The suite includes independent browser session cookies, same-browser account blocking, session-identity mismatch handling, null-session-safe Laboratories/Devices pages, editable rollover Section/Subject Offering selection through the HTTP preview/execute routes, academic-year Student placement, attendance session completion, report filtering, Parent Portal, Parent excuse-letter, System Settings, and add/delete modal controller contracts.
 
 ## Requirements
 
@@ -44,6 +44,7 @@ The command is defined in `composer.json` and explicitly runs the relevant featu
 | Instructor email OTP                                                                                                          | `tests/Feature/Auth/AuthenticationTest.php`                                                  |
 | Independent browser/device sessions, same-browser account blocking, and session identity mismatch handling                    | `tests/Feature/Auth/AuthenticationTest.php`                                                  |
 | Parent and Instructor excuse-letter notifications                                                                             | `tests/Feature/StudentParentPortalTest.php`                                                  |
+| Instructor excuse-letter approve/deny authorization, recipient validation, audit state, and result email delivery             | `tests/Feature/ExcuseLetterAttendanceWorkflowTest.php`                                      |
 | Instructor Messenger text and generated PDF attachment                                                                        | `tests/Feature/StudentParentPortalTest.php`                                                  |
 | Five-minute Messenger email cooldown per sender–recipient pair                                                                | `tests/Feature/StudentParentPortalTest.php`                                                  |
 | Standalone RFID navigation hidden and Forgot Password back-button context                                                     | `tests/Feature/RequestedFeatureUiWiringTest.php`, `tests/Feature/Auth/PasswordResetTest.php` |
@@ -55,6 +56,7 @@ The command is defined in `composer.json` and explicitly runs the relevant featu
 | Forgot Password and password reset, with Console exclusion                                                                    | `tests/Feature/PasswordLifecycleTest.php`, `tests/Feature/Auth/AuthenticationTest.php`       |
 | Searchable autosuggestions in large Admin relationship fields                                                                 | `tests/Feature/RequestedFeatureUiWiringTest.php`                                             |
 | Clinic responder assignment, notification, history, and case ownership                                                        | `tests/Feature/ClinicFlowTest.php`                                                           |
+| Add/create and delete modal routes across Admin, Clinic, Registrar, messaging, and portal workflows                           | `tests/Feature/ControllerEntityWorkflowTest.php` plus the module-specific feature tests      |
 
 ## Full Backend Suite
 
@@ -124,6 +126,7 @@ composer test:lint
 For workflows where one page creates data that another page consumes, follow [Cross-Page Workflow Testing](CROSS_PAGE_WORKFLOW_TESTING.md).
 
 1. Add or update a behavioral feature test near the affected module.
+   For add/delete modals, assert validation failure, the successful database change, and delete/soft-delete behavior where a delete action exists.
 2. Add the test file to `test:requested-features` in `composer.json` if it protects this checklist.
 3. Update the coverage map in this document.
 4. Run the focused suite, full suite, and frontend build.

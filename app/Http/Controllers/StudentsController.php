@@ -30,6 +30,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class StudentsController
@@ -380,12 +381,12 @@ class StudentsController
     {
         $student = Students::query()->findOrFail($id);
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
             'gender' => ['nullable', 'in:male,female'],
             'relationship' => ['required', 'string', 'max:100'],
-            'password' => ['nullable', 'string', 'min:8', 'max:255'],
         ]);
 
         $parent = User::query()
@@ -398,17 +399,14 @@ class StudentsController
             ]);
         }
 
-        if (! $parent && blank($validated['password'] ?? null)) {
-            return back()->withErrors([
-                'password' => 'Password is required when creating a new parent account.',
-            ]);
-        }
-
+        $temporaryPassword = null;
         if (! $parent) {
+            $temporaryPassword = $this->defaultParentPassword($validated['first_name'], $validated['last_name']);
             $parent = User::query()->create([
-                'name' => $validated['name'],
+                'name' => $validated['first_name'],
+                'last_name' => $validated['last_name'],
                 'email' => $validated['email'],
-                'password' => Hash::make($validated['password']),
+                'password' => Hash::make($temporaryPassword),
                 'must_change_password' => true,
                 'role' => 'parent',
                 'is_root_admin' => false,
@@ -419,15 +417,11 @@ class StudentsController
             $this->logActivity('create', 'users', 'Created parent account '.$parent->email.' for student '.$student->student_number);
         } else {
             $payload = [
-                'name' => $validated['name'],
+                'name' => $validated['first_name'],
+                'last_name' => $validated['last_name'],
                 'phone' => $validated['phone'] ?? null,
                 'gender' => $validated['gender'] ?? null,
             ];
-
-            if (! blank($validated['password'] ?? null)) {
-                $payload['password'] = Hash::make($validated['password']);
-            }
-
             $parent->update($payload);
         }
 
@@ -437,7 +431,11 @@ class StudentsController
 
         $this->logActivity('update', 'parent_student_links', 'Linked parent '.$parent->email.' to student '.$student->student_number);
 
-        return back()->with('success', 'Parent account linked to student.');
+        $message = $temporaryPassword
+            ? 'Parent account created and linked. Temporary password: '.$temporaryPassword.'.'
+            : 'Existing parent account linked to student. The current password was preserved.';
+
+        return back()->with('success', $message);
     }
 
     public function updateParent(Request $request, int $id, int $parent)
@@ -449,7 +447,8 @@ class StudentsController
             ->firstOrFail();
 
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($parentUser->user_id, 'user_id')],
             'phone' => ['nullable', 'string', 'max:50'],
             'gender' => ['nullable', 'in:male,female'],
@@ -458,7 +457,8 @@ class StudentsController
         ]);
 
         $payload = [
-            'name' => $validated['name'],
+            'name' => $validated['first_name'],
+            'last_name' => $validated['last_name'],
             'email' => $validated['email'],
             'phone' => $validated['phone'] ?? null,
             'gender' => $validated['gender'] ?? null,
@@ -667,7 +667,7 @@ class StudentsController
             'parentPortalEnabled' => $parentPortalEnabled,
             'parentExcuseLettersEnabled' => $parentPortalEnabled
                 && SystemSetting::boolean(SystemSetting::PARENT_EXCUSE_LETTERS_ENABLED, false),
-            'recipientSuggestions' => $student ? $this->teacherSuggestionPayload($student) : [],
+            'recipientSuggestions' => $student ? $this->teacherSuggestionPayload($student, $enrollment) : [],
             'letters' => $student
                 ? $student->excuseLetters()->with(['submittedBy', 'parentApprovedBy', 'academicYear'])->when($enrollment, fn ($query) => $query->where('academic_year_id', $enrollment->academic_year_id))->latest()->get()->map(fn (StudentExcuseLetter $letter) => $this->letterPayload($letter, $request))
                 : [],
@@ -711,7 +711,11 @@ class StudentsController
         }
         unset($validated['attachment']);
         unset($validated['parent_signature']);
-        $validated['recipient_user_ids'] = $this->validTeacherRecipientIds($student, $validated['recipient_user_ids'] ?? []);
+        $validated['recipient_user_ids'] = $this->validTeacherRecipientIds(
+            $student,
+            $validated['recipient_user_ids'] ?? [],
+            $enrollment,
+        );
 
         $letter = StudentExcuseLetter::query()->create([
             ...$validated,
@@ -1062,7 +1066,9 @@ class StudentsController
     {
         return [
             'id' => $parent->user_id,
-            'name' => $parent->name,
+            'name' => trim($parent->name.' '.($parent->last_name ?? '')),
+            'first_name' => $parent->name,
+            'last_name' => $parent->last_name ?? '',
             'email' => $parent->email,
             'phone' => $parent->phone,
             'gender' => $parent->gender,
@@ -1115,15 +1121,20 @@ class StudentsController
         return $password !== '' ? $password : (string) $student->student_number;
     }
 
+    private function defaultParentPassword(string $firstName, string $lastName): string
+    {
+        return preg_replace('/\s+/', '', trim($firstName.$lastName));
+    }
+
     private function sendApprovedExcuseLetterToTeachers(StudentExcuseLetter $letter, User $sender): int
     {
-        $letter->loadMissing(['student.section', 'submittedBy', 'parentApprovedBy']);
+        $letter->loadMissing(['student.section', 'studentEnrollment', 'submittedBy', 'parentApprovedBy']);
         $student = $letter->student;
         if (! $student) {
             return 0;
         }
 
-        $teacherUsers = $this->teacherUsersForStudent($student);
+        $teacherUsers = $this->teacherUsersForStudent($student, $letter->studentEnrollment);
         $selectedRecipientIds = collect($letter->recipient_user_ids ?? [])
             ->map(fn ($id) => (int) $id)
             ->filter()
@@ -1151,6 +1162,7 @@ class StudentsController
         foreach ($teacherUsers as $teacher) {
             $message = StudentPortalMessage::query()->create([
                 'student_id' => $student->student_id,
+                'student_excuse_letter_id' => $letter->student_excuse_letter_id,
                 'sender_user_id' => $sender->user_id,
                 'recipient_user_id' => $teacher->user_id,
                 'sender_role' => strtolower((string) $sender->role),
@@ -1292,10 +1304,14 @@ class StudentsController
         return [$path, $filename];
     }
 
-    private function teacherUsersForStudent(Students $student)
+    private function teacherUsersForStudent(Students $student, ?StudentEnrollment $enrollment = null)
     {
+        $sectionId = $enrollment?->section_id ?? $student->section_id;
+
         $teacherIds = Schedule::query()
-            ->where('section_id', $student->section_id)
+            ->where('section_id', $sectionId)
+            ->when($enrollment?->academic_year_id, fn ($query, $academicYearId) => $query->where('academic_year_id', $academicYearId))
+            ->when($enrollment?->semester, fn ($query, $semester) => $query->where('semester', $semester))
             ->whereNotNull('instructor_id')
             ->with('instructor.user:user_id,name,email,role')
             ->get()
@@ -1310,9 +1326,9 @@ class StudentsController
             ->get();
     }
 
-    private function teacherSuggestionPayload(Students $student)
+    private function teacherSuggestionPayload(Students $student, ?StudentEnrollment $enrollment = null)
     {
-        return $this->teacherUsersForStudent($student)
+        return $this->teacherUsersForStudent($student, $enrollment)
             ->map(fn (User $teacher) => [
                 'user_id' => $teacher->user_id,
                 'name' => $teacher->name,
@@ -1322,19 +1338,25 @@ class StudentsController
             ->values();
     }
 
-    private function validTeacherRecipientIds(Students $student, array $recipientIds): ?array
+    private function validTeacherRecipientIds(Students $student, array $recipientIds, ?StudentEnrollment $enrollment = null): ?array
     {
-        $validIds = $this->teacherUsersForStudent($student)
+        $validIds = $this->teacherUsersForStudent($student, $enrollment)
             ->pluck('user_id')
             ->map(fn ($id) => (int) $id)
             ->all();
 
         $selectedIds = collect($recipientIds)
             ->map(fn ($id) => (int) $id)
-            ->filter(fn (int $id) => in_array($id, $validIds, true))
+            ->filter()
             ->unique()
             ->values()
             ->all();
+
+        if (array_diff($selectedIds, $validIds) !== []) {
+            throw ValidationException::withMessages([
+                'recipient_user_ids' => 'Select only instructors assigned to the student for the current academic year and semester.',
+            ]);
+        }
 
         return $selectedIds === [] ? null : $selectedIds;
     }

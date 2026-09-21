@@ -3,16 +3,14 @@
     <!-- Left sidebar: Laboratory navigation -->
     <aside v-if="isAdmin" class="flex w-60 shrink-0 flex-col border-r border-slate-200 bg-white shadow-sm">
       <div class="border-b border-slate-100 px-4 py-4">
-        <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Rooms</h2>
+        <h2 class="text-xs font-semibold tracking-wider text-slate-500 uppercase">Rooms</h2>
       </div>
       <nav class="flex-1 overflow-y-auto py-2">
         <button
           @click="selectLaboratory(null)"
           :class="[
             'flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm transition-colors',
-            selectedLaboratoryId === null
-              ? 'bg-blue-50 font-semibold text-blue-700'
-              : 'text-slate-700 hover:bg-slate-50',
+            selectedLaboratoryId === null ? 'bg-blue-50 font-semibold text-blue-700' : 'text-slate-700 hover:bg-slate-50',
           ]"
         >
           All Rooms
@@ -23,19 +21,15 @@
           @click="selectLaboratory(lab.laboratory_id)"
           :class="[
             'flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-sm transition-colors',
-            selectedLaboratoryId === lab.laboratory_id
-              ? 'bg-blue-50 font-semibold text-blue-700'
-              : 'text-slate-700 hover:bg-slate-50',
+            selectedLaboratoryId === lab.laboratory_id ? 'bg-blue-50 font-semibold text-blue-700' : 'text-slate-700 hover:bg-slate-50',
           ]"
         >
           <span class="truncate">{{ lab.name }}</span>
           <span
             v-if="lab.status"
-            :class="[
-              'shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium',
-              lab.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500',
-            ]"
-          >{{ lab.status }}</span>
+            :class="['shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium', lab.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500']"
+            >{{ lab.status }}</span
+          >
         </button>
         <div v-if="props.laboratories.length === 0" class="px-4 py-4 text-xs text-slate-400">No rooms found.</div>
       </nav>
@@ -46,8 +40,12 @@
       <!-- Top bar -->
       <div class="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4 shadow-sm">
         <div>
-          <h1 class="text-xl font-bold text-slate-800">{{ pageTitle }}</h1>
-          <p class="text-xs text-slate-400">{{ isAdmin ? 'Weekly schedule overview by room' : 'Your assigned weekly schedule' }}</p>
+          <h1 class="text-xl font-bold text-slate-800">
+            {{ pageTitle }}
+          </h1>
+          <p class="text-xs text-slate-400">
+            {{ isAdmin ? 'Weekly schedule overview by room' : 'Your assigned weekly schedule' }}
+          </p>
         </div>
         <select v-model="selectedAcademicYearId" @change="changeAcademicYear" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
           <option value="all">All Academic Years</option>
@@ -64,12 +62,14 @@
           :disabled="selectedLaboratoryId === null"
           :title="selectedLaboratoryId === null ? 'Select a room first' : 'Add schedule'"
           class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
-        >+ Add Schedule</button>
+        >
+          + Add Schedule
+        </button>
       </div>
 
       <!-- Timetable -->
       <div class="flex-1 overflow-auto p-4">
-        <div class="min-w-[760px] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div class="min-w-[900px] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
           <table class="w-full table-fixed border-collapse text-sm">
             <colgroup>
               <col class="w-24" />
@@ -77,38 +77,45 @@
             </colgroup>
             <thead>
               <tr class="bg-slate-50">
-                <th class="border-b border-r border-slate-200 px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">Time</th>
-                <th
-                  v-for="d in days"
-                  :key="d.key"
-                  class="border-b border-r border-slate-200 px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-600 last:border-r-0"
-                >{{ d.label }}</th>
+                <th class="border-r border-b border-slate-200 px-3 py-3 text-center text-xs font-semibold tracking-wide text-slate-500 uppercase">Time</th>
+                <th v-for="d in days" :key="d.key" class="border-r border-b border-slate-200 px-3 py-3 text-center text-xs font-semibold tracking-wide text-slate-600 uppercase last:border-r-0">
+                  {{ d.label }}
+                </th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="row in grid" :key="row.slot" class="group">
-                <td class="border-b border-r border-slate-100 bg-slate-50 px-3 py-2 text-center text-xs font-medium text-slate-500 align-top">{{ formatSlot(row.slot) }}</td>
+              <tr v-for="row in grid" :key="row.slot" class="group h-6">
+                <td class="border-r border-b border-slate-100 bg-slate-50 px-3 py-2 text-center align-top text-xs font-medium text-slate-500">
+                  {{ formatSlot(row.slot) }}
+                </td>
                 <template v-for="(cell, dayIdx) in row.cells" :key="dayIdx">
                   <td
                     v-if="cell.type !== 'occupied'"
                     :rowspan="cell.rowspan || 1"
-                    :class="[
-                      'border-b border-r border-slate-100 p-1 align-top last:border-r-0',
-                      cell.type === 'empty' ? 'bg-white group-hover:bg-slate-50/60' : '',
-                    ]"
+                    :class="['relative border-r border-b border-slate-100 p-1 align-top last:border-r-0', cell.type === 'empty' ? 'bg-white group-hover:bg-slate-50/60' : '']"
                   >
                     <div
                       v-if="cell.type === 'start' && cell.schedule"
-                      class="flex h-full w-full cursor-pointer flex-col gap-0.5 overflow-hidden rounded-md border border-blue-200 bg-blue-50 px-2 py-1.5 transition hover:border-blue-400 hover:bg-blue-100"
-                      :class="{ 'cursor-default hover:border-blue-200 hover:bg-blue-50': !isAdmin }"
+                      class="absolute inset-1 flex cursor-pointer flex-col gap-0.5 overflow-hidden rounded-md border border-blue-200 bg-blue-50 px-2 py-1.5 transition hover:border-blue-400 hover:bg-blue-100"
+                      :class="{
+                        'cursor-default hover:border-blue-200 hover:bg-blue-50': !isAdmin,
+                      }"
                       @click="cell.schedule.is_writable && openEditModal(cell.schedule)"
                     >
-                      <span class="truncate text-[11px] font-semibold text-blue-800 leading-tight">{{ cell.schedule.subject_code || 'No subject' }}</span>
-                      <span class="truncate text-[10px] text-blue-600 leading-tight">{{ cell.schedule.section_name || '-' }}</span>
-                      <span class="truncate text-[10px] text-slate-500 leading-tight">{{ cell.schedule.instructor_name || '-' }}</span>
-                      <span class="truncate text-[10px] font-medium text-slate-600 leading-tight">Room: {{ cell.schedule.room || cell.schedule.laboratory_name || '-' }}</span>
-                      <span class="text-[9px] text-slate-400">{{ cell.schedule.academic_year_name || 'Legacy year' }} · {{ cell.schedule.semester || 'Term not set' }}</span>
-                      <span class="mt-auto text-[9px] text-slate-400 leading-tight">{{ normalizeTime(cell.schedule.time_start) }} - {{ normalizeTime(cell.schedule.time_end) }}</span>
+                      <span class="truncate text-[11px] leading-tight font-semibold text-blue-800">{{ cell.schedule.subject_code || 'No subject' }}</span>
+                      <span class="truncate text-[10px] leading-tight text-blue-600">{{ cell.schedule.section_name || '-' }}</span>
+                      <span class="truncate text-[10px] leading-tight text-slate-500">{{ cell.schedule.instructor_name || '-' }}</span>
+                      <span class="truncate text-[10px] leading-tight font-medium text-slate-600">Room: {{ cell.schedule.room || cell.schedule.laboratory_name || '-' }}</span>
+                      <span class="text-[9px] text-slate-400"
+                        >{{ cell.schedule.academic_year_name || 'Legacy year' }}
+                        ·
+                        {{ cell.schedule.semester || 'Term not set' }}</span
+                      >
+                      <span class="mt-auto text-[9px] leading-tight text-slate-400"
+                        >{{ normalizeTime(cell.schedule.time_start) }}
+                        -
+                        {{ normalizeTime(cell.schedule.time_end) }}</span
+                      >
                     </div>
                   </td>
                 </template>
@@ -127,14 +134,26 @@
       <div class="w-full max-w-lg overflow-hidden rounded-xl bg-white shadow-2xl">
         <div class="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <div>
-            <h2 class="text-lg font-semibold text-slate-800">{{ isEditing ? 'Edit Schedule' : 'Add Schedule' }}</h2>
-            <p class="text-xs text-slate-400">Laboratory: <span class="font-medium text-slate-600">{{ selectedLaboratory?.name ?? 'â€”' }}</span></p>
+            <h2 class="text-lg font-semibold text-slate-800">
+              {{ isEditing ? 'Edit Schedule' : 'Add Schedule' }}
+            </h2>
+            <p class="text-xs text-slate-400">
+              Laboratory:
+              <span class="font-medium text-slate-600">{{ selectedLaboratory?.name ?? 'â€”' }}</span>
+            </p>
           </div>
           <button @click="closeModal" class="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
-            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
-        <form @submit.prevent="submitForm" class="space-y-4 px-6 py-5">
+        <form @submit.prevent="submitForm" class="space-y-4 px-6 py-5" novalidate>
+          <div v-if="modalErrorMessages.length" class="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700" role="alert" aria-live="polite">
+            <p v-for="message in modalErrorMessages" :key="message">
+              {{ message }}
+            </p>
+          </div>
           <div>
             <label class="mb-1 block text-sm font-medium text-slate-700">Subject offering <span class="text-rose-500">*</span></label>
             <SearchableSelect
@@ -142,8 +161,12 @@
               :options="subjectOfferingSearchOptions"
               placeholder="Search subject, section, instructor, or academic year..."
               empty-text="No writable subject offerings found."
+              @update:model-value="form.clearErrors('subject_offering_id')"
             />
             <p class="mt-1 text-xs text-slate-500">The offering determines the academic year, semester, subject, section, and instructor.</p>
+            <p v-if="form.errors.subject_offering_id" class="mt-1 text-xs text-rose-600" role="alert">
+              {{ form.errors.subject_offering_id }}
+            </p>
           </div>
           <div>
             <label class="mb-2 block text-sm font-medium text-slate-700">Weekdays <span class="text-rose-500">*</span></label>
@@ -152,36 +175,80 @@
                 v-for="d in days"
                 :key="d.key"
                 :class="[
-                  'flex cursor-pointer select-none items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition',
-                  selectedWeekdays.includes(d.key)
-                    ? 'border-blue-500 bg-blue-600 text-white'
-                    : 'border-slate-300 bg-white text-slate-600 hover:border-blue-400',
+                  'flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition select-none',
+                  selectedWeekdays.includes(d.key) ? 'border-blue-500 bg-blue-600 text-white' : 'border-slate-300 bg-white text-slate-600 hover:border-blue-400',
                 ]"
               >
-                <input type="checkbox" :value="d.key" v-model="selectedWeekdays" class="sr-only" />
+                <input v-model="selectedWeekdays" type="checkbox" :value="d.key" class="sr-only" @change="form.clearErrors('weekdays')" />
                 {{ d.label }}
               </label>
             </div>
+            <p v-if="form.errors.weekdays" class="mt-1 text-xs text-rose-600" role="alert">
+              {{ form.errors.weekdays }}
+            </p>
           </div>
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="mb-1 block text-sm font-medium text-slate-700">Start Time <span class="text-rose-500">*</span></label>
-              <input v-model="form.time_start" type="time" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100" required />
+              <label for="schedule-time-start" class="mb-1 block text-sm font-medium text-slate-700">Start Time <span class="text-rose-500">*</span></label>
+              <input
+                id="schedule-time-start"
+                v-model="form.time_start"
+                type="time"
+                step="900"
+                :aria-invalid="Boolean(form.errors.time_start)"
+                :aria-describedby="form.errors.time_start ? 'schedule-time-start-error' : undefined"
+                :class="[
+                  'w-full rounded-md border px-3 py-2 text-sm focus:ring-2',
+                  form.errors.time_start ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-100' : 'border-slate-300 focus:border-blue-500 focus:ring-blue-100',
+                ]"
+                @input="form.clearErrors('time_start')"
+              />
+              <p v-if="form.errors.time_start" id="schedule-time-start-error" class="mt-1 text-xs text-rose-600" role="alert">
+                {{ form.errors.time_start }}
+              </p>
             </div>
             <div>
-              <label class="mb-1 block text-sm font-medium text-slate-700">End Time <span class="text-rose-500">*</span></label>
-              <input v-model="form.time_end" type="time" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100" required />
+              <label for="schedule-time-end" class="mb-1 block text-sm font-medium text-slate-700">End Time <span class="text-rose-500">*</span></label>
+              <input
+                id="schedule-time-end"
+                v-model="form.time_end"
+                type="time"
+                step="900"
+                :aria-invalid="Boolean(form.errors.time_end)"
+                :aria-describedby="form.errors.time_end ? 'schedule-time-end-error' : undefined"
+                :class="[
+                  'w-full rounded-md border px-3 py-2 text-sm focus:ring-2',
+                  form.errors.time_end ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-100' : 'border-slate-300 focus:border-blue-500 focus:ring-blue-100',
+                ]"
+                @input="form.clearErrors('time_end')"
+              />
+              <p v-if="form.errors.time_end" id="schedule-time-end-error" class="mt-1 text-xs text-rose-600" role="alert">
+                {{ form.errors.time_end }}
+              </p>
             </div>
           </div>
           <div class="flex justify-end gap-3 border-t border-slate-100 pt-4">
-            <button v-if="isEditing" type="button" @click="deleteSchedule(selectedSchedule!)" class="mr-auto rounded-md border border-rose-200 px-4 py-2 text-sm text-rose-600 hover:bg-rose-50">Delete</button>
+            <button
+              v-if="isEditing"
+              type="button"
+              class="mr-auto rounded-md border border-rose-200 px-4 py-2 text-sm text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+              :disabled="form.processing || deleteForm.processing"
+              @click="deleteSchedule(selectedSchedule)"
+            >
+              {{ deleteForm.processing ? 'Deleting...' : 'Delete' }}
+            </button>
             <button type="button" @click="closeModal" class="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Cancel</button>
-            <button type="submit" class="rounded-md bg-emerald-600 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50" :disabled="form.processing">{{ isEditing ? 'Update' : 'Save Schedule' }}</button>
+            <button
+              type="submit"
+              class="rounded-md bg-emerald-600 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+              :disabled="form.processing || deleteForm.processing"
+            >
+              {{ form.processing ? 'Saving...' : isEditing ? 'Update' : 'Save Schedule' }}
+            </button>
           </div>
         </form>
       </div>
     </div>
-
   </div>
 </template>
 
@@ -257,44 +324,32 @@ declare function route(name: string, params?: Record<string, unknown>): string;
 const props = defineProps({
   schedules: { type: Array as () => Schedule[], default: () => [] },
   filters: { type: Object, default: () => ({ laboratory_id: null }) },
-  academicYears: { type: Array as () => Array<{ academic_year_id: number; name: string; status: string }>, default: () => [] },
+  academicYears: {
+    type: Array as () => Array<{
+      academic_year_id: number;
+      name: string;
+      status: string;
+    }>,
+    default: () => [],
+  },
   laboratories: { type: Array as () => Laboratory[], default: () => [] },
   sectionOptions: { type: Array as () => SectionOption[], default: () => [] },
   subjectOptions: { type: Array as () => SubjectOption[], default: () => [] },
-  instructorOptions: { type: Array as () => InstructorOption[], default: () => [] },
-  subjectOfferingOptions: { type: Array as () => SubjectOfferingOption[], default: () => [] },
+  instructorOptions: {
+    type: Array as () => InstructorOption[],
+    default: () => [],
+  },
+  subjectOfferingOptions: {
+    type: Array as () => SubjectOfferingOption[],
+    default: () => [],
+  },
   currentUserRole: { type: String, default: '' },
   canManageSchedules: { type: Boolean, default: false },
 });
 
 const page = usePage();
-const currentRole = computed(() =>
-  String(props.currentUserRole || page.props.auth?.user?.role || '').toLowerCase(),
-);
+const currentRole = computed(() => String(props.currentUserRole || page.props.auth?.user?.role || '').toLowerCase());
 const isAdmin = computed(() => props.canManageSchedules || currentRole.value === 'admin');
-
-const instructorSearchOptions = computed(() =>
-  props.instructorOptions.map((instructor) => ({
-    value: String(instructor.instructor_id),
-    label: instructor.name,
-  })),
-);
-
-const subjectSearchOptions = computed(() =>
-  props.subjectOptions.map((subject) => ({
-    value: subject.subject_code,
-    label: `${subject.subject_code} - ${subject.subject_name}`,
-    keywords: `${subject.subject_code} ${subject.subject_name}`,
-  })),
-);
-
-const sectionSearchOptions = computed(() =>
-  props.sectionOptions.map((section) => ({
-    value: String(section.section_id),
-    label: section.label,
-    keywords: `${section.section_name} ${section.year_level ?? ''} ${section.school_year ?? ''}`,
-  })),
-);
 
 const subjectOfferingSearchOptions = computed(() =>
   props.subjectOfferingOptions.map((offering) => ({
@@ -307,6 +362,7 @@ const subjectOfferingSearchOptions = computed(() =>
 // â”€â”€â”€ Days / time config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const days = [
+  { key: 'Sun', label: 'Sunday' },
   { key: 'Mon', label: 'Monday' },
   { key: 'Tue', label: 'Tuesday' },
   { key: 'Wed', label: 'Wednesday' },
@@ -315,9 +371,14 @@ const days = [
   { key: 'Sat', label: 'Saturday' },
 ];
 
-const timeSlots: string[] = Array.from({ length: 14 }, (_, i) => {
-  const h = 7 + i;
-  return `${String(h).padStart(2, '0')}:00`;
+const SLOT_MINUTES = 15;
+const SCHEDULE_START_MINUTES = 7 * 60;
+const SCHEDULE_END_MINUTES = 21 * 60;
+const timeSlots: string[] = Array.from({ length: (SCHEDULE_END_MINUTES - SCHEDULE_START_MINUTES) / SLOT_MINUTES }, (_, index) => {
+  const totalMinutes = SCHEDULE_START_MINUTES + index * SLOT_MINUTES;
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 });
 
 // â”€â”€â”€ Sidebar state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -326,17 +387,18 @@ const selectedLaboratoryId = ref<number | null>(props.filters.laboratory_id ?? n
 const selectedAcademicYearId = ref<string | number>(props.filters.academic_year_id ?? '');
 const selectedSemester = ref<string>(props.filters.semester ?? '');
 
-const changeAcademicYear = () => router.get(route('admin.schedules.index'), {
-  academic_year_id: selectedAcademicYearId.value,
-  semester: selectedSemester.value,
-  laboratory_id: selectedLaboratoryId.value ?? undefined,
-}, { preserveState: true, preserveScroll: true, replace: true });
+const changeAcademicYear = () =>
+  router.get(
+    route('admin.schedules.index'),
+    {
+      academic_year_id: selectedAcademicYearId.value,
+      semester: selectedSemester.value,
+      laboratory_id: selectedLaboratoryId.value ?? undefined,
+    },
+    { preserveState: true, preserveScroll: true, replace: true },
+  );
 
-const selectedLaboratory = computed(() =>
-  selectedLaboratoryId.value === null
-    ? null
-    : (props.laboratories.find((l) => l.laboratory_id === selectedLaboratoryId.value) ?? null),
-);
+const selectedLaboratory = computed(() => (selectedLaboratoryId.value === null ? null : (props.laboratories.find((l) => l.laboratory_id === selectedLaboratoryId.value) ?? null)));
 
 const pageTitle = computed(() => {
   if (!isAdmin.value) return 'My Schedule';
@@ -353,7 +415,11 @@ const selectLaboratory = (id: number | null) => {
   selectedLaboratoryId.value = id;
   router.get(
     route('admin.schedules.index'),
-    { laboratory_id: id ?? undefined, academic_year_id: selectedAcademicYearId.value, semester: selectedSemester.value },
+    {
+      laboratory_id: id ?? undefined,
+      academic_year_id: selectedAcademicYearId.value,
+      semester: selectedSemester.value,
+    },
     { preserveState: true, preserveScroll: true, replace: true },
   );
 };
@@ -361,9 +427,7 @@ const selectLaboratory = (id: number | null) => {
 // â”€â”€â”€ Filtered schedules â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const filteredSchedules = computed(() =>
-  !isAdmin.value || selectedLaboratoryId.value === null
-    ? props.schedules
-    : props.schedules.filter((s) => Number(s.laboratory_id) === selectedLaboratoryId.value),
+  !isAdmin.value || selectedLaboratoryId.value === null ? props.schedules : props.schedules.filter((s) => Number(s.laboratory_id) === selectedLaboratoryId.value),
 );
 
 // â”€â”€â”€ Timetable grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -376,42 +440,36 @@ const parseMinutes = (t: string): number => {
 const normalizeTime = (t: string | null | undefined): string => String(t ?? '').slice(0, 5);
 
 const formatSlot = (slot: string): string => {
-  const [h] = slot.split(':');
+  const [h, m] = slot.split(':');
   const hour = parseInt(h ?? '0');
   const ampm = hour < 12 ? 'AM' : 'PM';
   const display = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-  return `${display}:00 ${ampm}`;
+  return `${display}:${m ?? '00'} ${ampm}`;
 };
 
-type Cell =
-  | { type: 'empty' }
-  | { type: 'start'; schedule: Schedule; rowspan: number }
-  | { type: 'occupied' };
+type Cell = { type: 'empty' } | { type: 'start'; schedule: Schedule; rowspan: number } | { type: 'occupied' };
 
 const grid = computed(() => {
   return timeSlots.map((slot) => {
     const slotMins = parseMinutes(slot);
-    const slotEndMins = slotMins + 60;
+    const slotEndMins = slotMins + SLOT_MINUTES;
     const cells: Cell[] = days.map((day) => {
       const schedule = filteredSchedules.value.find((s) => {
-        const wDays = s.weekdays.split(/[,\-\/\s]+/).map((d) => d.trim()).filter(Boolean);
+        const wDays = s.weekdays
+          .split(/[,\-\/\s]+/)
+          .map((d) => d.trim())
+          .filter(Boolean);
         const startMins = parseMinutes(normalizeTime(s.time_start));
         const endMins = parseMinutes(normalizeTime(s.time_end));
-        return (
-          wDays.some((d) => d.toLowerCase() === day.key.toLowerCase()) &&
-          startMins < slotEndMins &&
-          endMins > slotMins
-        );
+        return wDays.some((d) => d.toLowerCase() === day.key.toLowerCase()) && startMins < slotEndMins && endMins > slotMins;
       });
       if (!schedule) return { type: 'empty' as const };
       const startMins = parseMinutes(normalizeTime(schedule.time_start));
-      const isStartSlot =
-        (startMins >= slotMins && startMins < slotEndMins) ||
-        (slotMins === parseMinutes(timeSlots[0] ?? '00:00') && startMins < slotMins);
+      const isStartSlot = (startMins >= slotMins && startMins < slotEndMins) || (slotMins === parseMinutes(timeSlots[0] ?? '00:00') && startMins < slotMins);
 
       if (isStartSlot) {
         const endMins = parseMinutes(normalizeTime(schedule.time_end));
-        const rowspan = Math.max(1, Math.ceil((endMins - slotMins) / 60));
+        const rowspan = Math.max(1, Math.ceil((endMins - slotMins) / SLOT_MINUTES));
         return { type: 'start' as const, schedule, rowspan };
       }
       return { type: 'occupied' as const };
@@ -438,6 +496,8 @@ const form = useForm({
   time_end: '' as string,
   room: '' as string,
 });
+const deleteForm = useForm({});
+const modalErrorMessages = computed(() => [...new Set([...Object.values(form.errors), ...Object.values(deleteForm.errors)])]);
 
 const openAddModal = () => {
   if (!isAdmin.value) return;
@@ -446,6 +506,8 @@ const openAddModal = () => {
   selectedSchedule.value = null;
   selectedWeekdays.value = [];
   form.reset();
+  form.clearErrors();
+  deleteForm.clearErrors();
   form.laboratory_id = selectedLaboratoryId.value;
   showModal.value = true;
 };
@@ -454,8 +516,13 @@ const openEditModal = (schedule: Schedule) => {
   if (!isAdmin.value) return;
   isEditing.value = true;
   selectedSchedule.value = schedule;
-  selectedWeekdays.value = schedule.weekdays.split(/[,\-\/\s]+/).map((d) => d.trim()).filter(Boolean);
+  selectedWeekdays.value = schedule.weekdays
+    .split(/[,\-\/\s]+/)
+    .map((d) => d.trim())
+    .filter(Boolean);
   form.reset();
+  form.clearErrors();
+  deleteForm.clearErrors();
   form.laboratory_id = schedule.laboratory_id ?? '';
   form.subject_offering_id = schedule.subject_offering_id ? String(schedule.subject_offering_id) : '';
   form.instructor_id = schedule.instructor_id ? String(schedule.instructor_id) : '';
@@ -474,21 +541,43 @@ const closeModal = () => {
   selectedSchedule.value = null;
   selectedWeekdays.value = [];
   form.reset();
+  form.clearErrors();
+  deleteForm.clearErrors();
 };
 
 const submitForm = () => {
-  if (selectedWeekdays.value.length === 0) {
-    alert('Please select at least one weekday.');
-    return;
-  }
+  form.clearErrors();
+  deleteForm.clearErrors();
+
+  let isValid = true;
+
   if (!form.subject_offering_id) {
-    alert('Please select a subject offering.');
-    return;
+    form.setError('subject_offering_id', 'Please select a subject offering.');
+    isValid = false;
   }
-  if (form.time_end <= form.time_start) {
-    alert('End time must be later than start time.');
-    return;
+  if (selectedWeekdays.value.length === 0) {
+    form.setError('weekdays', 'Please select at least one weekday.');
+    isValid = false;
   }
+  if (!form.time_start) {
+    form.setError('time_start', 'Please select a start time.');
+    isValid = false;
+  } else if (parseMinutes(form.time_start) % SLOT_MINUTES !== 0) {
+    form.setError('time_start', 'Start time must use a 15-minute interval.');
+    isValid = false;
+  }
+  if (!form.time_end) {
+    form.setError('time_end', 'Please select an end time.');
+    isValid = false;
+  } else if (parseMinutes(form.time_end) % SLOT_MINUTES !== 0) {
+    form.setError('time_end', 'End time must use a 15-minute interval.');
+    isValid = false;
+  } else if (form.time_start && form.time_end <= form.time_start) {
+    form.setError('time_end', 'End time must be later than start time.');
+    isValid = false;
+  }
+
+  if (!isValid) return;
 
   const payload = {
     laboratory_id: form.laboratory_id || null,
@@ -503,25 +592,39 @@ const submitForm = () => {
   };
 
   if (isEditing.value && selectedSchedule.value) {
-    form.transform(() => payload).put(route('admin.schedules.update', { id: selectedSchedule.value!.scheduled_id }), {
-      preserveState: true,
-      onSuccess: () => { closeModal(); router.reload({ only: ['schedules'] }); },
-    });
+    form
+      .transform(() => payload)
+      .put(
+        route('admin.schedules.update', {
+          id: selectedSchedule.value!.scheduled_id,
+        }),
+        {
+          preserveState: true,
+          preserveScroll: true,
+          onSuccess: closeModal,
+        },
+      );
     return;
   }
 
-  form.transform(() => payload).post(route('admin.schedules.store'), {
-    preserveState: true,
-    onSuccess: () => { closeModal(); router.reload({ only: ['schedules'] }); },
-  });
+  form
+    .transform(() => payload)
+    .post(route('admin.schedules.store'), {
+      preserveState: true,
+      preserveScroll: true,
+      onSuccess: closeModal,
+    });
 };
 
-const deleteSchedule = (schedule: Schedule) => {
+const deleteSchedule = (schedule: Schedule | null) => {
+  if (!schedule || deleteForm.processing) return;
   if (!confirm('Delete this schedule? This cannot be undone.')) return;
-  const deleteForm = useForm({});
+  form.clearErrors();
+  deleteForm.clearErrors();
   deleteForm.delete(route('admin.schedules.destroy', { id: schedule.scheduled_id }), {
     preserveState: true,
-    onSuccess: () => { closeModal(); router.reload({ only: ['schedules'] }); },
+    preserveScroll: true,
+    onSuccess: closeModal,
   });
 };
 </script>

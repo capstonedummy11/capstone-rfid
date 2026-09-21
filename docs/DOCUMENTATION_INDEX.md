@@ -12,6 +12,7 @@
 | Internal architecture and feature data flows | [Architecture and Feature Flows](System%20Architecture/ARCHITECTURE_AND_FEATURE_FLOWS.md) |
 | Controllers, services, models, middleware, and components | [Implementation Catalog](System%20Architecture/IMPLEMENTATION_CATALOG.md) |
 | Routes and endpoints | [Routes and Endpoints](System%20Architecture/ROUTES_AND_ENDPOINTS.md) |
+| Instructor excuse-letter review contract | [Instructor Excuse-Letter Review](System%20Architecture/EXCUSE_LETTER_INSTRUCTOR_REVIEW.md) |
 | Tables, fields, and relationships | [Database Schema Reference](System%20Architecture/DATABASE_SCHEMA_REFERENCE.md) |
 | Install, configure, run, build, and deploy | [System Installation](System%20Installation/README.md) |
 | Tests and release checks | [Testing](System%20Architecture/TESTING.md) |
@@ -38,6 +39,7 @@
 - `ARCHITECTURE_AND_FEATURE_FLOWS.md` — stack, layers, authentication, services, data flow, external integrations, and known gaps.
 - `IMPLEMENTATION_CATALOG.md` — every controller/service group plus models, middleware, commands, frontend layouts/components, and composables.
 - `ROUTES_AND_ENDPOINTS.md` — HTTP and command surface.
+- `EXCUSE_LETTER_INSTRUCTOR_REVIEW.md` — discovered Instructor review flow, per-delivery authorization, email behavior, validation, and verification contract.
 - `DATABASE_SCHEMA_REFERENCE.md` — final migrated tables, fields, foreign keys, and storage boundary.
 - `DATABASE.md` — migration groups, seeders, attendance data, and compatibility notes.
 - `SYSTEM_FLOW.md` — detailed business/data flow.

@@ -8,6 +8,7 @@ use App\Models\Attendance;
 use App\Models\Instructor;
 use App\Models\OnlineClass;
 use App\Models\OnlineClassAttendance;
+use App\Models\Schedule;
 use App\Models\Students;
 use App\Models\Subject;
 use App\Models\SystemSetting;
@@ -74,12 +75,18 @@ class AttendanceManagementController extends Controller
         $context = $this->authorizeSubject($request, $subject);
         $sessions = $this->sessionsFor($subject, $context['instructor_id'])->get();
         $onlineClasses = $this->onlineClassesFor($subject, $context['instructor_id'])->get();
-        $students = $this->studentsFor($subject)->get();
+        $students = $this->studentsFor($subject, $context['instructor_id'])->get();
         $summary = $this->summaryRows($subject, $sessions, $onlineClasses, $students);
         $statusTotals = $this->statusTotals($summary);
         $sessionCards = $sessions
-            ->map(fn ($session) => $this->sessionCard($session, $students->count()))
-            ->merge($onlineClasses->map(fn (OnlineClass $onlineClass) => $this->onlineSessionCard($onlineClass, $students->count())))
+            ->map(fn ($session) => $this->sessionCard(
+                $session,
+                $students->filter(fn (Students $student) => $this->studentBelongsToContext($student, $session))->count(),
+            ))
+            ->merge($onlineClasses->map(fn (OnlineClass $onlineClass) => $this->onlineSessionCard(
+                $onlineClass,
+                $students->filter(fn (Students $student) => $this->studentBelongsToContext($student, $onlineClass))->count(),
+            )))
             ->sortByDesc('sort_at')
             ->values();
 
@@ -101,7 +108,7 @@ class AttendanceManagementController extends Controller
         $context = $this->authorizeSubject($request, $subject);
         $sessions = $this->sessionsFor($subject, $context['instructor_id'])->get();
         $onlineClasses = $this->onlineClassesFor($subject, $context['instructor_id'])->get();
-        $rows = $this->summaryRows($subject, $sessions, $onlineClasses, $this->studentsFor($subject)->get());
+        $rows = $this->summaryRows($subject, $sessions, $onlineClasses, $this->studentsFor($subject, $context['instructor_id'])->get());
 
         return Inertia::render('Attendance/Summary', [
             'title' => 'Attendance Summary',
@@ -115,8 +122,10 @@ class AttendanceManagementController extends Controller
     public function student(Request $request, Subject $subject, Students $student): Response
     {
         $context = $this->authorizeSubject($request, $subject);
-        abort_unless((int) $student->section_id === (int) $subject->section_id, 404);
-        $sessions = $this->sessionsFor($subject, $context['instructor_id'])->get();
+        abort_unless($this->studentsFor($subject, $context['instructor_id'])->whereKey($student->student_id)->exists(), 404);
+        $sessions = $this->sessionsFor($subject, $context['instructor_id'])
+            ->get()
+            ->filter(fn ($session) => $this->studentBelongsToContext($student, $session));
         $history = $sessions->map(function ($session) use ($student) {
             $attendance = Attendance::query()
                 ->where('schedule_id', $session->schedule_id)
@@ -140,6 +149,7 @@ class AttendanceManagementController extends Controller
             $this->onlineClassesFor($subject, $context['instructor_id'])
                 ->with(['attendances' => fn ($query) => $query->where('student_id', $student->student_id)])
                 ->get()
+                ->filter(fn (OnlineClass $onlineClass) => $this->studentBelongsToContext($student, $onlineClass))
                 ->map(function (OnlineClass $onlineClass) {
                     $attendance = $onlineClass->attendances->first();
 
@@ -213,7 +223,7 @@ class AttendanceManagementController extends Controller
         $context = $this->authorizeSubject($request, $subject);
         $sessions = $this->sessionsFor($subject, $context['instructor_id'])->get();
         $onlineClasses = $this->onlineClassesFor($subject, $context['instructor_id'])->get();
-        $rows = $this->summaryRows($subject, $sessions, $onlineClasses, $this->studentsFor($subject)->get());
+        $rows = $this->summaryRows($subject, $sessions, $onlineClasses, $this->studentsFor($subject, $context['instructor_id'])->get());
         $statuses = $this->statusNames($rows);
         $meta = $this->reportMeta($request, $subject, $context['instructor_id'], 'Student Attendance Summary', [
             'Total Students' => $rows->count(),
@@ -250,7 +260,7 @@ class AttendanceManagementController extends Controller
             abort_unless((int) $onlineClass->instructor_id === (int) $context['instructor_id'], 403);
         }
 
-        $student = $this->studentsFor($subject)->whereKey($validated['student_id'])->firstOrFail();
+        $student = $this->studentsFor($subject, $context['instructor_id'], $onlineClass)->whereKey($validated['student_id'])->firstOrFail();
         $editDays = max(1, min(365, SystemSetting::integer(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 15)));
         $classDate = $onlineClass->scheduled_date->copy()->startOfDay();
         abort_if(
@@ -387,20 +397,15 @@ class AttendanceManagementController extends Controller
     {
         return DB::table('schedules')
             ->where('instructor_id', $instructorId)
-            ->where('section_id', $subject->section_id)
             ->where('subject_code', $subject->subject_code)
             ->exists();
     }
 
     private function subjectsFor(string $role, ?int $instructorId, Request $request): Builder
     {
-        $academicYearId = $request->filled('school_year') && $request->input('school_year') !== 'all'
-            ? AcademicYear::query()->where('name', $request->input('school_year'))->value('academic_year_id')
-            : null;
         return Subject::query()
             ->with(['section.strand'])
             ->whereHas('schedules', function (Builder $query) use ($role, $instructorId, $request) {
-                $query->whereColumn('schedules.section_id', 'subjects.section_id');
                 if ($role === 'instructor') {
                     $query->where('schedules.instructor_id', $instructorId);
                 } elseif ($request->filled('instructor')) {
@@ -412,15 +417,14 @@ class AttendanceManagementController extends Controller
                 if ($request->filled('semester')) {
                     $query->where('schedules.semester', $request->input('semester'));
                 }
+                if ($request->filled('course')) {
+                    $query->whereHas('section', fn (Builder $section) => $section->where('strand_id', $request->integer('course')));
+                }
+                if ($request->filled('section')) {
+                    $query->where('schedules.section_id', $request->integer('section'));
+                }
             })
-            ->when($request->filled('school_year') && $request->input('school_year') !== 'all', fn ($q) => $q->whereHas('section', fn ($s) => $s->where('school_year', $request->input('school_year'))))
-            ->when($request->filled('semester'), fn ($q) => $q->where(function ($s) use ($request) {
-                $s->where('semester', $request->input('semester'))
-                    ->orWhereHas('section', fn ($section) => $section->where('semester', $request->input('semester')));
-            }))
             ->when($request->filled('department'), fn ($q) => $q->where('department', $request->input('department')))
-            ->when($request->filled('course'), fn ($q) => $q->whereHas('section', fn ($section) => $section->where('strand_id', $request->integer('course'))))
-            ->when($request->filled('section'), fn ($q) => $q->where('section_id', $request->integer('section')))
             ->orderBy('subject_name');
     }
 
@@ -428,10 +432,9 @@ class AttendanceManagementController extends Controller
     {
         return DB::table('attendance_sessions')
             ->join('schedules', 'schedules.scheduled_id', '=', 'attendance_sessions.schedule_id')
-            ->where('schedules.section_id', $subject->section_id)
             ->where('schedules.subject_code', $subject->subject_code)
             ->when($instructorId, fn ($query) => $query->where('schedules.instructor_id', $instructorId))
-            ->select('attendance_sessions.*', 'schedules.instructor_id', 'schedules.section_id')
+            ->select('attendance_sessions.*', 'schedules.instructor_id', 'schedules.section_id', 'schedules.semester')
             ->orderByDesc('attendance_sessions.date')
             ->orderByDesc('attendance_sessions.time_start');
     }
@@ -441,7 +444,6 @@ class AttendanceManagementController extends Controller
         $this->attendanceFinalizer->finalizeEnded();
 
         return OnlineClass::query()
-            ->where('section_id', $subject->section_id)
             ->where('subject_code', $subject->subject_code)
             ->where('status', '!=', 'cancelled')
             ->when($instructorId, fn ($query) => $query->where('instructor_id', $instructorId))
@@ -449,23 +451,71 @@ class AttendanceManagementController extends Controller
             ->orderByDesc('start_time');
     }
 
-    private function studentsFor(Subject $subject): Builder
+    private function studentsFor(Subject $subject, ?int $instructorId = null, ?object $context = null): Builder
     {
-        $subject->loadMissing('section');
+        $contexts = $context
+            ? collect([$context])
+            : Schedule::query()
+                ->where('subject_code', $subject->subject_code)
+                ->when($instructorId, fn (Builder $query) => $query->where('instructor_id', $instructorId))
+                ->get(['academic_year_id', 'section_id', 'semester']);
+
+        if ($contexts->isEmpty() && $subject->section_id) {
+            $contexts = collect([(object) [
+                'academic_year_id' => $subject->section?->academic_year_id,
+                'section_id' => $subject->section_id,
+                'semester' => $subject->semester ?? $subject->section?->semester,
+            ]]);
+        }
 
         return Students::query()
-            ->when($subject->section?->academic_year_id, function (Builder $query, int $academicYearId) use ($subject) {
-                $query->whereHas('enrollments', fn (Builder $enrollment) => $enrollment
-                    ->where('academic_year_id', $academicYearId)
-                    ->where('section_id', $subject->section_id)
-                    ->when($subject->semester, fn (Builder $term) => $term->where('semester', $subject->semester))
-                );
-            }, fn (Builder $query) => $query->where('section_id', $subject->section_id))
+            ->with('enrollments')
+            ->where(function (Builder $studentQuery) use ($contexts) {
+                if ($contexts->isEmpty()) {
+                    $studentQuery->whereRaw('1 = 0');
+
+                    return;
+                }
+
+                foreach ($contexts as $context) {
+                    $academicYearId = $context->academic_year_id ?? null;
+                    $sectionId = $context->section_id ?? null;
+                    $semester = $context->semester ?? null;
+
+                    if ($academicYearId && $sectionId) {
+                        $studentQuery->orWhereHas('enrollments', fn (Builder $enrollment) => $enrollment
+                            ->where('academic_year_id', $academicYearId)
+                            ->where('section_id', $sectionId)
+                            ->when($semester, fn (Builder $term) => $term->where('semester', $semester))
+                        );
+                    } elseif ($sectionId) {
+                        $studentQuery->orWhere('section_id', $sectionId);
+                    }
+                }
+            })
             ->where(function ($query) {
                 $query->whereNull('status')->orWhereRaw('LOWER(status) = ?', ['active']);
             })
             ->orderBy('last_name')
             ->orderBy('first_name');
+    }
+
+    private function studentBelongsToContext(Students $student, object $context): bool
+    {
+        $academicYearId = $context->academic_year_id ?? null;
+        $sectionId = $context->section_id ?? null;
+        $semester = $context->semester ?? null;
+
+        if ($academicYearId && $sectionId) {
+            $student->loadMissing('enrollments');
+
+            return $student->enrollments->contains(fn ($enrollment) => (int) $enrollment->academic_year_id === (int) $academicYearId
+                && (int) $enrollment->section_id === (int) $sectionId
+                && (! $semester || $enrollment->semester === $semester)
+            );
+        }
+
+        return $sectionId && (int) $student->section_id === (int) $sectionId;
     }
 
     private function summaryRows(Subject $subject, Collection $sessions, Collection $onlineClasses, Collection $students): Collection
@@ -484,13 +534,22 @@ class AttendanceManagementController extends Controller
 
         return $students->map(function (Students $student) use ($sessions, $onlineClasses, $physical, $onlineAttendances) {
             $counts = collect();
+            $eligibleSessionCount = 0;
             foreach ($sessions as $session) {
+                if (! $this->studentBelongsToContext($student, $session)) {
+                    continue;
+                }
+                $eligibleSessionCount++;
                 $key = $student->student_id.'|'.$session->schedule_id.'|'.Carbon::parse($session->date)->toDateString();
                 $attendance = $physical->get($key);
                 $status = $attendance ? $this->displayStatus($attendance, $session) : $this->missingStatus($session);
                 $counts[$status] = ($counts[$status] ?? 0) + 1;
             }
             foreach ($onlineClasses as $onlineClass) {
+                if (! $this->studentBelongsToContext($student, $onlineClass)) {
+                    continue;
+                }
+                $eligibleSessionCount++;
                 $attendance = $onlineAttendances->get($student->student_id.'|'.$onlineClass->online_class_id);
                 $status = $this->onlineStudentStatus($onlineClass, $attendance);
                 $counts[$status] = ($counts[$status] ?? 0) + 1;
@@ -499,7 +558,7 @@ class AttendanceManagementController extends Controller
                 }
             }
             $completed = (int) ($counts['Present'] ?? 0) + (int) ($counts['Late'] ?? 0) + (int) ($counts['Excused'] ?? 0);
-            $rateBase = max(1, $sessions->count() + $onlineClasses->count());
+            $rateBase = max(1, $eligibleSessionCount);
 
             return [
                 'student_id' => $student->student_id,
@@ -519,7 +578,7 @@ class AttendanceManagementController extends Controller
             ->get()
             ->keyBy('student_id');
 
-        return $this->studentsFor($subject)->get()->map(function (Students $student) use ($attendances, $session) {
+        return $this->studentsFor($subject, $session->instructor_id ?? null, $session)->get()->map(function (Students $student) use ($attendances, $session) {
             $attendance = $attendances->get($student->student_id);
 
             return [
@@ -545,7 +604,7 @@ class AttendanceManagementController extends Controller
             ->get()
             ->keyBy('student_id');
 
-        return $this->studentsFor($subject)->get()->map(function (Students $student) use ($attendances, $onlineClass) {
+        return $this->studentsFor($subject, $onlineClass->instructor_id, $onlineClass)->get()->map(function (Students $student) use ($attendances, $onlineClass) {
             $attendance = $attendances->get($student->student_id);
 
             return [
@@ -652,7 +711,6 @@ class AttendanceManagementController extends Controller
     private function subjectCard(Subject $subject): array
     {
         $instructors = $subject->schedules()
-            ->where('section_id', $subject->section_id)
             ->with('instructor.user')
             ->get()
             ->pluck('instructor.user.name')
@@ -666,26 +724,34 @@ class AttendanceManagementController extends Controller
     private function subjectMeta(Subject $subject, ?int $instructorId): array
     {
         $subject->loadMissing('section.strand');
-        $instructorNames = $subject->schedules()
-            ->where('section_id', $subject->section_id)
+        $schedules = $subject->schedules()
             ->when($instructorId, fn ($query) => $query->where('instructor_id', $instructorId))
-            ->with('instructor.user')
+            ->with(['academicYear', 'section.strand', 'instructor.user'])
+            ->orderByDesc('scheduled_id')
             ->get()
+            ->values();
+        $instructorNames = $schedules
             ->pluck('instructor.user.name')
             ->filter()
             ->unique()
             ->implode(', ');
+        $scheduleSections = $schedules->pluck('section')->filter()->unique('section_id')->values();
+        $representativeSchedule = $schedules->first();
+        $representativeSection = $subject->section ?? $representativeSchedule?->section;
+        $sectionName = $scheduleSections->count() > 1
+            ? 'Multiple sections'
+            : $representativeSection?->section_name;
 
         return [
             'id' => $subject->subject_id,
             'code' => $subject->subject_code,
             'name' => $subject->subject_name,
             'department' => $subject->department,
-            'semester' => $subject->semester ?: $subject->section?->semester,
-            'section_id' => $subject->section_id,
-            'section' => $subject->section?->section_name,
-            'school_year' => $subject->section?->school_year,
-            'strand' => $subject->section?->strand?->strand_code,
+            'semester' => $subject->semester ?: $representativeSchedule?->semester ?: $representativeSection?->semester,
+            'section_id' => $subject->section_id ?? $representativeSchedule?->section_id,
+            'section' => $sectionName,
+            'school_year' => $representativeSchedule?->academicYear?->name ?? $representativeSection?->school_year,
+            'strand' => $representativeSection?->strand?->strand_code,
             'instructor' => $instructorNames ?: 'Unassigned Instructor',
             'color_theme' => $this->subjectColorTheme($subject),
         ];

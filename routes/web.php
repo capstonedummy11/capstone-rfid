@@ -93,6 +93,7 @@ Route::middleware(['auth', 'role:admin,instructor,clinic,registrar,student,paren
     Route::get('/messages/unread-status', [MessageController::class, 'unreadStatus'])->name('messages.unread-status');
     Route::post('/messages/conversation', [MessageController::class, 'sendConversationMessage'])->name('messages.conversation.store');
     Route::post('/messages/{message}/forward-to-parent', [MessageController::class, 'forwardExcuseLetterToParent'])->name('messages.forward-to-parent');
+    Route::put('/messages/{message}/excuse-letter-review', [MessageController::class, 'reviewExcuseLetter'])->name('messages.excuse-letters.review');
     Route::put('/messages/{message}/read', [MessageController::class, 'markRead'])->name('messages.read');
     Route::get('/messages/{message}/attachment', [MessageController::class, 'downloadAttachment'])->name('messages.attachments.show');
 });
@@ -275,6 +276,8 @@ Route::prefix('admin')
             Route::get('/instructors', [InstructorsController::class, 'indexAdmin'])->name('instructors.index');
             Route::post('/instructors', [InstructorsController::class, 'store'])->name('instructors.store');
             Route::put('/instructors/{id}', [InstructorsController::class, 'update'])->name('instructors.update');
+            Route::put('/instructors/{id}/password/reset-default', [InstructorsController::class, 'resetPassword'])
+                ->name('instructors.password.reset-default');
             Route::delete('/instructors/{id}', [InstructorsController::class, 'destroy'])->name('instructors.destroy');
             Route::inertia('/students-management', 'StudentsManagement', ['title' => 'Students Management'])->name('studentsManagement');
             // Route::inertia('/instructors-management', 'InstructorsManagement', ['title' => 'Instructor Management'])->name('instructorsManagement');

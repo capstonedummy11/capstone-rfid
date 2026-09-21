@@ -95,6 +95,7 @@
                 <td class="border border-gray-300 px-4 py-3">
                   <div class="flex items-center gap-2">
                     <button @click="openEditModal(instructor)" class="rounded-md bg-indigo-600 px-3 py-1 text-sm text-white hover:bg-indigo-700">Edit</button>
+                    <button @click="resetInstructorPassword(instructor)" class="rounded-md bg-amber-500 px-3 py-1 text-sm text-white hover:bg-amber-600">Reset password</button>
                     <button @click="deleteInstructor(instructor)" class="rounded-md bg-rose-500 px-3 py-1 text-sm text-white hover:bg-rose-600">Delete</button>
                   </div>
                 </td>
@@ -404,6 +405,19 @@ const deleteInstructor = (instructor: Instructor) => {
   deleteForm.delete(route('admin.instructors.destroy', { id: instructor.instructor_id }), {
     preserveState: true,
     onSuccess: () => window.location.reload(),
+  });
+};
+
+const resetInstructorPassword = (instructor: Instructor) => {
+  const name = `${instructor.first_name} ${instructor.last_name}`.trim();
+  if (!confirm(`Reset ${name}'s password to "password"? Their active sessions will end, and they must create a private password at the next login.`)) {
+    return;
+  }
+
+  const resetForm = useForm({});
+  resetForm.put(route('admin.instructors.password.reset-default', { id: instructor.instructor_id }), {
+    preserveState: true,
+    preserveScroll: true,
   });
 };
 

@@ -17,6 +17,26 @@ use Inertia\Inertia;
 
 class ScheduleController
 {
+    private const WEEKDAYS = [
+        'sun' => 'Sun',
+        'sunday' => 'Sun',
+        'mon' => 'Mon',
+        'monday' => 'Mon',
+        'tue' => 'Tue',
+        'tues' => 'Tue',
+        'tuesday' => 'Tue',
+        'wed' => 'Wed',
+        'wednesday' => 'Wed',
+        'thu' => 'Thu',
+        'thur' => 'Thu',
+        'thurs' => 'Thu',
+        'thursday' => 'Thu',
+        'fri' => 'Fri',
+        'friday' => 'Fri',
+        'sat' => 'Sat',
+        'saturday' => 'Sat',
+    ];
+
     public function indexAdmin(Request $request)
     {
         $user = $request->user();
@@ -149,11 +169,14 @@ class ScheduleController
             'subject_code'  => 'nullable|required_without:subject_offering_id|exists:subjects,subject_code',
             'weekdays'      => 'required|string|max:255',
             'time_start'    => 'required|date_format:H:i',
-            'time_end'      => 'required|date_format:H:i',
+            'time_end'      => 'required|date_format:H:i|after:time_start',
             'room'          => 'nullable|string|max:255',
         ]);
 
+        $this->assertQuarterHourTimes($validated);
         $validated = $this->resolveOffering($validated);
+        $validated['weekdays'] = $this->normalizeWeekdays($validated['weekdays']);
+        $this->assertNoScheduleConflict($validated);
 
         $schedule = Schedule::create(array_merge($validated, [
             'time_start' => $validated['time_start'] . ':00',
@@ -180,11 +203,14 @@ class ScheduleController
             'subject_code'  => 'nullable|required_without:subject_offering_id|exists:subjects,subject_code',
             'weekdays'      => 'required|string|max:255',
             'time_start'    => 'required|date_format:H:i',
-            'time_end'      => 'required|date_format:H:i',
+            'time_end'      => 'required|date_format:H:i|after:time_start',
             'room'          => 'nullable|string|max:255',
         ]);
 
+        $this->assertQuarterHourTimes($validated);
         $validated = $this->resolveOffering($validated);
+        $validated['weekdays'] = $this->normalizeWeekdays($validated['weekdays']);
+        $this->assertNoScheduleConflict($validated, $schedule->scheduled_id);
 
         $schedule->update(array_merge($validated, [
             'time_start' => $validated['time_start'] . ':00',
@@ -272,6 +298,98 @@ class ScheduleController
                 'subject_offering_id' => "Schedules can only use the current {$currentAcademicYear->active_semester}.",
             ]);
         }
+    }
+
+    private function normalizeWeekdays(string $weekdays): string
+    {
+        $tokens = preg_split('/[,\-\/\s]+/', strtolower(trim($weekdays)), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $normalized = collect($tokens)
+            ->map(fn (string $day) => self::WEEKDAYS[$day] ?? null)
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($tokens === [] || $normalized->count() !== count(array_unique($tokens))) {
+            throw ValidationException::withMessages([
+                'weekdays' => 'Select only valid weekdays from Sunday through Saturday.',
+            ]);
+        }
+
+        $weekdayOrder = array_flip(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
+
+        return $normalized
+            ->sortBy(fn (string $day) => $weekdayOrder[$day])
+            ->implode(',');
+    }
+
+    private function assertQuarterHourTimes(array $validated): void
+    {
+        $errors = [];
+
+        foreach (['time_start' => 'Start time', 'time_end' => 'End time'] as $field => $label) {
+            $minutes = (int) substr($validated[$field], 3, 2);
+            if ($minutes % 15 !== 0) {
+                $errors[$field] = "{$label} must use a 15-minute interval.";
+            }
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
+    private function assertNoScheduleConflict(array $attributes, ?int $ignoreScheduleId = null): void
+    {
+        $startTime = $attributes['time_start'].':00';
+        $endTime = $attributes['time_end'].':00';
+        $weekdays = explode(',', $attributes['weekdays']);
+        $room = strtolower(trim((string) ($attributes['room'] ?? '')));
+
+        $conflicts = Schedule::query()
+            ->with(['subject', 'section', 'instructor.user', 'laboratory'])
+            ->where('academic_year_id', $attributes['academic_year_id'])
+            ->where('semester', $attributes['semester'])
+            ->where('time_start', '<', $endTime)
+            ->where('time_end', '>', $startTime)
+            ->when($ignoreScheduleId, fn ($query) => $query->whereKeyNot($ignoreScheduleId))
+            ->where(function ($query) use ($attributes, $room) {
+                $query->where('section_id', $attributes['section_id']);
+
+                if (! empty($attributes['instructor_id'])) {
+                    $query->orWhere('instructor_id', $attributes['instructor_id']);
+                }
+                if (! empty($attributes['laboratory_id'])) {
+                    $query->orWhere('laboratory_id', $attributes['laboratory_id']);
+                }
+                if ($room !== '') {
+                    $query->orWhereRaw('LOWER(room) = ?', [$room]);
+                }
+            })
+            ->get()
+            ->first(fn (Schedule $schedule) => collect(explode(',', $this->normalizeWeekdays($schedule->weekdays)))
+                ->intersect($weekdays)
+                ->isNotEmpty());
+
+        if (! $conflicts) {
+            return;
+        }
+
+        $sharedResources = collect([
+            (int) $conflicts->section_id === (int) $attributes['section_id'] ? 'section' : null,
+            ! empty($attributes['instructor_id']) && (int) $conflicts->instructor_id === (int) $attributes['instructor_id'] ? 'instructor' : null,
+            ! empty($attributes['laboratory_id']) && (int) $conflicts->laboratory_id === (int) $attributes['laboratory_id'] ? 'laboratory' : null,
+            $room !== '' && strtolower(trim((string) $conflicts->room)) === $room ? 'room' : null,
+        ])->filter()->unique()->implode(', ');
+        $subject = $conflicts->subject?->subject_code ?: 'another subject';
+        $days = collect(explode(',', $this->normalizeWeekdays($conflicts->weekdays)))
+            ->intersect($weekdays)
+            ->implode(', ');
+
+        throw ValidationException::withMessages([
+            'time_start' => "Schedule conflict with {$subject} on {$days} from "
+                .substr((string) $conflicts->time_start, 0, 5).' to '
+                .substr((string) $conflicts->time_end, 0, 5).". Shared resource: {$sharedResources}.",
+        ]);
     }
 
     private function log(string $action, string $tableName, string $description): void

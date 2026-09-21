@@ -24,7 +24,7 @@ All use prefix `/instructor`, auth, and `role:instructor`: `GET /verify`; `POST 
 
 ## Shared messages and reports
 
-Authenticated roles Admin, Instructor, Clinic, Registrar, Student, Parent use `GET /messages`, unread status, conversation POST, read PUT, authorized attachment GET, and excuse-forward POST. `GET /reports` and `/reports/export` use the same roles. `EnsureParentPortalEnabled` additionally blocks Parent when disabled.
+Authenticated roles Admin, Instructor, Clinic, Registrar, Student, Parent use `GET /messages`, unread status, conversation POST, read PUT, authorized attachment GET, and excuse-forward POST. `PUT /messages/{message}/excuse-letter-review` is restricted in the controller to the Instructor who received that explicitly linked letter message; it accepts the approve/deny decision, Student/Parent choices, and editable email subject/body. Decisions are per delivered Instructor message. `GET /reports` and `/reports/export` use the same roles. `EnsureParentPortalEnabled` additionally blocks Parent when disabled.
 
 ## Attendance Panel
 
@@ -37,7 +37,7 @@ Console-only `/attendance-control-panel` endpoints include page GET plus POST op
 Prefix `/admin`, auth:
 
 - Admin or verified Instructor: dashboard; attendance scanner/logs/subject/summary/student/session/export/status; messages/reply; online-class CRUD/cancel; Student list; Schedule list.
-- Admin only: Academic Year lifecycle/rollover; Laboratory CRUD; Borrowing/return; RFID update/clear; Section, Subject/Offering, Schedule, Inventory/Item, Strand, Student/Parent, Instructor, User CRUD; Activity and Online Class log exports; Active Device/PIN/session management; System Settings/sound library; prototype students-management route.
+- Admin only: Academic Year lifecycle/rollover; Laboratory CRUD; Borrowing/return; RFID update/clear; Section, Subject/Offering, Schedule, Inventory/Item, Strand, Student/Parent, Instructor, User CRUD; Student and Instructor administrative password resets; Activity and Online Class log exports; Active Device/PIN/session management; System Settings/sound library; prototype students-management route.
 
 Endpoint names and controller methods are declared in `routes/web.php`; the runtime route list is authoritative when duplicate URIs exist. In particular, the final `GET /admin/inventory` closure is named `admin.inventory` and supersedes the earlier same-URI index route in the runtime list.
 
@@ -69,4 +69,3 @@ Under `/settings`: authenticated profile GET/PATCH; verified account deletion, p
 | `schedule:work` | Keep the scheduler running locally. |
 
 The scheduler invokes `online-classes:finalize-attendance` every minute with overlap protection.
-

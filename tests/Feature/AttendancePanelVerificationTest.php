@@ -11,6 +11,7 @@ use App\Models\Students;
 use App\Models\Subject;
 use App\Models\SystemSetting;
 use App\Models\User;
+use App\Services\AwsFaceRecognitionService;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -662,7 +663,8 @@ test('aws unavailability stores evidence for both login and logout', function ()
         ->postJson(route('attendanceControlPanel.studentFaceCheck'), $payload)
         ->assertOk()
         ->assertJsonPath('provider_unavailable', true)
-        ->assertJsonPath('capture_recorded', true);
+        ->assertJsonPath('capture_recorded', true)
+        ->assertJsonPath('message', 'AWS face recognition is not working.');
 
     $this->postJson(route('attendanceControlPanel.studentTap'), $payload)
         ->assertOk()
@@ -676,6 +678,18 @@ test('aws unavailability stores evidence for both login and logout', function ()
         ->assertOk()
         ->assertJsonPath('action', 'time_out');
 
+    $this->postJson(route('attendanceControlPanel.attendanceLogs'), [
+        'room' => 'COMLAB-ATT',
+        'subject_code' => 'ATT-SEC-101',
+        'schedule_id' => $fixture['schedule']->scheduled_id,
+    ])
+        ->assertOk()
+        ->assertJsonPath('total_students', 1)
+        ->assertJsonCount(1, 'records')
+        ->assertJsonCount(2, 'records.0.events')
+        ->assertJsonPath('records.0.student_id', $fixture['student']->student_id)
+        ->assertJsonPath('records.0.tap_count', 2);
+
     $log = DB::table('attendance_logs')->first();
     expect($log->time_in_face_path)->not->toBeNull()
         ->and($log->time_out_face_path)->not->toBeNull();
@@ -683,6 +697,37 @@ test('aws unavailability stores evidence for both login and logout', function ()
     Storage::disk('public')->assertExists($log->time_out_face_path);
 
     $this->assertDatabaseCount('attendances', 1);
+});
+
+test('face comparison mismatch has a distinct message from aws unavailability', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    $fixture = attendanceVerificationFixture(true);
+
+    $faceService = Mockery::mock(AwsFaceRecognitionService::class);
+    $faceService->shouldReceive('compareBase64WithStoredImage')
+        ->once()
+        ->andReturn([
+            'verified' => false,
+            'similarity' => 42.5,
+            'threshold' => 90.0,
+            'provider' => 'aws_rekognition',
+        ]);
+    $this->app->instance(AwsFaceRecognitionService::class, $faceService);
+
+    $this->actingAs($fixture['console'])
+        ->postJson(route('attendanceControlPanel.studentFaceCheck'), [
+            'rfid' => $fixture['student']->rfid_tag,
+            'room' => 'COMLAB-ATT',
+            'subject_code' => 'ATT-SEC-101',
+            'schedule_id' => $fixture['schedule']->scheduled_id,
+            'image' => 'data:image/jpeg;base64,'.base64_encode('camera-image'),
+        ])
+        ->assertStatus(422)
+        ->assertJsonPath('verified', false)
+        ->assertJsonPath('provider', 'aws_rekognition')
+        ->assertJsonPath('message', 'Face recognition failed to match.');
+
+    $this->assertDatabaseCount('attendances', 0);
 });
 
 test('camera failure needs instructor rfid only once for the active class session', function () {

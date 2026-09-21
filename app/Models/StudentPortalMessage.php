@@ -13,6 +13,13 @@ class StudentPortalMessage extends Model
 
     protected $fillable = [
         'student_id',
+        'student_excuse_letter_id',
+        'excuse_letter_review_decision',
+        'excuse_letter_reviewed_by_user_id',
+        'excuse_letter_reviewed_at',
+        'excuse_letter_review_email_subject',
+        'excuse_letter_review_email_body',
+        'excuse_letter_review_recipients',
         'sender_user_id',
         'recipient_user_id',
         'sender_role',
@@ -30,6 +37,8 @@ class StudentPortalMessage extends Model
 
     protected $casts = [
         'read_at' => 'datetime',
+        'excuse_letter_reviewed_at' => 'datetime',
+        'excuse_letter_review_recipients' => 'array',
     ];
 
     public function getSubjectAttribute($value): ?string
@@ -57,6 +66,16 @@ class StudentPortalMessage extends Model
     public function student(): BelongsTo
     {
         return $this->belongsTo(Students::class, 'student_id', 'student_id');
+    }
+
+    public function excuseLetter(): BelongsTo
+    {
+        return $this->belongsTo(StudentExcuseLetter::class, 'student_excuse_letter_id', 'student_excuse_letter_id');
+    }
+
+    public function excuseLetterReviewedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'excuse_letter_reviewed_by_user_id', 'user_id');
     }
 
     public function sender(): BelongsTo
