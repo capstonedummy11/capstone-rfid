@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useForm, usePage } from '@inertiajs/vue3';
 import { Paperclip, X } from 'lucide-vue-next';
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import LinkedStudentSelector from '@/components/StudentPortal/LinkedStudentSelector.vue';
 import SuccessModal from '@/components/StudentPortal/SuccessModal.vue';
 
@@ -14,6 +14,7 @@ const props = defineProps({
     recipientSuggestions: { type: Array, default: () => [] },
     parentPortalEnabled: { type: Boolean, default: false },
     parentExcuseLettersEnabled: { type: Boolean, default: false },
+    activeAcademicYear: { type: Object, default: null },
 });
 
 const page = usePage();
@@ -43,6 +44,16 @@ const form = useForm<{
     recipient_user_ids: [],
     attachment: null,
 });
+
+watch(
+    () => form.from_date,
+    (startDate) => {
+        if (startDate && !form.to_date) {
+            form.to_date = startDate;
+            form.clearErrors('to_date');
+        }
+    },
+);
 
 const selectAttachment = (event: Event) => {
     const input = event.target as HTMLInputElement;
@@ -144,7 +155,9 @@ const matchingRecipientSuggestions = computed(() => {
 
     return availableRecipientSuggestions.value.filter((suggestion) =>
         [suggestion.name, suggestion.email, suggestion.label].some((value) =>
-            String(value || '').toLowerCase().includes(search),
+            String(value || '')
+                .toLowerCase()
+                .includes(search),
         ),
     );
 });
@@ -155,10 +168,11 @@ const formErrorMessages = computed(() => [
 
 const addRecipient = () => {
     const search = recipientSearch.value.trim().toLowerCase();
-    const exactRecipient = availableRecipientSuggestions.value.find((suggestion) =>
-        [suggestion.name, suggestion.email, suggestion.label].some(
-            (value) => String(value || '').toLowerCase() === search,
-        ),
+    const exactRecipient = availableRecipientSuggestions.value.find(
+        (suggestion) =>
+            [suggestion.name, suggestion.email, suggestion.label].some(
+                (value) => String(value || '').toLowerCase() === search,
+            ),
     );
     const recipient =
         exactRecipient ||
@@ -248,11 +262,18 @@ const letterRecipients = (letter) => {
                                 <input
                                     v-model="recipientSearch"
                                     class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm font-normal"
-                                    :class="{ 'border-rose-400': form.errors.recipient_user_ids }"
+                                    :class="{
+                                        'border-rose-400':
+                                            form.errors.recipient_user_ids,
+                                    }"
                                     placeholder="Search assigned teacher by name or email"
                                     autocomplete="off"
-                                    :aria-invalid="Boolean(form.errors.recipient_user_ids)"
-                                    @input="form.clearErrors('recipient_user_ids')"
+                                    :aria-invalid="
+                                        Boolean(form.errors.recipient_user_ids)
+                                    "
+                                    @input="
+                                        form.clearErrors('recipient_user_ids')
+                                    "
                                     @keydown.enter.prevent="addRecipient"
                                 />
                                 <button
@@ -274,11 +295,19 @@ const letterRecipients = (letter) => {
                                     class="block w-full rounded px-3 py-2 text-left text-sm font-normal text-slate-700 hover:bg-sky-50"
                                     @click="addRecipientById(recipient.user_id)"
                                 >
-                                    <span class="block font-semibold">{{ recipient.name }}</span>
-                                    <span class="block text-xs text-slate-500">{{ recipient.email }}</span>
+                                    <span class="block font-semibold">{{
+                                        recipient.name
+                                    }}</span>
+                                    <span
+                                        class="block text-xs text-slate-500"
+                                        >{{ recipient.email }}</span
+                                    >
                                 </button>
                                 <p
-                                    v-if="matchingRecipientSuggestions.length === 0"
+                                    v-if="
+                                        matchingRecipientSuggestions.length ===
+                                        0
+                                    "
                                     class="px-3 py-2 text-sm font-normal text-slate-500"
                                 >
                                     No assigned instructor found.
@@ -310,7 +339,11 @@ const letterRecipients = (letter) => {
                         class="rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-500"
                     >
                         Leave blank to send to all assigned teachers after
-                        {{ parentPortalEnabled ? 'parent approval.' : 'submission.' }}
+                        {{
+                            parentPortalEnabled
+                                ? 'parent approval.'
+                                : 'submission.'
+                        }}
                     </div>
                     <div
                         v-if="availableRecipientSuggestions.length"
@@ -342,9 +375,21 @@ const letterRecipients = (letter) => {
                             <input
                                 v-model="form.from_date"
                                 type="date"
+                                :min="activeAcademicYear?.starts_on"
+                                :max="activeAcademicYear?.ends_on"
                                 class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                                :class="{
+                                    'border-rose-400': form.errors.from_date,
+                                }"
                                 required
+                                @change="form.clearErrors('from_date')"
                             />
+                            <span
+                                v-if="form.errors.from_date"
+                                class="mt-1 block text-xs font-medium text-rose-600 normal-case"
+                            >
+                                {{ form.errors.from_date }}
+                            </span>
                         </label>
                         <label
                             class="text-xs font-bold text-slate-500 uppercase"
@@ -353,11 +398,34 @@ const letterRecipients = (letter) => {
                             <input
                                 v-model="form.to_date"
                                 type="date"
+                                :min="
+                                    form.from_date ||
+                                    activeAcademicYear?.starts_on
+                                "
+                                :max="activeAcademicYear?.ends_on"
                                 class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                                :class="{
+                                    'border-rose-400': form.errors.to_date,
+                                }"
                                 required
+                                @change="form.clearErrors('to_date')"
                             />
+                            <span
+                                v-if="form.errors.to_date"
+                                class="mt-1 block text-xs font-medium text-rose-600 normal-case"
+                            >
+                                {{ form.errors.to_date }}
+                            </span>
                         </label>
                     </div>
+                    <p
+                        v-if="activeAcademicYear"
+                        class="-mt-1 text-xs text-slate-500"
+                    >
+                        Dates must be within {{ activeAcademicYear.name }}:
+                        {{ activeAcademicYear.starts_on }} to
+                        {{ activeAcademicYear.ends_on }}.
+                    </p>
                     <label class="text-xs font-bold text-slate-500 uppercase">
                         Reason
                         <textarea
@@ -397,13 +465,19 @@ const letterRecipients = (letter) => {
                                 @click="attachmentInput?.click()"
                             >
                                 <Paperclip class="h-4 w-4" aria-hidden="true" />
-                                {{ form.attachment ? 'Replace attachment' : 'Add attachment' }}
+                                {{
+                                    form.attachment
+                                        ? 'Replace attachment'
+                                        : 'Add attachment'
+                                }}
                             </button>
                             <div
                                 v-if="form.attachment"
                                 class="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-700"
                             >
-                                <span class="truncate">{{ form.attachment.name }}</span>
+                                <span class="truncate">{{
+                                    form.attachment.name
+                                }}</span>
                                 <button
                                     type="button"
                                     class="shrink-0 rounded p-0.5 text-slate-400 hover:bg-slate-200 hover:text-slate-700"
@@ -488,7 +562,11 @@ const letterRecipients = (letter) => {
                                 class="mt-2 text-xs font-semibold text-slate-400"
                             >
                                 PDF available
-                                {{ parentPortalEnabled ? 'after parent approval.' : 'after submission.' }}
+                                {{
+                                    parentPortalEnabled
+                                        ? 'after parent approval.'
+                                        : 'after submission.'
+                                }}
                             </p>
                             <form
                                 v-if="letter.can_parent_approve"

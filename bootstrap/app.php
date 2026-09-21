@@ -53,5 +53,10 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->context(fn (): array => [
+            'route' => request()->route()?->getName(),
+            'request_method' => request()->method(),
+            'request_path' => request()->path(),
+            'user_id' => auth()->id(),
+        ]);
     })->create();

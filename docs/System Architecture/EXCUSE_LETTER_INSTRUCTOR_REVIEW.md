@@ -61,4 +61,4 @@ C:\xampp\php8.5.8\php.exe artisan test
 npm run build
 ```
 
-The verified snapshot for this implementation is 200 backend tests and 2,743 assertions, plus a successful Vite production build.
+The latest verified snapshot, including academic-year date validation and server logging coverage, is 201 backend tests and 2,758 assertions, plus a successful Vite production build.

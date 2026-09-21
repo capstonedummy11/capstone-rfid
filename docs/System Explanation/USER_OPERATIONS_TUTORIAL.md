@@ -625,6 +625,7 @@ Student-created excuse letter flow:
 2. Student opens Excuse Letters.
 3. Student creates an excuse letter.
 4. Student adds the reason, date details, and attachment if needed.
+   When the Student selects a From date while To is empty, To automatically uses the same date and can still be changed. Both dates must remain within the displayed active academic-year range. An invalid date is shown in the form and does not upload the attachment or create a letter.
 5. The letter is saved with parent approval required.
 6. Linked parents receive an email asking them to review and sign the letter.
 7. The parent follows the email link and logs in.

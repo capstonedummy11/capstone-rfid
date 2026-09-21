@@ -35,3 +35,12 @@ test('public student and parent recovery page does not expose staff login', func
         ->not->toContain("route('staff.login')")
         ->not->toContain('>Staff login<');
 });
+
+test('excuse letter defaults an empty end date to the selected start date', function () {
+    $excuseLetters = file_get_contents(resource_path('js/pages/StudentParent/ExcuseLetters.vue'));
+
+    expect($excuseLetters)
+        ->toContain("import { computed, reactive, ref, watch } from 'vue'")
+        ->toContain('if (startDate && !form.to_date)')
+        ->toContain('form.to_date = startDate;');
+});

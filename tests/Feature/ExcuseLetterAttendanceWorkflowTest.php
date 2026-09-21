@@ -203,9 +203,28 @@ test('current enrollment instructor can be searched and receives an excuse lette
         ->assertInertia(fn (Assert $page) => $page
             ->component('StudentParent/ExcuseLetters')
             ->where('student.section', $currentSection->section_name)
+            ->where('activeAcademicYear.starts_on', '2026-06-01')
+            ->where('activeAcademicYear.ends_on', '2027-03-31')
             ->has('recipientSuggestions', 1)
             ->where('recipientSuggestions.0.user_id', $instructorUser->user_id)
             ->where('recipientSuggestions.0.name', $instructorUser->name));
+
+    $this->actingAs($studentUser)
+        ->post(route('student-parent.excuse-letters.store'), [
+            'subject' => $subject->subject_name,
+            'from_date' => '2026-07-14',
+            'to_date' => '2027-05-03',
+            'reason' => 'Dates reproduce the server validation response from the form.',
+            'recipient_user_ids' => [$instructorUser->user_id],
+            'attachment' => UploadedFile::fake()->create('outside-academic-year.pdf', 100, 'application/pdf'),
+        ])
+        ->assertRedirect()
+        ->assertSessionHasErrors([
+            'to_date' => 'The end date must be on or before 2027-03-31.',
+        ]);
+
+    $this->assertDatabaseCount('student_excuse_letters', 0);
+    expect(Storage::disk('public')->allFiles('student-excuse-letters'))->toBe([]);
 
     $this->actingAs($studentUser)
         ->post(route('student-parent.excuse-letters.store'), [

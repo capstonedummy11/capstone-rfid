@@ -58,6 +58,12 @@ return [
             'ignore_exceptions' => false,
         ],
 
+        'server' => [
+            'driver' => 'stack',
+            'channels' => explode(',', (string) env('LOG_SERVER_CHANNELS', 'daily,errorlog')),
+            'ignore_exceptions' => false,
+        ],
+
         'single' => [
             'driver' => 'single',
             'path' => storage_path('logs/laravel.log'),

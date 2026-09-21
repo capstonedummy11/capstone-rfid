@@ -72,8 +72,24 @@ Never commit the real `.env`. Generate a unique `APP_KEY`, use production-only s
 | `SESSION_LIFETIME`, `SESSION_SECURE_COOKIE`, `SESSION_DOMAIN` | Session duration/cookie scope. | Secure cookies on HTTPS; set domain only when required. |
 | `CACHE_STORE` | Cache and Messenger cooldown storage. | `database` or Redis; atomic store preferred on multiple servers. |
 | `QUEUE_CONNECTION` | Async queue backend. | Use `sync` unless queue tables/backend are installed. Current migrations do not include `jobs`, `job_batches`, or `failed_jobs`. |
+| `LOG_CHANNEL`, `LOG_SERVER_CHANNELS`, `LOG_LEVEL`, `LOG_DAILY_DAYS` | Laravel application and server error logging. | Use `LOG_CHANNEL=server`, `LOG_SERVER_CHANNELS=daily,errorlog`, `LOG_LEVEL=error`, and an appropriate retention period such as 14 days. |
 
 If database queues are required, generate and commit the appropriate Laravel queue migrations before setting `QUEUE_CONNECTION=database`, migrate them, and run supervised workers.
+
+### Production error logging
+
+The `server` log channel writes reportable Laravel errors to both rotating files under `storage/logs` and the PHP/web-server error log. Configure the production `.env` with:
+
+```dotenv
+APP_ENV=production
+APP_DEBUG=false
+LOG_CHANNEL=server
+LOG_SERVER_CHANNELS=daily,errorlog
+LOG_LEVEL=error
+LOG_DAILY_DAYS=14
+```
+
+After changing server environment values, run `php artisan config:clear` or rebuild the production configuration cache. Ensure the web-server account can write to `storage/logs` and `bootstrap/cache`. Laravel automatically reports unexpected exceptions; expected form validation is returned to the page as field errors and is intentionally not treated as a server failure. Log context includes the route, request method/path, and authenticated user ID, but excludes request bodies and passwords.
 
 ### Attendance panel and face services
 
@@ -211,4 +227,3 @@ Seeded credentials documented in [Default Account Passwords](../System%20Explana
 | Page hidden but URL works | Some switches are menu-visibility controls only (notably Online Classes). Use documented middleware/controller behavior and fix route enforcement if a hard shutdown is required. |
 
 For a shorter Windows-first walkthrough, see [Running the System](RUNNING_THE_SYSTEM.md). Download sources are listed in [Installation Links](INSTALLATION_LINKS.md).
-

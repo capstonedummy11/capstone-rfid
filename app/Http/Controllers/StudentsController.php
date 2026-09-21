@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ActivityLog;
 use App\Models\AcademicYear;
+use App\Models\ActivityLog;
 use App\Models\Instructor;
 use App\Models\Message;
 use App\Models\OnlineClass;
@@ -11,8 +11,8 @@ use App\Models\OnlineClassNotification;
 use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\Strand;
-use App\Models\StudentExcuseLetter;
 use App\Models\StudentEnrollment;
+use App\Models\StudentExcuseLetter;
 use App\Models\StudentPortalMessage;
 use App\Models\Students;
 use App\Models\SystemSetting;
@@ -153,6 +153,7 @@ class StudentsController
                 $placement = $selectedAcademicYear
                     ? $student->enrollments->first(fn ($enrollment) => (int) $enrollment->academic_year_id === (int) $selectedAcademicYear->academic_year_id && ($filters['semester'] === '' || $enrollment->semester === $filters['semester']))
                     : $student->enrollments->sortByDesc('student_enrollment_id')->first();
+
                 return [
                     'student_id' => $student->student_id,
                     'student_number' => $student->student_number,
@@ -667,6 +668,11 @@ class StudentsController
             'parentPortalEnabled' => $parentPortalEnabled,
             'parentExcuseLettersEnabled' => $parentPortalEnabled
                 && SystemSetting::boolean(SystemSetting::PARENT_EXCUSE_LETTERS_ENABLED, false),
+            'activeAcademicYear' => $enrollment?->academicYear ? [
+                'name' => $enrollment->academicYear->name,
+                'starts_on' => $enrollment->academicYear->starts_on?->toDateString(),
+                'ends_on' => $enrollment->academicYear->ends_on?->toDateString(),
+            ] : null,
             'recipientSuggestions' => $student ? $this->teacherSuggestionPayload($student, $enrollment) : [],
             'letters' => $student
                 ? $student->excuseLetters()->with(['submittedBy', 'parentApprovedBy', 'academicYear'])->when($enrollment, fn ($query) => $query->where('academic_year_id', $enrollment->academic_year_id))->latest()->get()->map(fn (StudentExcuseLetter $letter) => $this->letterPayload($letter, $request))
@@ -679,7 +685,11 @@ class StudentsController
         $student = $this->currentStudent($request);
         abort_unless($student, 403);
         $enrollment = $this->portalEnrollment($request, $student);
-        abort_if($enrollment && $enrollment->academicYear?->status !== AcademicYear::STATUS_ACTIVE, 422, 'Excuse letters can only be submitted for the active academic year.');
+        if ($enrollment && $enrollment->academicYear?->status !== AcademicYear::STATUS_ACTIVE) {
+            throw ValidationException::withMessages([
+                'from_date' => 'Excuse letters can only be submitted for the active academic year.',
+            ]);
+        }
         $role = strtolower((string) $request->user()?->role);
         $parentPortalEnabled = SystemSetting::boolean(SystemSetting::PARENT_PORTAL_ENABLED, false);
         $parentExcuseLettersEnabled = $parentPortalEnabled
@@ -697,11 +707,28 @@ class StudentsController
             'recipient_user_ids.*' => ['integer', 'exists:users,user_id'],
             'attachment' => ['nullable', 'file', 'max:5120', 'mimes:pdf,doc,docx,jpg,jpeg,png'],
         ]);
-        abort_if(
-            $enrollment && ($validated['from_date'] < $enrollment->academicYear->starts_on->toDateString()
-                || $validated['to_date'] > $enrollment->academicYear->ends_on->toDateString()),
-            422,
-            'Excuse-letter dates must fall within the active academic year.'
+        if ($enrollment) {
+            $academicYearStart = $enrollment->academicYear->starts_on->toDateString();
+            $academicYearEnd = $enrollment->academicYear->ends_on->toDateString();
+            $dateErrors = [];
+
+            if ($validated['from_date'] < $academicYearStart) {
+                $dateErrors['from_date'] = "The start date must be on or after {$academicYearStart}.";
+            }
+
+            if ($validated['to_date'] > $academicYearEnd) {
+                $dateErrors['to_date'] = "The end date must be on or before {$academicYearEnd}.";
+            }
+
+            if ($dateErrors !== []) {
+                throw ValidationException::withMessages($dateErrors);
+            }
+        }
+
+        $validated['recipient_user_ids'] = $this->validTeacherRecipientIds(
+            $student,
+            $validated['recipient_user_ids'] ?? [],
+            $enrollment,
         );
 
         $attachment = $request->file('attachment');
@@ -711,11 +738,6 @@ class StudentsController
         }
         unset($validated['attachment']);
         unset($validated['parent_signature']);
-        $validated['recipient_user_ids'] = $this->validTeacherRecipientIds(
-            $student,
-            $validated['recipient_user_ids'] ?? [],
-            $enrollment,
-        );
 
         $letter = StudentExcuseLetter::query()->create([
             ...$validated,
