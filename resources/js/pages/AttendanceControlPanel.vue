@@ -2903,14 +2903,26 @@ watch(
                                     >
                                         {{ record.status }}
                                     </div>
+                                    <svg
+                                        class="h-5 w-5 shrink-0 text-blue-600 transition-transform"
+                                        :class="{ 'rotate-180': isStudentDetailsExpanded(record) }"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2.5"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        aria-hidden="true"
+                                    >
+                                        <path d="m6 9 6 6 6-6" />
+                                    </svg>
                                 </div>
                                 <div
                                     class="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500"
                                 >
                                     <span>RFID: {{ record.rfid }}</span>
                                     <span>
-                                        {{ record.tap_count || 0 }} tap(s) ·
-                                        {{ isStudentDetailsExpanded(record) ? 'Hide details' : 'Show all details' }}
+                                        {{ record.tap_count || 0 }} tap(s)
                                     </span>
                                 </div>
                                 <div
