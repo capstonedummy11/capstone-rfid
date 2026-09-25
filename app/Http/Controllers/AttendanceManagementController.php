@@ -578,7 +578,41 @@ class AttendanceManagementController extends Controller
             ->get()
             ->keyBy('student_id');
 
-        return $this->studentsFor($subject, $session->instructor_id ?? null, $session)->get()->map(function (Students $student) use ($attendances, $session) {
+        $tapEvents = DB::table('attendance_logs')
+            ->where('attendance_id', $session->attendance_id)
+            ->orderBy('tap_sequence_number')
+            ->orderBy('id')
+            ->get()
+            ->groupBy('student_id')
+            ->map(fn (Collection $events) => $events->map(function (object $event) {
+                $tapType = (string) ($event->tap_type ?? 'Tap');
+
+                return [
+                    'id' => $event->id,
+                    'tap_type' => $tapType,
+                    'tap_sequence_number' => $event->tap_sequence_number,
+                    'time' => $event->tap_datetime
+                        ? Carbon::parse($event->tap_datetime)->format('g:i A')
+                        : ($this->formatTime($event->time_in ?? $event->time_out) ?? 'N/A'),
+                    'room_status' => match ($tapType) {
+                        'Check-in', 'Temporary Return' => 'Inside',
+                        'Temporary Exit', 'Check-out' => 'Outside',
+                        default => null,
+                    },
+                    'location' => $event->location,
+                    'validation_result' => ucfirst((string) ($event->validation_result ?? 'valid')),
+                    'verification_method' => $event->verification_method,
+                    'remarks' => $event->remarks,
+                    'time_in_image_url' => $event->time_in_face_path
+                        ? route('attendance.evidence', ['attendanceLog' => $event->id, 'moment' => 'time-in'])
+                        : null,
+                    'time_out_image_url' => $event->time_out_face_path
+                        ? route('attendance.evidence', ['attendanceLog' => $event->id, 'moment' => 'time-out'])
+                        : null,
+                ];
+            })->values());
+
+        return $this->studentsFor($subject, $session->instructor_id ?? null, $session)->get()->map(function (Students $student) use ($attendances, $session, $tapEvents) {
             $attendance = $attendances->get($student->student_id);
 
             return [
@@ -589,6 +623,7 @@ class AttendanceManagementController extends Controller
                 'time_in' => $this->formatTime($attendance?->time_in),
                 'time_out' => $this->formatTime($attendance?->time_out),
                 'remarks' => $attendance?->remarks,
+                'tap_events' => $tapEvents->get($student->student_id, collect())->all(),
                 'editable' => Carbon::parse($session->date)->betweenIncluded(
                     now()->subDays(max(1, \App\Models\SystemSetting::integer(\App\Models\SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 15)) - 1)->startOfDay(),
                     now()->endOfDay()

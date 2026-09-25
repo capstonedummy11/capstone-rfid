@@ -647,8 +647,89 @@ test('student without a face requires the active instructor rfid before attendan
     $this->assertDatabaseCount('attendance_logs', 1);
 });
 
+test('fallback verification keeps temporary exit and return rules before the checkout window', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    Carbon::setTestNow('2026-09-25 12:00:00');
+    $fixture = attendanceVerificationFixture();
+    $payload = [
+        'rfid' => $fixture['student']->rfid_tag,
+        'room' => 'COMLAB-ATT',
+        'subject_code' => 'ATT-SEC-101',
+        'schedule_id' => $fixture['schedule']->scheduled_id,
+    ];
+    $verificationPayload = [
+        ...$payload,
+        'instructor_rfid' => $fixture['instructorUser']->rfid_tag,
+    ];
+
+    $this->actingAs($fixture['console'])
+        ->postJson(route('attendanceControlPanel.studentFaceCheck'), $verificationPayload)
+        ->assertOk();
+    $this->postJson(route('attendanceControlPanel.studentTap'), $payload)
+        ->assertOk()
+        ->assertJsonPath('action', 'time_in');
+
+    $this->postJson(route('attendanceControlPanel.studentFaceCheck'), $verificationPayload)
+        ->assertOk();
+    $this->postJson(route('attendanceControlPanel.studentTap'), $payload)
+        ->assertStatus(428)
+        ->assertJsonPath('requires_temporary_movement_instructor', true);
+    $this->postJson(route('attendanceControlPanel.studentTap'), [
+        ...$payload,
+        'temporary_movement_instructor_rfid' => $fixture['instructorUser']->rfid_tag,
+    ])
+        ->assertOk()
+        ->assertJsonPath('action', 'temporary_exit')
+        ->assertJsonPath('record.room_status', 'Outside');
+
+    $this->postJson(route('attendanceControlPanel.studentFaceCheck'), $verificationPayload)
+        ->assertOk();
+    $this->postJson(route('attendanceControlPanel.studentTap'), [
+        ...$payload,
+        'temporary_movement_instructor_rfid' => $fixture['instructorUser']->rfid_tag,
+    ])
+        ->assertOk()
+        ->assertJsonPath('action', 'temporary_return')
+        ->assertJsonPath('record.room_status', 'Inside');
+
+    $this->assertDatabaseHas('attendances', [
+        'student_id' => $fixture['student']->student_id,
+        'status' => 'pending',
+        'time_out' => null,
+        'room_status' => 'inside',
+    ]);
+    $this->assertDatabaseHas('attendance_logs', [
+        'student_id' => $fixture['student']->student_id,
+        'tap_type' => 'Temporary Exit',
+        'tap_sequence_number' => 2,
+    ]);
+    $this->assertDatabaseHas('attendance_logs', [
+        'student_id' => $fixture['student']->student_id,
+        'tap_type' => 'Temporary Return',
+        'tap_sequence_number' => 3,
+    ]);
+
+    $admin = User::factory()->create(['role' => 'admin']);
+    $subject = Subject::query()->where('subject_code', 'ATT-SEC-101')->firstOrFail();
+    $this->actingAs($admin)
+        ->get(route('admin.attendance.session', [$subject, $fixture['attendanceSessionId']]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Attendance/SessionDetails')
+            ->where('rows.0.time_out', null)
+            ->has('rows.0.tap_events', 3)
+            ->where('rows.0.tap_events.0.tap_type', 'Check-in')
+            ->where('rows.0.tap_events.1.tap_type', 'Temporary Exit')
+            ->where('rows.0.tap_events.1.room_status', 'Outside')
+            ->where('rows.0.tap_events.2.tap_type', 'Temporary Return')
+            ->where('rows.0.tap_events.2.room_status', 'Inside'));
+
+    Carbon::setTestNow();
+});
+
 test('aws unavailability stores evidence for both login and logout', function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
+    Carbon::setTestNow('2026-09-25 16:50:00');
     Storage::fake('public');
     $fixture = attendanceVerificationFixture(true);
     $payload = [
@@ -697,6 +778,7 @@ test('aws unavailability stores evidence for both login and logout', function ()
     Storage::disk('public')->assertExists($log->time_out_face_path);
 
     $this->assertDatabaseCount('attendances', 1);
+    Carbon::setTestNow();
 });
 
 test('face comparison mismatch has a distinct message from aws unavailability', function () {
@@ -732,6 +814,7 @@ test('face comparison mismatch has a distinct message from aws unavailability', 
 
 test('camera failure needs instructor rfid only once for the active class session', function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
+    Carbon::setTestNow('2026-09-25 16:50:00');
     $fixture = attendanceVerificationFixture(true);
     $payload = [
         'rfid' => $fixture['student']->rfid_tag,
@@ -760,6 +843,8 @@ test('camera failure needs instructor rfid only once for the active class sessio
     $this->postJson(route('attendanceControlPanel.studentTap'), $payload)
         ->assertOk()
         ->assertJsonPath('action', 'time_out');
+
+    Carbon::setTestNow();
 });
 
 test('ending a class marks students without time out as cutting and absent', function () {

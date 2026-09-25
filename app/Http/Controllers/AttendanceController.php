@@ -340,15 +340,7 @@ class AttendanceController
                 return [$attendance, $logId, 'ignored_tap', 'Ignored Tap', false, 'Attendance is already completed for this class.', false];
             }
 
-            $fallbackVerificationMethods = [
-                'captured_aws_unavailable',
-                'camera_session_override',
-                'face_recognition_disabled',
-                'instructor_rfid',
-            ];
-            $isFallbackVerificationCheckout = in_array($verificationMethod, $fallbackVerificationMethods, true);
             $isCheckoutTap = $forceCheckout
-                || $isFallbackVerificationCheckout
                 || ($checkoutWindowStart ? $now->greaterThanOrEqualTo($checkoutWindowStart) : false);
 
             if ($isCheckoutTap) {

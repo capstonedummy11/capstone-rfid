@@ -122,6 +122,7 @@ These source files were reviewed so that their existence is not mistaken for a l
 - **Cancel** on an online class changes its status and notifies students; **Delete** soft-deletes it. These are different actions.
 - **Archive/Close/Reopen/Activate** are academic-year lifecycle actions, not simple labels; they change what can be edited.
 - Attendance status labels are Pending, Present, Late, Absent, Excused, and Incomplete Attendance. Tap event labels are Check-in, Temporary Exit, Temporary Return, Check-out, Ignored Tap, Invalid Tap, Manual Edit, and generated No Tap.
+- On the Admin/Instructor physical Attendance Session Details page, clicking a student with recorded panel taps expands that session's ordered time details. The summary time-in and time-out values come from the same attendance row written by the Attendance Control Panel, while the expanded cards show each check-in, temporary exit, temporary return, checkout, ignored, or invalid tap from `attendance_logs`.
 - Emergency alert statuses include Open, Acknowledged, Resolved, and Cancelled. Clinic Case status is managed separately.
 - Online classes can be Scheduled, Cancelled, or displayed as Completed after their end time.
 - Common authorization failures return an access-denied response; state/validation failures return a message explaining why the action cannot proceed.

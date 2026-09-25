@@ -96,6 +96,8 @@ Dismiss Class is for releasing the entire class, not for one student's temporary
 
 Tap number alone does not determine the action. Every tap evaluates check-in and checkout existence, location, current time, Dismiss Class state, verification, and instructor authorization.
 
+Face recognition, unavailable-camera handling, and Instructor RFID fallback determine whether the Student is verified. They do not move the checkout window or turn an early movement tap into an official checkout; before the checkout window, the separate temporary-movement Instructor approval still applies.
+
 ## 8. Missing, Duplicate, and Invalid Taps
 
 - No valid check-in after the attendance period results in `Absent` under the configured absence rules.

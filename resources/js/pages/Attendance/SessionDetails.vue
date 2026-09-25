@@ -18,6 +18,7 @@ const sortDirection = ref('asc');
 const editing = ref(null);
 const editStatus = ref('');
 const remarks = ref('');
+const expandedStudents = ref({});
 const filteredRows = computed(() => {
     const term = search.value.toLowerCase().trim();
     return props.rows
@@ -44,6 +45,20 @@ const openEdit = (row) => {
         ? row.status.toLowerCase()
         : 'present';
     remarks.value = row.remarks ?? '';
+};
+const studentRowKey = (row) => String(row.student_id ?? '');
+const hasTapEvents = (row) =>
+    Array.isArray(row.tap_events) && row.tap_events.length > 0;
+const isStudentExpanded = (row) =>
+    expandedStudents.value[studentRowKey(row)] === true;
+const toggleStudentDetails = (row) => {
+    if (!hasTapEvents(row)) return;
+
+    const key = studentRowKey(row);
+    expandedStudents.value = {
+        ...expandedStudents.value,
+        [key]: !expandedStudents.value[key],
+    };
 };
 const save = () =>
     router.patch(
@@ -190,45 +205,208 @@ const save = () =>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
-                            <tr
+                            <template
                                 v-for="row in filteredRows"
                                 :key="row.student_id"
                             >
-                                <td class="px-4 py-3 font-bold text-slate-900">
-                                    {{ row.student_name }}
-                                    <p
-                                        class="text-xs font-normal text-slate-400"
+                                <tr>
+                                    <td class="px-4 py-3 text-slate-900">
+                                        <button
+                                            type="button"
+                                            class="w-full rounded-lg text-left focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
+                                            :class="
+                                                hasTapEvents(row)
+                                                    ? 'cursor-pointer hover:text-blue-700'
+                                                    : 'cursor-default'
+                                            "
+                                            :disabled="!hasTapEvents(row)"
+                                            :aria-expanded="
+                                                hasTapEvents(row)
+                                                    ? isStudentExpanded(row)
+                                                    : undefined
+                                            "
+                                            @click="toggleStudentDetails(row)"
+                                        >
+                                            <span class="font-bold">{{
+                                                row.student_name
+                                            }}</span>
+                                            <span
+                                                v-if="hasTapEvents(row)"
+                                                class="ml-2 text-xs font-semibold text-blue-600"
+                                            >
+                                                {{
+                                                    isStudentExpanded(row)
+                                                        ? 'Hide time details'
+                                                        : 'Show time details'
+                                                }}
+                                            </span>
+                                            <span
+                                                class="block text-xs font-normal text-slate-400"
+                                            >
+                                                {{ row.student_number }}
+                                            </span>
+                                        </button>
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <span
+                                            class="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700"
+                                            >{{ row.status }}</span
+                                        >
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        {{ row.time_in || '—' }}
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        {{ row.time_out || '—' }}
+                                    </td>
+                                    <td
+                                        class="max-w-xs px-4 py-3 text-slate-500"
                                     >
-                                        {{ row.student_number }}
-                                    </p>
-                                </td>
-                                <td class="px-4 py-3">
-                                    <span
-                                        class="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700"
-                                        >{{ row.status }}</span
+                                        {{ row.remarks || '—' }}
+                                    </td>
+                                    <td
+                                        v-if="canEditAttendance"
+                                        class="px-4 py-3"
                                     >
-                                </td>
-                                <td class="px-4 py-3">
-                                    {{ row.time_in || '—' }}
-                                </td>
-                                <td class="px-4 py-3">
-                                    {{ row.time_out || '—' }}
-                                </td>
-                                <td class="max-w-xs px-4 py-3 text-slate-500">
-                                    {{ row.remarks || '—' }}
-                                </td>
-                                <td v-if="canEditAttendance" class="px-4 py-3">
-                                    <button
-                                        v-if="row.editable"
-                                        class="font-bold text-blue-700 hover:underline"
-                                        @click="openEdit(row)"
+                                        <button
+                                            v-if="row.editable"
+                                            class="font-bold text-blue-700 hover:underline"
+                                            @click="openEdit(row)"
+                                        >
+                                            Edit</button
+                                        ><span
+                                            v-else
+                                            class="text-xs text-slate-400"
+                                            >Locked</span
+                                        >
+                                    </td>
+                                </tr>
+                                <tr
+                                    v-if="isStudentExpanded(row)"
+                                    class="bg-slate-50/80"
+                                >
+                                    <td
+                                        :colspan="canEditAttendance ? 6 : 5"
+                                        class="px-4 py-4"
                                     >
-                                        Edit</button
-                                    ><span v-else class="text-xs text-slate-400"
-                                        >Locked</span
-                                    >
-                                </td>
-                            </tr>
+                                        <div
+                                            class="grid gap-3 md:grid-cols-2 xl:grid-cols-4"
+                                        >
+                                            <article
+                                                v-for="event in row.tap_events"
+                                                :key="event.id"
+                                                class="rounded-xl border border-slate-200 bg-white p-3"
+                                            >
+                                                <div
+                                                    class="flex items-start justify-between gap-3"
+                                                >
+                                                    <div>
+                                                        <p
+                                                            class="font-bold text-slate-900"
+                                                        >
+                                                            {{ event.tap_type }}
+                                                            <span
+                                                                class="text-slate-400"
+                                                            >
+                                                                #{{
+                                                                    event.tap_sequence_number ||
+                                                                    '-'
+                                                                }}
+                                                            </span>
+                                                        </p>
+                                                        <p
+                                                            class="mt-1 text-xs text-slate-500"
+                                                        >
+                                                            {{
+                                                                event.time ||
+                                                                'N/A'
+                                                            }}
+                                                        </p>
+                                                    </div>
+                                                    <span
+                                                        class="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600"
+                                                    >
+                                                        {{
+                                                            event.validation_result ||
+                                                            'N/A'
+                                                        }}
+                                                    </span>
+                                                </div>
+                                                <dl
+                                                    class="mt-3 grid grid-cols-2 gap-2 text-xs"
+                                                >
+                                                    <div>
+                                                        <dt
+                                                            class="font-semibold text-slate-500"
+                                                        >
+                                                            Location
+                                                        </dt>
+                                                        <dd
+                                                            class="text-slate-700"
+                                                        >
+                                                            {{
+                                                                event.room_status ||
+                                                                event.location ||
+                                                                '-'
+                                                            }}
+                                                        </dd>
+                                                    </div>
+                                                    <div>
+                                                        <dt
+                                                            class="font-semibold text-slate-500"
+                                                        >
+                                                            Verification
+                                                        </dt>
+                                                        <dd
+                                                            class="break-words text-slate-700"
+                                                        >
+                                                            {{
+                                                                event.verification_method ||
+                                                                '-'
+                                                            }}
+                                                        </dd>
+                                                    </div>
+                                                </dl>
+                                                <p
+                                                    v-if="event.remarks"
+                                                    class="mt-3 rounded-lg bg-slate-50 px-2 py-1.5 text-xs text-slate-600"
+                                                >
+                                                    {{ event.remarks }}
+                                                </p>
+                                                <div
+                                                    class="mt-3 flex flex-wrap gap-3 text-xs font-semibold"
+                                                >
+                                                    <a
+                                                        v-if="
+                                                            event.time_in_image_url
+                                                        "
+                                                        :href="
+                                                            event.time_in_image_url
+                                                        "
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        class="text-blue-700 hover:underline"
+                                                        >View tap evidence</a
+                                                    >
+                                                    <a
+                                                        v-if="
+                                                            event.time_out_image_url
+                                                        "
+                                                        :href="
+                                                            event.time_out_image_url
+                                                        "
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        class="text-blue-700 hover:underline"
+                                                        >View checkout
+                                                        evidence</a
+                                                    >
+                                                </div>
+                                            </article>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
                         </tbody>
                     </table>
                 </div>
