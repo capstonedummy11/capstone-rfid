@@ -35,7 +35,7 @@ class StaffLoginController
             'password' => ['required', 'string'],
         ]);
 
-        if (! Auth::attempt($credentials, $request->boolean('remember'))) {
+        if (! Auth::attempt($credentials, false)) {
             throw ValidationException::withMessages([
                 'email' => __('auth.failed'),
             ]);

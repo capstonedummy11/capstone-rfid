@@ -115,51 +115,7 @@
         <Gallery />
     </section>
 
-    <footer
-        class="bg-azure-gradient flex w-full items-center justify-center p-5 md:h-[300px]"
-    >
-        <div
-            class="flex w-full max-w-[1400px] flex-col gap-10 md:flex-row md:items-center md:justify-center md:gap-20 md:px-20"
-        >
-            <div class="flex flex-col items-center justify-center text-white">
-                <h1 class="font-bold md:text-[30px]">GET IN TOUCH</h1>
-                <ul class="list-inside list-disc p-2">
-                    <li>Phone: + 63-912-345-6789</li>
-                    <li>Fax: +1 496 457 654</li>
-                    <li>Email: our-mail@example.com</li>
-                    <li>Adress: samplestreet123</li>
-                </ul>
-            </div>
-
-            <div class="text-white">
-                <h1 class="text-center font-bold md:text-left md:text-[30px]">
-                    NEWS LETTER
-                </h1>
-                <br />
-                <p>Sign up your newsletter</p>
-                <div class="mt-3 flex gap-3 md:w-[500px]">
-                    <input
-                        type="email"
-                        class="h-[50px] w-full border-2 border-white bg-transparent p-2"
-                        placeholder="Email Address"
-                    />
-                    <button class="h-[50px] w-full cursor-pointer bg-[#F17A20]">
-                        GO
-                    </button>
-                </div>
-            </div>
-        </div>
-    </footer>
-
-    <footer
-        class="flex h-[100px] flex-col items-center justify-center bg-[#002F5B] p-5 text-white"
-    >
-        <p>Blog | Contact Us</p>
-        <br />
-        <p class="text-center text-custom-gray md:text-left">
-            © 2026 RFID - Attendance Monitoring/ Borrowing and Inventory System
-        </p>
-    </footer>
+    <Footer />
 </template>
 
 <script setup>
@@ -176,6 +132,7 @@ import Showcase_section from '@/components/LandingPage/showcase_section.vue';
 import NavButton from '@/components/Buttons/Button.vue';
 import Journal from '@/components/LandingPage/Journal.vue';
 import Gallery from '@/components/LandingPage/Gallery.vue';
+import Footer from '@/components/LandingPage/Footer.vue';
 import Login from '@/components/Auth/Login.vue';
 
 import { useLogin } from '@/composables/useLogin';

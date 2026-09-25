@@ -11,6 +11,7 @@ uses(RefreshDatabase::class);
 
 test('non console accounts can request a password reset link', function () {
     Notification::fake();
+    $resetUrl = null;
     $user = User::factory()->create([
         'role' => 'instructor',
         'email' => 'instructor-reset@example.test',
@@ -19,7 +20,24 @@ test('non console accounts can request a password reset link', function () {
     $this->post(route('password.email'), ['email' => $user->email])
         ->assertSessionHas('status');
 
-    Notification::assertSentTo($user, ResetPassword::class);
+    Notification::assertSentTo($user, ResetPassword::class, function (ResetPassword $notification) use ($user, &$resetUrl) {
+        $resetUrl = $notification->toMail($user)->actionUrl;
+
+        return str_starts_with($resetUrl, rtrim((string) config('app.url'), '/').'/reset-password/')
+            && str_contains($resetUrl, 'email='.urlencode($user->email));
+    });
+
+    expect($resetUrl)->not->toBeNull();
+    $this->get($resetUrl)->assertOk();
+});
+
+test('password reset and application website links use the configured app url', function () {
+    $appUrl = rtrim((string) config('app.url'), '/');
+
+    expect(route('messages.index'))->toStartWith($appUrl.'/')
+        ->and(route('clinic.case-logs'))->toStartWith($appUrl.'/')
+        ->and(route('student-parent.excuse-letters.index', ['student_id' => 123]))
+        ->toStartWith($appUrl.'/');
 });
 
 test('console accounts do not receive password reset links', function () {

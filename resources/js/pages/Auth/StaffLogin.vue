@@ -64,7 +64,6 @@ const activeSlide = computed(() => carouselSlides[activeSlideIndex.value]);
 const form = useForm({
     email: '',
     password: '',
-    remember: true,
 });
 
 const helperText = computed(() =>
@@ -381,15 +380,20 @@ onUnmounted(() => {
                                 </button>
                             </span>
                         </label>
-                        <label
-                            class="flex items-center gap-2 text-sm font-semibold text-slate-600"
-                        >
+                        <label class="flex items-start gap-2 text-slate-600">
                             <input
                                 v-model="saveOnDevice"
                                 type="checkbox"
-                                class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                class="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                             />
-                            Save this account on this device
+                            <span>
+                                <span class="block text-sm font-semibold">
+                                    Remember my email
+                                </span>
+                                <span class="block text-xs text-slate-500">
+                                    Your password is never saved.
+                                </span>
+                            </span>
                         </label>
                     </form>
 

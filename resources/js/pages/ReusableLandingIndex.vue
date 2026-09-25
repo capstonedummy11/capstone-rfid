@@ -248,49 +248,7 @@
             </section>
         </main>
 
-        <footer class="bg-azure-gradient p-7 text-white md:py-16">
-            <div
-                class="mx-auto flex max-w-[1400px] flex-col gap-10 md:flex-row md:items-start md:justify-center md:gap-20"
-            >
-                <div>
-                    <h2 class="text-2xl font-bold">GET IN TOUCH</h2>
-                    <ul class="mt-4 list-inside list-disc leading-8">
-                        <li>Phone: +63-912-345-6789</li>
-                        <li>Fax: +1 496 457 654</li>
-                        <li>Email: our-mail@example.com</li>
-                        <li>Address: samplestreet123</li>
-                    </ul>
-                </div>
-
-                <div class="w-full max-w-[520px]">
-                    <h2 class="text-2xl font-bold">NEWS LETTER</h2>
-                    <p class="mt-4">Sign up your newsletter</p>
-                    <form class="mt-4 flex flex-col gap-3 sm:flex-row">
-                        <input
-                            type="email"
-                            class="h-[50px] w-full border-2 border-white bg-transparent p-3 text-white placeholder:text-white/70"
-                            placeholder="Email Address"
-                        />
-                        <button
-                            type="button"
-                            class="h-[50px] bg-[#F17A20] px-10 font-bold text-white"
-                        >
-                            GO
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </footer>
-
-        <footer
-            class="flex min-h-[100px] flex-col items-center justify-center bg-[#002F5B] p-5 text-white"
-        >
-            <p>Blog | Contact Us</p>
-            <p class="mt-3 text-center text-custom-gray">
-                Copyright 2026 RFID - Attendance Monitoring/Borrowing and
-                Inventory System
-            </p>
-        </footer>
+        <Footer />
     </div>
 </template>
 
@@ -305,6 +263,7 @@ import container4 from '@/assets/images/Container 4.png';
 import item1 from '@/assets/images/Item 1.png';
 import item2 from '@/assets/images/Item 2.png';
 import item3 from '@/assets/images/Item 3.png';
+import Footer from '@/components/LandingPage/Footer.vue';
 
 defineOptions({
     layout: null,

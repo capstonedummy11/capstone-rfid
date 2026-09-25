@@ -36,6 +36,26 @@ test('public student and parent recovery page does not expose staff login', func
         ->not->toContain('>Staff login<');
 });
 
+test('portal login forms remember email without requesting persistent authentication', function () {
+    $studentParentLogin = file_get_contents(resource_path('js/pages/Auth/StudentParentLogin.vue'));
+    $staffLogin = file_get_contents(resource_path('js/pages/Auth/StaffLogin.vue'));
+    $savedProfiles = file_get_contents(resource_path('js/composables/useSavedStudentParentProfiles.js'));
+
+    expect($studentParentLogin)
+        ->toContain('Remember my email')
+        ->toContain('Your password is never saved.')
+        ->toContain('v-model="saveOnDevice"')
+        ->not->toContain('remember: false')
+        ->and($staffLogin)
+        ->toContain('Remember my email')
+        ->toContain('Your password is never saved.')
+        ->toContain('v-model="saveOnDevice"')
+        ->not->toContain('remember: false')
+        ->and($savedProfiles)
+        ->toContain('email,')
+        ->not->toMatch('/^[ \t]*(password|token):/m');
+});
+
 test('instructor password reset uses application confirmation and success modals', function () {
     $instructors = file_get_contents(resource_path('js/pages/Auth/Admin/Instructors.vue'));
 

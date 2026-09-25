@@ -81,9 +81,9 @@ export const getSavedStudentParentProfiles = () => {
         .filter(Boolean)
         .filter(isFreshProfile);
 
-    if (profiles.length !== savedProfiles.length) {
-        writeProfiles(profiles);
-    }
+    // Always rewrite the normalized profile so legacy or injected fields such
+    // as a password or token cannot remain in browser storage.
+    writeProfiles(profiles);
 
     return profiles;
 };
@@ -172,9 +172,8 @@ export const getSavedStaffProfiles = () => {
             ),
         );
 
-    if (profiles.length !== savedProfiles.length) {
-        writeStaffProfiles(profiles);
-    }
+    // Keep only the explicitly normalized display fields in browser storage.
+    writeStaffProfiles(profiles);
 
     return profiles;
 };

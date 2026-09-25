@@ -6,6 +6,7 @@ use App\Models\ActivityLog;
 use App\Models\AcademicYear;
 use App\Models\Instructor;
 use App\Models\Laboratory;
+use App\Models\RfidPanelSession;
 use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\Subject;
@@ -194,6 +195,7 @@ class ScheduleController
         if ($schedule->academicYear && ! $schedule->academicYear->isWritable()) {
             return back()->withErrors(['schedule' => 'A schedule from a closed or archived academic year cannot be edited.']);
         }
+        $this->assertScheduleIsNotRunning($schedule, 'edited');
 
         $validated = $request->validate([
             'subject_offering_id' => 'nullable|exists:subject_offerings,subject_offering_id',
@@ -228,6 +230,7 @@ class ScheduleController
         if ($schedule->academicYear && ! $schedule->academicYear->isWritable()) {
             return back()->withErrors(['schedule' => 'A schedule from a closed or archived academic year cannot be deleted.']);
         }
+        $this->assertScheduleIsNotRunning($schedule, 'deleted');
         if ($schedule->attendances()->exists() || $schedule->onlineClasses()->exists()) {
             return back()->withErrors(['schedule' => 'This schedule has attendance or online-class history and cannot be deleted.']);
         }
@@ -336,6 +339,48 @@ class ScheduleController
         if ($errors !== []) {
             throw ValidationException::withMessages($errors);
         }
+    }
+
+    private function assertScheduleIsNotRunning(Schedule $schedule, string $operation): void
+    {
+        $now = now();
+        $scheduledDays = collect(preg_split('/[,\-\/\s]+/', (string) $schedule->weekdays, -1, PREG_SPLIT_NO_EMPTY))
+            ->map(fn (string $day) => self::WEEKDAYS[strtolower(trim($day))] ?? null)
+            ->filter();
+
+        if (! $scheduledDays->contains($now->format('D'))) {
+            return;
+        }
+
+        $currentTime = $now->format('H:i:s');
+        $startTime = substr((string) $schedule->time_start, 0, 8);
+        $endTime = substr((string) $schedule->time_end, 0, 8);
+
+        if ($currentTime < $startTime || $currentTime >= $endTime) {
+            return;
+        }
+
+        $room = trim((string) ($schedule->room ?: $schedule->laboratory?->name));
+        if ($room === '') {
+            return;
+        }
+
+        $hasMatchingLivePanel = RfidPanelSession::query()
+            ->where('schedule_id', $schedule->scheduled_id)
+            ->whereRaw('LOWER(TRIM(room)) = ?', [strtolower($room)])
+            ->where('status', 'attendance')
+            ->whereNull('ended_at')
+            ->exists();
+
+        if (! $hasMatchingLivePanel) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'schedule' => "This schedule is currently running in {$room} from "
+                .substr($startTime, 0, 5).' to '.substr($endTime, 0, 5)
+                ." and cannot be {$operation} until the class ends.",
+        ]);
     }
 
     private function assertNoScheduleConflict(array $attributes, ?int $ignoreScheduleId = null): void

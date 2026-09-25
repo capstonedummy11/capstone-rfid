@@ -18,6 +18,28 @@ class EnsureAuthenticatedSessionIdentity
             return $next($request);
         }
 
+        if (Auth::guard(config('auth.defaults.guard'))->viaRemember()) {
+            $role = strtolower(trim((string) $user->role));
+
+            Auth::guard(config('auth.defaults.guard'))->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            $message = 'Your browser session expired. Please sign in again.';
+
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $message], 401);
+            }
+
+            $loginRoute = match (true) {
+                $role === 'console' => 'attendanceControlPanel.login',
+                in_array($role, ['admin', 'instructor', 'registrar', 'clinic'], true) => 'staff.login',
+                default => 'landingPage',
+            };
+
+            return redirect()->route($loginRoute)->withErrors(['email' => $message]);
+        }
+
         if (! AuthenticatedSession::hasIdentity($request)) {
             AuthenticatedSession::issue($request, $user);
 

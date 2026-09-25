@@ -18,6 +18,8 @@ The public Student/Parent interface does not display the secure staff login. The
 
 ## Browser and Device Sessions
 
+Authentication uses Laravel's server-side session guard and an HTTP-only session cookie, not bearer tokens. The session cookie has no persistent expiry and is discarded when the browser session closes. Both portal login forms offer **Remember my email** as an optional browser-only convenience; it saves normalized profile display information, never the password, and does not keep the user signed in. Login endpoints ignore submitted authentication `remember` values, and the authentication middleware rejects legacy persistent remember-cookie authentication, so closing and reopening the browser requires a new sign-in. Browser session restore features can preserve session cookies after a restart; users should still select **Log out** on shared devices for immediate server-side invalidation.
+
 Each successful login regenerates the Laravel session ID and issues a unique login-instance ID inside that server-side session. The browser stores only its own encrypted session cookie; authenticated requests resolve the user from that session and verify that the session remains bound to the same user. No application-wide "current user" value is shared between requests or devices.
 
 - One browser profile has one active account because it has one cookie jar. Sign out before changing accounts in that profile.
@@ -43,6 +45,8 @@ Forgot Password is available to Admin, Instructor, Registrar, Clinic, Student, a
 For privacy, the request screen returns the same generic result even when an email is unknown or belongs to a Console account.
 
 Console accounts cannot use email password recovery. Their access is managed through the attendance-panel administration process.
+
+Password-reset links and other application website links included in emails use the canonical `APP_URL` value. For local XAMPP operation this is `http://localhost`; production must replace it with the public HTTPS application URL and rebuild the configuration cache.
 
 ## New Account First Login
 

@@ -22,6 +22,7 @@ use App\Models\SystemSetting;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -621,6 +622,100 @@ test('schedule controller creates from offering then updates indexes and deletes
         ->assertRedirect()
         ->assertSessionHas('success');
     $this->assertDatabaseMissing('schedules', ['scheduled_id' => $schedule->scheduled_id]);
+});
+
+test('schedule update and delete guard is limited to the running time and matching room', function () {
+    Carbon::setTestNow('2026-09-21 09:00:00');
+
+    $admin = User::factory()->create(['role' => 'admin']);
+    ['section' => $section, 'strand' => $strand] = controllerEntityAcademicContext();
+    $laboratory = Laboratory::query()->create([
+        'name' => 'Guard Room A',
+        'description' => 'Schedule guard test room.',
+        'location' => 'Guard Room A',
+        'status' => 'active',
+    ]);
+    $subject = Subject::query()->create([
+        'subject_name' => 'Guarded Schedule Subject',
+        'subject_code' => 'SCHED-GUARD',
+        'unit' => 3,
+    ]);
+    $instructorUser = User::factory()->create(['role' => 'instructor']);
+    $instructor = Instructor::query()->create([
+        'user_id' => $instructorUser->user_id,
+        'strand_id' => $strand->strand_id,
+        'instructor_number' => 'INS-SCHED-GUARD',
+        'status' => 'active',
+    ]);
+    $offering = SubjectOffering::query()->create([
+        'academic_year_id' => $section->academic_year_id,
+        'subject_id' => $subject->subject_id,
+        'section_id' => $section->section_id,
+        'instructor_id' => $instructor->instructor_id,
+        'semester' => '1st Semester',
+        'status' => 'active',
+    ]);
+    $schedule = Schedule::query()->create([
+        'academic_year_id' => $section->academic_year_id,
+        'subject_offering_id' => $offering->subject_offering_id,
+        'laboratory_id' => $laboratory->laboratory_id,
+        'instructor_id' => $instructor->instructor_id,
+        'section_id' => $section->section_id,
+        'subject_code' => $subject->subject_code,
+        'semester' => '1st Semester',
+        'weekdays' => 'Mon',
+        'time_start' => '08:00:00',
+        'time_end' => '10:00:00',
+        'room' => 'Guard Room A',
+    ]);
+
+    $panelSessionId = DB::table('rfid_panel_sessions')->insertGetId([
+        'room' => 'Guard Room B',
+        'status' => 'attendance',
+        'schedule_id' => $schedule->scheduled_id,
+        'is_listening' => true,
+        'listening_started_at' => now(),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $payload = [
+        'subject_offering_id' => $offering->subject_offering_id,
+        'laboratory_id' => $laboratory->laboratory_id,
+        'weekdays' => 'Mon',
+        'time_start' => '08:00',
+        'time_end' => '10:00',
+        'room' => 'Guard Room A',
+    ];
+
+    $this->actingAs($admin)
+        ->put(route('admin.schedules.update', $schedule->scheduled_id), $payload)
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    DB::table('rfid_panel_sessions')->where('panel_session_id', $panelSessionId)->update([
+        'room' => 'Guard Room A',
+        'updated_at' => now(),
+    ]);
+
+    $this->actingAs($admin)
+        ->put(route('admin.schedules.update', $schedule->scheduled_id), $payload)
+        ->assertRedirect()
+        ->assertSessionHasErrors('schedule');
+    $this->actingAs($admin)
+        ->delete(route('admin.schedules.destroy', $schedule->scheduled_id))
+        ->assertRedirect()
+        ->assertSessionHasErrors('schedule');
+
+    Carbon::setTestNow('2026-09-21 10:00:00');
+
+    $this->actingAs($admin)
+        ->delete(route('admin.schedules.destroy', $schedule->scheduled_id))
+        ->assertRedirect()
+        ->assertSessionHas('success');
+    $this->assertDatabaseMissing('schedules', ['scheduled_id' => $schedule->scheduled_id]);
+
+    Carbon::setTestNow();
 });
 
 test('student controller creates enrollment account parent link reset update and delete', function () {

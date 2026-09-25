@@ -27,6 +27,25 @@ test('users can authenticate using the login screen', function () {
     $response->assertSessionHas(AuthenticatedSession::LOGIN_ID);
 });
 
+test('remember email does not create persistent authentication', function () {
+    config()->set('session.expire_on_close', true);
+
+    $user = User::factory()->create();
+
+    $response = $this->post(route('staff.login.store'), [
+        'email' => $user->email,
+        'password' => 'password',
+        'remember' => true,
+    ]);
+
+    $sessionCookie = $response->getCookie(config('session.cookie'));
+
+    expect($sessionCookie)->not->toBeNull()
+        ->and($sessionCookie->getExpiresTime())->toBe(0)
+        ->and(Auth::guard()->viaRemember())->toBeFalse()
+        ->and($user->refresh()->getRememberToken())->toBeNull();
+});
+
 test('different browser sessions keep independent authenticated users', function () {
     config()->set('session.driver', 'database');
     app('session')->forgetDrivers();
