@@ -1,0 +1,1 @@
+import{_ as t,c as o,b as s,o as a}from"./app-C6MFcU89.js";const c={},l={class:"mx-auto w-full max-w-3xl p-6"};function r(n,e){return a(),o("section",l,[...e[0]||(e[0]=[s("h1",{class:"text-xl font-semibold text-slate-900"},"Profile",-1)])])}const x=t(c,[["render",r]]);export{x as default};
