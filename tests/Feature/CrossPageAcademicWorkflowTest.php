@@ -508,6 +508,7 @@ test('admin managed clinic account is reused by clinic dashboard case logs and p
             'name' => 'Clinic Cross Page',
             'email' => 'clinic.cross.page@example.test',
             'password' => 'password123',
+            'password_confirmation' => 'password123',
             'role' => 'clinic',
             'phone' => '09170000002',
         ])

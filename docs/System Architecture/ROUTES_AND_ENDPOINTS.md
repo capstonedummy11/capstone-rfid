@@ -14,7 +14,7 @@ All application endpoints use Laravel's `web` middleware and session/CSRF model.
 | `GET /secure-login` | Compatibility redirect to configured staff path. | Public. |
 | `POST /login` | Student/Parent login submit. | Guest + login throttle. |
 | Fortify reset/verify/2FA routes | Password reset, confirmation, verification, two factor, logout. | Fortify/web middleware. |
-| `GET/PUT /first-login/password` | Required temporary-password replacement. | Auth; update throttled. |
+| `GET/PUT /first-login/password` | Required temporary-password replacement. | Auth; GET is unthrottled and PUT uses the named `first-login-password` limiter at 15 attempts per minute per user. |
 | `GET/POST /register` | Public registration UI/submit. | Public. |
 | `GET /messages/new`, `POST /messages` | Legacy public message form/store. | Public in current routes. |
 

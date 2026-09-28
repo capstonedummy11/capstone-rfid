@@ -2,6 +2,8 @@
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import {
     Edit3,
+    Eye,
+    EyeOff,
     KeyRound,
     ShieldCheck,
     Trash2,
@@ -22,6 +24,8 @@ const flashSuccess = computed(() => page.props.flash?.success);
 const editingId = ref(null);
 const passwordResetUser = ref(null);
 const passwordResetSuccess = ref(null);
+const showPassword = ref(false);
+const showPasswordConfirmation = ref(false);
 
 const form = useForm({
     name: '',
@@ -29,6 +33,7 @@ const form = useForm({
     phone: '',
     role: props.roleOptions[0]?.value || 'clinic',
     password: '',
+    password_confirmation: '',
     is_root_admin: false,
 });
 const passwordResetForm = useForm({});
@@ -72,6 +77,8 @@ const resetForm = () => {
     form.reset();
     form.role = props.roleOptions[0]?.value || 'clinic';
     form.is_root_admin = false;
+    showPassword.value = false;
+    showPasswordConfirmation.value = false;
 };
 
 const editUser = (user) => {
@@ -81,10 +88,23 @@ const editUser = (user) => {
     form.phone = user.phone || '';
     form.role = user.role || props.roleOptions[0]?.value || 'clinic';
     form.password = '';
+    form.password_confirmation = '';
     form.is_root_admin = Boolean(user.is_root_admin);
+    showPassword.value = false;
+    showPasswordConfirmation.value = false;
 };
 
 const submit = () => {
+    form.clearErrors('password_confirmation');
+
+    if (form.password !== form.password_confirmation) {
+        form.setError(
+            'password_confirmation',
+            'The password confirmation does not match.',
+        );
+        return;
+    }
+
     if (form.role !== 'admin') {
         form.is_root_admin = false;
     }
@@ -332,23 +352,108 @@ const deleteUser = (user) => {
                             Root admin
                         </label>
 
-                        <label class="block">
-                            <span class="text-xs font-bold text-slate-500">
+                        <div class="block">
+                            <label
+                                for="managed-user-password"
+                                class="text-xs font-bold text-slate-500"
+                            >
                                 {{ editingId ? 'New Password' : 'Password' }}
-                            </span>
-                            <input
-                                v-model="form.password"
-                                type="password"
-                                class="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand"
-                                autocomplete="new-password"
-                            />
+                            </label>
+                            <div class="relative mt-1">
+                                <input
+                                    id="managed-user-password"
+                                    v-model="form.password"
+                                    :type="showPassword ? 'text' : 'password'"
+                                    class="w-full rounded-md border border-slate-200 px-3 py-2 pr-10 text-sm outline-none focus:border-brand"
+                                    autocomplete="new-password"
+                                />
+                                <button
+                                    type="button"
+                                    class="absolute inset-y-0 right-0 inline-flex w-10 items-center justify-center text-slate-500 hover:text-slate-700 focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
+                                    :aria-label="
+                                        showPassword
+                                            ? 'Hide password'
+                                            : 'Show password'
+                                    "
+                                    :aria-pressed="showPassword"
+                                    @click="showPassword = !showPassword"
+                                >
+                                    <EyeOff
+                                        v-if="showPassword"
+                                        class="h-4 w-4"
+                                        aria-hidden="true"
+                                    />
+                                    <Eye
+                                        v-else
+                                        class="h-4 w-4"
+                                        aria-hidden="true"
+                                    />
+                                </button>
+                            </div>
                             <span
                                 v-if="form.errors.password"
                                 class="mt-1 block text-xs font-semibold text-rose-600"
                             >
                                 {{ form.errors.password }}
                             </span>
-                        </label>
+                        </div>
+
+                        <div class="block">
+                            <label
+                                for="managed-user-password-confirmation"
+                                class="text-xs font-bold text-slate-500"
+                            >
+                                {{
+                                    editingId
+                                        ? 'Confirm New Password'
+                                        : 'Confirm Password'
+                                }}
+                            </label>
+                            <div class="relative mt-1">
+                                <input
+                                    id="managed-user-password-confirmation"
+                                    v-model="form.password_confirmation"
+                                    :type="
+                                        showPasswordConfirmation
+                                            ? 'text'
+                                            : 'password'
+                                    "
+                                    class="w-full rounded-md border border-slate-200 px-3 py-2 pr-10 text-sm outline-none focus:border-brand"
+                                    autocomplete="new-password"
+                                />
+                                <button
+                                    type="button"
+                                    class="absolute inset-y-0 right-0 inline-flex w-10 items-center justify-center text-slate-500 hover:text-slate-700 focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
+                                    :aria-label="
+                                        showPasswordConfirmation
+                                            ? 'Hide password confirmation'
+                                            : 'Show password confirmation'
+                                    "
+                                    :aria-pressed="showPasswordConfirmation"
+                                    @click="
+                                        showPasswordConfirmation =
+                                            !showPasswordConfirmation
+                                    "
+                                >
+                                    <EyeOff
+                                        v-if="showPasswordConfirmation"
+                                        class="h-4 w-4"
+                                        aria-hidden="true"
+                                    />
+                                    <Eye
+                                        v-else
+                                        class="h-4 w-4"
+                                        aria-hidden="true"
+                                    />
+                                </button>
+                            </div>
+                            <span
+                                v-if="form.errors.password_confirmation"
+                                class="mt-1 block text-xs font-semibold text-rose-600"
+                            >
+                                {{ form.errors.password_confirmation }}
+                            </span>
+                        </div>
                     </div>
 
                     <div class="mt-5 flex gap-2">
@@ -447,13 +552,15 @@ const deleteUser = (user) => {
                                                     type="button"
                                                     class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-amber-200 text-amber-600 hover:bg-amber-50 focus:ring-2 focus:ring-amber-200 focus:outline-none"
                                                     aria-label="Reset password"
-                                                    @click="openPasswordReset(user)"
+                                                    @click="
+                                                        openPasswordReset(user)
+                                                    "
                                                 >
                                                     <KeyRound class="h-4 w-4" />
                                                 </button>
                                                 <span
                                                     role="tooltip"
-                                                    class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+                                                    class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 rounded bg-slate-900 px-2 py-1 text-[11px] font-medium whitespace-nowrap text-white opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100"
                                                 >
                                                     Reset password
                                                 </span>
@@ -514,8 +621,8 @@ const deleteUser = (user) => {
                 </h2>
                 <p class="mt-3 text-sm leading-6 text-slate-600">
                     Reset {{ passwordResetUser.name }}'s password to
-                    <strong>{{ defaultPassword(passwordResetUser) }}</strong>?
-                    Their active sessions will end, and they must create a
+                    <strong>{{ defaultPassword(passwordResetUser) }}</strong
+                    >? Their active sessions will end, and they must create a
                     private password at the next login.
                 </p>
                 <p
@@ -574,8 +681,8 @@ const deleteUser = (user) => {
                 </h2>
                 <p class="mt-3 text-sm leading-6 text-slate-600">
                     {{ passwordResetSuccess.name }}'s temporary password is
-                    <strong>{{ passwordResetSuccess.password }}</strong>. They
-                    must create a private password at the next login.
+                    <strong>{{ passwordResetSuccess.password }}</strong
+                    >. They must create a private password at the next login.
                 </p>
                 <button
                     type="button"

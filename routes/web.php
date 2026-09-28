@@ -81,10 +81,10 @@ Route::post($staffLoginPath, [StaffLoginController::class, 'store'])
         config('fortify.limiters.login') ? 'throttle:'.config('fortify.limiters.login') : null,
     ]))
     ->name('staff.login.store');
-Route::middleware(['auth', 'throttle:10,1'])->group(function () {
+Route::middleware('auth')->group(function () {
     Route::get('/first-login/password', [FirstLoginPasswordController::class, 'edit'])->name('password.first-login');
     Route::put('/first-login/password', [FirstLoginPasswordController::class, 'update'])
-        ->middleware('throttle:6,1')
+        ->middleware('throttle:first-login-password')
         ->name('password.first-login.update');
 });
 Route::get('/messages/new', [MessageController::class, 'create'])->name('messages.create');

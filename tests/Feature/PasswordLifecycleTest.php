@@ -83,6 +83,41 @@ test('user can replace a temporary password and continue', function () {
         ->and(Hash::check('PrivatePassword123!', $user->password))->toBeTrue();
 });
 
+test('first login password page is not throttled while password updates keep a dedicated limiter', function () {
+    $user = User::factory()->create([
+        'role' => 'student',
+        'must_change_password' => true,
+    ]);
+
+    $this->actingAs($user);
+
+    foreach (range(1, 16) as $_) {
+        $this->get(route('password.first-login'))->assertOk();
+    }
+
+    $pageRoute = app('router')->getRoutes()->getByName('password.first-login');
+    $updateRoute = app('router')->getRoutes()->getByName('password.first-login.update');
+
+    expect($pageRoute->gatherMiddleware())
+        ->toContain('auth')
+        ->not->toContain('throttle:10,1')
+        ->and($updateRoute->gatherMiddleware())
+        ->toContain('throttle:first-login-password')
+        ->not->toContain('throttle:6,1');
+
+    foreach (range(1, 15) as $_) {
+        $this->put(route('password.first-login.update'), [
+            'password' => 'short',
+            'password_confirmation' => 'short',
+        ])->assertSessionHasErrors('password');
+    }
+
+    $this->put(route('password.first-login.update'), [
+        'password' => 'short',
+        'password_confirmation' => 'short',
+    ])->assertTooManyRequests();
+});
+
 test('console accounts are excluded from first login password change', function () {
     $console = User::factory()->create([
         'role' => 'console',

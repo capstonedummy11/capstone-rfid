@@ -191,6 +191,7 @@ Root admin note:
 
 - Only a root admin can create, update, delete, or promote admin accounts.
 - Normal admins can manage clinic and registrar accounts, but admin-account management is restricted.
+- When creating or changing a managed account password, enter the same value in Password and Confirm Password. The eye buttons reveal only the corresponding field and do not bypass server confirmation.
 
 ## 8. Create Instructor Profiles
 

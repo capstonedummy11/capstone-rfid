@@ -11,6 +11,21 @@ test('standalone rfid navigation is hidden and registrar navigation uses student
         ->toContain('Student Biometric Enrollment');
 });
 
+test('registrar face enrollment panels follow refreshed server props without a browser refresh', function () {
+    $studentEnrollment = file_get_contents(resource_path('js/pages/Registrar/BiometricEnrollment.vue'));
+    $instructorEnrollment = file_get_contents(resource_path('js/pages/Registrar/InstructorFaceEnrollment.vue'));
+
+    expect($studentEnrollment)
+        ->toContain('const selectedPersonKey = ref(null)')
+        ->toContain('props.people.find(')
+        ->toContain('`${person.type}-${person.id}` === selectedPersonKey.value')
+        ->toContain('selectedPersonKey.value = `${person.type}-${person.id}`')
+        ->and($instructorEnrollment)
+        ->toContain('const selectedPersonId = ref(null)')
+        ->toContain('props.people.find((person) => person.id === selectedPersonId.value)')
+        ->toContain('selectedPersonId.value = person.id');
+});
+
 test('large admin relationship inputs use searchable autosuggestion controls', function () {
     $subjects = file_get_contents(resource_path('js/pages/Auth/Admin/Subjects.vue'));
     $schedules = file_get_contents(resource_path('js/pages/Auth/Admin/Schedules.vue'));
@@ -92,7 +107,11 @@ test('clinic and registrar rows expose an application password reset flow', func
         ->toContain("route('admin.users.password.reset-default', user.id)")
         ->toContain('Reset {{ roleLabel(passwordResetUser.role) }} password?')
         ->toContain('passwordResetForm.processing')
-        ->toContain('passwordResetSuccess');
+        ->toContain('passwordResetSuccess')
+        ->toContain('v-model="form.password_confirmation"')
+        ->toContain(":type=\"showPassword ? 'text' : 'password'\"")
+        ->toContain('showPasswordConfirmation')
+        ->toContain('The password confirmation does not match.');
 });
 
 test('schedule create and update time inputs use quarter hour intervals', function () {

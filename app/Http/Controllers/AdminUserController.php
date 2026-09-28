@@ -157,8 +157,8 @@ class AdminUserController extends Controller
         ];
 
         $rules['password'] = $user
-            ? ['nullable', 'string', 'min:8', 'max:255']
-            : ['required', 'string', 'min:8', 'max:255'];
+            ? ['nullable', 'string', 'min:8', 'max:255', 'confirmed']
+            : ['required', 'string', 'min:8', 'max:255', 'confirmed'];
 
         return $request->validate($rules);
     }

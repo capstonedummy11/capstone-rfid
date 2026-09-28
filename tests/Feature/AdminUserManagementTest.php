@@ -32,6 +32,7 @@ test('root admin can view and manage admin clinic and registrar accounts', funct
             'name' => 'Managed Admin',
             'email' => 'managed.admin@example.com',
             'password' => 'password123',
+            'password_confirmation' => 'password123',
             'role' => 'admin',
             'is_root_admin' => false,
         ])
@@ -98,6 +99,7 @@ test('standard admin can create clinic and registrar users but cannot manage adm
             'name' => 'Clinic Managed',
             'email' => 'clinic.managed@example.com',
             'password' => 'password123',
+            'password_confirmation' => 'password123',
             'role' => 'clinic',
         ])
         ->assertRedirect()
@@ -114,6 +116,7 @@ test('standard admin can create clinic and registrar users but cannot manage adm
             'name' => 'Registrar Managed',
             'email' => 'registrar.managed@example.com',
             'password' => 'password123',
+            'password_confirmation' => 'password123',
             'role' => 'registrar',
         ])
         ->assertRedirect()
@@ -167,6 +170,7 @@ test('standard admin can create clinic and registrar users but cannot manage adm
             'name' => 'Blocked Admin',
             'email' => 'blocked.admin@example.com',
             'password' => 'password123',
+            'password_confirmation' => 'password123',
             'role' => 'admin',
         ])
         ->assertForbidden();
@@ -249,5 +253,28 @@ test('root admin cannot demote the only root admin account', function () {
     $this->assertDatabaseHas('users', [
         'email' => 'only.root@example.com',
         'deleted_at' => null,
+    ]);
+});
+
+test('managed account password must be confirmed', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+
+    $root = User::factory()->create([
+        'role' => 'admin',
+        'is_root_admin' => true,
+    ]);
+
+    $this->actingAs($root)
+        ->post(route('admin.users.store'), [
+            'name' => 'Unconfirmed Registrar',
+            'email' => 'unconfirmed.registrar@example.com',
+            'password' => 'password123',
+            'password_confirmation' => 'different-password',
+            'role' => 'registrar',
+        ])
+        ->assertSessionHasErrors('password');
+
+    $this->assertDatabaseMissing('users', [
+        'email' => 'unconfirmed.registrar@example.com',
     ]);
 });

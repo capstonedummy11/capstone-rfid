@@ -20,7 +20,7 @@ const props = defineProps({
 });
 
 const page = usePage();
-const selectedPerson = ref(null);
+const selectedPersonKey = ref(null);
 const search = ref('');
 const statusFilter = ref('missing');
 
@@ -32,6 +32,11 @@ const cameraRef = ref(null);
 const fileInputRef = ref(null);
 
 const flashSuccess = computed(() => page.props.flash?.success);
+const selectedPerson = computed(() =>
+    props.people.find(
+        (person) => `${person.type}-${person.id}` === selectedPersonKey.value,
+    ),
+);
 
 const filteredPeople = computed(() => {
     const term = search.value.trim().toLowerCase();
@@ -62,7 +67,7 @@ const filteredPeople = computed(() => {
 });
 
 const openPerson = (person) => {
-    selectedPerson.value = person;
+    selectedPersonKey.value = `${person.type}-${person.id}`;
     rfidForm.rfid_tag = person.rfid_tag || '';
     faceForm.image = null;
     showCamera.value = false;
@@ -541,7 +546,6 @@ const toast = (title) => {
                             {{ faceForm.errors.image }}
                         </p>
                     </form>
-
                 </div>
 
                 <div
