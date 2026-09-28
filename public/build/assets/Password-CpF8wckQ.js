@@ -1,0 +1,1 @@
+import{_ as e,c as t,b as o,o as a}from"./app-Kpd7vwYW.js";const c={},r={class:"mx-auto w-full max-w-3xl p-6"};function n(l,s){return a(),t("section",r,[...s[0]||(s[0]=[o("h1",{class:"text-xl font-semibold text-slate-900"},"Password",-1)])])}const _=e(c,[["render",n]]);export{_ as default};
