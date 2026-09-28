@@ -18,10 +18,16 @@ type SessionResponse = {
 
 export class FaceLivenessError extends Error {}
 
-const csrfToken = () =>
-    document
-        .querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
-        ?.getAttribute('content') ?? '';
+const xsrfToken = () => {
+    const encodedToken = document.cookie
+        .split('; ')
+        .find((cookie) => cookie.startsWith('XSRF-TOKEN='))
+        ?.split('=')
+        .slice(1)
+        .join('=');
+
+    return encodedToken ? decodeURIComponent(encodedToken) : '';
+};
 
 async function requestJson(url: string, body: object) {
     const response = await fetch(url, {
@@ -30,7 +36,7 @@ async function requestJson(url: string, body: object) {
         headers: {
             Accept: 'application/json',
             'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': csrfToken(),
+            'X-XSRF-TOKEN': xsrfToken(),
         },
         body: JSON.stringify(body),
     });

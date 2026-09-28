@@ -26,6 +26,17 @@ test('registrar face enrollment panels follow refreshed server props without a b
         ->toContain('selectedPersonId.value = person.id');
 });
 
+test('face liveness requests use the laravel xsrf cookie instead of a missing meta token', function () {
+    $faceLiveness = file_get_contents(resource_path('js/lib/faceLiveness.tsx'));
+
+    expect($faceLiveness)
+        ->toContain("cookie.startsWith('XSRF-TOKEN=')")
+        ->toContain('decodeURIComponent(encodedToken)')
+        ->toContain("'X-XSRF-TOKEN': xsrfToken()")
+        ->not->toContain('meta[name="csrf-token"]')
+        ->not->toContain("'X-CSRF-TOKEN': csrfToken()");
+});
+
 test('large admin relationship inputs use searchable autosuggestion controls', function () {
     $subjects = file_get_contents(resource_path('js/pages/Auth/Admin/Subjects.vue'));
     $schedules = file_get_contents(resource_path('js/pages/Auth/Admin/Schedules.vue'));
