@@ -121,8 +121,10 @@ class AwsFaceLivenessService
             return [
                 'ok' => false,
                 'message' => 'Liveness verification did not pass. Please try again.',
+                'status' => $status,
                 'confidence' => $confidence,
                 'threshold' => $threshold,
+                'reference_image_received' => $bytes !== '',
             ];
         }
 

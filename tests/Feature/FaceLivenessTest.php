@@ -60,6 +60,31 @@ test('authorized liveness session is bound through the backend service', functio
         ->assertJsonPath('region', 'us-east-1');
 });
 
+test('failed liveness result returns safe diagnostics for instructor testing', function () {
+    $instructor = User::factory()->create(['role' => 'instructor']);
+
+    $this->mock(AwsFaceLivenessService::class, function (MockInterface $mock) {
+        $mock->shouldReceive('completeSession')
+            ->once()
+            ->andReturn([
+                'ok' => false,
+                'message' => 'Liveness verification did not pass. Please try again.',
+                'status' => 'FAILED',
+                'confidence' => 67.25,
+                'threshold' => 90.0,
+                'reference_image_received' => false,
+            ]);
+    });
+
+    $this->actingAs($instructor)
+        ->postJson(route('faceLiveness.show', ['sessionId' => 'test-session']))
+        ->assertUnprocessable()
+        ->assertJsonPath('status', 'FAILED')
+        ->assertJsonPath('confidence', 67.25)
+        ->assertJsonPath('threshold', 90)
+        ->assertJsonPath('reference_image_received', false);
+});
+
 test('verified liveness reference token is purpose bound and single use', function () {
     Storage::fake('local');
     Storage::disk('local')->put('face-liveness/reference.jpg', 'reference-bytes');

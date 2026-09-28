@@ -109,6 +109,7 @@ const verifyFace = async () => {
         const livenessToken = await runFaceLiveness({
             purpose: 'instructor_login',
             subjectKey: page.props.auth?.user?.user_id,
+            diagnosticMode: true,
         });
 
         if (livenessToken) {

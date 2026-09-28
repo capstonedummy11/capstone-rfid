@@ -37,6 +37,24 @@ test('face liveness requests use the laravel xsrf cookie instead of a missing me
         ->not->toContain("'X-CSRF-TOKEN': csrfToken()");
 });
 
+test('instructor liveness displays test diagnostics without enabling them for other flows', function () {
+    $faceLiveness = file_get_contents(resource_path('js/lib/faceLiveness.tsx'));
+    $instructorVerify = file_get_contents(resource_path('js/pages/Auth/InstructorVerify.vue'));
+    $attendancePanel = file_get_contents(resource_path('js/pages/AttendanceControlPanel.vue'));
+    $onlineClasses = file_get_contents(resource_path('js/pages/StudentParent/OnlineClasses.vue'));
+
+    expect($faceLiveness)
+        ->toContain('diagnosticMode = false')
+        ->toContain('Test details:')
+        ->toContain('reference_image_received')
+        ->and($instructorVerify)
+        ->toContain('diagnosticMode: true')
+        ->and($attendancePanel)
+        ->not->toContain('diagnosticMode: true')
+        ->and($onlineClasses)
+        ->not->toContain('diagnosticMode: true');
+});
+
 test('large admin relationship inputs use searchable autosuggestion controls', function () {
     $subjects = file_get_contents(resource_path('js/pages/Auth/Admin/Subjects.vue'));
     $schedules = file_get_contents(resource_path('js/pages/Auth/Admin/Schedules.vue'));

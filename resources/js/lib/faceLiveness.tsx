@@ -18,6 +18,41 @@ type SessionResponse = {
 
 export class FaceLivenessError extends Error {}
 
+const livenessFailureMessage = (
+    payload: Record<string, unknown>,
+    httpStatus: number,
+    diagnosticMode: boolean,
+) => {
+    const message =
+        typeof payload?.message === 'string'
+            ? payload.message
+            : 'Liveness verification did not pass.';
+
+    if (!diagnosticMode) return message;
+
+    const details = [`HTTP ${httpStatus}`];
+
+    if (typeof payload?.status === 'string') {
+        details.push(`AWS status ${payload.status}`);
+    }
+
+    if (typeof payload?.confidence === 'number') {
+        details.push(`confidence ${payload.confidence.toFixed(2)}`);
+    }
+
+    if (typeof payload?.threshold === 'number') {
+        details.push(`required ${payload.threshold.toFixed(2)}`);
+    }
+
+    if (typeof payload?.reference_image_received === 'boolean') {
+        details.push(
+            `reference image ${payload.reference_image_received ? 'received' : 'missing'}`,
+        );
+    }
+
+    return `${message} Test details: ${details.join(', ')}.`;
+};
+
 const xsrfToken = () => {
     const encodedToken = document.cookie
         .split('; ')
@@ -48,9 +83,11 @@ async function requestJson(url: string, body: object) {
 function LivenessDialog({
     session,
     finish,
+    diagnosticMode,
 }: {
     session: SessionResponse;
     finish: (token?: string, error?: Error) => void;
+    diagnosticMode: boolean;
 }) {
     const [message, setMessage] = React.useState('');
     const completing = React.useRef(false);
@@ -69,7 +106,11 @@ function LivenessDialog({
             finish(
                 undefined,
                 new FaceLivenessError(
-                    payload?.message ?? 'Liveness verification did not pass.',
+                    livenessFailureMessage(
+                        payload,
+                        response.status,
+                        diagnosticMode,
+                    ),
                 ),
             );
             return;
@@ -190,9 +231,11 @@ function LivenessDialog({
 export async function runFaceLiveness({
     purpose,
     subjectKey,
+    diagnosticMode = false,
 }: {
     purpose: LivenessPurpose;
     subjectKey: string | number;
+    diagnosticMode?: boolean;
 }): Promise<string | null> {
     const { response, payload } = await requestJson('/face-liveness/sessions', {
         purpose,
@@ -237,6 +280,12 @@ export async function runFaceLiveness({
                 );
         };
 
-        root.render(<LivenessDialog session={session} finish={finish} />);
+        root.render(
+            <LivenessDialog
+                session={session}
+                finish={finish}
+                diagnosticMode={diagnosticMode}
+            />,
+        );
     });
 }
