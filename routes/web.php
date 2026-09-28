@@ -14,6 +14,7 @@ use App\Http\Controllers\EmergencyController;
 use App\Http\Controllers\FirstLoginPasswordController;
 use App\Http\Controllers\InstructorsController;
 use App\Http\Controllers\InstructorVerificationController;
+use App\Http\Controllers\FaceLivenessController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\LaboratoryController;
@@ -80,7 +81,7 @@ Route::post($staffLoginPath, [StaffLoginController::class, 'store'])
         config('fortify.limiters.login') ? 'throttle:'.config('fortify.limiters.login') : null,
     ]))
     ->name('staff.login.store');
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'throttle:10,1'])->group(function () {
     Route::get('/first-login/password', [FirstLoginPasswordController::class, 'edit'])->name('password.first-login');
     Route::put('/first-login/password', [FirstLoginPasswordController::class, 'update'])
         ->middleware('throttle:6,1')
@@ -104,6 +105,10 @@ Route::middleware(['auth', 'role:admin,instructor,clinic,registrar,student,paren
 Route::get('/attendance-control-panel/login', [AttendanceController::class, 'panelLogin'])->name('attendanceControlPanel.login');
 Route::post('/panel-verify', [AttendanceController::class, 'verifyPanelPin'])->name('panelVerify');
 Route::post('/face-recognition/verify-student', [AttendanceController::class, 'verifyStudentFace'])->name('faceRecognition.verifyStudent');
+Route::middleware('auth')->group(function () {
+    Route::post('/face-liveness/sessions', [FaceLivenessController::class, 'store'])->name('faceLiveness.store');
+    Route::post('/face-liveness/sessions/{sessionId}/result', [FaceLivenessController::class, 'show'])->name('faceLiveness.show');
+});
 Route::get('/attendance-evidence/{attendanceLog}/{moment}', [AttendanceController::class, 'evidence'])
     ->middleware(['auth', 'role:admin,instructor,student,parent', EnsureParentPortalEnabled::class])
     ->name('attendance.evidence');

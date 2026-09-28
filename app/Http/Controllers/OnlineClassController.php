@@ -12,6 +12,7 @@ use App\Models\Schedule;
 use App\Models\Students;
 use App\Models\SystemSetting;
 use App\Services\AwsFaceRecognitionService;
+use App\Services\AwsFaceLivenessService;
 use App\Services\OnlineClassAttendanceFinalizer;
 use App\Services\OnlineClassAuditLogger;
 use App\Services\OnlineClassNotificationService;
@@ -27,6 +28,7 @@ class OnlineClassController
         private OnlineClassAuditLogger $auditLogger,
         private OnlineClassNotificationService $notificationService,
         private OnlineClassAttendanceFinalizer $attendanceFinalizer,
+        private AwsFaceLivenessService $livenessService,
     ) {}
 
     public function index(Request $request)
@@ -224,12 +226,23 @@ class OnlineClassController
         $validated = $request->validate([
             'face_verified' => ['nullable', 'boolean'],
             'face_image' => ['nullable', 'string'],
+            'liveness_token' => ['nullable', 'string', 'size:64'],
         ]);
 
         $faceVerified = (bool) ($validated['face_verified'] ?? false);
         $faceVerification = null;
         if ($onlineClass->require_face_recognition) {
-            $faceVerification = $this->verifyStudentFaceCapture($student, (string) ($validated['face_image'] ?? ''));
+            $faceImage = (string) ($validated['face_image'] ?? '');
+            if (config('services.aws_rekognition.liveness.enabled', false)) {
+                $faceImage = $this->livenessService->consumeReferenceImage(
+                    $request,
+                    (string) ($validated['liveness_token'] ?? ''),
+                    'online_class_student',
+                    (string) $student->student_number,
+                ) ?? '';
+            }
+
+            $faceVerification = $this->verifyStudentFaceCapture($student, $faceImage);
             $faceVerified = $faceVerification['verified'];
             if (($faceVerification['bypassed'] ?? false) === true) {
                 $this->notifyInstructorFaceBypassOnce($onlineClass, $student, $faceVerification['message']);

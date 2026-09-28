@@ -2,6 +2,7 @@
 import { router, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import CameraCapture from '@/components/CameraCapture.vue';
+import { FaceLivenessError, runFaceLiveness } from '@/lib/faceLiveness';
 import LinkedStudentSelector from '@/components/StudentPortal/LinkedStudentSelector.vue';
 
 const props = defineProps({
@@ -20,10 +21,15 @@ const props = defineProps({
     selectedAcademicYearId: { type: [Number, String, null], default: null },
 });
 
-const changeAcademicYear = (event) => router.get(window.location.pathname, {
-    academic_year_id: event.target.value || undefined,
-    student_id: props.selectedStudentId || undefined,
-}, { preserveState: true, preserveScroll: true, replace: true });
+const changeAcademicYear = (event) =>
+    router.get(
+        window.location.pathname,
+        {
+            academic_year_id: event.target.value || undefined,
+            student_id: props.selectedStudentId || undefined,
+        },
+        { preserveState: true, preserveScroll: true, replace: true },
+    );
 
 const page = usePage();
 const flashSuccess = computed(() => page.props.flash?.success);
@@ -41,7 +47,12 @@ const xsrfToken = () =>
         .find((row) => row.startsWith('XSRF-TOKEN='))
         ?.split('=')[1];
 
-const postJoin = (onlineClass, faceVerified = false, faceImage = null) => {
+const postJoin = (
+    onlineClass,
+    faceVerified = false,
+    faceImage = null,
+    livenessToken = null,
+) => {
     router.post(
         route(
             'student-parent.online-classes.join',
@@ -50,6 +61,7 @@ const postJoin = (onlineClass, faceVerified = false, faceImage = null) => {
         {
             face_verified: faceVerified,
             face_image: faceImage,
+            liveness_token: livenessToken,
             student_id: props.selectedStudentId,
         },
         {
@@ -88,14 +100,36 @@ const closeVerification = () => {
 const verifyFaceAndJoin = async () => {
     if (!verifyingClass.value) return;
 
+    verificationBusy.value = true;
+    verificationError.value = '';
+    verificationMessage.value = 'Starting live-face verification...';
+
+    try {
+        const livenessToken = await runFaceLiveness({
+            purpose: 'online_class_student',
+            subjectKey: props.student?.student_number,
+        });
+
+        if (livenessToken) {
+            verificationMessage.value = 'Live face verified.';
+            postJoin(verifyingClass.value, true, null, livenessToken);
+            return;
+        }
+    } catch (error) {
+        verificationBusy.value = false;
+        verificationError.value =
+            error instanceof FaceLivenessError
+                ? error.message
+                : 'Live-face verification could not be completed.';
+        return;
+    }
+
     const image = cameraRef.value?.captureFrame();
     if (!image) {
         verificationError.value = 'Camera capture is required before joining.';
         return;
     }
 
-    verificationBusy.value = true;
-    verificationError.value = '';
     verificationMessage.value = 'Verifying face...';
 
     try {
@@ -158,7 +192,11 @@ const verifyFaceAndJoin = async () => {
                     class="rounded-md border border-slate-300 px-3 py-2 text-sm"
                     @change="changeAcademicYear"
                 >
-                    <option v-for="year in academicYears" :key="year.academic_year_id" :value="year.academic_year_id">
+                    <option
+                        v-for="year in academicYears"
+                        :key="year.academic_year_id"
+                        :value="year.academic_year_id"
+                    >
                         {{ year.name }} ({{ year.status }})
                     </option>
                 </select>

@@ -1,5 +1,6 @@
 <script setup>
 import CameraCapture from '@/components/CameraCapture.vue';
+import { FaceLivenessError, runFaceLiveness } from '@/lib/faceLiveness';
 import logo from '@/assets/images/logo-only.jpg';
 import schoolPhoto from '@/assets/images/philsca.png';
 import { router, useForm, usePage } from '@inertiajs/vue3';
@@ -31,7 +32,7 @@ const cameraRef = ref(null);
 const mode = ref(props.hasSecurityQuestion ? 'face' : 'setup');
 const flashSuccess = computed(() => page.props.flash?.success || props.status);
 
-const faceForm = useForm({ image: '' });
+const faceForm = useForm({ image: '', liveness_token: '' });
 const otpSendForm = useForm({});
 const otpForm = useForm({ otp: '' });
 const setupForm = useForm({
@@ -101,11 +102,36 @@ const availableSetupQuestions = (index) => {
 const setupQuestionError = (index, field) =>
     setupForm.errors[`questions.${index}.${field}`];
 
-const verifyFace = () => {
-    const image = cameraRef.value?.captureFrame();
-    if (!image) return;
-    faceForm.image = image;
-    faceForm.post(route('instructor.verify.face'), { preserveScroll: true });
+const verifyFace = async () => {
+    faceForm.clearErrors();
+
+    try {
+        const livenessToken = await runFaceLiveness({
+            purpose: 'instructor_login',
+            subjectKey: page.props.auth?.user?.user_id,
+        });
+
+        if (livenessToken) {
+            faceForm.image = '';
+            faceForm.liveness_token = livenessToken;
+        } else {
+            const image = cameraRef.value?.captureFrame();
+            if (!image) return;
+            faceForm.image = image;
+            faceForm.liveness_token = '';
+        }
+
+        faceForm.post(route('instructor.verify.face'), {
+            preserveScroll: true,
+        });
+    } catch (error) {
+        faceForm.setError(
+            'face',
+            error instanceof FaceLivenessError
+                ? error.message
+                : 'Live-face verification could not be completed.',
+        );
+    }
 };
 
 const sendOtp = () => {

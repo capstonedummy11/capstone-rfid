@@ -20,6 +20,7 @@ use App\Models\Subject;
 use App\Models\SystemSetting;
 use App\Models\User;
 use App\Services\AwsFaceRecognitionService;
+use App\Services\AwsFaceLivenessService;
 use App\Services\CompreFaceService;
 use App\Support\AuthenticatedSession;
 use Illuminate\Http\JsonResponse;
@@ -445,7 +446,11 @@ class AttendanceController
         ]);
     }
 
-    public function studentFaceCheck(Request $request, AwsFaceRecognitionService $faceService): JsonResponse
+    public function studentFaceCheck(
+        Request $request,
+        AwsFaceRecognitionService $faceService,
+        AwsFaceLivenessService $livenessService,
+    ): JsonResponse
     {
         $validated = $request->validate([
             'rfid' => ['required', 'string', 'max:255'],
@@ -453,6 +458,7 @@ class AttendanceController
             'subject_code' => ['nullable', 'string', 'max:255'],
             'schedule_id' => ['nullable', 'integer'],
             'image' => ['nullable', 'string'],
+            'liveness_token' => ['nullable', 'string', 'size:64'],
             'instructor_rfid' => ['nullable', 'string', 'max:255'],
             'camera_unavailable' => ['nullable', 'boolean'],
         ]);
@@ -620,7 +626,25 @@ class AttendanceController
             ]);
         }
 
-        if (blank($validated['image'] ?? null)) {
+        $capturedImage = (string) ($validated['image'] ?? '');
+        if (config('services.aws_rekognition.liveness.enabled', false)) {
+            $capturedImage = $livenessService->consumeReferenceImage(
+                $request,
+                (string) ($validated['liveness_token'] ?? ''),
+                'attendance_student',
+                (string) $student->rfid_tag,
+            ) ?? '';
+
+            if ($capturedImage === '') {
+                return response()->json([
+                    'ok' => false,
+                    'verified' => false,
+                    'message' => 'A valid live-face verification is required.',
+                ], 422);
+            }
+        }
+
+        if ($capturedImage === '') {
             return response()->json([
                 'ok' => false,
                 'verified' => false,
@@ -632,7 +656,7 @@ class AttendanceController
         $bestMismatch = null;
 
         foreach ($faceImages as $faceImage) {
-            $comparison = $faceService->compareBase64WithStoredImage($validated['image'], $faceImage);
+            $comparison = $faceService->compareBase64WithStoredImage($capturedImage, $faceImage);
             if ($comparison === null) {
                 continue;
             }
@@ -651,7 +675,7 @@ class AttendanceController
 
         if ($faceResult === null) {
             $capturePath = $this->storeAttendanceFaceCapture(
-                (string) $validated['image'],
+                $capturedImage,
                 (int) $attendanceSession->attendance_id,
                 $student,
             );
@@ -689,7 +713,7 @@ class AttendanceController
         }
 
         $capturePath = $this->storeAttendanceFaceCapture(
-            (string) $validated['image'],
+            $capturedImage,
             (int) $attendanceSession->attendance_id,
             $student,
         );
@@ -715,7 +739,11 @@ class AttendanceController
         ]);
     }
 
-    public function instructorFaceCheck(Request $request, AwsFaceRecognitionService $faceService): JsonResponse
+    public function instructorFaceCheck(
+        Request $request,
+        AwsFaceRecognitionService $faceService,
+        AwsFaceLivenessService $livenessService,
+    ): JsonResponse
     {
         $validated = $request->validate([
             'instructor_rfid' => ['required', 'string', 'max:255'],
@@ -723,6 +751,7 @@ class AttendanceController
             'student_rfid' => ['required', 'string', 'max:255'],
             'reason' => ['nullable', 'string', 'max:255'],
             'image' => ['nullable', 'string'],
+            'liveness_token' => ['nullable', 'string', 'size:64'],
         ]);
 
         $rfid = strtolower(trim($validated['instructor_rfid']));
@@ -764,7 +793,25 @@ class AttendanceController
             ]);
         }
 
-        if (empty($validated['image'])) {
+        $capturedImage = (string) ($validated['image'] ?? '');
+        if (config('services.aws_rekognition.liveness.enabled', false)) {
+            $capturedImage = $livenessService->consumeReferenceImage(
+                $request,
+                (string) ($validated['liveness_token'] ?? ''),
+                'attendance_instructor',
+                (string) $instructor->user_id,
+            ) ?? '';
+
+            if ($capturedImage === '') {
+                return response()->json([
+                    'ok' => false,
+                    'verified' => false,
+                    'message' => 'A valid instructor live-face verification is required.',
+                ], 422);
+            }
+        }
+
+        if ($capturedImage === '') {
             return response()->json([
                 'ok' => false,
                 'verified' => false,
@@ -773,7 +820,7 @@ class AttendanceController
         }
 
         $faceResult = $faceService->compareBase64WithStoredImage(
-            $validated['image'],
+            $capturedImage,
             $faceImages[0],
         );
 

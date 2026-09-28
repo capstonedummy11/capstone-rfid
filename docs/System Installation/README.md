@@ -113,11 +113,60 @@ The Instructor excuse-letter review migration uses short explicit foreign-key na
 | Variable | Purpose |
 | --- | --- |
 | `PANEL_PIN` | Configuration fallback; normal runtime global/device hashes are stored in System Settings/Panel Devices. |
-| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION` | AWS Rekognition credentials/region. Define each once; `.env.example` currently contains duplicate AWS placeholders and should be cleaned when next edited. |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, `AWS_DEFAULT_REGION` | Backend-only AWS credentials and the region used for still-image comparison. Use a role or short-lived credentials outside local development; never expose these values to Vite/browser code. |
 | `AWS_REKOGNITION_SIMILARITY_THRESHOLD` | Match threshold; example is 90. |
+| `AWS_REKOGNITION_LIVENESS_ENABLED`, `AWS_REKOGNITION_LIVENESS_REGION`, `AWS_REKOGNITION_LIVENESS_CONFIDENCE_THRESHOLD` | Enables the video-selfie liveness gate, selects a Face Liveness-supported region, and sets the server-side pass threshold. Enable only after the IAM and Cognito setup below is complete. |
+| `VITE_AWS_COGNITO_IDENTITY_POOL_ID` | Public Cognito Identity Pool identifier used only to obtain short-lived browser credentials for `StartFaceLivenessSession`. Its unauthenticated role must have no other application/AWS access. |
 | `COMPREFACE_URL`, `COMPREFACE_API_KEY` | Alternative/legacy CompreFace service configuration. `COMPREFACE_URL` has a code default but is not shown in the example file. |
 
 Use an IAM principal restricted to the required Rekognition actions. Do not expose cloud keys to frontend code.
+
+### AWS Face Liveness account setup
+
+Face Liveness is a separate Rekognition workflow. The Laravel backend creates a single-use session and retrieves its result; the official Amplify detector streams the short video from the browser; Laravel then compares AWS's liveness reference frame with the enrolled face. A liveness pass by itself never authenticates a person.
+
+1. Choose a [Face Liveness-supported region](https://docs.aws.amazon.com/general/latest/gr/rekognition.html), such as `us-east-1`, `us-west-2`, or `ap-northeast-1`. The existing `ap-southeast-1` Singapore region can still be used for `CompareFaces`, but it does not currently support Face Liveness. Set the selected liveness region separately.
+2. Give the backend IAM user/role only the calls it performs (retain `rekognition:CompareFaces` for the existing match):
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Action": [
+      "rekognition:CompareFaces",
+      "rekognition:CreateFaceLivenessSession",
+      "rekognition:GetFaceLivenessSessionResults"
+    ],
+    "Resource": "*"
+  }]
+}
+```
+
+3. Create an Amazon Cognito **Identity Pool** in the liveness region and allow unauthenticated identities. This pool signs the browser's liveness video stream; it does not replace Laravel accounts.
+4. Attach this one-action inline policy to that pool's unauthenticated role:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Action": "rekognition:StartFaceLivenessSession",
+    "Resource": "*"
+  }]
+}
+```
+
+5. Set the liveness variables in `.env`, run `php artisan config:clear`, rebuild with `npm run build`, and restart Vite/Laravel:
+
+```dotenv
+AWS_REKOGNITION_LIVENESS_ENABLED=true
+AWS_REKOGNITION_LIVENESS_REGION=us-east-1
+AWS_REKOGNITION_LIVENESS_CONFIDENCE_THRESHOLD=90
+VITE_AWS_COGNITO_IDENTITY_POOL_ID=us-east-1:replace-with-your-pool-uuid
+```
+
+Use HTTPS outside `localhost`, configure AWS billing alarms, review the default Rekognition quotas, and test false accepts/rejects before choosing production thresholds. Session IDs are single-use and expire quickly; the application binds them to the Laravel user/session, purpose, and subject, then consumes the resulting token once.
 
 ### SMS and mail
 
@@ -237,7 +286,7 @@ Seeded credentials documented in [Default Account Passwords](../System%20Explana
 | Assets/Wayfinder fail | Run `npm install`, ensure compatible PHP, clear stale caches with `php artisan optimize:clear`, then rebuild. |
 | Uploaded images/files return 404 | Run `php artisan storage:link`, verify file exists and permissions/`APP_URL`, and confirm the requesting account owns/is allowed to access it. |
 | Scheduler does not create online absences | Run `php artisan schedule:list`; start `schedule:work` locally or cron/Task Scheduler in production; inspect logs. Also verify enrollment status compatibility (`active` versus `enrolled`). |
-| Face recognition unavailable | Verify feature flag, AWS credentials/region/network/IAM and stored image; System Settings reports provider availability and keeps invalid combinations off. |
+| Face recognition unavailable | Verify feature flag, AWS credentials/region/network/IAM and stored image; System Settings reports provider availability and keeps invalid combinations off. For liveness also verify its supported region, Cognito Identity Pool ID, backend create/get permissions, browser-role start permission, HTTPS/camera access, and cleared config cache. |
 | OTP/reset/message mail absent | Check mail transport, queue choice, logs, recipient email, and cooldown. With `MAIL_MAILER=log`, inspect Laravel logs rather than inbox. |
 | Emergency SMS absent | Check switch, active hotline with SMS enabled, number format, API key/sender/endpoint, network, and alert metadata/result. Alert storage does not prove SMS delivery. |
 | Parent cannot sign in | Confirm Parent Portal is on, account role is Parent, and the Parent is linked to a Student. Parent Excuse Letters is a separate switch. |

@@ -3,7 +3,7 @@
 ## Technology and runtime
 
 - Backend: PHP 8.2+ requirement, Laravel 12.52 in the audited lockfile, Laravel Fortify, Inertia Laravel, Eloquent, notifications/mail, scheduler, filesystem, cache, and sessions.
-- Frontend: Vue 3.5, Inertia Vue 2.3, Vite 7, Tailwind CSS 4, Wayfinder, SweetAlert2, Lucide, and TypeScript tooling.
+- Frontend: Vue 3.5, Inertia Vue 2.3, Vite 7, Tailwind CSS 4, Wayfinder, SweetAlert2, Lucide, and TypeScript tooling. AWS's official web liveness detector is isolated as a React island because AWS does not provide a Vue detector.
 - Database: MySQL in `.env.example`; migrations also completed against a temporary SQLite audit database during documentation review.
 - Documents/data: DOMPDF dependency for PDF support, PhpSpreadsheet for XLSX attendance export, native streamed CSV exports.
 - External services: AWS Rekognition, optional CompreFace code path, Semaphore SMS, SMTP/Laravel Mail.
@@ -177,7 +177,7 @@ The unused private `copyOfferingsAndSchedules` helper remains in the service, bu
 
 | Integration | Trigger | Failure behavior |
 | --- | --- | --- |
-| AWS Rekognition | Attendance/online face comparison and availability checks. | Returns unavailable/no-match path; settings disable impossible combinations; documented Instructor fallbacks may apply. |
+| AWS Rekognition | Attendance/online/instructor face comparison plus optional Face Liveness video challenge. Laravel creates and binds each session, Amplify streams with a start-only Cognito role, Laravel evaluates the result, and the returned reference frame still must match an enrolled image. | Disabled liveness preserves the documented still-capture flow; enabled liveness fails closed on missing/expired/replayed tokens or a low confidence score. Existing documented Instructor fallbacks remain separate explicit paths. |
 | CompreFace | Legacy/alternative face service code path. | Service catches/logs failures; not the primary settings availability provider. |
 | SMTP/Laravel Mail | OTP, password reset, messages, class notices, dispatch, letters. | Most user operation remains stored; email error is caught/recorded where implemented. OTP send itself returns an error on mail failure. |
 | Semaphore | Emergency hotline SMS. | Alert remains stored and JSON/metadata reports failed/disabled result. |

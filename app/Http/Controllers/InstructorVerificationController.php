@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\SystemSetting;
 use App\Services\AwsFaceRecognitionService;
+use App\Services\AwsFaceLivenessService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -42,10 +43,11 @@ class InstructorVerificationController
         ]);
     }
 
-    public function verifyFace(Request $request)
+    public function verifyFace(Request $request, AwsFaceLivenessService $livenessService)
     {
         $validated = $request->validate([
-            'image' => ['required', 'string'],
+            'image' => ['nullable', 'string'],
+            'liveness_token' => ['nullable', 'string', 'size:64'],
         ]);
 
         $user = $request->user();
@@ -55,7 +57,21 @@ class InstructorVerificationController
             return back()->withErrors(['face' => 'No enrolled face image is available for this instructor.']);
         }
 
-        $result = (new AwsFaceRecognitionService)->compareBase64WithStoredImage($validated['image'], $faceImages[0]);
+        $capturedImage = (string) ($validated['image'] ?? '');
+        if (config('services.aws_rekognition.liveness.enabled', false)) {
+            $capturedImage = $livenessService->consumeReferenceImage(
+                $request,
+                (string) ($validated['liveness_token'] ?? ''),
+                'instructor_login',
+                (string) $user->user_id,
+            ) ?? '';
+        }
+
+        if ($capturedImage === '') {
+            return back()->withErrors(['face' => 'A valid live-face verification is required.']);
+        }
+
+        $result = (new AwsFaceRecognitionService)->compareBase64WithStoredImage($capturedImage, $faceImages[0]);
 
         if ($result === null) {
             return back()->withErrors(['face' => 'Face recognition is not available. Use OTP or security question.']);

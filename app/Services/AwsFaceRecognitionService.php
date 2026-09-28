@@ -27,6 +27,16 @@ class AwsFaceRecognitionService
             ];
         }
 
+        if (config('services.aws_rekognition.liveness.enabled', false)) {
+            $liveness = (new AwsFaceLivenessService)->availability();
+            if (! $liveness['available']) {
+                return [
+                    'available' => false,
+                    'message' => $liveness['message'],
+                ];
+            }
+        }
+
         return [
             'available' => true,
             'message' => 'AWS Rekognition is configured.',
@@ -58,13 +68,18 @@ class AwsFaceRecognitionService
         }
 
         try {
+            $credentials = [
+                'key' => config('services.aws_rekognition.key', env('AWS_ACCESS_KEY_ID')),
+                'secret' => config('services.aws_rekognition.secret', env('AWS_SECRET_ACCESS_KEY')),
+            ];
+            if (config('services.aws_rekognition.token')) {
+                $credentials['token'] = config('services.aws_rekognition.token');
+            }
+
             $client = new \Aws\Rekognition\RekognitionClient([
                 'version' => 'latest',
                 'region' => config('services.aws_rekognition.region', config('services.ses.region', 'us-east-1')),
-                'credentials' => [
-                    'key' => config('services.aws_rekognition.key', env('AWS_ACCESS_KEY_ID')),
-                    'secret' => config('services.aws_rekognition.secret', env('AWS_SECRET_ACCESS_KEY')),
-                ],
+                'credentials' => $credentials,
             ]);
 
             $threshold = (float) config('services.aws_rekognition.similarity_threshold', 90);

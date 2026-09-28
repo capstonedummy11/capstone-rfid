@@ -277,7 +277,7 @@ For each student, enroll:
 Why this is required:
 
 - RFID identifies the student at the attendance panel.
-- Face images allow AWS Rekognition comparison when face verification is enabled.
+- Face images allow AWS Rekognition comparison when face verification is enabled. If AWS Face Liveness is configured, the user first completes the short video challenge and AWS's resulting reference frame must still match the enrolled image.
 - Students without face records may require instructor approval during attendance.
 
 ## 12. Enroll Instructor RFID And Face Records

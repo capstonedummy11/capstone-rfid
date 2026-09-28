@@ -43,8 +43,15 @@ return [
     'aws_rekognition' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),
+        'token' => env('AWS_SESSION_TOKEN'),
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
         'similarity_threshold' => env('AWS_REKOGNITION_SIMILARITY_THRESHOLD', 90),
+        'liveness' => [
+            'enabled' => env('AWS_REKOGNITION_LIVENESS_ENABLED', false),
+            'region' => env('AWS_REKOGNITION_LIVENESS_REGION', 'us-east-1'),
+            'identity_pool_id' => env('VITE_AWS_COGNITO_IDENTITY_POOL_ID'),
+            'confidence_threshold' => env('AWS_REKOGNITION_LIVENESS_CONFIDENCE_THRESHOLD', 90),
+        ],
     ],
 
     'semaphore' => [

@@ -6,6 +6,7 @@ defineOptions({
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import Swal from 'sweetalert2';
 import CameraCapture from '@/components/CameraCapture.vue';
+import { FaceLivenessError, runFaceLiveness } from '@/lib/faceLiveness';
 
 const props = defineProps({
     rooms: {
@@ -755,6 +756,7 @@ const checkStudentFaceForAttendance = async (
     base64DataUrl = null,
     instructorRfid = null,
     cameraUnavailable = false,
+    livenessToken = null,
 ) => {
     try {
         const response = await fetch(
@@ -772,6 +774,7 @@ const checkStudentFaceForAttendance = async (
                     subject_code: activeProfessor.value?.subject_code ?? null,
                     schedule_id: activeProfessor.value?.schedule_id ?? null,
                     image: base64DataUrl,
+                    liveness_token: livenessToken,
                     instructor_rfid: instructorRfid,
                     camera_unavailable: cameraUnavailable,
                 }),
@@ -841,87 +844,35 @@ const recordAttendance = async (student) => {
             'success',
         );
     } else {
-        triggerCameraCapture();
-
-        if (!capturedPhotoUrl.value) {
-            let bypassResult = await checkStudentFaceForAttendance(
-                student,
-                null,
-                null,
-                true,
-            );
-
-            if (!bypassResult?.ok) {
-                const instructorApproval = await requestInstructorRfidPrompt({
-                    title: 'Camera Unavailable',
-                    text: "Scan the active instructor's RFID once to continue this scheduled class without camera capture. The bypass ends when the class session ends or the panel logs out.",
-                    confirmButtonText: 'Enable Session Bypass',
-                    confirmButtonColor: '#d97706',
-                });
-
-                if (!instructorApproval.isConfirmed) {
-                    pushHistory(
-                        'Attendance blocked',
-                        'Camera was unavailable and the instructor did not enable the session bypass.',
-                        'warning',
-                    );
-                    setTapHeadline('Attendance Not Recorded');
-                    return;
-                }
-
-                bypassResult = await checkStudentFaceForAttendance(
-                    student,
-                    null,
-                    String(instructorApproval.value).trim(),
-                    true,
-                );
-            }
-
-            if (!bypassResult?.ok || !bypassResult.camera_session_override) {
-                showStudentToast(
-                    student,
-                    bypassResult?.message ??
-                        'Camera bypass verification failed. Attendance was not recorded.',
-                    'warning',
-                );
-                setTapHeadline('Instructor Verification Failed');
-                return;
-            }
-
+        let livenessToken = null;
+        try {
+            livenessToken = await runFaceLiveness({
+                purpose: 'attendance_student',
+                subjectKey: student.rfid,
+            });
+        } catch (error) {
+            const message =
+                error instanceof FaceLivenessError
+                    ? error.message
+                    : 'Live-face verification could not be completed.';
+            showStudentToast(student, message, 'warning');
             pushHistory(
-                'Camera session bypass',
-                `${student.name} continued under the active instructor's camera-unavailable approval.`,
+                'Liveness verification blocked',
+                `${student.name}: ${message}`,
                 'warning',
             );
-        } else {
-            let faceResult = await checkStudentFaceForAttendance(
+            setTapHeadline('Liveness Verification Failed');
+            return;
+        }
+
+        if (livenessToken) {
+            const faceResult = await checkStudentFaceForAttendance(
                 student,
-                capturedPhotoUrl.value,
+                null,
+                null,
+                false,
+                livenessToken,
             );
-
-            if (faceResult?.requires_instructor_rfid) {
-                const instructorApproval = await requestInstructorRfidPrompt({
-                    text:
-                        faceResult.message ??
-                        'Scan the active instructor RFID to approve this attendance.',
-                });
-
-                if (!instructorApproval.isConfirmed) {
-                    pushHistory(
-                        'Attendance blocked',
-                        `${student.name}: instructor approval was not provided.`,
-                        'warning',
-                    );
-                    setTapHeadline('Attendance Not Recorded');
-                    return;
-                }
-
-                faceResult = await checkStudentFaceForAttendance(
-                    student,
-                    null,
-                    String(instructorApproval.value).trim(),
-                );
-            }
 
             if (!faceResult?.ok || faceResult.verified === false) {
                 showStudentToast(
@@ -939,25 +890,135 @@ const recordAttendance = async (student) => {
                 return;
             }
 
-            if (faceResult.provider_unavailable) {
+            pushHistory(
+                'Live face verified',
+                `${student.name} passed AWS liveness and face matching; the AWS reference frame was saved as evidence.`,
+                'success',
+            );
+        } else {
+            triggerCameraCapture();
+
+            if (!capturedPhotoUrl.value) {
+                let bypassResult = await checkStudentFaceForAttendance(
+                    student,
+                    null,
+                    null,
+                    true,
+                );
+
+                if (!bypassResult?.ok) {
+                    const instructorApproval =
+                        await requestInstructorRfidPrompt({
+                            title: 'Camera Unavailable',
+                            text: "Scan the active instructor's RFID once to continue this scheduled class without camera capture. The bypass ends when the class session ends or the panel logs out.",
+                            confirmButtonText: 'Enable Session Bypass',
+                            confirmButtonColor: '#d97706',
+                        });
+
+                    if (!instructorApproval.isConfirmed) {
+                        pushHistory(
+                            'Attendance blocked',
+                            'Camera was unavailable and the instructor did not enable the session bypass.',
+                            'warning',
+                        );
+                        setTapHeadline('Attendance Not Recorded');
+                        return;
+                    }
+
+                    bypassResult = await checkStudentFaceForAttendance(
+                        student,
+                        null,
+                        String(instructorApproval.value).trim(),
+                        true,
+                    );
+                }
+
+                if (
+                    !bypassResult?.ok ||
+                    !bypassResult.camera_session_override
+                ) {
+                    showStudentToast(
+                        student,
+                        bypassResult?.message ??
+                            'Camera bypass verification failed. Attendance was not recorded.',
+                        'warning',
+                    );
+                    setTapHeadline('Instructor Verification Failed');
+                    return;
+                }
+
                 pushHistory(
-                    'AWS Rekognition unavailable',
-                    `${student.name}'s camera image was saved as attendance evidence without an AWS comparison.`,
+                    'Camera session bypass',
+                    `${student.name} continued under the active instructor's camera-unavailable approval.`,
                     'warning',
                 );
-                await Swal.fire({
-                    icon: 'warning',
-                    title: 'Face Rekognition Unavailable',
-                    text: faceResult.message,
-                    confirmButtonText: 'Continue',
-                    confirmButtonColor: '#d97706',
-                });
             } else {
-                pushHistory(
-                    'Face verified',
-                    `${student.name} passed AWS face verification and the evidence image was saved.`,
-                    'success',
+                let faceResult = await checkStudentFaceForAttendance(
+                    student,
+                    capturedPhotoUrl.value,
                 );
+
+                if (faceResult?.requires_instructor_rfid) {
+                    const instructorApproval =
+                        await requestInstructorRfidPrompt({
+                            text:
+                                faceResult.message ??
+                                'Scan the active instructor RFID to approve this attendance.',
+                        });
+
+                    if (!instructorApproval.isConfirmed) {
+                        pushHistory(
+                            'Attendance blocked',
+                            `${student.name}: instructor approval was not provided.`,
+                            'warning',
+                        );
+                        setTapHeadline('Attendance Not Recorded');
+                        return;
+                    }
+
+                    faceResult = await checkStudentFaceForAttendance(
+                        student,
+                        null,
+                        String(instructorApproval.value).trim(),
+                    );
+                }
+
+                if (!faceResult?.ok || faceResult.verified === false) {
+                    showStudentToast(
+                        student,
+                        faceResult?.message ??
+                            'Face verification failed. Attendance was not recorded.',
+                        'warning',
+                    );
+                    pushHistory(
+                        'Face verification blocked',
+                        `${student.name}: ${faceResult?.message ?? 'verification failed.'}`,
+                        'warning',
+                    );
+                    setTapHeadline('Face Verification Failed');
+                    return;
+                }
+
+                if (faceResult.provider_unavailable) {
+                    pushHistory(
+                        'AWS Rekognition unavailable',
+                        `${student.name}'s camera image was saved as attendance evidence without an AWS comparison.`,
+                        'warning',
+                    );
+                    await Swal.fire({
+                        icon: 'warning',
+                        title: 'Face Rekognition Unavailable',
+                        text: faceResult.message,
+                        confirmButtonText: 'Continue',
+                        confirmButtonColor: '#d97706',
+                    });
+                } else {
+                    pushHistory(
+                        'Face verified',
+                        `${student.name} passed AWS face verification and the evidence image was saved.`,
+                        'success',
+                    );
+                }
             }
         }
     }
