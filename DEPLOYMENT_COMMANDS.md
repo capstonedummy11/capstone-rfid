@@ -50,7 +50,7 @@ set -e
 cd /var/www/capstone-rfid
 
 # Change this only when deploying a different branch.
-DEPLOY_BRANCH="feature/2000-face-detection"
+DEPLOY_BRANCH="development"
 git pull --ff-only origin "$DEPLOY_BRANCH"
 
 test -f public/build/manifest.json
