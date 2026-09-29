@@ -4,6 +4,12 @@ import { ref } from 'vue';
 import logo from '@/assets/images/logo-only.jpg';
 import EyeOff from '@/components/Icon/EyeOff.vue';
 import EyeOn from '@/components/Icon/EyeOn.vue';
+import {
+    MIN_PASSWORD_LENGTH,
+    PASSWORD_LENGTH_ERROR,
+    PASSWORD_LENGTH_HELPER,
+    isPasswordTooShort,
+} from '@/lib/passwordPolicy';
 
 const showPassword = ref(false);
 const showPasswordConfirmation = ref(false);
@@ -12,8 +18,24 @@ const form = useForm({
     password: '',
     password_confirmation: '',
 });
+const isSubmitting = ref(false);
 
-const submit = () => form.put(route('password.first-login.update'));
+const submit = () => {
+    if (isSubmitting.value) return;
+
+    if (isPasswordTooShort(form.password)) {
+        form.setError('password', PASSWORD_LENGTH_ERROR);
+        return;
+    }
+
+    form.clearErrors('password');
+    isSubmitting.value = true;
+    form.put(route('password.first-login.update'), {
+        onFinish: () => {
+            isSubmitting.value = false;
+        },
+    });
+};
 </script>
 
 <template>
@@ -36,7 +58,7 @@ const submit = () => form.put(route('password.first-login.update'));
                 This is a new account using a temporary password. You must
                 replace it before accessing the system.
             </p>
-            <form class="mt-5 space-y-4" @submit.prevent="submit">
+            <form class="mt-5 space-y-4" novalidate @submit.prevent="submit">
                 <label class="block text-sm font-semibold text-slate-700">
                     New password
                     <div class="relative mt-1">
@@ -44,9 +66,16 @@ const submit = () => form.put(route('password.first-login.update'));
                             v-model="form.password"
                             :type="showPassword ? 'text' : 'password'"
                             required
+                            :minlength="MIN_PASSWORD_LENGTH"
                             autofocus
                             autocomplete="new-password"
+                            aria-describedby="first-login-password-requirement"
+                            :aria-invalid="
+                                Boolean(form.errors.password) ||
+                                isPasswordTooShort(form.password)
+                            "
                             class="w-full rounded-md border border-slate-300 px-3 py-2 pr-10"
+                            @input="form.clearErrors('password')"
                         />
                         <button
                             type="button"
@@ -63,6 +92,24 @@ const submit = () => form.put(route('password.first-login.update'));
                             <EyeOff v-else aria-hidden="true" />
                         </button>
                     </div>
+                    <span
+                        id="first-login-password-requirement"
+                        class="mt-1 block text-xs"
+                        :class="
+                            form.errors.password ||
+                            isPasswordTooShort(form.password)
+                                ? 'text-red-600'
+                                : 'text-slate-500'
+                        "
+                        aria-live="polite"
+                    >
+                        {{
+                            form.errors.password ||
+                            (isPasswordTooShort(form.password)
+                                ? PASSWORD_LENGTH_ERROR
+                                : PASSWORD_LENGTH_HELPER)
+                        }}
+                    </span>
                 </label>
                 <label class="block text-sm font-semibold text-slate-700">
                     Confirm new password
@@ -99,18 +146,28 @@ const submit = () => form.put(route('password.first-login.update'));
                     </div>
                 </label>
                 <div
-                    v-if="Object.keys(form.errors).length"
+                    v-if="
+                        Object.keys(form.errors).some(
+                            (field) => field !== 'password',
+                        )
+                    "
                     class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600"
                 >
-                    <p v-for="error in form.errors" :key="error">{{ error }}</p>
+                    <p
+                        v-for="(error, field) in form.errors"
+                        :key="field"
+                        v-show="field !== 'password'"
+                    >
+                        {{ error }}
+                    </p>
                 </div>
                 <button
                     type="submit"
-                    :disabled="form.processing"
+                    :disabled="isSubmitting || form.processing"
                     class="w-full rounded-md bg-blue-600 px-4 py-2 font-bold text-white disabled:opacity-60"
                 >
                     {{
-                        form.processing
+                        isSubmitting || form.processing
                             ? 'Saving...'
                             : 'Save password and continue'
                     }}

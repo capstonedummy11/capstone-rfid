@@ -73,14 +73,30 @@ test('user can replace a temporary password and continue', function () {
 
     $this->actingAs($user)
         ->put(route('password.first-login.update'), [
-            'password' => 'PrivatePassword123!',
-            'password_confirmation' => 'PrivatePassword123!',
+            'password' => 'TwelveChars!',
+            'password_confirmation' => 'TwelveChars!',
         ])
         ->assertRedirect(route('dashboard'));
 
     $user->refresh();
     expect($user->must_change_password)->toBeFalse()
-        ->and(Hash::check('PrivatePassword123!', $user->password))->toBeTrue();
+        ->and(Hash::check('TwelveChars!', $user->password))->toBeTrue();
+});
+
+test('first login password rejects fewer than twelve characters with the specific message', function () {
+    $user = User::factory()->create([
+        'role' => 'student',
+        'must_change_password' => true,
+    ]);
+
+    $this->actingAs($user)
+        ->put(route('password.first-login.update'), [
+            'password' => 'ElevenChar!',
+            'password_confirmation' => 'ElevenChar!',
+        ])
+        ->assertSessionHasErrors([
+            'password' => 'Password must be at least 12 characters long.',
+        ]);
 });
 
 test('first login password page is not throttled while password updates keep a dedicated limiter', function () {
@@ -147,4 +163,21 @@ test('staff password reset returns to staff login and clears first login flag', 
     $user->refresh();
     expect($user->must_change_password)->toBeFalse()
         ->and(Hash::check('RecoveredPassword123!', $user->password))->toBeTrue();
+});
+
+test('forgotten password reset rejects fewer than twelve characters with the specific message', function () {
+    $user = User::factory()->create([
+        'role' => 'clinic',
+        'email' => 'clinic-short-password@example.test',
+    ]);
+    $token = Password::broker()->createToken($user);
+
+    $this->post(route('password.update'), [
+        'token' => $token,
+        'email' => $user->email,
+        'password' => 'ElevenChar!',
+        'password_confirmation' => 'ElevenChar!',
+    ])->assertSessionHasErrors([
+        'password' => 'Password must be at least 12 characters long.',
+    ]);
 });

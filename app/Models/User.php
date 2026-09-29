@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 
 class User extends Authenticatable
@@ -23,6 +24,10 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $primaryKey = 'user_id';
+
+    protected $appends = [
+        'profile_photo_url',
+    ];
 
     public function getIdAttribute(): ?int
     {
@@ -61,6 +66,7 @@ class User extends Authenticatable
         'two_factor_secret',
         'two_factor_recovery_codes',
         'remember_token',
+        'profile_photo_path',
     ];
 
     /**
@@ -79,6 +85,13 @@ class User extends Authenticatable
             'face_images' => 'array',
             'security_questions' => 'array',
         ];
+    }
+
+    public function getProfilePhotoUrlAttribute(): ?string
+    {
+        return $this->profile_photo_path
+            ? Storage::disk('public')->url($this->profile_photo_path)
+            : null;
     }
 
     /**

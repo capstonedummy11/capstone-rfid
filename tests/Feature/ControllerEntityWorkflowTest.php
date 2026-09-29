@@ -482,7 +482,7 @@ test('schedule controller creates from offering then updates indexes and deletes
     ])->assertRedirect()->assertSessionHasErrors('weekdays');
     $this->assertDatabaseCount('schedules', 1);
 
-    $this->actingAs($admin)->post(route('admin.schedules.store'), [
+    $conflictResponse = $this->actingAs($admin)->post(route('admin.schedules.store'), [
         'subject_offering_id' => $offering->subject_offering_id,
         'laboratory_id' => $laboratory->laboratory_id,
         'instructor_id' => null,
@@ -492,7 +492,14 @@ test('schedule controller creates from offering then updates indexes and deletes
         'time_start' => '08:30',
         'time_end' => '09:30',
         'room' => 'A101',
-    ])->assertRedirect()->assertSessionHasErrors('time_start');
+    ]);
+    $conflictResponse->assertRedirect()->assertSessionHasErrors('time_start');
+    expect(session('errors')->first('time_start'))
+        ->toContain('Schedule conflict with SCHED-CTRL on Mon from 08:00 to 09:00.')
+        ->toContain("Section \"{$section->section_name}\" already has an overlapping class")
+        ->toContain("Instructor \"{$instructorUser->name}\" is already assigned to the overlapping class")
+        ->toContain('Laboratory "Schedule Lab" is already in use')
+        ->toContain('Room "A101" is already in use');
     $this->assertDatabaseCount('schedules', 1);
 
     $this->actingAs($admin)->post(route('admin.schedules.store'), [

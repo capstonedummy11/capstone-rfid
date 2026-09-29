@@ -194,6 +194,12 @@ const sections = [
         title: 'System',
         links: [
             {
+                icon: UserRound,
+                text: 'My Profile',
+                route: route('profile.edit'),
+                roles: ['admin', 'instructor', 'clinic', 'registrar'],
+            },
+            {
                 icon: Borrowing,
                 text: 'Borrowing',
                 route: route('admin.borrow'),

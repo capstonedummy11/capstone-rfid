@@ -17,7 +17,9 @@ use App\Notifications\MessengerMessageReceived;
 use App\Services\MessengerEmailNotificationService;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
@@ -393,6 +395,32 @@ test('instructor inbox replies create student portal replies', function () {
     ]);
 });
 
+test('student portal password uses the twelve character rule and specific message', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    $fixture = portalFixture();
+
+    $this->actingAs($fixture['studentUser'])
+        ->put(route('student-parent.password.update'), [
+            'current_password' => 'password',
+            'password' => 'ElevenChar!',
+            'password_confirmation' => 'ElevenChar!',
+        ])
+        ->assertSessionHasErrors([
+            'password' => 'Password must be at least 12 characters long.',
+        ]);
+
+    $this->actingAs($fixture['studentUser'])
+        ->put(route('student-parent.password.update'), [
+            'current_password' => 'password',
+            'password' => 'TwelveChars!',
+            'password_confirmation' => 'TwelveChars!',
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('success', 'Password updated.');
+
+    expect(Hash::check('TwelveChars!', $fixture['studentUser']->fresh()->password))->toBeTrue();
+});
+
 test('parent profile update does not change linked student phone or gender', function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
     $fixture = portalFixture();
@@ -415,6 +443,30 @@ test('parent profile update does not change linked student phone or gender', fun
         'action' => 'update',
         'table_name' => 'users',
     ]);
+});
+
+test('student can upload an account profile picture without changing biometric faces', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    Storage::fake('public');
+    $fixture = portalFixture();
+
+    $this->actingAs($fixture['studentUser'])
+        ->post(route('student-parent.profile.update'), [
+            '_method' => 'put',
+            'name' => $fixture['studentUser']->name,
+            'phone' => $fixture['studentUser']->phone,
+            'gender' => $fixture['studentUser']->gender,
+            'profile_photo' => UploadedFile::fake()->image('student-profile.jpg', 300, 300)->size(500),
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('success', 'Profile updated.');
+
+    $fixture['studentUser']->refresh();
+
+    expect($fixture['studentUser']->profile_photo_path)->toStartWith('profile-photos/')
+        ->and($fixture['student']->fresh()->face_images)->toBe($fixture['student']->face_images);
+    Storage::disk('public')->assertExists($fixture['studentUser']->profile_photo_path);
 });
 
 test('student-created excuse letter requires parent approval before pdf download', function () {

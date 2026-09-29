@@ -42,6 +42,8 @@ Forgot Password is available to Admin, Instructor, Registrar, Clinic, Student, a
 4. Open the link, enter and confirm a new password, and submit.
 5. A completed recovery clears any first-login password-change requirement.
 
+The New Password field shows the requirement before typing. New passwords must contain at least 12 characters. A shorter value is rejected in both the browser and backend with **Password must be at least 12 characters long.** Confirmation continues to enforce matching and does not define a separate complexity policy.
+
 For privacy, the request screen returns the same generic result even when an email is unknown or belongs to a Console account.
 
 Console accounts cannot use email password recovery. Their access is managed through the attendance-panel administration process.
@@ -56,11 +58,16 @@ After successful authentication:
 
 - The user is redirected to **Create your private password** before any dashboard or role feature.
 - Directly entering another protected URL redirects back to the password-change page.
-- The new password must satisfy the configured password policy, must be confirmed, and must differ from the temporary password.
+- The New Password field displays **Password must be at least 12 characters.** before typing.
+- The new password must contain at least 12 characters, satisfy the configured password policy, be confirmed, and differ from the temporary password. A shorter value returns **Password must be at least 12 characters long.**
 - After saving, the flag is cleared and the user proceeds to the correct role dashboard.
 - Instructor verification occurs after the temporary password has been replaced.
 
 Console accounts are excluded.
+
+The authenticated Student/Parent Change Password form uses the same 12-character minimum and messages. Existing current-password and confirmation checks remain unchanged.
+
+Reset, first-login, and Student/Parent password submissions accept only one in-flight request. Their submit buttons remain disabled and show one stable loading label until the request succeeds or fails, then become available again. Validation messages use the existing single field-error state rather than stacking separate alerts.
 
 ## Administrative Password Resets
 

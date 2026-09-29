@@ -21,6 +21,7 @@ use App\Services\CompreFaceService;
 use App\Services\ExcuseLetterPdfService;
 use App\Services\MessengerEmailNotificationService;
 use App\Services\OnlineClassAttendanceFinalizer;
+use App\Services\ProfilePhotoService;
 use App\Services\StudentEnrollmentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -39,6 +40,7 @@ class StudentsController
     public function __construct(
         private readonly MessengerEmailNotificationService $emailNotifications,
         private readonly OnlineClassAttendanceFinalizer $onlineAttendanceFinalizer,
+        private readonly ProfilePhotoService $profilePhotos,
         private readonly StudentEnrollmentService $studentEnrollmentService,
     ) {}
 
@@ -608,9 +610,19 @@ class StudentsController
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:20'],
             'gender' => ['nullable', 'in:male,female'],
+            'profile_photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'remove_profile_photo' => ['nullable', 'boolean'],
         ]);
 
-        $request->user()->update($validated);
+        $request->user()->update(collect($validated)->except([
+            'profile_photo',
+            'remove_profile_photo',
+        ])->all());
+        $this->profilePhotos->update(
+            $request->user(),
+            $request->file('profile_photo'),
+            $request->boolean('remove_profile_photo'),
+        );
         if (strtolower((string) $request->user()?->role) === 'student') {
             $student = $this->currentStudent($request);
             $student?->update([
@@ -628,7 +640,9 @@ class StudentsController
     {
         $validated = $request->validate([
             'current_password' => ['required', 'current_password'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'password' => ['required', 'string', 'min:12', 'confirmed'],
+        ], [
+            'password.min' => 'Password must be at least 12 characters long.',
         ]);
 
         $request->user()->update(['password' => Hash::make($validated['password'])]);

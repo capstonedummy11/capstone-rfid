@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ActivityLog;
 use App\Models\AcademicYear;
+use App\Models\ActivityLog;
 use App\Models\Instructor;
 use App\Models\Laboratory;
 use App\Models\RfidPanelSession;
@@ -76,26 +76,26 @@ class ScheduleController
                 ->orderBy('time_start')
                 ->get()
                 ->map(fn (Schedule $schedule) => [
-                'scheduled_id'   => $schedule->scheduled_id,
-                'academic_year_id' => $schedule->academic_year_id,
-                'academic_year_name' => $schedule->academicYear?->name,
-                'academic_year_status' => $schedule->academicYear?->status,
-                'subject_offering_id' => $schedule->subject_offering_id,
-                'semester' => $schedule->semester,
-                'is_writable' => $schedule->academicYear?->isWritable() ?? true,
-                'laboratory_id'  => $schedule->laboratory_id,
-                'laboratory_name' => $schedule->laboratory?->name,
-                'instructor_id'  => $schedule->instructor_id,
-                'instructor_name' => $schedule->instructor?->user?->name,
-                'section_id'     => $schedule->section_id,
-                'section_name'   => $schedule->section?->section_name,
-                'subject_code'   => $schedule->subject_code,
-                'subject_name'   => $schedule->subject?->subject_name,
-                'weekdays'       => $schedule->weekdays,
-                'time_start'     => $schedule->time_start,
-                'time_end'       => $schedule->time_end,
-                'room'           => $schedule->room,
-            ])->values(),
+                    'scheduled_id' => $schedule->scheduled_id,
+                    'academic_year_id' => $schedule->academic_year_id,
+                    'academic_year_name' => $schedule->academicYear?->name,
+                    'academic_year_status' => $schedule->academicYear?->status,
+                    'subject_offering_id' => $schedule->subject_offering_id,
+                    'semester' => $schedule->semester,
+                    'is_writable' => $schedule->academicYear?->isWritable() ?? true,
+                    'laboratory_id' => $schedule->laboratory_id,
+                    'laboratory_name' => $schedule->laboratory?->name,
+                    'instructor_id' => $schedule->instructor_id,
+                    'instructor_name' => $schedule->instructor?->user?->name,
+                    'section_id' => $schedule->section_id,
+                    'section_name' => $schedule->section?->section_name,
+                    'subject_code' => $schedule->subject_code,
+                    'subject_name' => $schedule->subject?->subject_name,
+                    'weekdays' => $schedule->weekdays,
+                    'time_start' => $schedule->time_start,
+                    'time_end' => $schedule->time_end,
+                    'room' => $schedule->room,
+                ])->values(),
             'filters' => ['laboratory_id' => $laboratoryId, 'academic_year_id' => $requestedYear === 'all' ? 'all' : $academicYearId, 'semester' => $semester],
             'academicYears' => AcademicYear::query()->orderByDesc('starts_on')->get(['academic_year_id', 'name', 'status']),
             'currentUserRole' => $role,
@@ -155,7 +155,7 @@ class ScheduleController
                 : [],
             'instructorOptions' => $isAdmin ? Instructor::query()->with('user')->get()->map(fn (Instructor $i) => [
                 'instructor_id' => $i->instructor_id,
-                'name'          => $i->user?->name ?? '(No name)',
+                'name' => $i->user?->name ?? '(No name)',
             ])->sortBy('name')->values() : [],
         ]);
     }
@@ -166,12 +166,12 @@ class ScheduleController
             'subject_offering_id' => 'nullable|exists:subject_offerings,subject_offering_id',
             'laboratory_id' => 'nullable|exists:laboratories,laboratory_id',
             'instructor_id' => 'nullable|exists:instructors,instructor_id',
-            'section_id'    => 'nullable|required_without:subject_offering_id|exists:sections,section_id',
-            'subject_code'  => 'nullable|required_without:subject_offering_id|exists:subjects,subject_code',
-            'weekdays'      => 'required|string|max:255',
-            'time_start'    => 'required|date_format:H:i',
-            'time_end'      => 'required|date_format:H:i|after:time_start',
-            'room'          => 'nullable|string|max:255',
+            'section_id' => 'nullable|required_without:subject_offering_id|exists:sections,section_id',
+            'subject_code' => 'nullable|required_without:subject_offering_id|exists:subjects,subject_code',
+            'weekdays' => 'required|string|max:255',
+            'time_start' => 'required|date_format:H:i',
+            'time_end' => 'required|date_format:H:i|after:time_start',
+            'room' => 'nullable|string|max:255',
         ]);
 
         $this->assertQuarterHourTimes($validated);
@@ -180,11 +180,11 @@ class ScheduleController
         $this->assertNoScheduleConflict($validated);
 
         $schedule = Schedule::create(array_merge($validated, [
-            'time_start' => $validated['time_start'] . ':00',
-            'time_end'   => $validated['time_end'] . ':00',
+            'time_start' => $validated['time_start'].':00',
+            'time_end' => $validated['time_end'].':00',
         ]));
 
-        $this->log('create', 'schedules', 'Created schedule ' . $schedule->scheduled_id);
+        $this->log('create', 'schedules', 'Created schedule '.$schedule->scheduled_id);
 
         return back()->with('success', 'Schedule added successfully.');
     }
@@ -201,12 +201,12 @@ class ScheduleController
             'subject_offering_id' => 'nullable|exists:subject_offerings,subject_offering_id',
             'laboratory_id' => 'nullable|exists:laboratories,laboratory_id',
             'instructor_id' => 'nullable|exists:instructors,instructor_id',
-            'section_id'    => 'nullable|required_without:subject_offering_id|exists:sections,section_id',
-            'subject_code'  => 'nullable|required_without:subject_offering_id|exists:subjects,subject_code',
-            'weekdays'      => 'required|string|max:255',
-            'time_start'    => 'required|date_format:H:i',
-            'time_end'      => 'required|date_format:H:i|after:time_start',
-            'room'          => 'nullable|string|max:255',
+            'section_id' => 'nullable|required_without:subject_offering_id|exists:sections,section_id',
+            'subject_code' => 'nullable|required_without:subject_offering_id|exists:subjects,subject_code',
+            'weekdays' => 'required|string|max:255',
+            'time_start' => 'required|date_format:H:i',
+            'time_end' => 'required|date_format:H:i|after:time_start',
+            'room' => 'nullable|string|max:255',
         ]);
 
         $this->assertQuarterHourTimes($validated);
@@ -215,11 +215,11 @@ class ScheduleController
         $this->assertNoScheduleConflict($validated, $schedule->scheduled_id);
 
         $schedule->update(array_merge($validated, [
-            'time_start' => $validated['time_start'] . ':00',
-            'time_end'   => $validated['time_end'] . ':00',
+            'time_start' => $validated['time_start'].':00',
+            'time_end' => $validated['time_end'].':00',
         ]));
 
-        $this->log('update', 'schedules', 'Updated schedule ' . $schedule->scheduled_id);
+        $this->log('update', 'schedules', 'Updated schedule '.$schedule->scheduled_id);
 
         return back()->with('success', 'Schedule updated successfully.');
     }
@@ -236,7 +236,7 @@ class ScheduleController
         }
         $scheduleId = $schedule->scheduled_id;
         $schedule->delete();
-        $this->log('delete', 'schedules', 'Deleted schedule ' . $scheduleId);
+        $this->log('delete', 'schedules', 'Deleted schedule '.$scheduleId);
 
         return back()->with('success', 'Schedule deleted successfully.');
     }
@@ -419,12 +419,25 @@ class ScheduleController
             return;
         }
 
-        $sharedResources = collect([
-            (int) $conflicts->section_id === (int) $attributes['section_id'] ? 'section' : null,
-            ! empty($attributes['instructor_id']) && (int) $conflicts->instructor_id === (int) $attributes['instructor_id'] ? 'instructor' : null,
-            ! empty($attributes['laboratory_id']) && (int) $conflicts->laboratory_id === (int) $attributes['laboratory_id'] ? 'laboratory' : null,
-            $room !== '' && strtolower(trim((string) $conflicts->room)) === $room ? 'room' : null,
-        ])->filter()->unique()->implode(', ');
+        $sectionName = $conflicts->section?->section_name ?: 'ID '.$conflicts->section_id;
+        $instructorName = $conflicts->instructor?->user?->name ?: 'ID '.$conflicts->instructor_id;
+        $laboratoryName = $conflicts->laboratory?->name ?: 'ID '.$conflicts->laboratory_id;
+        $roomName = trim((string) $conflicts->room);
+
+        $conflictReasons = collect([
+            (int) $conflicts->section_id === (int) $attributes['section_id']
+                ? "Section \"{$sectionName}\" already has an overlapping class"
+                : null,
+            ! empty($attributes['instructor_id']) && (int) $conflicts->instructor_id === (int) $attributes['instructor_id']
+                ? "Instructor \"{$instructorName}\" is already assigned to the overlapping class"
+                : null,
+            ! empty($attributes['laboratory_id']) && (int) $conflicts->laboratory_id === (int) $attributes['laboratory_id']
+                ? "Laboratory \"{$laboratoryName}\" is already in use"
+                : null,
+            $room !== '' && strtolower($roomName) === $room
+                ? "Room \"{$roomName}\" is already in use"
+                : null,
+        ])->filter()->unique()->implode('; ');
         $subject = $conflicts->subject?->subject_code ?: 'another subject';
         $days = collect(explode(',', $this->normalizeWeekdays($conflicts->weekdays)))
             ->intersect($weekdays)
@@ -433,16 +446,16 @@ class ScheduleController
         throw ValidationException::withMessages([
             'time_start' => "Schedule conflict with {$subject} on {$days} from "
                 .substr((string) $conflicts->time_start, 0, 5).' to '
-                .substr((string) $conflicts->time_end, 0, 5).". Shared resource: {$sharedResources}.",
+                .substr((string) $conflicts->time_end, 0, 5).". Conflict reason: {$conflictReasons}.",
         ]);
     }
 
     private function log(string $action, string $tableName, string $description): void
     {
         ActivityLog::create([
-            'user_id'     => Auth::id(),
-            'action'      => $action,
-            'table_name'  => $tableName,
+            'user_id' => Auth::id(),
+            'action' => $action,
+            'table_name' => $tableName,
             'description' => $description,
         ]);
     }

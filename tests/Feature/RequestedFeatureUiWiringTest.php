@@ -80,6 +80,55 @@ test('public student and parent recovery page does not expose staff login', func
         ->not->toContain('>Staff login<');
 });
 
+test('password change and reset forms explain the twelve character minimum', function () {
+    $passwordPolicy = file_get_contents(resource_path('js/lib/passwordPolicy.ts'));
+    $resetPassword = file_get_contents(resource_path('js/pages/Auth/ResetPassword.vue'));
+    $firstLoginPassword = file_get_contents(resource_path('js/pages/Auth/FirstLoginPassword.vue'));
+    $portalProfile = file_get_contents(resource_path('js/pages/StudentParent/Profile.vue'));
+
+    expect($passwordPolicy)
+        ->toContain('MIN_PASSWORD_LENGTH = 12')
+        ->toContain('Password must be at least 12 characters.')
+        ->toContain('Password must be at least 12 characters long.')
+        ->and($resetPassword)
+        ->toContain(':minlength="MIN_PASSWORD_LENGTH"')
+        ->toContain('PASSWORD_LENGTH_HELPER')
+        ->toContain('PASSWORD_LENGTH_ERROR')
+        ->and($firstLoginPassword)
+        ->toContain(':minlength="MIN_PASSWORD_LENGTH"')
+        ->toContain('PASSWORD_LENGTH_HELPER')
+        ->toContain('PASSWORD_LENGTH_ERROR')
+        ->and($portalProfile)
+        ->toContain(':minlength="MIN_PASSWORD_LENGTH"')
+        ->toContain('PASSWORD_LENGTH_HELPER')
+        ->toContain('PASSWORD_LENGTH_ERROR');
+});
+
+test('password change and reset actions prevent duplicate rapid submissions', function () {
+    $resetPassword = file_get_contents(resource_path('js/pages/Auth/ResetPassword.vue'));
+    $firstLoginPassword = file_get_contents(resource_path('js/pages/Auth/FirstLoginPassword.vue'));
+    $portalProfile = file_get_contents(resource_path('js/pages/StudentParent/Profile.vue'));
+
+    expect($resetPassword)
+        ->toContain('if (isSubmitting.value) return;')
+        ->toContain('isSubmitting.value = true;')
+        ->toContain('onFinish: () => {')
+        ->toContain('isSubmitting.value = false;')
+        ->toContain(':disabled="isSubmitting || form.processing"')
+        ->and($firstLoginPassword)
+        ->toContain('if (isSubmitting.value) return;')
+        ->toContain('isSubmitting.value = true;')
+        ->toContain('onFinish: () => {')
+        ->toContain('isSubmitting.value = false;')
+        ->toContain(':disabled="isSubmitting || form.processing"')
+        ->and($portalProfile)
+        ->toContain('if (isPasswordSubmitting.value) return;')
+        ->toContain('isPasswordSubmitting.value = true;')
+        ->toContain('onFinish: () => {')
+        ->toContain('isPasswordSubmitting.value = false;')
+        ->toContain('isPasswordSubmitting || passwordForm.processing');
+});
+
 test('portal login forms remember email without requesting persistent authentication', function () {
     $studentParentLogin = file_get_contents(resource_path('js/pages/Auth/StudentParentLogin.vue'));
     $staffLogin = file_get_contents(resource_path('js/pages/Auth/StaffLogin.vue'));
@@ -152,6 +201,21 @@ test('schedule create and update time inputs use quarter hour intervals', functi
         ->toContain('Start time must use a 15-minute interval.')
         ->toContain('End time must use a 15-minute interval.')
         ->not->toContain('step="1800"');
+});
+
+test('schedule landing state is a laboratory and subject dashboard', function () {
+    $schedules = file_get_contents(resource_path('js/pages/Auth/Admin/Schedules.vue'));
+
+    expect($schedules)
+        ->toContain('Schedule Dashboard')
+        ->toContain('Total laboratories')
+        ->toContain('Active laboratories')
+        ->toContain('Labs with schedules')
+        ->toContain('Scheduled subjects')
+        ->toContain('Laboratory schedule summary')
+        ->toContain('const laboratoryDashboard = computed')
+        ->toContain('const dashboardStats = computed')
+        ->not->toContain('All Rooms');
 });
 
 test('excuse letter defaults an empty end date to the selected start date', function () {

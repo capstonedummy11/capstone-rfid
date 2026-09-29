@@ -33,7 +33,7 @@ The reason for this order is simple: schedules need sections, subjects, instruct
 
 For all roles, see the canonical [Authentication and Password Rules](AUTHENTICATION_PASSWORD_RULES.md). Admin, Instructor, Registrar, Clinic, Student, and Parent users can select **Forgot password?** and recover through their registered email. Console accounts are excluded.
 
-When an account is new or an administrator has restored a temporary/default password, login opens **Create your private password** first. Enter and confirm a different password before continuing to the dashboard.
+When an account is new or an administrator has restored a temporary/default password, login opens **Create your private password** first. The New Password field shows the 12-character minimum before typing. Enter at least 12 characters, confirm the different password, and continue to the dashboard. A shorter value shows **Password must be at least 12 characters long.**
 
 Start with an admin or root admin account.
 
@@ -310,6 +310,8 @@ Login as admin, then go to:
 ```
 
 Create schedules only after laboratories, sections, subjects, and instructors exist.
+
+The Schedule page first opens a dashboard instead of combining all laboratories into one timetable. Use its summary cards to review total and active laboratories, laboratories with schedules, unique scheduled subjects, and the subject list for each laboratory. Select a laboratory card or its sidebar entry to open that laboratory's weekly timetable and the **Add Schedule** action.
 
 For each schedule, select:
 
@@ -775,6 +777,19 @@ Use this section as the quick feature map for each role.
 | Parent     | Linked student dashboard, attendance viewing, excuse letter approval, parent-created excuse letters, messages, notifications, profile updates.                                                         |
 | Clinic     | Clinic dashboard, emergency alerts, case logs, patient histories, emergency hotlines, emergency types, clinic reports, Messenger.                                                                      |
 
+### Manage Your Own Profile
+
+Admin, Instructor, Clinic, and Registrar users can open **My Profile** from the System navigation. Student and Parent users open **My Profile** from the Student Portal navigation.
+
+From the profile page:
+
+1. Select **Choose picture** to preview a JPEG, PNG, or WebP account picture up to 2 MB.
+2. Update the available personal fields such as name, phone, or gender. Staff accounts can also update their account email and optional middle/last name.
+3. Select **Save Profile** once. The button remains disabled while the request is running.
+4. Use **Remove** and save when the account should return to the initials placeholder.
+
+Account pictures are stored separately from Student and Instructor biometric face enrollment. Uploading a profile picture does not enroll or replace a face used for attendance verification.
+
 ### Root Admin
 
 Use root admin when the action affects system ownership or admin accounts.
@@ -953,7 +968,7 @@ Features:
 - Excuse letter attachment upload.
 - Messenger and portal messages.
 - Online class notifications.
-- Profile update.
+- Profile picture and contact-detail update.
 - Password update.
 
 Common tasks:
@@ -981,7 +996,7 @@ Features:
 - Excuse letter downloads after approval.
 - Messenger and portal messages.
 - Online class notification viewing when available.
-- Parent profile update.
+- Parent profile picture and contact-detail update.
 - Password update.
 
 Common tasks:

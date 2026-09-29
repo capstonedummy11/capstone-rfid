@@ -13,7 +13,7 @@
             selectedLaboratoryId === null ? 'bg-blue-50 font-semibold text-blue-700' : 'text-slate-700 hover:bg-slate-50',
           ]"
         >
-          All Rooms
+          Dashboard
         </button>
         <button
           v-for="lab in props.laboratories"
@@ -44,7 +44,7 @@
             {{ pageTitle }}
           </h1>
           <p class="text-xs text-slate-400">
-            {{ isAdmin ? 'Weekly schedule overview by room' : 'Your assigned weekly schedule' }}
+            {{ isAdmin ? (selectedLaboratory ? 'Weekly schedule for the selected laboratory' : 'Laboratory and subject overview') : 'Your assigned weekly schedule' }}
           </p>
         </div>
         <select v-model="selectedAcademicYearId" @change="changeAcademicYear" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
@@ -57,18 +57,89 @@
           <option value="2nd Semester">2nd Semester</option>
         </select>
         <button
-          v-if="isAdmin"
+          v-if="isAdmin && selectedLaboratoryId !== null"
           @click="openAddModal"
-          :disabled="selectedLaboratoryId === null"
-          :title="selectedLaboratoryId === null ? 'Select a room first' : 'Add schedule'"
-          class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+          class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
         >
           + Add Schedule
         </button>
       </div>
 
+      <!-- Laboratory dashboard -->
+      <div v-if="isAdmin && selectedLaboratoryId === null" class="flex-1 overflow-auto p-6">
+        <div class="mx-auto max-w-7xl space-y-6">
+          <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Schedule summary">
+            <article class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p class="text-xs font-semibold tracking-wide text-slate-500 uppercase">Total laboratories</p>
+              <p class="mt-2 text-3xl font-bold text-slate-900">{{ dashboardStats.totalLaboratories }}</p>
+              <p class="mt-1 text-xs text-slate-500">All configured laboratories</p>
+            </article>
+            <article class="rounded-xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+              <p class="text-xs font-semibold tracking-wide text-emerald-700 uppercase">Active laboratories</p>
+              <p class="mt-2 text-3xl font-bold text-emerald-900">{{ dashboardStats.activeLaboratories }}</p>
+              <p class="mt-1 text-xs text-emerald-700">Available for scheduling</p>
+            </article>
+            <article class="rounded-xl border border-blue-200 bg-blue-50 p-5 shadow-sm">
+              <p class="text-xs font-semibold tracking-wide text-blue-700 uppercase">Labs with schedules</p>
+              <p class="mt-2 text-3xl font-bold text-blue-900">{{ dashboardStats.scheduledLaboratories }}</p>
+              <p class="mt-1 text-xs text-blue-700">For the selected year and semester</p>
+            </article>
+            <article class="rounded-xl border border-violet-200 bg-violet-50 p-5 shadow-sm">
+              <p class="text-xs font-semibold tracking-wide text-violet-700 uppercase">Scheduled subjects</p>
+              <p class="mt-2 text-3xl font-bold text-violet-900">{{ dashboardStats.scheduledSubjects }}</p>
+              <p class="mt-1 text-xs text-violet-700">Unique subjects across laboratories</p>
+            </article>
+          </section>
+
+          <section>
+            <div class="mb-3">
+              <h2 class="text-base font-bold text-slate-800">Laboratory schedule summary</h2>
+              <p class="text-sm text-slate-500">Select a laboratory to open its weekly timetable.</p>
+            </div>
+            <div v-if="laboratoryDashboard.length" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <button
+                v-for="laboratory in laboratoryDashboard"
+                :key="laboratory.laboratory_id"
+                type="button"
+                class="rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                @click="selectLaboratory(laboratory.laboratory_id)"
+              >
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 class="font-bold text-slate-900">{{ laboratory.name }}</h3>
+                    <p class="mt-1 text-xs text-slate-500">
+                      {{ laboratory.scheduleCount }} schedule {{ laboratory.scheduleCount === 1 ? 'entry' : 'entries' }}
+                      ·
+                      {{ laboratory.subjects.length }} {{ laboratory.subjects.length === 1 ? 'subject' : 'subjects' }}
+                    </p>
+                  </div>
+                  <span
+                    class="shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold uppercase"
+                    :class="laboratory.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'"
+                  >
+                    {{ laboratory.status || 'Unknown' }}
+                  </span>
+                </div>
+                <div v-if="laboratory.subjects.length" class="mt-4 flex flex-wrap gap-2">
+                  <span
+                    v-for="subject in laboratory.subjects"
+                    :key="subject.code"
+                    class="rounded-md bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700"
+                    :title="subject.name"
+                  >
+                    {{ subject.code }}<span v-if="subject.name"> - {{ subject.name }}</span>
+                  </span>
+                </div>
+                <p v-else class="mt-4 text-xs text-slate-400">No subjects scheduled for the selected filters.</p>
+              </button>
+            </div>
+            <div v-else class="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">No laboratories found.</div>
+          </section>
+        </div>
+      </div>
+
       <!-- Timetable -->
-      <div class="flex-1 overflow-auto p-4">
+      <div v-else class="flex-1 overflow-auto p-4">
         <div class="min-w-[900px] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
           <table class="w-full table-fixed border-collapse text-sm">
             <colgroup>
@@ -402,7 +473,7 @@ const selectedLaboratory = computed(() => (selectedLaboratoryId.value === null ?
 
 const pageTitle = computed(() => {
   if (!isAdmin.value) return 'My Schedule';
-  return selectedLaboratory.value ? selectedLaboratory.value.name : 'All Rooms';
+  return selectedLaboratory.value ? selectedLaboratory.value.name : 'Schedule Dashboard';
 });
 
 const emptyMessage = computed(() => {
@@ -429,6 +500,36 @@ const selectLaboratory = (id: number | null) => {
 const filteredSchedules = computed(() =>
   !isAdmin.value || selectedLaboratoryId.value === null ? props.schedules : props.schedules.filter((s) => Number(s.laboratory_id) === selectedLaboratoryId.value),
 );
+
+const laboratoryDashboard = computed(() =>
+  props.laboratories.map((laboratory) => {
+    const schedules = props.schedules.filter((schedule) => Number(schedule.laboratory_id) === laboratory.laboratory_id);
+    const subjects = new Map<string, { code: string; name: string }>();
+
+    schedules.forEach((schedule) => {
+      const code = schedule.subject_code?.trim();
+      if (!code || subjects.has(code)) return;
+
+      subjects.set(code, {
+        code,
+        name: schedule.subject_name?.trim() ?? '',
+      });
+    });
+
+    return {
+      ...laboratory,
+      scheduleCount: schedules.length,
+      subjects: Array.from(subjects.values()).sort((left, right) => left.code.localeCompare(right.code)),
+    };
+  }),
+);
+
+const dashboardStats = computed(() => ({
+  totalLaboratories: props.laboratories.length,
+  activeLaboratories: props.laboratories.filter((laboratory) => laboratory.status?.toLowerCase() === 'active').length,
+  scheduledLaboratories: laboratoryDashboard.value.filter((laboratory) => laboratory.scheduleCount > 0).length,
+  scheduledSubjects: new Set(props.schedules.map((schedule) => schedule.subject_code?.trim()).filter(Boolean)).size,
+}));
 
 // â”€â”€â”€ Timetable grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 

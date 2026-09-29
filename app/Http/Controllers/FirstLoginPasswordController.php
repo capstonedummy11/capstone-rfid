@@ -31,7 +31,7 @@ class FirstLoginPasswordController extends Controller
 
         $validated = Validator::make($request->all(), [
             'password' => $this->passwordRules(),
-        ])->validate();
+        ], $this->passwordValidationMessages())->validate();
 
         abort_if(Hash::check($validated['password'], (string) $request->user()->password), 422, 'Choose a password different from your temporary password.');
 
