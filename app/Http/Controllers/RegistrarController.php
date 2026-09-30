@@ -9,6 +9,7 @@ use App\Models\Students;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
@@ -141,7 +142,13 @@ class RegistrarController
     public function updateStudentRfid(Request $request, Students $student)
     {
         $validated = $request->validate([
-            'rfid_tag' => ['required', 'string', 'max:255', 'unique:students,rfid_tag,'.$student->student_id.',student_id', 'unique:users,rfid_tag'],
+            'rfid_tag' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('students', 'rfid_tag')->whereNull('deleted_at')->ignore($student->student_id, 'student_id'),
+                Rule::unique('users', 'rfid_tag')->whereNull('deleted_at'),
+            ],
         ]);
 
         $student->update(['rfid_tag' => $validated['rfid_tag']]);
@@ -155,7 +162,13 @@ class RegistrarController
         abort_unless(strtolower((string) $user->role) === 'instructor', 404);
 
         $validated = $request->validate([
-            'rfid_tag' => ['required', 'string', 'max:255', 'unique:users,rfid_tag,'.$user->user_id.',user_id', 'unique:students,rfid_tag'],
+            'rfid_tag' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('users', 'rfid_tag')->whereNull('deleted_at')->ignore($user->user_id, 'user_id'),
+                Rule::unique('students', 'rfid_tag')->whereNull('deleted_at'),
+            ],
         ]);
 
         $user->update(['rfid_tag' => $validated['rfid_tag']]);

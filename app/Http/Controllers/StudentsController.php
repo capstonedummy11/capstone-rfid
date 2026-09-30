@@ -251,11 +251,11 @@ class StudentsController
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'student_number' => 'required|string|max:255|unique:students,student_number',
+            'student_number' => ['required', 'string', 'max:255', Rule::unique('students', 'student_number')->whereNull('deleted_at')],
             'first_name' => 'required|string|max:255',
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
-            'email' => 'required|email|max:255|unique:students,email',
+            'email' => ['required', 'email', 'max:255', Rule::unique('students', 'email')->whereNull('deleted_at')],
             'phone' => 'nullable|string|max:20',
             'gender' => 'nullable|in:male,female',
             'strand_id' => 'required|exists:strands,strand_id',
@@ -263,7 +263,7 @@ class StudentsController
             'year_level' => 'required|integer|in:11,12',
             'semester' => 'required|string|max:50',
             'school_year' => 'required|string|max:20',
-            'rfid_tag' => 'nullable|string|max:255|unique:students,rfid_tag',
+            'rfid_tag' => ['nullable', 'string', 'max:255', Rule::unique('students', 'rfid_tag')->whereNull('deleted_at')],
             'status' => 'required|in:active,inactive,graduated,dropped',
         ]);
 
@@ -324,11 +324,11 @@ class StudentsController
         $student = Students::findOrFail($id);
 
         $validated = $request->validate([
-            'student_number' => 'required|string|max:255|unique:students,student_number,'.$id.',student_id',
+            'student_number' => ['required', 'string', 'max:255', Rule::unique('students', 'student_number')->whereNull('deleted_at')->ignore($id, 'student_id')],
             'first_name' => 'required|string|max:255',
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
-            'email' => 'required|email|max:255|unique:students,email,'.$id.',student_id',
+            'email' => ['required', 'email', 'max:255', Rule::unique('students', 'email')->whereNull('deleted_at')->ignore($id, 'student_id')],
             'phone' => 'nullable|string|max:20',
             'gender' => 'nullable|in:male,female',
             'strand_id' => 'required|exists:strands,strand_id',
@@ -336,7 +336,7 @@ class StudentsController
             'year_level' => 'required|integer|in:11,12',
             'semester' => 'required|string|max:50',
             'school_year' => 'required|string|max:20',
-            'rfid_tag' => 'nullable|string|max:255|unique:students,rfid_tag,'.$id.',student_id',
+            'rfid_tag' => ['nullable', 'string', 'max:255', Rule::unique('students', 'rfid_tag')->whereNull('deleted_at')->ignore($id, 'student_id')],
             'status' => 'required|in:active,inactive,graduated,dropped',
         ]);
 
@@ -453,7 +453,7 @@ class StudentsController
         $validated = $request->validate([
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($parentUser->user_id, 'user_id')],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->whereNull('deleted_at')->ignore($parentUser->user_id, 'user_id')],
             'phone' => ['nullable', 'string', 'max:50'],
             'gender' => ['nullable', 'in:male,female'],
             'relationship' => ['required', 'string', 'max:100'],

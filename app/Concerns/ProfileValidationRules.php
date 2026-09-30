@@ -43,8 +43,8 @@ trait ProfileValidationRules
             'email',
             'max:255',
             $userId === null
-                ? Rule::unique(User::class)
-                : Rule::unique(User::class)->ignore($userId, (new User())->getKeyName()),
+                ? Rule::unique(User::class)->whereNull('deleted_at')
+                : Rule::unique(User::class)->whereNull('deleted_at')->ignore($userId, (new User)->getKeyName()),
         ];
     }
 }

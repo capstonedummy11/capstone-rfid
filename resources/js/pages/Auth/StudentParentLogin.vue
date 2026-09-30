@@ -1,9 +1,9 @@
 <script setup>
 import logo from '@/assets/images/logo.png';
-import philsca from '@/assets/images/philsca.png';
-import featureImage from '@/assets/images/Container.png';
-import featureImage2 from '@/assets/images/Container 2.png';
-import featureImage3 from '@/assets/images/Container 3.png';
+import heroImage from '@/assets/images/Home/3.png';
+import attendanceImage from '@/assets/images/Home/1.jpg';
+import onlineClassesImage from '@/assets/images/Home/4.jpeg';
+import messagesImage from '@/assets/images/Home/2.jpg';
 import container4 from '@/assets/images/Container 4.png';
 import item1 from '@/assets/images/Item 1.png';
 import item2 from '@/assets/images/Item 2.png';
@@ -49,17 +49,17 @@ const helperText = computed(() =>
 
 const featureCards = [
     {
-        image: featureImage,
+        image: attendanceImage,
         title: 'ATTENDANCE TRACKING',
         sub: 'View attendance records, time logs, class participation, and portal updates from one student-centered dashboard.',
     },
     {
-        image: featureImage2,
+        image: onlineClassesImage,
         title: 'ONLINE CLASSES',
         sub: 'Access class sessions, meeting links, notifications, and join records through the student and parent portal.',
     },
     {
-        image: featureImage3,
+        image: messagesImage,
         title: 'MESSAGES',
         sub: 'Send portal messages, manage conversations, and keep school communication organized in one place.',
     },
@@ -231,8 +231,8 @@ onMounted(() => {
         <main>
             <section class="relative min-h-[calc(100vh-74px)] overflow-hidden">
                 <img
-                    :src="philsca"
-                    alt="Philsca campus"
+                    :src="heroImage"
+                    alt="RFID attendance system presented at the PhilSCA campus"
                     class="absolute inset-0 h-full w-full object-cover"
                 />
                 <div class="absolute inset-0 bg-[#193153]/60" />

@@ -12,6 +12,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
@@ -121,7 +122,7 @@ class SubjectController
             'section_id' => 'required|exists:sections,section_id',
             'user_id' => 'nullable|exists:users,user_id',
             'subject_name' => 'required|string|max:255',
-            'subject_code' => 'required|string|max:255|unique:subjects,subject_code',
+            'subject_code' => ['required', 'string', 'max:255', Rule::unique('subjects', 'subject_code')->whereNull('deleted_at')],
             'subject_description' => 'nullable|string',
             'department' => 'nullable|string|max:255',
             'unit' => 'required|integer|min:0',
@@ -149,7 +150,7 @@ class SubjectController
             'section_id' => 'nullable|exists:sections,section_id',
             'user_id' => 'nullable|exists:users,user_id',
             'subject_name' => 'required|string|max:255',
-            'subject_code' => 'required|string|max:255|unique:subjects,subject_code,'.$id.',subject_id',
+            'subject_code' => ['required', 'string', 'max:255', Rule::unique('subjects', 'subject_code')->whereNull('deleted_at')->ignore($id, 'subject_id')],
             'subject_description' => 'nullable|string',
             'department' => 'nullable|string|max:255',
             'unit' => 'required|integer|min:0',

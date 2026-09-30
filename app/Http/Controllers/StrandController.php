@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Strand;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class StrandController
@@ -29,9 +30,9 @@ class StrandController
         // Apply search filter
         if ($search) {
             $query->where(function ($q) use ($search) {
-                $q->whereRaw('LOWER(strand_code) LIKE ?', ['%' . strtolower($search) . '%'])
-                    ->orWhereRaw('LOWER(strand_name) LIKE ?', ['%' . strtolower($search) . '%'])
-                    ->orWhereRaw('LOWER(department) LIKE ?', ['%' . strtolower($search) . '%']);
+                $q->whereRaw('LOWER(strand_code) LIKE ?', ['%'.strtolower($search).'%'])
+                    ->orWhereRaw('LOWER(strand_name) LIKE ?', ['%'.strtolower($search).'%'])
+                    ->orWhereRaw('LOWER(department) LIKE ?', ['%'.strtolower($search).'%']);
             });
         }
 
@@ -74,7 +75,7 @@ class StrandController
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'strand_code' => 'required|unique:strands,strand_code',
+            'strand_code' => ['required', Rule::unique('strands', 'strand_code')->whereNull('deleted_at')],
             'strand_name' => 'required|string|max:255',
             'department' => 'required|string|max:255',
             'status' => 'required|in:active,inactive',
@@ -109,7 +110,7 @@ class StrandController
         $strand = Strand::findOrFail($id);
 
         $validated = $request->validate([
-            'strand_code' => 'required|unique:strands,strand_code,' . $id . ',strand_id',
+            'strand_code' => ['required', Rule::unique('strands', 'strand_code')->whereNull('deleted_at')->ignore($id, 'strand_id')],
             'strand_name' => 'required|string|max:255',
             'department' => 'required|string|max:255',
             'status' => 'required|in:active,inactive',

@@ -38,7 +38,7 @@ class SubjectOffering extends Model
 
     public function instructor(): BelongsTo
     {
-        return $this->belongsTo(Instructor::class, 'instructor_id', 'instructor_id');
+        return $this->belongsTo(Instructor::class, 'instructor_id', 'instructor_id')->withTrashed();
     }
 
     public function isWritable(): bool

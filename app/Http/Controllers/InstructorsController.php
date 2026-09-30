@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class InstructorsController
@@ -117,15 +118,15 @@ class InstructorsController
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'instructor_number' => 'required|unique:instructors',
+            'instructor_number' => ['required', Rule::unique('instructors', 'instructor_number')->whereNull('deleted_at')],
             'first_name' => 'required|string|max:255',
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users',
+            'email' => ['required', 'email', Rule::unique('users', 'email')->whereNull('deleted_at')],
             'phone' => 'nullable|string|max:20',
             'gender' => 'nullable|in:male,female',
             'strand_id' => 'required|exists:strands,strand_id',
-            'rfid_tag' => 'nullable|string|unique:users,rfid_tag',
+            'rfid_tag' => ['nullable', 'string', Rule::unique('users', 'rfid_tag')->whereNull('deleted_at')],
             'status' => 'required|in:active,inactive,on_leave',
         ]);
 
@@ -184,15 +185,15 @@ class InstructorsController
         $instructor = Instructor::with('user')->findOrFail($id);
 
         $validated = $request->validate([
-            'instructor_number' => 'required|unique:instructors,instructor_number,'.$id.',instructor_id',
+            'instructor_number' => ['required', Rule::unique('instructors', 'instructor_number')->whereNull('deleted_at')->ignore($id, 'instructor_id')],
             'first_name' => 'required|string|max:255',
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,'.$instructor->user_id.',user_id',
+            'email' => ['required', 'email', Rule::unique('users', 'email')->whereNull('deleted_at')->ignore($instructor->user_id, 'user_id')],
             'phone' => 'nullable|string|max:20',
             'gender' => 'nullable|in:male,female',
             'strand_id' => 'required|exists:strands,strand_id',
-            'rfid_tag' => 'nullable|string|unique:users,rfid_tag,'.$instructor->user_id.',user_id',
+            'rfid_tag' => ['nullable', 'string', Rule::unique('users', 'rfid_tag')->whereNull('deleted_at')->ignore($instructor->user_id, 'user_id')],
             'status' => 'required|in:active,inactive,on_leave',
         ]);
 
@@ -281,11 +282,10 @@ class InstructorsController
     {
         $instructor = Instructor::with('user')->findOrFail($id);
 
-        if ($instructor->user) {
-            $instructor->user->delete();
-        } else {
+        DB::transaction(function () use ($instructor) {
             $instructor->delete();
-        }
+            $instructor->user?->delete();
+        });
 
         return back()->with('success', 'Instructor deleted successfully.');
     }

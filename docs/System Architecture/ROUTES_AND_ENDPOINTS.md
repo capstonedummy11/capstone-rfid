@@ -9,7 +9,7 @@ All application endpoints use Laravel's `web` middleware and session/CSRF model.
 | Methods and URI | Name/purpose | Main protection |
 | --- | --- | --- |
 | `GET /`, `GET /home`, `GET /dashboard` | Landing and role redirects. | Dashboard requires auth. |
-| `GET /about`, `GET /up` | About placeholder and health response. | Public. |
+| `GET /about`, `GET /up` | Public About Us page and health response. | Public. |
 | `GET/POST /{SECURE_LOGIN_ROUTE}` | Staff login page/submit. | Guest + login throttle on POST. |
 | `GET /secure-login` | Compatibility redirect to configured staff path. | Public. |
 | `POST /login` | Student/Parent login submit. | Guest + login throttle. |

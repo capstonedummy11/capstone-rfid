@@ -61,6 +61,7 @@ The command is defined in `composer.json` and explicitly runs the relevant featu
 | Searchable autosuggestions in large Admin relationship fields                                                                 | `tests/Feature/RequestedFeatureUiWiringTest.php`                                             |
 | Clinic responder assignment, notification, history, and case ownership                                                        | `tests/Feature/ClinicFlowTest.php`                                                           |
 | Add/create and delete modal routes across Admin, Clinic, Registrar, messaging, and portal workflows                           | `tests/Feature/ControllerEntityWorkflowTest.php` plus the module-specific feature tests      |
+| Reuse of soft-deleted email, RFID, Student/Instructor number, Subject code, Strand code, and inventory barcode values         | `tests/Feature/SoftDeleteUniqueReuseTest.php`                                                |
 
 ## Full Backend Suite
 

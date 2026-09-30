@@ -241,7 +241,7 @@ test('subject controller creates catalog subject offering then updates removes o
         ->assertRedirect()
         ->assertSessionHas('success');
 
-    $this->assertDatabaseMissing('subjects', ['subject_id' => $subject->subject_id]);
+    $this->assertSoftDeleted('subjects', ['subject_id' => $subject->subject_id]);
 });
 
 test('instructor controller creates linked user then updates index and deletes through the user', function () {
@@ -357,6 +357,7 @@ test('instructor controller creates linked user then updates index and deletes t
     $this->actingAs($admin)->delete(route('admin.instructors.destroy', $instructor->instructor_id))
         ->assertRedirect()
         ->assertSessionHas('success');
+    $this->assertSoftDeleted('instructors', ['instructor_id' => $instructor->instructor_id]);
     $this->assertSoftDeleted('users', ['user_id' => $instructor->user_id]);
 });
 

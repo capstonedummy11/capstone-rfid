@@ -150,7 +150,7 @@ class AdminUserController extends Controller
     {
         $rules = [
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user?->user_id, 'user_id')],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->whereNull('deleted_at')->ignore($user?->user_id, 'user_id')],
             'role' => ['required', Rule::in(self::MANAGED_ROLES)],
             'phone' => ['nullable', 'string', 'max:50'],
             'is_root_admin' => ['nullable', 'boolean'],

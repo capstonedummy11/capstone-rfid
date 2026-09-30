@@ -23,12 +23,12 @@ The migration set does **not** create `jobs`, `job_batches`, or `failed_jobs`, e
 | `laboratories` | `laboratory_id PK`, `name`, `description?`, `location`, `status` | Physical rooms/labs referenced by schedules and assigned panel devices. |
 | `strands` | `strand_id PK`, `strand_code unique`, `strand_name`, `department`, `status`, `deleted_at?` | Academic strand/track; parent of Sections, Instructors, and enrollments. |
 | `sections` | `section_id PK`, `strand_id FK`, `section_name`, `year_level`, `semester`, `school_year`, `status`, `academic_year_id? FK` | Year/semester class group. Academic year deletion restricted. |
-| `subjects` | `subject_id PK`, legacy `section_id? FK`, legacy `user_id? FK`, `subject_name`, `subject_code unique`, `year_level?`, `department?`, `unit`, `semester?`, `subject_description?` | Reusable subject catalog. Legacy assignment columns remain nullable for compatibility. |
+| `subjects` | `subject_id PK`, legacy `section_id? FK`, legacy `user_id? FK`, `subject_name`, active `subject_code` unique, `year_level?`, `department?`, `unit`, `semester?`, `subject_description?`, `deleted_at?` | Reusable subject catalog. Legacy assignment columns remain nullable for compatibility. Soft deleted. |
 | `subject_offerings` | `subject_offering_id PK`, `academic_year_id FK`, `subject_id FK`, `section_id FK`, `instructor_id? FK`, `semester`, `status` | Year-specific assignment. Year/subject/section deletion restricted; Instructor deletion sets null. |
 | `schedules` | `scheduled_id PK`, `academic_year_id? FK`, `subject_offering_id? FK`, `section_id FK`, `subject_code`, `semester?`, `laboratory_id? FK`, `instructor_id? FK`, `weekdays`, `time_start`, `time_end`, `room` | Scheduled class. Academic/offering deletion restricted; lab/Instructor deletion sets null. |
 | `students` | `student_id PK`, legacy/current `section_id? FK`, `strand_id? FK`, `student_number unique`, `first_name`, `last_name`, `middle_name?`, `gender`, `email? unique`, `phone?`, `year_level?`, `semester?`, `school_year?`, `rfid_tag? unique`, `status`, `face_images? JSON`, `deleted_at?` | Permanent Student identity plus compatibility current placement. Soft deleted. |
 | `student_enrollments` | `student_enrollment_id PK`, `student_id FK`, `academic_year_id FK`, `section_id FK`, `strand_id FK`, `year_level`, `semester`, `status` default `enrolled`, `enrolled_at?`, `ended_at?` | Historical Student placement. Unique Student/year/semester; Student deletion cascades, academic references restrict. |
-| `instructors` | `instructor_id PK`, `user_id FK`, `strand_id FK`, `instructor_number unique`, `status` | Instructor profile. User deletion cascades. |
+| `instructors` | `instructor_id PK`, `user_id FK`, `strand_id FK`, active `instructor_number` unique, `status`, `deleted_at?` | Instructor profile. Instructor and linked User records are soft deleted together. |
 | `registrar_enrollment_logs` | `id PK`, `registrar_user_id? FK`, `action`, `person_type`, `person_id`, `person_name`, `identifier?` | Immutable-style Registrar RFID/face audit. Registrar deletion sets null. |
 | `legacy_academic_fallback_events` | `legacy_academic_fallback_event_id PK`, `context unique`, `use_count`, `last_used_at?`, `last_payload? JSON` | Counts runtime reads that fall back to deprecated academic columns. |
 
@@ -103,10 +103,11 @@ The migration set does **not** create `jobs`, `job_batches`, or `failed_jobs`, e
 - Section identity is scoped by academic year/semester in the evolved schema rules.
 - One Student enrollment is expected per Student/year/semester.
 - One subject offering is expected per year/semester/subject/section combination.
-- RFID tags are unique separately on `users` and `students`; controller checks must prevent cross-table collisions.
+- Email, RFID, Student/Instructor numbers, Subject codes, Strand codes, and inventory barcodes are unique among active rows. Soft-deleted rows retain their original values for audit history but do not block replacement records. SQLite/PostgreSQL enforce this with partial unique indexes; MySQL uses generated active-value columns with unique indexes.
+- RFID tags are unique separately on active `users` and active `students`; controller checks also prevent cross-table collisions.
 - Online attendance is unique per class/Student and finalizer inserts are idempotent.
 - Rollover source/destination and rollover/Student pairs are unique.
-- Soft-delete tables retain history and may release or continue to occupy unique values depending on query/controller behavior.
+- Soft-delete validation must use `Rule::unique(...)->whereNull('deleted_at')`; update rules must additionally ignore the current primary key. Database indexes remain the final concurrency-safe enforcement layer.
 
 ## File storage that is not in the database
 

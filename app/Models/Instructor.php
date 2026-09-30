@@ -2,24 +2,25 @@
 
 namespace App\Models;
 
-use App\Models\Strand;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Instructor extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'instructors';
+
     protected $primaryKey = 'instructor_id';
 
     protected $fillable = [
         'user_id',
         'strand_id',
         'instructor_number',
-        'status'
+        'status',
     ];
 
     /**
