@@ -2,7 +2,7 @@
 import CameraCapture from '@/components/CameraCapture.vue';
 import { FaceLivenessError, runFaceLiveness } from '@/lib/faceLiveness';
 import logo from '@/assets/images/logo-only.jpg';
-import schoolPhoto from '@/assets/images/philsca.png';
+import schoolPhoto from '@/assets/images/pasayCitysouth.png';
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import {
     ArrowRight,

@@ -4,7 +4,7 @@ import featureImage2 from '@/assets/images/Container 2.png';
 import featureImage3 from '@/assets/images/Container 3.png';
 import container4 from '@/assets/images/Container 4.png';
 import logo from '@/assets/images/logo-only.jpg';
-import schoolPhoto from '@/assets/images/philsca.png';
+import schoolPhoto from '@/assets/images/pasayCitysouth.png';
 import {
     getSavedStaffProfiles,
     removeSavedStaffProfile,

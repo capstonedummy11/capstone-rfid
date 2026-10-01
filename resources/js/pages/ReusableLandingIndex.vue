@@ -50,8 +50,8 @@
                 class="relative min-h-[calc(100vh-74px)] overflow-hidden"
             >
                 <img
-                    :src="philsca"
-                    alt="Philsca campus"
+                    :src="pasayCitysouth"
+                    alt="Pasay City South campus"
                     class="absolute inset-0 h-full w-full object-cover"
                 />
                 <div class="absolute inset-0 bg-[#193153]/55"></div>
@@ -255,7 +255,7 @@
 <script setup>
 import { ref } from 'vue';
 import logo from '@/assets/images/logo.png';
-import philsca from '@/assets/images/philsca.png';
+import pasayCitysouth from '@/assets/images/pasayCitysouth.png';
 import featureImage from '@/assets/images/Container.png';
 import featureImage2 from '@/assets/images/Container 2.png';
 import featureImage3 from '@/assets/images/Container 3.png';

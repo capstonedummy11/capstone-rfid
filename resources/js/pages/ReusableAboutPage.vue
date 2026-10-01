@@ -51,8 +51,8 @@
         <main>
             <section class="relative overflow-hidden bg-[#002F5B] text-white">
                 <img
-                    :src="philsca"
-                    alt="Philsca campus"
+                    :src="pasayCitysouth"
+                    alt="Pasay City South campus"
                     class="absolute inset-0 h-full w-full object-cover opacity-25"
                 />
                 <div
@@ -181,7 +181,7 @@
 <script setup>
 import { ref } from 'vue';
 import logo from '@/assets/images/logo.png';
-import philsca from '@/assets/images/philsca.png';
+import pasayCitysouth from '@/assets/images/pasayCitysouth.png';
 import container4 from '@/assets/images/Container 4.png';
 import Footer from '@/components/LandingPage/Footer.vue';
 

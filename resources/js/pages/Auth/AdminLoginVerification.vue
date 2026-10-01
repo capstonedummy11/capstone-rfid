@@ -1,6 +1,6 @@
 <script setup>
 import logo from '@/assets/images/logo-only.jpg';
-import schoolPhoto from '@/assets/images/philsca.png';
+import schoolPhoto from '@/assets/images/pasayCitysouth.png';
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { KeyRound, LogOut, Mail, ShieldCheck } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';

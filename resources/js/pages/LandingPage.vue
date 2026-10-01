@@ -6,8 +6,8 @@
             class="relative min-h-[400px] flex-1 overflow-hidden md:h-screen"
         >
             <img
-                :src="philsca"
-                alt="Philsca"
+                :src="pasayCitysouth"
+                alt="Pasay City South campus"
                 class="absolute inset-0 h-full w-full object-cover"
             />
 
@@ -119,7 +119,7 @@
 </template>
 
 <script setup>
-import philsca from '@/assets/images/philsca.png';
+import pasayCitysouth from '@/assets/images/pasayCitysouth.png';
 import Button from '@/components/Buttons/Button.vue';
 import FeatureCard from '@/components/Cards/FeatureCard.vue';
 import FeatureImage from '@/assets/images/Container.png';
