@@ -1,1 +1,0 @@
-import{K as e,c as o,a as t,o as a}from"./app-Dl47K56k.js";const r={},n={class:"mx-auto w-full max-w-md p-6"};function c(l,s){return a(),o("section",n,[...s[0]||(s[0]=[t("h1",{class:"text-xl font-semibold text-slate-900"},"Confirm Password",-1)])])}const m=e(r,[["render",c]]);export{m as default};
