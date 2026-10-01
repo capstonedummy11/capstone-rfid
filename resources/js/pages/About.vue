@@ -114,12 +114,6 @@
                                 >
                                     {{ developer.description }}
                                 </p>
-                                <p
-                                    v-if="developer.revealed"
-                                    class="mt-3 text-xs font-semibold tracking-[0.18em] text-brand uppercase"
-                                >
-                                    Easter egg unlocked
-                                </p>
                             </div>
                         </article>
                     </div>
