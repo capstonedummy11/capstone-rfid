@@ -13,7 +13,7 @@
                         class="m-5"
                     />
                     <NavButton
-                        href="#about_us"
+                        :href="route('about')"
                         :label="'About Us'"
                         class="m-5"
                     />
@@ -45,7 +45,7 @@
                     class="m-5"
                 />
                 <NavButton
-                    href="#about_us"
+                    :href="route('about')"
                     :label="'About Us'"
                     class="m-5"
                     @click="isMenuOpen = false"

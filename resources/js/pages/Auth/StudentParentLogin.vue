@@ -250,7 +250,7 @@ onMounted(() => {
                     class="hidden items-center gap-7 text-sm font-semibold text-default md:flex"
                 >
                     <a href="/" class="transition hover:text-brand">Home</a>
-                    <a href="#about_us" class="transition hover:text-brand">
+                    <a href="/about" class="transition hover:text-brand">
                         About Us
                     </a>
                     <button
@@ -282,9 +282,7 @@ onMounted(() => {
                     class="flex flex-col gap-4 text-sm font-semibold text-default"
                 >
                     <a href="/" @click="isMenuOpen = false">Home</a>
-                    <a href="#about_us" @click="isMenuOpen = false">
-                        About Us
-                    </a>
+                    <a href="/about" @click="isMenuOpen = false"> About Us </a>
                     <button
                         type="button"
                         class="bg-brand px-5 py-2 text-center text-white"

@@ -130,7 +130,7 @@
                 <img
                     :src="teamPhoto"
                     alt="The four developers together outside PhilSCA"
-                    class="h-[420px] w-full object-cover object-[center_78%] opacity-80 md:h-[560px] md:object-[center_74%]"
+                    class="h-[420px] w-full object-cover object-[center_58%] opacity-80 md:h-[560px] md:object-[center_60%]"
                 />
                 <div
                     class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#071052] via-[#071052]/70 to-transparent px-6 pt-24 pb-10 text-center text-white"

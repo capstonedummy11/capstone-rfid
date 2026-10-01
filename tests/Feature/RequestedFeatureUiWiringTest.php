@@ -277,6 +277,23 @@ test('about developer easter egg is temporary and removes the portrait border', 
         ->toContain('}, EASTER_EGG_DURATION_MS);');
 });
 
+test('public navigation opens the about page and centers the team photo faces', function () {
+    $about = file_get_contents(resource_path('js/pages/About.vue'));
+    $landing = file_get_contents(resource_path('js/pages/ReusableLandingIndex.vue'));
+    $studentLogin = file_get_contents(resource_path('js/pages/Auth/StudentParentLogin.vue'));
+    $layout = file_get_contents(resource_path('js/layouts/Layout.vue'));
+
+    expect($about)
+        ->toContain('object-[center_58%]')
+        ->toContain('md:object-[center_60%]')
+        ->and($landing)->not->toContain('href="#about_us"')
+        ->and($landing)->toContain('href="/about"')
+        ->and($studentLogin)->not->toContain('href="#about_us"')
+        ->and($studentLogin)->toContain('href="/about"')
+        ->and($layout)->not->toContain('href="#about_us"')
+        ->and($layout)->toContain(':href="route(\'about\')"');
+});
+
 test('landing portal showcase is a student feature carousel', function () {
     $landing = file_get_contents(resource_path('js/pages/Auth/StudentParentLogin.vue'));
 
