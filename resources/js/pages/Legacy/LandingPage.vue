@@ -1,3 +1,7 @@
+<!--
+    Legacy landing page retained for historical reference.
+    The active public landing page is Auth/StudentParentLogin.vue.
+-->
 <template>
     <div class="flex h-[calc(100vh-100px)] flex-col overflow-hidden">
         <header class="h-[75px] shrink-0 bg-brand"></header>

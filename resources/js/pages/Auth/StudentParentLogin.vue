@@ -1,6 +1,6 @@
 <script setup>
 import logo from '@/assets/images/logo.png';
-import heroImage from '@/assets/images/Home/3.png';
+import heroImage from '@/assets/images/pasayCitysouth.png';
 import attendanceImage from '@/assets/images/Home/2.jpg';
 import onlineClassesImage from '@/assets/images/Home/4.jpeg';
 import messagesImage from '@/assets/images/Home/3.png';
@@ -8,6 +8,7 @@ import aboutSystemImage from '@/assets/images/Home/1.jpg';
 import galleryImage1 from '@/assets/images/Container.png';
 import galleryImage2 from '@/assets/images/Container 2.png';
 import galleryImage3 from '@/assets/images/Container 3.png';
+import galleryImage4 from '@/assets/images/Container 4.png';
 import Footer from '@/components/LandingPage/Footer.vue';
 import {
     getSavedStudentParentProfiles,
@@ -164,6 +165,10 @@ const galleryImages = [
         src: galleryImage3,
         alt: 'Computer laboratory equipment',
     },
+    {
+        src: galleryImage4,
+        alt: 'RFID automation overview',
+    },
 ];
 
 const selectProfile = (index) => {
@@ -298,7 +303,7 @@ onMounted(() => {
             <section class="relative min-h-[calc(100vh-74px)] overflow-hidden">
                 <img
                     :src="heroImage"
-                    alt="RFID attendance system presented at the PhilSCA campus"
+                    alt="Pasay City South campus RFID attendance system"
                     class="absolute inset-0 h-full w-full object-cover"
                 />
                 <div class="absolute inset-0 bg-[#193153]/60" />

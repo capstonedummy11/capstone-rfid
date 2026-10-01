@@ -4,13 +4,11 @@ import { createApp, h } from 'vue';
 import '../css/app.css';
 import { initializeTheme } from './composables/useAppearance';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
-import Layout from './layouts/Layout.vue';
 import AuthLayout from './layouts/AuthLayout.vue';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
-const guestPages = ['LandingPage'];
 const noLayoutPages = [
     'Auth/Register',
     'Auth/Login',
@@ -31,8 +29,6 @@ createInertiaApp({
             if (module.default.layout === undefined) {
                 if (noLayoutPages.includes(name)) {
                     module.default.layout = null;
-                } else if (guestPages.includes(name)) {
-                    module.default.layout = Layout;
                 } else {
                     module.default.layout = AuthLayout;
                 }

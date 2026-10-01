@@ -16,8 +16,8 @@ return new class extends Migration
             $table->string('status', 30)->default('pending')->index();
             $table->string('pending_guard', 30)->nullable()->unique();
             $table->string('cancel_token_hash', 64)->nullable()->unique();
-            $table->timestamp('effective_at');
-            $table->timestamp('expires_at');
+            $table->dateTime('effective_at');
+            $table->dateTime('expires_at');
             $table->timestamp('accepted_at')->nullable();
             $table->timestamp('cancelled_at')->nullable();
             $table->timestamp('completed_at')->nullable();
@@ -38,7 +38,7 @@ return new class extends Migration
             $table->string('pending_guard', 30)->nullable()->unique();
             $table->unsignedSmallInteger('required_approvals');
             $table->timestamp('execute_at')->nullable();
-            $table->timestamp('expires_at');
+            $table->dateTime('expires_at');
             $table->timestamp('rejected_at')->nullable();
             $table->timestamp('completed_at')->nullable();
             $table->string('request_ip', 45)->nullable();
