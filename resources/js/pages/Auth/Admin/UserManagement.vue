@@ -35,7 +35,6 @@ const form = useForm({
     role: props.roleOptions[0]?.value || 'clinic',
     password: '',
     password_confirmation: '',
-    is_root_admin: false,
 });
 const passwordResetForm = useForm({});
 
@@ -77,7 +76,6 @@ const resetForm = () => {
     editingId.value = null;
     form.reset();
     form.role = props.roleOptions[0]?.value || 'clinic';
-    form.is_root_admin = false;
     showPassword.value = false;
     showPasswordConfirmation.value = false;
 };
@@ -90,7 +88,6 @@ const editUser = (user) => {
     form.role = user.role || props.roleOptions[0]?.value || 'clinic';
     form.password = '';
     form.password_confirmation = '';
-    form.is_root_admin = Boolean(user.is_root_admin);
     showPassword.value = false;
     showPasswordConfirmation.value = false;
 };
@@ -104,10 +101,6 @@ const submit = () => {
             'The password confirmation does not match.',
         );
         return;
-    }
-
-    if (form.role !== 'admin') {
-        form.is_root_admin = false;
     }
 
     if (editingId.value) {
@@ -343,18 +336,6 @@ const deleteUser = async (user) => {
                             >
                                 {{ form.errors.role }}
                             </span>
-                        </label>
-
-                        <label
-                            v-if="canManageAdmins && form.role === 'admin'"
-                            class="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700"
-                        >
-                            <input
-                                v-model="form.is_root_admin"
-                                type="checkbox"
-                                class="h-4 w-4 rounded border-slate-300 text-brand"
-                            />
-                            Root admin
                         </label>
 
                         <div class="block">

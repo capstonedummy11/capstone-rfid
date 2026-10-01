@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class AdminUserController extends Controller
@@ -42,9 +43,10 @@ class AdminUserController extends Controller
     public function store(Request $request)
     {
         $actor = $request->user();
+        $this->rejectRootAdminAssignment($request);
         $validated = $this->validatedUser($request);
         $role = strtolower($validated['role']);
-        $makeRoot = $role === 'admin' && $request->boolean('is_root_admin');
+        $makeRoot = false;
 
         $this->authorizeAdminWrite($actor, $role, $makeRoot);
 
@@ -67,9 +69,10 @@ class AdminUserController extends Controller
     {
         $actor = $request->user();
         $user = User::query()->findOrFail($id);
+        $this->rejectRootAdminAssignment($request);
         $validated = $this->validatedUser($request, $user);
         $role = strtolower($validated['role']);
-        $makeRoot = $role === 'admin' && $request->boolean('is_root_admin');
+        $makeRoot = $role === 'admin' && $this->isRootAdmin($user);
 
         $this->authorizeUserChange($actor, $user, $role, $makeRoot);
 
@@ -153,7 +156,6 @@ class AdminUserController extends Controller
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->whereNull('deleted_at')->ignore($user?->user_id, 'user_id')],
             'role' => ['required', Rule::in(self::MANAGED_ROLES)],
             'phone' => ['nullable', 'string', 'max:50'],
-            'is_root_admin' => ['nullable', 'boolean'],
         ];
 
         $rules['password'] = $user
@@ -161,6 +163,15 @@ class AdminUserController extends Controller
             : ['required', 'string', 'min:8', 'max:255', 'confirmed'];
 
         return $request->validate($rules);
+    }
+
+    private function rejectRootAdminAssignment(Request $request): void
+    {
+        if ($request->boolean('is_root_admin')) {
+            throw ValidationException::withMessages([
+                'is_root_admin' => 'Root Admin accounts cannot be created or granted in User Management.',
+            ]);
+        }
     }
 
     private function authorizeAdminWrite(?User $actor, string $role, bool $makeRoot): void

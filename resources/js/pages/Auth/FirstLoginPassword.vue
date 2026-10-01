@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import logo from '@/assets/images/logo-only.jpg';
 import EyeOff from '@/components/Icon/EyeOff.vue';
 import EyeOn from '@/components/Icon/EyeOn.vue';
 import {
     MIN_PASSWORD_LENGTH,
     PASSWORD_LENGTH_ERROR,
-    PASSWORD_LENGTH_HELPER,
+    evaluatePasswordRequirements,
     isPasswordTooShort,
+    meetsPasswordRequirements,
 } from '@/lib/passwordPolicy';
 
 const showPassword = ref(false);
@@ -19,12 +20,64 @@ const form = useForm({
     password_confirmation: '',
 });
 const isSubmitting = ref(false);
+const passwordRequirements = computed(() =>
+    evaluatePasswordRequirements(form.password),
+);
+const passwordRequirementsMet = computed(() =>
+    meetsPasswordRequirements(form.password),
+);
+const passwordStrength = computed(() => {
+    if (!form.password) {
+        return {
+            label: 'Enter a password',
+            widthClass: 'w-0',
+            colorClass: 'bg-slate-300',
+            value: 0,
+        };
+    }
+
+    const metCount = passwordRequirements.value.filter(
+        (requirement) => requirement.met,
+    ).length;
+    const levels = [
+        {
+            label: 'Weak',
+            widthClass: 'w-1/4',
+            colorClass: 'bg-red-500',
+        },
+        {
+            label: 'Fair',
+            widthClass: 'w-2/4',
+            colorClass: 'bg-amber-500',
+        },
+        {
+            label: 'Strong',
+            widthClass: 'w-3/4',
+            colorClass: 'bg-blue-500',
+        },
+        {
+            label: 'Very strong',
+            widthClass: 'w-full',
+            colorClass: 'bg-emerald-600',
+        },
+    ];
+
+    return {
+        ...levels[Math.max(0, metCount - 1)],
+        value: metCount,
+    };
+});
 
 const submit = () => {
     if (isSubmitting.value) return;
 
-    if (isPasswordTooShort(form.password)) {
-        form.setError('password', PASSWORD_LENGTH_ERROR);
+    if (!passwordRequirementsMet.value) {
+        form.setError(
+            'password',
+            isPasswordTooShort(form.password)
+                ? PASSWORD_LENGTH_ERROR
+                : 'Password must meet all requirements below.',
+        );
         return;
     }
 
@@ -69,7 +122,7 @@ const submit = () => {
                             :minlength="MIN_PASSWORD_LENGTH"
                             autofocus
                             autocomplete="new-password"
-                            aria-describedby="first-login-password-requirement"
+                            aria-describedby="first-login-password-requirements first-login-password-error"
                             :aria-invalid="
                                 Boolean(form.errors.password) ||
                                 isPasswordTooShort(form.password)
@@ -92,23 +145,80 @@ const submit = () => {
                             <EyeOff v-else aria-hidden="true" />
                         </button>
                     </div>
-                    <span
-                        id="first-login-password-requirement"
-                        class="mt-1 block text-xs"
-                        :class="
-                            form.errors.password ||
-                            isPasswordTooShort(form.password)
-                                ? 'text-red-600'
-                                : 'text-slate-500'
-                        "
-                        aria-live="polite"
+                    <div
+                        id="first-login-password-requirements"
+                        class="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3"
                     >
-                        {{
-                            form.errors.password ||
-                            (isPasswordTooShort(form.password)
-                                ? PASSWORD_LENGTH_ERROR
-                                : PASSWORD_LENGTH_HELPER)
-                        }}
+                        <div
+                            class="flex items-center justify-between gap-3 text-xs font-semibold"
+                        >
+                            <span class="text-slate-600"
+                                >Password strength</span
+                            >
+                            <span
+                                :class="
+                                    passwordStrength.value === 4
+                                        ? 'text-emerald-700'
+                                        : 'text-slate-700'
+                                "
+                                aria-live="polite"
+                            >
+                                {{ passwordStrength.label }}
+                            </span>
+                        </div>
+                        <div
+                            class="mt-2 h-2 overflow-hidden rounded-full bg-slate-200"
+                            role="progressbar"
+                            aria-label="Password strength"
+                            :aria-valuenow="passwordStrength.value"
+                            aria-valuemin="0"
+                            aria-valuemax="4"
+                        >
+                            <div
+                                class="h-full rounded-full transition-all duration-300"
+                                :class="[
+                                    passwordStrength.widthClass,
+                                    passwordStrength.colorClass,
+                                ]"
+                            ></div>
+                        </div>
+
+                        <p class="mt-3 text-xs font-semibold text-slate-700">
+                            New password must contain:
+                        </p>
+                        <ul class="mt-2 space-y-1.5">
+                            <li
+                                v-for="requirement in passwordRequirements"
+                                :key="requirement.key"
+                                class="flex items-center gap-2 text-xs"
+                                :class="
+                                    requirement.met
+                                        ? 'text-emerald-700'
+                                        : 'text-slate-600'
+                                "
+                            >
+                                <span
+                                    class="flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
+                                    :class="
+                                        requirement.met
+                                            ? 'bg-emerald-600 text-white'
+                                            : 'border border-slate-300 bg-white text-transparent'
+                                    "
+                                    aria-hidden="true"
+                                >
+                                    ✓
+                                </span>
+                                {{ requirement.label }}
+                            </li>
+                        </ul>
+                    </div>
+                    <span
+                        v-if="form.errors.password"
+                        id="first-login-password-error"
+                        class="mt-2 block text-xs font-semibold text-red-600"
+                        role="alert"
+                    >
+                        {{ form.errors.password }}
                     </span>
                 </label>
                 <label class="block text-sm font-semibold text-slate-700">
@@ -163,7 +273,11 @@ const submit = () => {
                 </div>
                 <button
                     type="submit"
-                    :disabled="isSubmitting || form.processing"
+                    :disabled="
+                        isSubmitting ||
+                        form.processing ||
+                        !passwordRequirementsMet
+                    "
                     class="w-full rounded-md bg-blue-600 px-4 py-2 font-bold text-white disabled:opacity-60"
                 >
                     {{

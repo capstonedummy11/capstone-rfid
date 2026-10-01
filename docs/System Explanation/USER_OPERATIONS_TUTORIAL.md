@@ -33,7 +33,7 @@ The reason for this order is simple: schedules need sections, subjects, instruct
 
 For all roles, see the canonical [Authentication and Password Rules](AUTHENTICATION_PASSWORD_RULES.md). Admin, Instructor, Registrar, Clinic, Student, and Parent users can select **Forgot password?** and recover through their registered email. Console accounts are excluded.
 
-When an account is new or an administrator has restored a temporary/default password, login opens **Create your private password** first. The New Password field shows the 12-character minimum before typing. Enter at least 12 characters, confirm the different password, and continue to the dashboard. A shorter value shows **Password must be at least 12 characters long.**
+When an account is new or an administrator has restored a temporary/default password, login opens **Create your private password** first. Use the live strength bar and checklist to enter at least 12 characters with lowercase and uppercase letters, at least one number, and at least one symbol. After every requirement turns green, confirm the different password and continue to the dashboard.
 
 Start with an admin or root admin account.
 

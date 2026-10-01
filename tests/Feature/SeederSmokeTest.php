@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\User;
 use Database\Seeders\AcademicYearSeeder;
 use Database\Seeders\BorrowingSeeder;
 use Database\Seeders\ClinicDashboardSeeder;
@@ -18,6 +19,30 @@ use Database\Seeders\UserSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
+
+test('root admin seeders use the PCSHS laboratories email', function (string $seeder) {
+    User::factory()->create([
+        'email' => 'root.admin@sample.com',
+        'role' => 'admin',
+        'is_root_admin' => true,
+    ]);
+
+    $this->seed($seeder);
+
+    $this->assertDatabaseHas('users', [
+        'email' => 'pcshslaboratories@gmail.com',
+        'role' => 'admin',
+        'is_root_admin' => true,
+        'deleted_at' => null,
+    ]);
+    $this->assertDatabaseMissing('users', [
+        'email' => 'root.admin@sample.com',
+        'is_root_admin' => true,
+    ]);
+})->with([
+    'UserSeeder' => [UserSeeder::class],
+    'MinimalSeeder' => [MinimalSeeder::class],
+]);
 
 test('each seeder can run without errors', function (string $seeder) {
     $this->seed($seeder);

@@ -58,8 +58,8 @@ After successful authentication:
 
 - The user is redirected to **Create your private password** before any dashboard or role feature.
 - Directly entering another protected URL redirects back to the password-change page.
-- The New Password field displays **Password must be at least 12 characters.** before typing.
-- The new password must contain at least 12 characters, satisfy the configured password policy, be confirmed, and differ from the temporary password. A shorter value returns **Password must be at least 12 characters long.**
+- The New Password field displays a live strength bar and checklist for at least 12 characters, lowercase and uppercase letters, at least one number, and at least one symbol.
+- Each checklist item turns green when satisfied, and the first-login form remains disabled until every displayed requirement is met. The password must also be confirmed and differ from the temporary password. Production additionally checks that it is not present in known compromised-password data.
 - After saving, the flag is cleared and the user proceeds to the correct role dashboard.
 - Instructor verification occurs after the temporary password has been replaced.
 

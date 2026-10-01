@@ -96,7 +96,9 @@ test('password change and reset forms explain the twelve character minimum', fun
         ->toContain('PASSWORD_LENGTH_ERROR')
         ->and($firstLoginPassword)
         ->toContain(':minlength="MIN_PASSWORD_LENGTH"')
-        ->toContain('PASSWORD_LENGTH_HELPER')
+        ->toContain('evaluatePasswordRequirements')
+        ->toContain('Password strength')
+        ->toContain('New password must contain:')
         ->toContain('PASSWORD_LENGTH_ERROR')
         ->and($portalProfile)
         ->toContain(':minlength="MIN_PASSWORD_LENGTH"')
@@ -120,7 +122,9 @@ test('password change and reset actions prevent duplicate rapid submissions', fu
         ->toContain('isSubmitting.value = true;')
         ->toContain('onFinish: () => {')
         ->toContain('isSubmitting.value = false;')
-        ->toContain(':disabled="isSubmitting || form.processing"')
+        ->toContain('isSubmitting ||')
+        ->toContain('form.processing ||')
+        ->toContain('!passwordRequirementsMet')
         ->and($portalProfile)
         ->toContain('if (isPasswordSubmitting.value) return;')
         ->toContain('isPasswordSubmitting.value = true;')
@@ -160,7 +164,7 @@ test('instructor password reset uses application confirmation and success modals
         ->toContain('aria-modal="true"')
         ->toContain('confirmResetInstructorPassword')
         ->toContain('defaultInstructorPassword')
-        ->toContain(".replace(/\\s+/g, '').toLowerCase()")
+        ->toMatch("/\\.replace\\(\/\\\\s\\+\/g, ''\\)\\s*\\.toLowerCase\\(\\)/")
         ->toContain('resetConfirmationPassword')
         ->toContain('resetSuccessPassword')
         ->toContain('confirmResetInstructorSecurityQuestions')
@@ -189,7 +193,8 @@ test('clinic and registrar rows expose an application password reset flow', func
         ->toContain('v-model="form.password_confirmation"')
         ->toContain(":type=\"showPassword ? 'text' : 'password'\"")
         ->toContain('showPasswordConfirmation')
-        ->toContain('The password confirmation does not match.');
+        ->toContain('The password confirmation does not match.')
+        ->not->toContain('v-model="form.is_root_admin"');
 });
 
 test('schedule create and update time inputs use quarter hour intervals', function () {
@@ -229,4 +234,62 @@ test('excuse letter defaults an empty end date to the selected start date', func
         ->toContain("setError('subject', 'Enter the excuse-letter subject.')")
         ->toContain("setError('attachment', 'The attachment must not exceed 5 MB.')")
         ->toContain('novalidate');
+});
+
+test('frontend workflows use application modals instead of native browser dialogs', function () {
+    $nativeDialogUsages = [];
+    $files = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator(resource_path('js')),
+    );
+
+    foreach ($files as $file) {
+        if (! $file->isFile() || ! in_array($file->getExtension(), ['js', 'ts', 'tsx', 'vue'], true)) {
+            continue;
+        }
+
+        $source = file_get_contents($file->getPathname());
+
+        if (preg_match('/(?<![A-Za-z0-9_])(alert|confirm|prompt)\s*\(/', $source) === 1) {
+            $nativeDialogUsages[] = $file->getPathname();
+        }
+    }
+
+    $feedbackModal = file_get_contents(resource_path('js/lib/feedbackModal.ts'));
+
+    expect($nativeDialogUsages)
+        ->toBe([])
+        ->and($feedbackModal)
+        ->toContain("from 'sweetalert2'")
+        ->toContain('showCancelButton: true')
+        ->toContain('focusCancel: true');
+});
+
+test('about developer easter egg is temporary and removes the portrait border', function () {
+    $about = file_get_contents(resource_path('js/pages/About.vue'));
+
+    expect($about)
+        ->toContain('focus-visible:ring-4')
+        ->toContain("developer.revealed\n                                            ? 'border-0'")
+        ->toContain('const EASTER_EGG_DURATION_MS = 15_000;')
+        ->toContain('window.setTimeout(() => {')
+        ->toContain('developer.image = originalImage;')
+        ->toContain('developer.clicks = 0;')
+        ->toContain('}, EASTER_EGG_DURATION_MS);');
+});
+
+test('landing portal showcase is a student feature carousel', function () {
+    $landing = file_get_contents(resource_path('js/pages/Auth/StudentParentLogin.vue'));
+
+    expect($landing)
+        ->toContain('Built for student access')
+        ->not->toContain("title: 'Parent Access'")
+        ->toContain("title: 'Attendance Records'")
+        ->toContain("title: 'Online Classes'")
+        ->toContain("title: 'Excuse Letters'")
+        ->toContain("title: 'Messages'")
+        ->toContain("title: 'Notifications'")
+        ->toContain("title: 'Profile & Security'")
+        ->toContain('aria-roledescription="carousel"')
+        ->toContain('@keydown.left.prevent="moveShowcase(-1)"')
+        ->toContain('@keydown.right.prevent="moveShowcase(1)"');
 });

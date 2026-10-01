@@ -16,7 +16,7 @@ It is intended for:
 
 | Area              | System Flow                                                      | Attendance Demonstration Guide                              | Reconciled use in this document                                                              |
 | ----------------- | ---------------------------------------------------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Starting state    | Supports seeded or manually configured data                      | Assumes only `root.admin` exists                            | Start with `root.admin` and no operational data                                              |
+| Starting state    | Supports seeded or manually configured data                      | Assumes only `pcshslaboratories@gmail.com` exists           | Start with `pcshslaboratories@gmail.com` and no operational data                             |
 | Scope             | Whole application and technical architecture                     | Attendance-centered setup and presentation                  | Show full system, with attendance as the main operational journey                            |
 | Setup order       | Settings, master data, users, enrollment, schedules              | Users, settings, master data, people, schedules, enrollment | Create dependencies first, create schedule, then verify identity enrollment before operation |
 | Attendance detail | High-level check-in, movement, and checkout flow                 | Exact first, second, third, and later tap rules             | Use the detailed state-based tap rules                                                       |
@@ -49,7 +49,7 @@ The attendance process is the central live demonstration because it connects use
 
 ```mermaid
 flowchart TD
-    A[Only root.admin exists] --> B[Secure root account]
+    A[Only pcshslaboratories@gmail.com exists] --> B[Secure root account]
     B --> C[Create operational role accounts]
     C --> D[Configure system and panel rules]
     D --> E[Create laboratories and academic structure]
@@ -96,7 +96,7 @@ Staff login, followed by `/admin/dashboard`.
 
 ### Presenter action
 
-1. Log in as `root.admin`.
+1. Log in as `pcshslaboratories@gmail.com`.
 2. Show the empty dashboard and empty management pages.
 3. Change the initial password and review profile/security settings.
 
@@ -828,7 +828,7 @@ flowchart TD
 
 ### Opening
 
-“The system begins with only `root.admin`. There are no seeded accounts, classes, students, devices, emergency records, or attendance history.”
+“The system begins with only `pcshslaboratories@gmail.com`. There are no seeded accounts, classes, students, devices, emergency records, or attendance history.”
 
 ### Setup
 

@@ -231,7 +231,7 @@ test('standard admin can create clinic and registrar users but cannot manage adm
     ]);
 });
 
-test('root admin cannot demote the only root admin account', function () {
+test('editing a root admin preserves root access when the assignment field is absent', function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
 
     $root = User::factory()->create([
@@ -246,14 +246,58 @@ test('root admin cannot demote the only root admin account', function () {
             'email' => 'only.root@example.com',
             'password' => '',
             'role' => 'admin',
-            'is_root_admin' => false,
         ])
-        ->assertStatus(422);
+        ->assertRedirect()
+        ->assertSessionHas('success', 'User account updated.');
 
     $this->assertDatabaseHas('users', [
         'email' => 'only.root@example.com',
+        'is_root_admin' => true,
         'deleted_at' => null,
     ]);
+});
+
+test('user management cannot create or promote a root admin', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+
+    $root = User::factory()->create([
+        'role' => 'admin',
+        'is_root_admin' => true,
+    ]);
+    $admin = User::factory()->create([
+        'email' => 'standard.admin@example.com',
+        'role' => 'admin',
+        'is_root_admin' => false,
+    ]);
+
+    $this->actingAs($root)
+        ->post(route('admin.users.store'), [
+            'name' => 'Blocked Root',
+            'email' => 'blocked.root@example.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'role' => 'admin',
+            'is_root_admin' => true,
+        ])
+        ->assertSessionHasErrors([
+            'is_root_admin' => 'Root Admin accounts cannot be created or granted in User Management.',
+        ]);
+
+    $this->assertDatabaseMissing('users', [
+        'email' => 'blocked.root@example.com',
+    ]);
+
+    $this->actingAs($root)
+        ->put(route('admin.users.update', $admin->user_id), [
+            'name' => $admin->name,
+            'email' => $admin->email,
+            'password' => '',
+            'role' => 'admin',
+            'is_root_admin' => true,
+        ])
+        ->assertSessionHasErrors('is_root_admin');
+
+    expect($admin->fresh()->is_root_admin)->toBeFalse();
 });
 
 test('managed account password must be confirmed', function () {

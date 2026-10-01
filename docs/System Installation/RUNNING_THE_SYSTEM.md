@@ -274,7 +274,7 @@ php artisan migrate
 php artisan db:seed --class=MinimalSeeder
 ```
 
-The minimal Root Admin uses `root.admin@sample.com` and temporary password `change-me-now` unless environment overrides are configured. Change the temporary password immediately.
+The minimal Root Admin uses `pcshslaboratories@gmail.com` and temporary password `change-me-now` unless environment overrides are configured. Change the temporary password immediately.
 
 Do not run `php artisan migrate:fresh` on a database containing information you need. That command deletes all tables and data before rebuilding them.
 

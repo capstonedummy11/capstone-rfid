@@ -2,7 +2,7 @@
 
 Documentation home: [Documentation Index](../DOCUMENTATION_INDEX.md). Demonstration family: [Demonstration Documentation Map](DEMONSTRATION_DOCUMENTATION.md).
 
-This guide assumes the application and database migrations are already installed, but the database contains only one account: **`root.admin`**. There are no laboratories, strands, sections, subjects, instructors, students, schedules, RFID assignments, face images, emergency types, hotlines, attendance sessions, or reports.
+This guide assumes the application and database migrations are already installed, but the database contains only one account: **`pcshslaboratories@gmail.com`**. There are no laboratories, strands, sections, subjects, instructors, students, schedules, RFID assignments, face images, emergency types, hotlines, attendance sessions, or reports.
 
 The goal is to build a fully usable system from that blank state and then demonstrate the complete attendance lifecycle.
 
@@ -28,7 +28,7 @@ The setup order matters. A schedule cannot be created correctly until its labora
 ## 2. Recommended Blank-State Build Order
 
 ```text
-root.admin login
+pcshslaboratories@gmail.com login
       |
       v
 Create role accounts
@@ -70,7 +70,7 @@ Review logs, portals, reports, and emergency response
 
 **On screen:** Staff login page.
 
-**Presenter action:** Enter the credentials of `root.admin`.
+**Presenter action:** Enter the credentials of `pcshslaboratories@gmail.com`.
 
 **Presenter explanation:** “The system starts with one protected root administrator. This account establishes ownership and creates the first operational users.”
 
@@ -754,7 +754,7 @@ The alert can move through Open, Acknowledged, Resolved, or Cancelled.
 
 Use this short sequence during a capstone defense:
 
-1. **Empty dashboard:** “Only root.admin exists. We will build every dependency from scratch.”
+1. **Empty dashboard:** “Only pcshslaboratories@gmail.com exists. We will build every dependency from scratch.”
 2. **Users:** “We create separate administrator, registrar, instructor, console, clinic, student, and parent roles.”
 3. **Settings:** “We establish the late threshold, verification mode, panel access, and emergency sound.”
 4. **Academic setup:** “We create the laboratory, strand, section, subject, and then the schedule.”
