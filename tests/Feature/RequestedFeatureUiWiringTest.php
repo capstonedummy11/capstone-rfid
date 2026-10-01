@@ -310,3 +310,18 @@ test('landing portal showcase is a student feature carousel', function () {
         ->toContain('@keydown.left.prevent="moveShowcase(-1)"')
         ->toContain('@keydown.right.prevent="moveShowcase(1)"');
 });
+
+test('user management exposes protected root ownership workflows', function () {
+    $page = file_get_contents(resource_path('js/pages/Auth/Admin/UserManagement.vue'));
+    $panel = file_get_contents(resource_path('js/components/Admin/RootOwnershipPanel.vue'));
+
+    expect($page)->toContain('RootOwnershipPanel')
+        ->and($panel)->toContain('Root Admin ownership')
+        ->toContain('Continue securely')
+        ->toContain('two_factor_code')
+        ->toContain('Emergency override')
+        ->toContain("decideOverride('approve')")
+        ->toContain('filterAudit')
+        ->toContain('Actor email')
+        ->toContain('Ownership audit log');
+});

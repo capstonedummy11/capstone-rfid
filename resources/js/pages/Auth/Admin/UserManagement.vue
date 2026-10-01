@@ -12,12 +12,14 @@ import {
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { confirmActionModal } from '@/lib/feedbackModal';
+import RootOwnershipPanel from '@/components/Admin/RootOwnershipPanel.vue';
 
 const props = defineProps({
     users: { type: Array, default: () => [] },
     roleOptions: { type: Array, default: () => [] },
     canManageAdmins: { type: Boolean, default: false },
     stats: { type: Object, default: () => ({}) },
+    rootOwnership: { type: Object, required: true },
 });
 
 const page = usePage();
@@ -213,6 +215,8 @@ const deleteUser = async (user) => {
             >
                 {{ flashSuccess }}
             </div>
+
+            <RootOwnershipPanel :ownership="rootOwnership" />
 
             <section class="grid gap-3 md:grid-cols-3">
                 <article

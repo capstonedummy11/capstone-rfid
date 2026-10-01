@@ -136,3 +136,4 @@ For workflows where one page creates data that another page consumes, follow [Cr
 3. Update the coverage map in this document.
 4. Run the focused suite, full suite, and frontend build.
 5. Update the relevant canonical business documentation.
+| Root ownership transfer, emergency override, cooldown, expiry, and access revocation | `tests/Feature/RootOwnershipTransferTest.php`, `tests/Feature/AccessRevocationServiceTest.php` |

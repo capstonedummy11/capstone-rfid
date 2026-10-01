@@ -52,7 +52,7 @@ Browser action
 7. `CheckRole` enforces route roles; queries add object-level scope checks.
 8. `EnsureInstructorVerified` gates shared Admin/Instructor pages after each new Instructor login.
 9. `EnsureParentPortalEnabled` blocks Parent access to portal, messages, reports, and evidence while leaving Student access intact.
-10. Root Admin is a boolean privilege on an Admin account. `AdminUserController` enforces Root-only Admin management, prevents self-deletion, and protects the last Root Admin.
+10. Root Admin is a boolean privilege on exactly one active Admin account. Normal ownership changes require step-up authentication, signed acceptance, a configurable 14-day delay, and a post-completion cooldown. Emergency changes require distinct non-requester Admin approvals and a delayed execution window. `RootTransferService` and `RootOverrideService` lock lifecycle rows and delegate the atomic privilege swap to `RootOwnershipSwapService`; `AccessRevocationService` rotates remember tokens, clears database sessions, and conditionally revokes future Passport/Sanctum tokens. Every event is appended to immutable `root_audit_logs`.
 11. Fortify supplies password reset, email verification, password confirmation, and two-factor flows. Login is limited to five attempts/minute per normalized email and IP.
 
 ## Shared frontend behavior

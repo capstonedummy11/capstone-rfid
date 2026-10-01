@@ -1,7 +1,7 @@
 <?php
 
-use App\Http\Controllers\ActiveDeviceController;
 use App\Http\Controllers\AcademicYearController;
+use App\Http\Controllers\ActiveDeviceController;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AttendanceController;
@@ -11,10 +11,10 @@ use App\Http\Controllers\BorrowController;
 use App\Http\Controllers\ClinicController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmergencyController;
+use App\Http\Controllers\FaceLivenessController;
 use App\Http\Controllers\FirstLoginPasswordController;
 use App\Http\Controllers\InstructorsController;
 use App\Http\Controllers\InstructorVerificationController;
-use App\Http\Controllers\FaceLivenessController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\LaboratoryController;
@@ -23,6 +23,8 @@ use App\Http\Controllers\OnlineClassController;
 use App\Http\Controllers\RegistrarController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RfidController;
+use App\Http\Controllers\RootOverrideController;
+use App\Http\Controllers\RootOwnershipController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\SectionController;
 use App\Http\Controllers\StaffLoginController;
@@ -62,6 +64,14 @@ Route::get('/', function (Request $request) {
 })->name('landingPage');
 Route::redirect('/home', '/')->name('home');
 Route::inertia('/about', 'About')->name('about');
+Route::middleware(['auth', 'throttle:root-ownership'])->group(function () {
+    Route::get('/root-ownership/transfers/{transfer}/accept', [RootOwnershipController::class, 'acceptShow'])->name('root-ownership.accept.show');
+    Route::post('/root-ownership/transfers/{transfer}/accept', [RootOwnershipController::class, 'accept'])->middleware('signed')->name('root-ownership.accept.store');
+});
+Route::middleware('throttle:root-ownership')->group(function () {
+    Route::get('/root-ownership/transfers/{transfer}/cancel', [RootOwnershipController::class, 'cancelShow'])->name('root-ownership.cancel.show');
+    Route::post('/root-ownership/transfers/{transfer}/cancel', [RootOwnershipController::class, 'cancelFromLink'])->middleware('signed')->name('root-ownership.cancel.store');
+});
 Route::redirect('/student-parent-login', '/')->name('studentParentLogin');
 Route::get('/login', fn () => redirect()->route('landingPage'))->name('login');
 Route::get($staffLoginPath, [StaffLoginController::class, 'create'])
@@ -254,6 +264,10 @@ Route::prefix('admin')
             Route::put('/users/{id}/password/reset-default', [AdminUserController::class, 'resetPassword'])
                 ->name('users.password.reset-default');
             Route::delete('/users/{id}', [AdminUserController::class, 'destroy'])->name('users.destroy');
+            Route::post('/root-ownership/transfers', [RootOwnershipController::class, 'store'])->middleware('throttle:root-ownership')->name('root-ownership.transfers.store');
+            Route::delete('/root-ownership/transfers/{transfer}', [RootOwnershipController::class, 'cancel'])->middleware('throttle:root-ownership')->name('root-ownership.transfers.cancel');
+            Route::post('/root-ownership/overrides', [RootOverrideController::class, 'store'])->middleware('throttle:root-ownership')->name('root-ownership.overrides.store');
+            Route::post('/root-ownership/overrides/{override}/decision', [RootOverrideController::class, 'decide'])->middleware('throttle:root-ownership')->name('root-ownership.overrides.decide');
             Route::get('/online-class-logs', [OnlineClassController::class, 'logs'])->name('online-class-logs.index');
             Route::get('/online-class-logs/export', [OnlineClassController::class, 'exportLogs'])->name('online-class-logs.export');
             Route::get('/active-devices', [ActiveDeviceController::class, 'index'])->name('active-devices.index');

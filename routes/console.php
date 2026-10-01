@@ -15,6 +15,14 @@ Artisan::command('online-classes:finalize-attendance', function (\App\Services\O
 
 Schedule::command('online-classes:finalize-attendance')->everyMinute()->withoutOverlapping();
 
+Artisan::command('root-ownership:process', function (\App\Services\RootTransferService $transfers, \App\Services\RootOverrideService $overrides) {
+    $transfers->processDue();
+    $overrides->processDue();
+    $this->info('Root ownership transfers, reminders, expiries, and overrides processed.');
+})->purpose('Process Root Admin ownership lifecycle events');
+
+Schedule::command('root-ownership:process')->everyFiveMinutes()->withoutOverlapping();
+
 Artisan::command('db:schema-notes', function () {
     $descriptions = [
         'emergency_types' => 'Configurable emergency buttons/messages shown on the attendance panel.',

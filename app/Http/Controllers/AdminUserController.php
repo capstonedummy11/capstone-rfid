@@ -2,7 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\RootAuditLogResource;
+use App\Http\Resources\RootOverrideResource;
+use App\Http\Resources\RootTransferResource;
 use App\Models\ActivityLog;
+use App\Models\RootAuditLog;
+use App\Models\RootOverrideRequest;
+use App\Models\RootTransferRequest;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -37,6 +43,7 @@ class AdminUserController extends Controller
                 'clinic' => User::query()->whereRaw('LOWER(role) = ?', ['clinic'])->count(),
                 'registrars' => User::query()->whereRaw('LOWER(role) = ?', ['registrar'])->count(),
             ],
+            'rootOwnership' => $this->rootOwnershipPayload($request, $actor),
         ]);
     }
 
@@ -246,6 +253,47 @@ class AdminUserController extends Controller
         $name = trim($user->name.' '.($user->last_name ?? ''));
 
         return Str::lower(preg_replace('/\s+/u', '', $name) ?? '');
+    }
+
+    private function rootOwnershipPayload(Request $request, ?User $actor): array
+    {
+        $activeTransfer = RootTransferRequest::query()->with(['fromUser', 'toUser', 'requester'])
+            ->whereNotNull('pending_guard')->latest()->first();
+        $activeOverride = RootOverrideRequest::query()->with(['fromUser', 'toUser', 'requester', 'approvals.approver'])
+            ->whereNotNull('pending_guard')->latest()->first();
+        $auditQuery = RootAuditLog::query()->with(['actor', 'target'])->latest();
+        if ($action = trim((string) $request->query('root_action'))) {
+            $auditQuery->where('action', $action);
+        }
+        if ($actorEmail = trim((string) $request->query('root_actor'))) {
+            $auditQuery->whereHas('actor', fn ($query) => $query->where('email', 'like', "%{$actorEmail}%"));
+        }
+        if ($from = $request->date('root_from')) {
+            $auditQuery->where('created_at', '>=', $from->startOfDay());
+        }
+        if ($to = $request->date('root_to')) {
+            $auditQuery->where('created_at', '<=', $to->endOfDay());
+        }
+
+        return [
+            'current_user_id' => $actor?->user_id,
+            'can_transfer' => $actor?->can('manage-root-ownership') ?? false,
+            'can_request_override' => $actor?->can('request-root-override') ?? false,
+            'can_approve_override' => $actor?->can('approve-root-override') ?? false,
+            'requires_two_factor' => $actor?->hasEnabledTwoFactorAuthentication() ?? false,
+            'active_transfer' => $activeTransfer ? RootTransferResource::make($activeTransfer)->resolve($request) : null,
+            'active_override' => $activeOverride ? RootOverrideResource::make($activeOverride)->resolve($request) : null,
+            'admin_options' => User::query()->where('role', 'admin')->where('is_root_admin', false)->orderBy('name')->get(['user_id', 'name', 'email'])->map(fn ($user) => ['id' => $user->user_id, 'name' => $user->name, 'email' => $user->email]),
+            'config' => [
+                'transfer_days' => (int) config('root_ownership.transfer_delay_days', 14),
+                'cooldown_days' => (int) config('root_ownership.transfer_cooldown_days', 14),
+                'override_delay_hours' => (int) config('root_ownership.override_delay_hours', 24),
+                'required_approvals' => max(2, (int) config('root_ownership.override_required_approvals', 2)),
+            ],
+            'audit_logs' => ($actor?->can('manage-root-ownership') ?? false)
+                ? RootAuditLogResource::collection($auditQuery->paginate(15, ['*'], 'root_page')->withQueryString())
+                : null,
+        ];
     }
 
     private function logActivity(?User $actor, string $action, string $tableName, string $description): void

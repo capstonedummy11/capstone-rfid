@@ -5,6 +5,7 @@ namespace App\Providers;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -25,6 +26,10 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         URL::forceRootUrl(rtrim((string) config('app.url', 'http://localhost'), '/'));
+
+        Gate::define('manage-root-ownership', fn ($user) => strtolower((string) $user->role) === 'admin' && (bool) $user->is_root_admin && ! $user->trashed());
+        Gate::define('request-root-override', fn ($user) => strtolower((string) $user->role) === 'admin' && ! $user->trashed());
+        Gate::define('approve-root-override', fn ($user) => strtolower((string) $user->role) === 'admin' && ! $user->trashed());
 
         $this->configureDefaults();
     }

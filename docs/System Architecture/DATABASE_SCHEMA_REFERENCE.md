@@ -96,6 +96,10 @@ The migration set does **not** create `jobs`, `job_batches`, or `failed_jobs`, e
 | --- | --- | --- |
 | `system_settings` | `system_setting_id PK`, `key unique`, `value? JSON/text`, `type` | Feature flags, thresholds, PIN hash, questions, demo RFIDs, and sound library. |
 | `activity_logs` | `logs_id PK`, `event_id? unique`, `user_id? FK`, `user_name?`, `user_role?`, `action`, `table_name`, `module?`, `outcome`, `severity`, `subject_type?`, `subject_id?`, `route_name?`, `http_method?`, `ip_address?`, `user_agent?`, `status_code?`, `description?`, `created_at` | General audit. Account deletion sets `user_id` null while snapshots remain. |
+| `root_transfer_requests` | Old/new owner FKs, requester, status, unique pending guard, hashed cancellation token, effective/expiry/acceptance/completion/reminder timestamps, request IP/user agent | Normal accepted and delayed Root Admin ownership lifecycle. |
+| `root_override_requests` / `root_override_approvals` | Requester/current/proposed owner, written reason, required approvals, delay/expiry/status; unique approver decision per request | Multi-person delayed emergency ownership recovery. |
+| `root_audit_logs` | Actor/target/request FKs, action, timestamp, IP, user agent, metadata JSON | Append-only ownership security log; application models reject update/delete operations. |
+| `jobs` / `failed_jobs` | Laravel database queue payload, reservation, attempt, availability, and failure fields | Supports queued ownership mail and other queued work. |
 
 ## Important uniqueness and lifecycle rules
 

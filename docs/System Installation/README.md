@@ -200,7 +200,7 @@ If the project adds real queued jobs and an installed queue backend, start anoth
 php artisan queue:work --tries=3
 ```
 
-The Composer shortcut `composer dev` starts the Laravel server, a queue listener, and Vite, but it does **not** start `schedule:work`. With the repository's default `QUEUE_CONNECTION=database` and no queue tables, the queue listener may fail; configure `sync` or add queue tables first.
+The Composer shortcut `composer dev` starts the Laravel server, a queue listener, and Vite, but it does **not** start `schedule:work`. Database queue tables are included; keep the queue worker running so Root Admin ownership notifications and other queued mail are delivered.
 
 ## Build and verify
 
@@ -255,7 +255,7 @@ On Windows Server, create a Task Scheduler job that runs the project PHP executa
 
 ### Queue worker
 
-No current service implements `ShouldQueue`, so most mail/notifications execute during the request. If queued jobs are introduced, install a supported backend/tables and use Supervisor/systemd/Windows service management for `php artisan queue:work`; do not depend on an interactive terminal.
+Root Admin ownership notifications implement `ShouldQueue`. Keep `php artisan queue:work --tries=3` managed by Supervisor/systemd/a Windows service in production; do not depend on an interactive terminal. Keep the scheduler active as well, because ownership reminders, expiry, and completion run through `root-ownership:process`.
 
 ### Permissions and files
 

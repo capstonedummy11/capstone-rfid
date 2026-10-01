@@ -68,4 +68,6 @@ Under `/settings`: authenticated profile GET/PATCH; verified account deletion, p
 | `schedule:run` | Run due scheduled tasks once. |
 | `schedule:work` | Keep the scheduler running locally. |
 
-The scheduler invokes `online-classes:finalize-attendance` every minute with overlap protection.
+The scheduler invokes `online-classes:finalize-attendance` every minute and `root-ownership:process` every five minutes with overlap protection. The ownership command sends reminders, expires stale requests, and executes accepted transfers or approved emergency overrides.
+
+Root ownership endpoints live under `/admin/root-ownership` for authenticated, rate-limited transfer/override actions. Signed expiring accept links require the selected new owner to authenticate; signed one-time cancellation links remain usable independently of an active browser session.
