@@ -1,13 +1,13 @@
 <script setup>
 import logo from '@/assets/images/logo.png';
 import heroImage from '@/assets/images/Home/3.png';
-import attendanceImage from '@/assets/images/Home/1.jpg';
+import attendanceImage from '@/assets/images/Home/2.jpg';
 import onlineClassesImage from '@/assets/images/Home/4.jpeg';
-import messagesImage from '@/assets/images/Home/2.jpg';
-import container4 from '@/assets/images/Container 4.png';
-import item1 from '@/assets/images/Item 1.png';
-import item2 from '@/assets/images/Item 2.png';
-import item3 from '@/assets/images/Item 3.png';
+import messagesImage from '@/assets/images/Home/3.png';
+import aboutSystemImage from '@/assets/images/Home/1.jpg';
+import galleryImage1 from '@/assets/images/Container.png';
+import galleryImage2 from '@/assets/images/Container 2.png';
+import galleryImage3 from '@/assets/images/Container 3.png';
 import Footer from '@/components/LandingPage/Footer.vue';
 import {
     getSavedStudentParentProfiles,
@@ -69,32 +69,100 @@ const showcaseItems = [
     {
         number: '01',
         title: 'Student Dashboard',
-        text: 'Students can review attendance summaries, online class activity, profile details, and portal notifications.',
+        text: 'Review attendance totals, recent records, upcoming online classes, messages, and excuse-letter summaries.',
     },
     {
         number: '02',
-        title: 'Parent Access',
-        text: 'Linked parents can view student records and switch between linked students when more than one child is assigned.',
+        title: 'Attendance Records',
+        text: 'Filter physical and online attendance by school year and inspect detailed time logs and available evidence.',
     },
     {
         number: '03',
-        title: 'Portal Records',
-        text: 'Messages, excuse letters, attendance history, and online class joins stay connected to the student account.',
+        title: 'Online Classes',
+        text: 'View eligible meetings, schedules, attachments, attendance status, and join active class sessions.',
+    },
+    {
+        number: '04',
+        title: 'Excuse Letters',
+        text: 'Create absence letters, select assigned instructors, attach supporting files, and download completed PDFs.',
+    },
+    {
+        number: '05',
+        title: 'Messages',
+        text: 'Send private messages, read conversations, and exchange permitted attachments with school staff.',
+    },
+    {
+        number: '06',
+        title: 'Notifications',
+        text: 'Review class creation, update, reschedule, and cancellation notices and keep track of unread updates.',
+    },
+    {
+        number: '07',
+        title: 'Profile & Security',
+        text: 'Update account details and profile picture, review the student record, and securely change the password.',
     },
 ];
 
+const showcaseTrack = ref(null);
+const activeShowcaseIndex = ref(0);
+
+const scrollToShowcase = (index) => {
+    const track = showcaseTrack.value;
+    if (!track || showcaseItems.length === 0) return;
+
+    const normalizedIndex =
+        (index + showcaseItems.length) % showcaseItems.length;
+    const card = track.children[normalizedIndex];
+    if (!card) return;
+
+    const trackLeft = track.getBoundingClientRect().left;
+    const cardLeft = card.getBoundingClientRect().left;
+
+    track.scrollTo({
+        left: track.scrollLeft + cardLeft - trackLeft,
+        behavior: 'smooth',
+    });
+    activeShowcaseIndex.value = normalizedIndex;
+};
+
+const moveShowcase = (direction) => {
+    scrollToShowcase(activeShowcaseIndex.value + direction);
+};
+
+const syncShowcaseIndex = () => {
+    const track = showcaseTrack.value;
+    if (!track) return;
+
+    const trackLeft = track.getBoundingClientRect().left;
+    const cards = Array.from(track.children);
+    let closestIndex = 0;
+    let closestDistance = Number.POSITIVE_INFINITY;
+
+    cards.forEach((card, index) => {
+        const distance = Math.abs(
+            card.getBoundingClientRect().left - trackLeft,
+        );
+        if (distance < closestDistance) {
+            closestDistance = distance;
+            closestIndex = index;
+        }
+    });
+
+    activeShowcaseIndex.value = closestIndex;
+};
+
 const galleryImages = [
     {
-        src: item1,
-        alt: 'Student portal preview one',
+        src: galleryImage1,
+        alt: 'Computer laboratory overview',
     },
     {
-        src: item2,
-        alt: 'Student portal preview two',
+        src: galleryImage2,
+        alt: 'Computer laboratory workstation',
     },
     {
-        src: item3,
-        alt: 'Student portal preview three',
+        src: galleryImage3,
+        alt: 'Computer laboratory equipment',
     },
 ];
 
@@ -582,7 +650,7 @@ onMounted(() => {
                     class="mx-auto grid max-w-[1400px] items-center gap-12 px-7 md:px-12 lg:grid-cols-2"
                 >
                     <img
-                        :src="container4"
+                        :src="aboutSystemImage"
                         alt="RFID automation"
                         class="w-full rounded-lg object-cover shadow-lg"
                     />
@@ -652,22 +720,58 @@ onMounted(() => {
 
             <section id="portal_showcase" class="bg-white py-20">
                 <div class="mx-auto max-w-[1400px] px-7 md:px-12">
-                    <div class="max-w-3xl">
-                        <p
-                            class="text-sm font-bold tracking-[0.25em] text-brand uppercase"
-                        >
-                            Portal Showcase
-                        </p>
-                        <h2 class="mt-4 text-3xl font-bold text-default">
-                            Built for student and parent access
-                        </h2>
+                    <div
+                        class="flex flex-col gap-6 md:flex-row md:items-end md:justify-between"
+                    >
+                        <div class="max-w-3xl">
+                            <p
+                                class="text-sm font-bold tracking-[0.25em] text-brand uppercase"
+                            >
+                                Portal Showcase
+                            </p>
+                            <h2 class="mt-4 text-3xl font-bold text-default">
+                                Built for student access
+                            </h2>
+                        </div>
+
+                        <div class="flex gap-3" aria-label="Carousel controls">
+                            <button
+                                type="button"
+                                class="flex h-11 w-11 items-center justify-center rounded-full border border-slate-300 text-xl text-default transition hover:border-brand hover:bg-brand hover:text-white focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:outline-none"
+                                aria-label="Show previous portal feature"
+                                @click="moveShowcase(-1)"
+                            >
+                                ←
+                            </button>
+                            <button
+                                type="button"
+                                class="flex h-11 w-11 items-center justify-center rounded-full border border-slate-300 text-xl text-default transition hover:border-brand hover:bg-brand hover:text-white focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:outline-none"
+                                aria-label="Show next portal feature"
+                                @click="moveShowcase(1)"
+                            >
+                                →
+                            </button>
+                        </div>
                     </div>
 
-                    <div class="mt-10 grid gap-7 md:grid-cols-3">
+                    <div
+                        ref="showcaseTrack"
+                        class="mt-10 flex snap-x snap-mandatory gap-7 overflow-x-auto scroll-smooth pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                        role="region"
+                        aria-roledescription="carousel"
+                        aria-label="Student portal features"
+                        tabindex="0"
+                        @scroll.passive="syncShowcaseIndex"
+                        @keydown.left.prevent="moveShowcase(-1)"
+                        @keydown.right.prevent="moveShowcase(1)"
+                    >
                         <article
-                            v-for="item in showcaseItems"
+                            v-for="(item, index) in showcaseItems"
                             :key="item.title"
-                            class="border border-slate-200 bg-white p-6 shadow-sm"
+                            class="min-w-0 shrink-0 basis-full snap-start border border-slate-200 bg-white p-6 shadow-sm md:basis-[calc((100%-1.75rem)/2)] lg:basis-[calc((100%-3.5rem)/3)]"
+                            role="group"
+                            aria-roledescription="slide"
+                            :aria-label="`${index + 1} of ${showcaseItems.length}: ${item.title}`"
                         >
                             <div class="text-4xl font-bold text-brand">
                                 {{ item.number }}
@@ -679,6 +783,30 @@ onMounted(() => {
                                 {{ item.text }}
                             </p>
                         </article>
+                    </div>
+
+                    <div
+                        class="mt-5 flex justify-center gap-2"
+                        aria-label="Choose a portal feature"
+                    >
+                        <button
+                            v-for="(item, index) in showcaseItems"
+                            :key="`${item.title}-indicator`"
+                            type="button"
+                            class="h-2.5 rounded-full transition-all focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:outline-none"
+                            :class="
+                                activeShowcaseIndex === index
+                                    ? 'w-8 bg-brand'
+                                    : 'w-2.5 bg-slate-300 hover:bg-slate-400'
+                            "
+                            :aria-label="`Show ${item.title}`"
+                            :aria-current="
+                                activeShowcaseIndex === index
+                                    ? 'true'
+                                    : undefined
+                            "
+                            @click="scrollToShowcase(index)"
+                        ></button>
                     </div>
                 </div>
             </section>

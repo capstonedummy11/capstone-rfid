@@ -87,14 +87,19 @@
                         >
                             <button
                                 type="button"
-                                class="group mx-auto block rounded-full focus:ring-4 focus:ring-brand/30 focus:outline-none md:mx-0"
+                                class="group mx-auto block rounded-full focus:outline-none focus-visible:ring-4 focus-visible:ring-brand/30 md:mx-0"
                                 :aria-label="`View ${developer.name}'s developer photo`"
                                 @click="revealEasterEgg(developer)"
                             >
                                 <img
                                     :src="developer.image"
                                     :alt="`${developer.name} portrait`"
-                                    class="h-36 w-36 rounded-full border-[7px] border-[#071052] object-cover shadow-md transition duration-300 group-hover:scale-105 md:h-40 md:w-40"
+                                    class="h-36 w-36 rounded-full object-cover shadow-md transition duration-300 group-hover:scale-105 md:h-40 md:w-40"
+                                    :class="
+                                        developer.revealed
+                                            ? 'border-0'
+                                            : 'border-[7px] border-[#071052]'
+                                    "
                                 />
                             </button>
 
@@ -160,6 +165,7 @@ defineOptions({
 });
 
 const isMenuOpen = ref(false);
+const EASTER_EGG_DURATION_MS = 15_000;
 
 const developers = ref([
     {
@@ -208,8 +214,16 @@ function revealEasterEgg(developer) {
     developer.clicks += 1;
 
     if (developer.clicks === 3) {
+        const originalImage = developer.image;
+
         developer.image = developer.easterEggImage;
         developer.revealed = true;
+
+        window.setTimeout(() => {
+            developer.image = originalImage;
+            developer.clicks = 0;
+            developer.revealed = false;
+        }, EASTER_EGG_DURATION_MS);
     }
 }
 </script>
