@@ -1,1 +1,0 @@
-import{K as e,c as o,a as s,o as a}from"./app-DuVGNoik.js";const c={},n={class:"mx-auto w-full max-w-3xl p-6"};function r(l,t){return a(),o("section",n,[...t[0]||(t[0]=[s("h1",{class:"text-xl font-semibold text-slate-900"}," Two-Factor Authentication ",-1)])])}const f=e(c,[["render",r]]);export{f as default};
