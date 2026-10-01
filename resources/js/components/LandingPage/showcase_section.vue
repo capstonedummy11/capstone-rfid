@@ -37,7 +37,7 @@
     </div>
 </template>
 <script setup>
-import ShowcaseImage from '@/assets/images/Background 2.png';
+import ShowcaseImage from '@/assets/images/Container 4.png';
 import ShowcaseItem from './ShowcaseItem.vue';
 import Eye from '../Icon/Eye.vue';
 import Cube from '../Icon/Cube.vue';

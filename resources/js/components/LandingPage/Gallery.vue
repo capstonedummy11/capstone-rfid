@@ -25,7 +25,23 @@
 <script setup>
 import item3 from '@/assets/images/Item 3.png';
 import item5 from '@/assets/images/Item 5.png';
+import container1 from '@/assets/images/Container.png';
+import container2 from '@/assets/images/Container 2.png';
+import container3 from '@/assets/images/Container 3.png';
+import container4 from '@/assets/images/Container 4.png';
 const gallery = [
+    {
+        image: container1,
+    },
+    {
+        image: container2,
+    },
+    {
+        image: container3,
+    },
+    {
+        image: container4,
+    },
     {
         image: item3,
     },

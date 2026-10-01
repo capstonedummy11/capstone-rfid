@@ -309,6 +309,22 @@ const showcaseItems = [
 
 const galleryImages = [
     {
+        src: featureImage,
+        alt: 'RFID attendance module',
+    },
+    {
+        src: featureImage2,
+        alt: 'RFID borrowing module',
+    },
+    {
+        src: featureImage3,
+        alt: 'RFID inventory module',
+    },
+    {
+        src: container4,
+        alt: 'RFID automation overview',
+    },
+    {
         src: item3,
         alt: 'RFID item preview',
     },
