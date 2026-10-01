@@ -9,6 +9,7 @@ import galleryImage1 from '@/assets/images/Container.png';
 import galleryImage2 from '@/assets/images/Container 2.png';
 import galleryImage3 from '@/assets/images/Container 3.png';
 import galleryImage4 from '@/assets/images/Container 4.png';
+import galleryItem5 from '@/assets/images/Item 5.png';
 import Footer from '@/components/LandingPage/Footer.vue';
 import {
     getSavedStudentParentProfiles,
@@ -284,6 +285,10 @@ const galleryImages = [
     {
         src: galleryImage4,
         alt: 'RFID automation overview',
+    },
+    {
+        src: galleryItem5,
+        alt: 'RFID item and equipment',
     },
 ];
 
