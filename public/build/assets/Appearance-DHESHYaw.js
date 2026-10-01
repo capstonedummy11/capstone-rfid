@@ -1,1 +1,0 @@
-import{K as t,c as s,a,o}from"./app-f6-8JpQC.js";const c={},n={class:"mx-auto w-full max-w-3xl p-6"};function r(l,e){return o(),s("section",n,[...e[0]||(e[0]=[a("h1",{class:"text-xl font-semibold text-slate-900"},"Appearance",-1)])])}const x=t(c,[["render",r]]);export{x as default};

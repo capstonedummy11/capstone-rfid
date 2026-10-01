@@ -107,7 +107,10 @@ const showcaseItems = [
 const showcaseTrack = ref(null);
 const activeShowcaseIndex = ref(0);
 const galleryTrack = ref(null);
+const galleryControls = ref(null);
 const activeGalleryIndex = ref(0);
+const visibleGalleryCount = ref(1);
+const galleryAutoplayEnabled = ref(true);
 let galleryAutoplayTimer = null;
 
 const scrollToShowcase = (index) => {
@@ -160,15 +163,15 @@ const scrollToGallery = (index) => {
     if (!track || galleryImages.length === 0) return;
 
     const normalizedIndex =
-        (index + galleryImages.length) % galleryImages.length;
+        (index + galleryPositions.value.length) % galleryPositions.value.length;
     const slide = track.children[normalizedIndex];
     if (!slide) return;
 
-    const trackLeft = track.getBoundingClientRect().left;
-    const slideLeft = slide.getBoundingClientRect().left;
-
     track.scrollTo({
-        left: track.scrollLeft + slideLeft - trackLeft,
+        left: Math.min(
+            slide.offsetLeft - track.children[0].offsetLeft,
+            track.scrollWidth - track.clientWidth,
+        ),
         behavior: 'smooth',
     });
     activeGalleryIndex.value = normalizedIndex;
@@ -186,22 +189,49 @@ const syncGalleryIndex = () => {
     let closestIndex = 0;
     let closestDistance = Number.POSITIVE_INFINITY;
 
-    Array.from(track.children).forEach((slide, index) => {
-        const distance = Math.abs(
-            slide.getBoundingClientRect().left - trackLeft,
-        );
-        if (distance < closestDistance) {
-            closestDistance = distance;
-            closestIndex = index;
-        }
-    });
+    Array.from(track.children)
+        .slice(0, galleryPositions.value.length)
+        .forEach((slide, index) => {
+            const distance = Math.abs(
+                slide.getBoundingClientRect().left - trackLeft,
+            );
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestIndex = index;
+            }
+        });
 
     activeGalleryIndex.value = closestIndex;
 };
 
+const galleryPositions = computed(() =>
+    Array.from(
+        {
+            length: Math.max(
+                1,
+                galleryImages.length - visibleGalleryCount.value + 1,
+            ),
+        },
+        (_, index) => index,
+    ),
+);
+
+const updateGallerySize = () => {
+    visibleGalleryCount.value = window.matchMedia('(min-width: 1024px)').matches
+        ? 3
+        : window.matchMedia('(min-width: 640px)').matches
+          ? 2
+          : 1;
+    activeGalleryIndex.value = Math.min(
+        activeGalleryIndex.value,
+        galleryPositions.value.length - 1,
+    );
+    scrollToGallery(activeGalleryIndex.value);
+};
+
 const startGalleryAutoplay = () => {
     if (
-        typeof window !== 'undefined' &&
+        !galleryAutoplayEnabled.value ||
         window.matchMedia('(prefers-reduced-motion: reduce)').matches
     ) {
         return;
@@ -212,7 +242,7 @@ const startGalleryAutoplay = () => {
     }
 
     galleryAutoplayTimer = window.setInterval(() => {
-        moveGallery(1);
+        if (!document.hidden) moveGallery(1);
     }, 5000);
 };
 
@@ -220,6 +250,21 @@ const stopGalleryAutoplay = () => {
     if (galleryAutoplayTimer) {
         window.clearInterval(galleryAutoplayTimer);
         galleryAutoplayTimer = null;
+    }
+};
+
+const resumeGalleryAutoplay = (event) => {
+    if (!galleryControls.value?.contains(event.relatedTarget)) {
+        startGalleryAutoplay();
+    }
+};
+
+const toggleGalleryAutoplay = () => {
+    galleryAutoplayEnabled.value = !galleryAutoplayEnabled.value;
+    if (galleryAutoplayEnabled.value) {
+        startGalleryAutoplay();
+    } else {
+        stopGalleryAutoplay();
     }
 };
 
@@ -305,10 +350,13 @@ onMounted(() => {
     }
 
     startGalleryAutoplay();
+    updateGallerySize();
+    window.addEventListener('resize', updateGallerySize);
 });
 
 onBeforeUnmount(() => {
     stopGalleryAutoplay();
+    window.removeEventListener('resize', updateGallerySize);
 });
 </script>
 
@@ -909,8 +957,13 @@ onBeforeUnmount(() => {
                     </div>
 
                     <div
+                        ref="galleryControls"
                         class="mt-10 flex items-center justify-between gap-3"
                         aria-label="Gallery controls"
+                        @mouseenter="stopGalleryAutoplay"
+                        @mouseleave="startGalleryAutoplay"
+                        @focusin="stopGalleryAutoplay"
+                        @focusout="resumeGalleryAutoplay"
                     >
                         <button
                             type="button"
@@ -931,10 +984,6 @@ onBeforeUnmount(() => {
                             @scroll.passive="syncGalleryIndex"
                             @keydown.left.prevent="moveGallery(-1)"
                             @keydown.right.prevent="moveGallery(1)"
-                            @mouseenter="stopGalleryAutoplay"
-                            @mouseleave="startGalleryAutoplay"
-                            @focusin="stopGalleryAutoplay"
-                            @focusout="startGalleryAutoplay"
                         >
                             <div
                                 v-for="(image, index) in galleryImages"
@@ -962,28 +1011,42 @@ onBeforeUnmount(() => {
                         </button>
                     </div>
 
-                    <div
-                        class="mt-5 flex justify-center gap-2"
-                        aria-label="Choose a gallery image"
-                    >
+                    <div class="mt-5 flex items-center justify-center gap-5">
+                        <div
+                            class="flex gap-2"
+                            aria-label="Choose a gallery image"
+                        >
+                            <button
+                                v-for="index in galleryPositions"
+                                :key="`${index}-indicator`"
+                                type="button"
+                                class="h-2.5 rounded-full transition-all focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:outline-none"
+                                :class="
+                                    activeGalleryIndex === index
+                                        ? 'w-8 bg-brand'
+                                        : 'w-2.5 bg-slate-300 hover:bg-slate-400'
+                                "
+                                :aria-label="`Show gallery images starting with ${galleryImages[index].alt}`"
+                                :aria-current="
+                                    activeGalleryIndex === index
+                                        ? 'true'
+                                        : undefined
+                                "
+                                @click="scrollToGallery(index)"
+                            ></button>
+                        </div>
                         <button
-                            v-for="(image, index) in galleryImages"
-                            :key="`${image.alt}-indicator`"
                             type="button"
-                            class="h-2.5 rounded-full transition-all focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:outline-none"
-                            :class="
-                                activeGalleryIndex === index
-                                    ? 'w-8 bg-brand'
-                                    : 'w-2.5 bg-slate-300 hover:bg-slate-400'
+                            class="text-sm font-semibold text-brand underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
+                            :aria-label="
+                                galleryAutoplayEnabled
+                                    ? 'Pause gallery autoplay'
+                                    : 'Play gallery autoplay'
                             "
-                            :aria-label="`Show ${image.alt}`"
-                            :aria-current="
-                                activeGalleryIndex === index
-                                    ? 'true'
-                                    : undefined
-                            "
-                            @click="scrollToGallery(index)"
-                        ></button>
+                            @click="toggleGalleryAutoplay"
+                        >
+                            {{ galleryAutoplayEnabled ? 'Pause' : 'Play' }}
+                        </button>
                     </div>
                 </div>
             </section>
