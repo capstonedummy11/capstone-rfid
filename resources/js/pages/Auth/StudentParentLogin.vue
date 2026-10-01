@@ -111,7 +111,6 @@ const galleryTrack = ref(null);
 const galleryControls = ref(null);
 const activeGalleryIndex = ref(0);
 const visibleGalleryCount = ref(1);
-const galleryAutoplayEnabled = ref(true);
 let galleryAutoplayTimer = null;
 
 const scrollToShowcase = (index) => {
@@ -231,10 +230,7 @@ const updateGallerySize = () => {
 };
 
 const startGalleryAutoplay = () => {
-    if (
-        !galleryAutoplayEnabled.value ||
-        window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    ) {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
         return;
     }
 
@@ -257,15 +253,6 @@ const stopGalleryAutoplay = () => {
 const resumeGalleryAutoplay = (event) => {
     if (!galleryControls.value?.contains(event.relatedTarget)) {
         startGalleryAutoplay();
-    }
-};
-
-const toggleGalleryAutoplay = () => {
-    galleryAutoplayEnabled.value = !galleryAutoplayEnabled.value;
-    if (galleryAutoplayEnabled.value) {
-        startGalleryAutoplay();
-    } else {
-        stopGalleryAutoplay();
     }
 };
 
@@ -1016,7 +1003,7 @@ onBeforeUnmount(() => {
                         </button>
                     </div>
 
-                    <div class="mt-5 flex items-center justify-center gap-5">
+                    <div class="mt-5 flex justify-center">
                         <div
                             class="flex gap-2"
                             aria-label="Choose a gallery image"
@@ -1040,18 +1027,6 @@ onBeforeUnmount(() => {
                                 @click="scrollToGallery(index)"
                             ></button>
                         </div>
-                        <button
-                            type="button"
-                            class="text-sm font-semibold text-brand underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
-                            :aria-label="
-                                galleryAutoplayEnabled
-                                    ? 'Pause gallery autoplay'
-                                    : 'Play gallery autoplay'
-                            "
-                            @click="toggleGalleryAutoplay"
-                        >
-                            {{ galleryAutoplayEnabled ? 'Pause' : 'Play' }}
-                        </button>
                     </div>
                 </div>
             </section>
