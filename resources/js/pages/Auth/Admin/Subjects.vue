@@ -603,6 +603,7 @@ import { router, useForm } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import Swal from 'sweetalert2';
 import SearchableSelect from '@/components/SearchableSelect.vue';
+import { confirmActionModal, showAlertModal } from '@/lib/feedbackModal';
 
 interface Subject {
     subject_id: string | number;
@@ -971,14 +972,18 @@ const submitForm = () => {
         form.unit === undefined ||
         Number(form.unit) < 0
     ) {
-        alert(
+        showAlertModal(
+            'Invalid subject details',
             'Please fill in all required fields and provide a valid unit value.',
+            'warning',
         );
         return;
     }
     if (!isEditing.value && (!form.section_id || !form.semester)) {
-        alert(
+        showAlertModal(
+            'Missing class assignment',
             'Please select the academic section and semester for this subject.',
+            'warning',
         );
         return;
     }
@@ -1016,8 +1021,13 @@ const submitForm = () => {
     });
 };
 
-const deleteSubject = (subject: Subject) => {
-    if (!confirm(`Are you sure you want to delete ${subject.subject_code}?`)) {
+const deleteSubject = async (subject: Subject) => {
+    const confirmed = await confirmActionModal({
+        title: 'Delete subject?',
+        text: `Are you sure you want to delete ${subject.subject_code}?`,
+    });
+
+    if (!confirmed) {
         return;
     }
 

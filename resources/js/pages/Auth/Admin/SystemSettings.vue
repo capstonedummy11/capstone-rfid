@@ -2,6 +2,7 @@
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
 import { computed } from 'vue';
+import { confirmActionModal } from '@/lib/feedbackModal';
 
 const props = defineProps({
     featureSettings: {
@@ -92,7 +93,9 @@ const form = useForm({
         Boolean(
             props.featureSettings.online_class_face_recognition_default ?? true,
         ),
-    online_classes_enabled: Boolean(props.featureSettings.online_classes_enabled ?? true),
+    online_classes_enabled: Boolean(
+        props.featureSettings.online_classes_enabled ?? true,
+    ),
     demo_attendance_panel_enabled: Boolean(
         props.demoAttendancePanelSettings.enabled,
     ),
@@ -193,9 +196,13 @@ const selectEmergencySound = (sound) => {
     );
 };
 
-const deleteEmergencySound = (sound) => {
+const deleteEmergencySound = async (sound) => {
     if (sound.is_default) return;
-    if (!confirm(`Delete emergency sound "${sound.name}"?`)) return;
+    const confirmed = await confirmActionModal({
+        title: 'Delete emergency sound?',
+        text: `Delete emergency sound "${sound.name}"?`,
+    });
+    if (!confirmed) return;
 
     router.delete(
         route('admin.settings.emergency-sounds.destroy', { id: sound.id }),
@@ -280,10 +287,19 @@ const toggleFaceSetting = (field) => {
                         class="flex items-center justify-between gap-4 rounded-md border border-slate-200 p-4"
                     >
                         <span class="min-w-0">
-                            <span class="block text-sm font-bold text-slate-900">Online Classes Enabled</span>
-                            <span class="block text-sm text-slate-500">Show and allow online class management, attendance, and logs.</span>
+                            <span class="block text-sm font-bold text-slate-900"
+                                >Online Classes Enabled</span
+                            >
+                            <span class="block text-sm text-slate-500"
+                                >Show and allow online class management,
+                                attendance, and logs.</span
+                            >
                         </span>
-                        <input v-model="form.online_classes_enabled" type="checkbox" class="h-5 w-5 shrink-0 accent-brand" />
+                        <input
+                            v-model="form.online_classes_enabled"
+                            type="checkbox"
+                            class="h-5 w-5 shrink-0 accent-brand"
+                        />
                     </label>
 
                     <label
@@ -311,11 +327,14 @@ const toggleFaceSetting = (field) => {
                         class="flex items-center justify-between gap-4 rounded-md border border-slate-200 p-4"
                     >
                         <span class="min-w-0">
-                            <span class="block text-sm font-bold text-slate-900">
+                            <span
+                                class="block text-sm font-bold text-slate-900"
+                            >
                                 Parent Portal
                             </span>
                             <span class="block text-sm text-slate-500">
-                                Allows linked parent accounts to log in and view connected student information.
+                                Allows linked parent accounts to log in and view
+                                connected student information.
                             </span>
                         </span>
                         <input
@@ -331,7 +350,9 @@ const toggleFaceSetting = (field) => {
                         class="flex items-center justify-between gap-4 rounded-md border border-slate-200 p-4"
                     >
                         <span class="min-w-0">
-                            <span class="block text-sm font-bold text-slate-900">
+                            <span
+                                class="block text-sm font-bold text-slate-900"
+                            >
                                 Parent Excuse Letter Submission
                             </span>
                             <span class="block text-sm text-slate-500">
@@ -481,7 +502,9 @@ const toggleFaceSetting = (field) => {
                             </span>
                         </div>
 
-                        <div class="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+                        <div
+                            class="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto]"
+                        >
                             <input
                                 v-model="soundUploadForm.name"
                                 type="text"
@@ -522,9 +545,7 @@ const toggleFaceSetting = (field) => {
                                 :key="sound.id"
                                 class="grid gap-3 rounded-md border border-slate-200 bg-white p-3 sm:grid-cols-[1fr_auto] sm:items-center"
                             >
-                                <label
-                                    class="flex min-w-0 items-start gap-3"
-                                >
+                                <label class="flex min-w-0 items-start gap-3">
                                     <input
                                         type="radio"
                                         name="clinic_emergency_sound"

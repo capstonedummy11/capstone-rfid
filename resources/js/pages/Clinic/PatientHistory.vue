@@ -2,6 +2,7 @@
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import { Edit3, FilePlus2, Trash2 } from 'lucide-vue-next';
+import { confirmActionModal } from '@/lib/feedbackModal';
 
 const props = defineProps({
     histories: { type: Array, default: () => [] },
@@ -65,8 +66,12 @@ const submitHistory = () => {
     });
 };
 
-const deleteHistory = (history) => {
-    if (!confirm(`Delete patient history for ${history.patient_name}?`)) return;
+const deleteHistory = async (history) => {
+    const confirmed = await confirmActionModal({
+        title: 'Delete patient history?',
+        text: `Delete patient history for ${history.patient_name}?`,
+    });
+    if (!confirmed) return;
 
     router.delete(route('clinic.patient-history.destroy', history.id), {
         preserveScroll: true,

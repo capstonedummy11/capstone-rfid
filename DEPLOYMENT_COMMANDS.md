@@ -1,8 +1,10 @@
 # Deployment commands
 
-## 1. Local Windows computer: build the frontend
+This project uses a **local-build deployment**. Run the complete frontend production build on the Windows development computer, commit the generated `public/build` files with the rest of the system changes, and push that commit to the deployment branch. The server only pulls and serves the prebuilt files; it must not run `npm install` or `npm run build`.
 
-Run this block in PowerShell. The frontend must be built locally because the Lightsail server does not have enough RAM for a reliable Vite build. PHP 8.5.8 is placed first on `PATH` because Wayfinder runs Artisan while Vite is building, and Node 20 is used because it is the verified runtime for this checkout.
+## 1. Local Windows computer: build the complete frontend
+
+Run this block in PowerShell from the project root. `npm run build` creates the production bundle for the complete frontend, not only the page that was changed. The build must run locally because the Lightsail server does not have enough RAM for a reliable Vite build. PHP 8.5.8 is placed first on `PATH` because Wayfinder runs Artisan while Vite is building, and Node 20 is the verified runtime for this checkout.
 
 ```powershell
 Set-Location "C:\Users\User 03\Desktop\capstone-rfid"
@@ -16,30 +18,51 @@ if (-not (Test-Path "public/build/manifest.json")) {
     throw "Frontend build failed: public/build/manifest.json was not created."
 }
 
-Write-Host "Frontend production build completed." -ForegroundColor Green
+Write-Host "Complete frontend production build created locally." -ForegroundColor Green
 ```
 
-## 2. Local Windows computer: review, commit, and push the frontend
+Laravel/PHP source is not compiled by Vite. It is committed with the frontend source in the next section, while Composer installation, migrations, and Laravel cache generation happen on the server.
 
-Review the working tree before staging. Stage the intended source files explicitly so unrelated local work is not accidentally deployed. The compiled `public/build` directory is ignored by default, so `-f` is required.
+## 2. Local Windows computer: commit the complete system and push the current branch
+
+This block stages the complete system state, including backend, frontend, migrations, documentation, and deleted files. Review `git status` first and remove any unrelated local work before running it. The compiled `public/build` directory is ignored by default, so it must be force-staged separately.
 
 ```powershell
 Set-Location "C:\Users\User 03\Desktop\capstone-rfid"
 git status --short
 
-# Add only the frontend source and documentation intended for this deployment.
-git add -A resources/js resources/css DEPLOYMENT_COMMANDS.md
+# Stage every system change in this checkout.
+git add -A
+
+# Include the complete frontend bundle produced by npm run build.
 git add -f -A public/build
 
 git diff --cached --check
-git diff --cached --stat
+git diff --cached --name-status
 
-git commit -m "Build frontend for deployment"
+# Stop and unstage any secrets or unrelated files shown above before committing.
+$forbiddenFiles = git diff --cached --name-only | Where-Object {
+    $_ -match '(^|/)(\.env($|\.)|node_modules/)' -or
+    $_ -match '\.(pem|key|p12|pfx)$'
+}
+
+if ($forbiddenFiles) {
+    $forbiddenFiles | ForEach-Object { Write-Error "Do not commit: $_" }
+    throw "Deployment stopped because sensitive or dependency files are staged."
+}
+
 $deploymentBranch = git branch --show-current
+if (-not $deploymentBranch) {
+    throw "Deployment stopped: Git is not currently on a branch."
+}
+
+git commit -m "Build complete system for deployment"
 git push origin $deploymentBranch
+
+Write-Host "Built locally and pushed to branch: $deploymentBranch" -ForegroundColor Green
 ```
 
-If the deployment also contains Laravel changes, explicitly add their exact `app`, `routes`, `database`, `config`, or test files before committing. Do not replace the explicit staging commands with `git add -A` when unrelated local work exists. Never commit `.env`, `node_modules`, credentials, or private keys.
+`git add -A` is intentional here because this workflow deploys the complete system state. Run it only after reviewing or setting aside unrelated work. Never commit `.env`, `node_modules`, credentials, private keys, local database files, or temporary files.
 
 ## 3. AWS Lightsail server: pull and deploy the prebuilt frontend
 
@@ -49,7 +72,7 @@ After the local push succeeds, copy and paste this entire block into the Lightsa
 set -e
 cd /var/www/capstone-rfid
 
-# Change this only when deploying a different branch.
+# This must match the branch pushed from the local computer.
 DEPLOY_BRANCH="development"
 git pull --ff-only origin "$DEPLOY_BRANCH"
 
@@ -70,7 +93,7 @@ sudo systemctl restart nginx
 echo "Deployment completed successfully."
 ```
 
-The server block intentionally does not run `npm install` or `npm run build`. Nginx serves the compiled `public/build` files that were produced locally and committed in section 2.
+The server block intentionally does not run `npm install` or `npm run build`. Nginx serves the compiled `public/build` files produced on the local computer and committed in section 2. Before running the server block, set `DEPLOY_BRANCH` to the exact branch printed by the local PowerShell block.
 
 ## 4. Frontend deployment verification
 

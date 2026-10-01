@@ -1097,7 +1097,9 @@
                             v-if="!selectedParent"
                             class="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700"
                         >
-                            The temporary password is generated from the parent's first and last name without spaces. The parent must replace it after signing in.
+                            The temporary password is generated from the
+                            parent's first and last name without spaces. The
+                            parent must replace it after signing in.
                         </p>
 
                         <div
@@ -1216,6 +1218,7 @@ import {
 import Swal from 'sweetalert2';
 import { computed, ref } from 'vue';
 import CameraCapture from '@/components/CameraCapture.vue';
+import { showAlertModal } from '@/lib/feedbackModal';
 
 interface Student {
     student_id: string | number;
@@ -1683,10 +1686,9 @@ const unlinkParent = async (parent: ParentAccount) => {
 };
 
 const defaultStudentPassword = (student: Student) =>
-    `${student.first_name ?? ''}${student.last_name ?? ''}`.replace(
-        /\s+/g,
-        '',
-    ).toLowerCase() || String(student.student_number ?? '').toLowerCase();
+    `${student.first_name ?? ''}${student.last_name ?? ''}`
+        .replace(/\s+/g, '')
+        .toLowerCase() || String(student.student_number ?? '').toLowerCase();
 
 const resetStudentPassword = async (student: Student) => {
     if (!canManageStudents.value) return;
@@ -1729,7 +1731,11 @@ const submitForm = () => {
         !form.semester ||
         !form.school_year
     ) {
-        alert('Please fill in all required fields.');
+        showAlertModal(
+            'Missing required fields',
+            'Please fill in all required fields.',
+            'warning',
+        );
         return;
     }
 

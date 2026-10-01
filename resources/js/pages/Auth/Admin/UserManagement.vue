@@ -11,6 +11,7 @@ import {
     UsersRound,
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
+import { confirmActionModal } from '@/lib/feedbackModal';
 
 const props = defineProps({
     users: { type: Array, default: () => [] },
@@ -167,9 +168,13 @@ const confirmPasswordReset = () => {
     );
 };
 
-const deleteUser = (user) => {
+const deleteUser = async (user) => {
     if (!user.can_delete) return;
-    if (!confirm(`Delete ${user.email}?`)) return;
+    const confirmed = await confirmActionModal({
+        title: 'Delete user?',
+        text: `Delete ${user.email}?`,
+    });
+    if (!confirmed) return;
 
     router.delete(route('admin.users.destroy', user.id), {
         preserveScroll: true,

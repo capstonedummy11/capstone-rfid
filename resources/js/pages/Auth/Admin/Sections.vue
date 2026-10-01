@@ -410,6 +410,7 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import { confirmActionModal, showAlertModal } from '@/lib/feedbackModal';
 
 interface Section {
     section_id: string | number;
@@ -623,7 +624,11 @@ const submitForm = () => {
         !form.semester ||
         !form.school_year
     ) {
-        alert('Please fill in all required fields.');
+        showAlertModal(
+            'Missing required fields',
+            'Please fill in all required fields.',
+            'warning',
+        );
         return;
     }
 
@@ -651,8 +656,13 @@ const submitForm = () => {
     }
 };
 
-const deleteSection = (section: Section) => {
-    if (!confirm(`Are you sure you want to delete ${section.section_name}?`)) {
+const deleteSection = async (section: Section) => {
+    const confirmed = await confirmActionModal({
+        title: 'Delete section?',
+        text: `Are you sure you want to delete ${section.section_name}?`,
+    });
+
+    if (!confirmed) {
         return;
     }
 

@@ -267,6 +267,7 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
+import { confirmActionModal, showAlertModal } from '@/lib/feedbackModal';
 
 interface Strand {
     strand_id: string | number;
@@ -370,7 +371,11 @@ const closeModal = () => {
 
 const submitForm = () => {
     if (!form.strand_code || !form.strand_name || !form.department) {
-        alert('Please fill in all required fields.');
+        showAlertModal(
+            'Missing required fields',
+            'Please fill in all required fields.',
+            'warning',
+        );
         return;
     }
 
@@ -398,12 +403,13 @@ const submitForm = () => {
     }
 };
 
-const deleteStrand = (strand: Strand) => {
-    if (
-        !confirm(
-            `Are you sure you want to delete ${strand.strand_code} - ${strand.strand_name}?`,
-        )
-    ) {
+const deleteStrand = async (strand: Strand) => {
+    const confirmed = await confirmActionModal({
+        title: 'Delete strand?',
+        text: `Are you sure you want to delete ${strand.strand_code} - ${strand.strand_name}?`,
+    });
+
+    if (!confirmed) {
         return;
     }
 
