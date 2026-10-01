@@ -106,6 +106,8 @@ const showcaseItems = [
 
 const showcaseTrack = ref(null);
 const activeShowcaseIndex = ref(0);
+const galleryTrack = ref(null);
+const activeGalleryIndex = ref(0);
 
 const scrollToShowcase = (index) => {
     const track = showcaseTrack.value;
@@ -150,6 +152,50 @@ const syncShowcaseIndex = () => {
     });
 
     activeShowcaseIndex.value = closestIndex;
+};
+
+const scrollToGallery = (index) => {
+    const track = galleryTrack.value;
+    if (!track || galleryImages.length === 0) return;
+
+    const normalizedIndex =
+        (index + galleryImages.length) % galleryImages.length;
+    const slide = track.children[normalizedIndex];
+    if (!slide) return;
+
+    const trackLeft = track.getBoundingClientRect().left;
+    const slideLeft = slide.getBoundingClientRect().left;
+
+    track.scrollTo({
+        left: track.scrollLeft + slideLeft - trackLeft,
+        behavior: 'smooth',
+    });
+    activeGalleryIndex.value = normalizedIndex;
+};
+
+const moveGallery = (direction) => {
+    scrollToGallery(activeGalleryIndex.value + direction);
+};
+
+const syncGalleryIndex = () => {
+    const track = galleryTrack.value;
+    if (!track) return;
+
+    const trackLeft = track.getBoundingClientRect().left;
+    let closestIndex = 0;
+    let closestDistance = Number.POSITIVE_INFINITY;
+
+    Array.from(track.children).forEach((slide, index) => {
+        const distance = Math.abs(
+            slide.getBoundingClientRect().left - trackLeft,
+        );
+        if (distance < closestDistance) {
+            closestDistance = distance;
+            closestIndex = index;
+        }
+    });
+
+    activeGalleryIndex.value = closestIndex;
 };
 
 const galleryImages = [
@@ -831,14 +877,78 @@ onMounted(() => {
                         </div>
                     </div>
 
-                    <div class="mt-10 grid gap-5 md:grid-cols-3">
-                        <img
-                            v-for="image in galleryImages"
-                            :key="image.alt"
-                            :src="image.src"
-                            :alt="image.alt"
-                            class="h-72 w-full rounded-lg object-cover shadow-md"
-                        />
+                    <div
+                        class="mt-10 flex items-center justify-between gap-3"
+                        aria-label="Gallery controls"
+                    >
+                        <button
+                            type="button"
+                            class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-300 text-xl text-default transition hover:border-brand hover:bg-brand hover:text-white focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:outline-none"
+                            aria-label="Show previous gallery image"
+                            @click="moveGallery(-1)"
+                        >
+                            &#8592;
+                        </button>
+
+                        <div
+                            ref="galleryTrack"
+                            class="flex min-w-0 snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                            role="region"
+                            aria-roledescription="carousel"
+                            aria-label="RFID modules and assets gallery"
+                            tabindex="0"
+                            @scroll.passive="syncGalleryIndex"
+                            @keydown.left.prevent="moveGallery(-1)"
+                            @keydown.right.prevent="moveGallery(1)"
+                        >
+                            <div
+                                v-for="(image, index) in galleryImages"
+                                :key="image.alt"
+                                class="min-w-full shrink-0 snap-start"
+                                role="group"
+                                aria-roledescription="slide"
+                                :aria-label="`${index + 1} of ${galleryImages.length}: ${image.alt}`"
+                            >
+                                <img
+                                    :src="image.src"
+                                    :alt="image.alt"
+                                    class="h-72 w-full rounded-lg object-cover shadow-md md:h-96"
+                                />
+                            </div>
+                        </div>
+
+                        <button
+                            type="button"
+                            class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-300 text-xl text-default transition hover:border-brand hover:bg-brand hover:text-white focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:outline-none"
+                            aria-label="Show next gallery image"
+                            @click="moveGallery(1)"
+                        >
+                            &#8594;
+                        </button>
+                    </div>
+
+                    <div
+                        class="mt-5 flex justify-center gap-2"
+                        aria-label="Choose a gallery image"
+                    >
+                        <button
+                            v-for="(image, index) in galleryImages"
+                            :key="`${image.alt}-indicator`"
+                            type="button"
+                            class="h-2.5 rounded-full transition-all focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:outline-none"
+                            :class="
+                                activeGalleryIndex === index
+                                    ? 'w-8 bg-brand'
+                                    : 'w-2.5 bg-slate-300 hover:bg-slate-400'
+                            "
+                            :aria-label="`Show ${image.alt}`"
+                            :aria-current="
+                                activeGalleryIndex === index
+                                    ? 'true'
+                                    : undefined
+                            "
+                            @click="scrollToGallery(index)"
+                        ></button>
                     </div>
                 </div>
             </section>
