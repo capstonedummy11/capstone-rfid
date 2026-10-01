@@ -325,3 +325,15 @@ test('user management exposes protected root ownership workflows', function () {
         ->toContain('Actor email')
         ->toContain('Ownership audit log');
 });
+
+test('admin login verification shows the required otp controls', function () {
+    $page = file_get_contents(resource_path('js/pages/Auth/AdminLoginVerification.vue'));
+
+    expect($page)
+        ->toContain('Admin security checkpoint')
+        ->toContain('autocomplete="one-time-code"')
+        ->toContain("route('admin.login-verification.verify')")
+        ->toContain("route('admin.login-verification.resend')")
+        ->toContain('Resend code')
+        ->toContain("router.post(route('logout'))");
+});

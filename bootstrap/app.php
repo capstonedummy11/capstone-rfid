@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureAdminLoginOtpVerified;
 use App\Http\Middleware\EnsureAuthenticatedSessionIdentity;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -39,6 +40,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             EnsureAuthenticatedSessionIdentity::class,
+            EnsureAdminLoginOtpVerified::class,
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,

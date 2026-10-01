@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Auth\AdminLoginOtpService;
 use App\Support\AuthenticatedSession;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -28,7 +29,7 @@ class StaffLoginController
         return Inertia::render('Auth/StaffLogin');
     }
 
-    public function store(Request $request)
+    public function store(Request $request, AdminLoginOtpService $adminOtp)
     {
         $credentials = $request->validate([
             'email' => ['required', 'email'],
@@ -57,6 +58,15 @@ class StaffLoginController
         }
 
         AuthenticatedSession::issue($request, $user);
+
+        if ($role === 'admin') {
+            $sent = $adminOtp->issue($request, $user);
+            $response = redirect()->route('admin.login-verification.show');
+
+            return $sent
+                ? $response->with('success', 'A verification code was sent to your Admin email address.')
+                : $response->withErrors(['otp' => 'The verification email could not be sent. Use resend to try again.']);
+        }
 
         return $this->redirectForRole($role);
     }

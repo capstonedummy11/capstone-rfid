@@ -176,8 +176,9 @@ Use HTTPS outside `localhost`, configure AWS billing alarms, review the default 
 | `SEMAPHORE_API_KEY`, `SEMAPHORE_SENDER_NAME`, `SEMAPHORE_ENDPOINT` | Semaphore SMS configuration. |
 | `MAIL_MAILER`, `MAIL_SCHEME`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME` | Laravel mail transport for reset, OTP, messages, class notices, dispatch, and letters. |
 | `MESSENGER_EMAIL_NOTIFICATION_COOLDOWN_MINUTES` | Minimum interval for repeated sender-to-recipient Messenger email alerts; default 5. |
+| `ADMIN_LOGIN_OTP_EXPIRES_MINUTES`, `ADMIN_LOGIN_OTP_RESEND_SECONDS`, `ADMIN_LOGIN_OTP_MAX_ATTEMPTS` | Admin per-login email-code lifetime, resend cooldown, and incorrect-attempt limit; defaults are 10 minutes, 60 seconds, and 5 attempts. |
 
-Use `MAIL_MAILER=log` during local development if no SMTP server is available. Live OTP/password-reset workflows require real mail delivery.
+Use `MAIL_MAILER=log` during local development if no SMTP server is available. Live Admin/Instructor OTP and password-reset workflows require real mail delivery; an Admin cannot open protected pages while their per-login code is undelivered or unverified.
 
 ## Run locally
 

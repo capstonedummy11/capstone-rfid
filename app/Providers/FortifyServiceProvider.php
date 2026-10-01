@@ -151,6 +151,14 @@ class FortifyServiceProvider extends ServiceProvider
                 ->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip()));
         });
 
+        RateLimiter::for('admin-login-otp-send', function (Request $request) {
+            return Limit::perMinute(3)->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip()));
+        });
+
+        RateLimiter::for('admin-login-otp-verify', function (Request $request) {
+            return Limit::perMinute(10)->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip()));
+        });
+
         RateLimiter::for('first-login-password', function (Request $request) {
             return Limit::perMinute(15)->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip()));
         });

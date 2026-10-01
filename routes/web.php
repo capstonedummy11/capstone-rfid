@@ -3,6 +3,7 @@
 use App\Http\Controllers\AcademicYearController;
 use App\Http\Controllers\ActiveDeviceController;
 use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\AdminLoginVerificationController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AttendanceManagementController;
@@ -97,6 +98,18 @@ Route::middleware('auth')->group(function () {
         ->middleware('throttle:first-login-password')
         ->name('password.first-login.update');
 });
+Route::prefix('admin/login-verification')
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.login-verification.')
+    ->group(function () {
+        Route::get('/', [AdminLoginVerificationController::class, 'show'])->name('show');
+        Route::post('/', [AdminLoginVerificationController::class, 'verify'])
+            ->middleware('throttle:admin-login-otp-verify')
+            ->name('verify');
+        Route::post('/resend', [AdminLoginVerificationController::class, 'resend'])
+            ->middleware('throttle:admin-login-otp-send')
+            ->name('resend');
+    });
 Route::get('/messages/new', [MessageController::class, 'create'])->name('messages.create');
 Route::post('/messages', [MessageController::class, 'store'])->name('messages.store');
 Route::middleware(['auth', 'role:admin,instructor,clinic,registrar,student,parent', EnsureParentPortalEnabled::class])->group(function () {

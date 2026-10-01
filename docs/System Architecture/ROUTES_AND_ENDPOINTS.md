@@ -11,6 +11,7 @@ All application endpoints use Laravel's `web` middleware and session/CSRF model.
 | `GET /`, `GET /home`, `GET /dashboard` | Landing and role redirects. | Dashboard requires auth. |
 | `GET /about`, `GET /up` | Public About Us page and health response. | Public. |
 | `GET/POST /{SECURE_LOGIN_ROUTE}` | Staff login page/submit. | Guest + login throttle on POST. |
+| `GET/POST /admin/login-verification`, `POST /admin/login-verification/resend` | Display, verify, or rotate the mandatory per-login Admin email OTP. | Authenticated Admin; separate verification/resend throttles. |
 | `GET /secure-login` | Compatibility redirect to configured staff path. | Public. |
 | `POST /login` | Student/Parent login submit. | Guest + login throttle. |
 | Fortify reset/verify/2FA routes | Password reset, confirmation, verification, two factor, logout. | Fortify/web middleware. |

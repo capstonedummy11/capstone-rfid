@@ -1,6 +1,8 @@
 <?php
 
+use App\Mail\AdminLoginOtpMail;
 use App\Models\User;
+use App\Services\Auth\AdminLoginOtpService;
 use App\Support\AuthenticatedSession;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
@@ -13,8 +15,9 @@ test('login screen can be rendered', function () {
     $response->assertOk();
 });
 
-test('users can authenticate using the login screen', function () {
-    $user = User::factory()->create();
+test('admin password login requires the emailed otp before protected access', function () {
+    Mail::fake();
+    $user = User::factory()->create(['role' => 'admin']);
 
     $response = $this->post(route('staff.login.store'), [
         'email' => $user->email,
@@ -22,15 +25,94 @@ test('users can authenticate using the login screen', function () {
     ]);
 
     $this->assertAuthenticated();
-    $response->assertRedirect(route('admin.dashboard', absolute: false));
+    $response->assertRedirect(route('admin.login-verification.show', absolute: false));
     $response->assertSessionHas(AuthenticatedSession::USER_ID, (string) $user->getKey());
-    $response->assertSessionHas(AuthenticatedSession::LOGIN_ID);
+    $response->assertSessionHas(AuthenticatedSession::LOGIN_ID)
+        ->assertSessionHas(AdminLoginOtpService::HASH)
+        ->assertSessionMissing(AdminLoginOtpService::VERIFIED_LOGIN_ID);
+
+    $code = null;
+    Mail::assertSent(AdminLoginOtpMail::class, function (AdminLoginOtpMail $mail) use ($user, &$code) {
+        $code = $mail->code;
+
+        return $mail->hasTo($user->email);
+    });
+
+    $this->get(route('admin.dashboard'))->assertRedirect(route('admin.login-verification.show'));
+    $this->get(route('admin.login-verification.show'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Auth/AdminLoginVerification')
+            ->where('email', fn ($email) => str_contains($email, '@'))
+        );
+
+    $this->post(route('admin.login-verification.verify'), ['otp' => '000000'])
+        ->assertSessionHasErrors('otp');
+    $this->post(route('admin.login-verification.verify'), ['otp' => $code])
+        ->assertRedirect(route('admin.dashboard'));
+    $this->get(route('admin.dashboard'))->assertOk();
+});
+
+test('resending an admin login otp invalidates the previous code', function () {
+    Mail::fake();
+    $admin = User::factory()->create(['role' => 'admin']);
+
+    $this->post(route('staff.login.store'), [
+        'email' => $admin->email,
+        'password' => 'password',
+    ]);
+    $firstCode = Mail::sent(AdminLoginOtpMail::class)->first()->code;
+
+    $this->post(route('admin.login-verification.resend'))
+        ->assertSessionHasErrors('otp');
+
+    $this->travel((int) config('admin_login_otp.resend_seconds'))->seconds();
+    $this->post(route('admin.login-verification.resend'))
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+    $secondCode = Mail::sent(AdminLoginOtpMail::class)->last()->code;
+
+    expect($secondCode)->not->toBe($firstCode);
+    $this->post(route('admin.login-verification.verify'), ['otp' => $firstCode])
+        ->assertSessionHasErrors('otp');
+    $this->post(route('admin.login-verification.verify'), ['otp' => $secondCode])
+        ->assertRedirect(route('admin.dashboard'));
+});
+
+test('expired admin login otp is rejected and protected access remains blocked', function () {
+    Mail::fake();
+    $admin = User::factory()->create(['role' => 'admin']);
+    $this->post(route('staff.login.store'), ['email' => $admin->email, 'password' => 'password']);
+    $code = Mail::sent(AdminLoginOtpMail::class)->sole()->code;
+
+    $this->travel((int) config('admin_login_otp.expires_minutes'))->minutes();
+    $this->travel(1)->second();
+
+    $this->post(route('admin.login-verification.verify'), ['otp' => $code])
+        ->assertSessionHasErrors('otp');
+    $this->get(route('admin.dashboard'))->assertRedirect(route('admin.login-verification.show'));
+});
+
+test('admin login otp locks after the configured number of incorrect attempts', function () {
+    Mail::fake();
+    $admin = User::factory()->create(['role' => 'admin']);
+    $this->post(route('staff.login.store'), ['email' => $admin->email, 'password' => 'password']);
+
+    foreach (range(1, (int) config('admin_login_otp.max_attempts')) as $attempt) {
+        $response = $this->post(route('admin.login-verification.verify'), ['otp' => '000000']);
+    }
+
+    $response->assertSessionHasErrors(['otp' => 'Too many incorrect attempts. Request a new code.']);
+    $response->assertSessionMissing(AdminLoginOtpService::HASH);
+    $this->get(route('admin.dashboard'))->assertRedirect(route('admin.login-verification.show'));
 });
 
 test('remember email does not create persistent authentication', function () {
+    Mail::fake();
     config()->set('session.expire_on_close', true);
 
     $user = User::factory()->create();
+    $initialRememberToken = $user->getRememberToken();
 
     $response = $this->post(route('staff.login.store'), [
         'email' => $user->email,
@@ -43,7 +125,7 @@ test('remember email does not create persistent authentication', function () {
     expect($sessionCookie)->not->toBeNull()
         ->and($sessionCookie->getExpiresTime())->toBe(0)
         ->and(Auth::guard()->viaRemember())->toBeFalse()
-        ->and($user->refresh()->getRememberToken())->toBeNull();
+        ->and($user->refresh()->getRememberToken())->toBe($initialRememberToken);
 });
 
 test('different browser sessions keep independent authenticated users', function () {
@@ -85,7 +167,7 @@ test('different browser sessions keep independent authenticated users', function
     $this->defaultCookies = [];
     $this->withCookie($cookieName, $adminSessionId)
         ->get(route('landingPage'))
-        ->assertRedirect(route('admin.dashboard'));
+        ->assertRedirect(route('admin.login-verification.show'));
 
     Auth::forgetGuards();
     app('session.store')->flush();
@@ -117,7 +199,7 @@ test('the same browser session cannot sign into a second account', function () {
         ->post(route('student-parent.login.store'), [
             'email' => $student->email,
             'password' => 'password',
-        ])->assertRedirect(route('dashboard'));
+        ])->assertRedirect(route('admin.login-verification.show'));
 
     $this->assertAuthenticatedAs($admin);
 });

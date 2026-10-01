@@ -22,6 +22,7 @@ Admin controls the switches on **System Settings**. The application shares their
 - The public root page is the Student/Parent sign-in screen for visitors. Signed-in users are redirected to the correct workspace by role.
 - Staff use an environment-configured private login path. `/secure-login` is only a compatibility redirect; documentation must not expose a real production path.
 - Five failed login attempts per email/IP combination are allowed per minute before throttling.
+- Every successful Admin or Root Admin password login creates and emails a new six-digit challenge. Protected routes redirect that login to `/admin/login-verification` until the session-bound code succeeds. The code expires after 10 minutes, resend rotates the previous code after a 60-second cooldown, and five incorrect attempts invalidate the challenge by default.
 - New non-Console accounts marked for first-login replacement are forced to the password-change page before other work.
 - Console password-reset requests deliberately return the normal neutral response but do not start a Console email reset.
 - Every Instructor staff login clears the previous verification session. The Instructor must use face match, a 10-minute email code, or a saved security question before opening the shared Admin/Instructor workspace.

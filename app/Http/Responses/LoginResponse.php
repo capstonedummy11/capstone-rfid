@@ -2,11 +2,15 @@
 
 namespace App\Http\Responses;
 
+use App\Services\Auth\AdminLoginOtpService;
+use App\Support\AuthenticatedSession;
 use Illuminate\Support\Facades\Log;
 use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
 
 class LoginResponse implements LoginResponseContract
 {
+    public function __construct(private readonly AdminLoginOtpService $adminOtp) {}
+
     public function toResponse($request)
     {
         $user = $request->user();
@@ -27,9 +31,17 @@ class LoginResponse implements LoginResponseContract
         }
 
         if ($role === 'admin') {
-            Log::info('LoginResponse redirect', ['target' => 'admin.dashboard']);
+            if (! AuthenticatedSession::hasIdentity($request)) {
+                AuthenticatedSession::issue($request, $user);
+            }
+            $sent = $this->adminOtp->issue($request, $user);
+            Log::info('LoginResponse redirect', ['target' => 'admin.login-verification.show']);
 
-            return redirect()->route('admin.dashboard');
+            $response = redirect()->route('admin.login-verification.show');
+
+            return $sent
+                ? $response->with('success', 'A verification code was sent to your Admin email address.')
+                : $response->withErrors(['otp' => 'The verification email could not be sent. Use resend to try again.']);
         }
 
         if ($role === 'registrar') {
