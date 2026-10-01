@@ -17,7 +17,7 @@ import {
 } from '@/composables/useSavedStudentParentProfiles';
 import { Link, useForm, usePage } from '@inertiajs/vue3';
 import { ArrowRight, Eye, EyeOff, Trash2 } from 'lucide-vue-next';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
 const isMenuOpen = ref(false);
 const showLoginPanel = ref(false);
@@ -108,6 +108,7 @@ const showcaseTrack = ref(null);
 const activeShowcaseIndex = ref(0);
 const galleryTrack = ref(null);
 const activeGalleryIndex = ref(0);
+let galleryAutoplayTimer = null;
 
 const scrollToShowcase = (index) => {
     const track = showcaseTrack.value;
@@ -198,6 +199,30 @@ const syncGalleryIndex = () => {
     activeGalleryIndex.value = closestIndex;
 };
 
+const startGalleryAutoplay = () => {
+    if (
+        typeof window !== 'undefined' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+        return;
+    }
+
+    if (galleryAutoplayTimer) {
+        window.clearInterval(galleryAutoplayTimer);
+    }
+
+    galleryAutoplayTimer = window.setInterval(() => {
+        moveGallery(1);
+    }, 5000);
+};
+
+const stopGalleryAutoplay = () => {
+    if (galleryAutoplayTimer) {
+        window.clearInterval(galleryAutoplayTimer);
+        galleryAutoplayTimer = null;
+    }
+};
+
 const galleryImages = [
     {
         src: galleryImage1,
@@ -278,6 +303,12 @@ onMounted(() => {
     if (profiles.value.length > 0) {
         selectProfile(0);
     }
+
+    startGalleryAutoplay();
+});
+
+onBeforeUnmount(() => {
+    stopGalleryAutoplay();
 });
 </script>
 
@@ -900,11 +931,15 @@ onMounted(() => {
                             @scroll.passive="syncGalleryIndex"
                             @keydown.left.prevent="moveGallery(-1)"
                             @keydown.right.prevent="moveGallery(1)"
+                            @mouseenter="stopGalleryAutoplay"
+                            @mouseleave="startGalleryAutoplay"
+                            @focusin="stopGalleryAutoplay"
+                            @focusout="startGalleryAutoplay"
                         >
                             <div
                                 v-for="(image, index) in galleryImages"
                                 :key="image.alt"
-                                class="min-w-full shrink-0 snap-start"
+                                class="min-w-0 shrink-0 basis-full snap-start sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)]"
                                 role="group"
                                 aria-roledescription="slide"
                                 :aria-label="`${index + 1} of ${galleryImages.length}: ${image.alt}`"
