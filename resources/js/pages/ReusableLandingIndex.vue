@@ -260,9 +260,9 @@ import featureImage from '@/assets/images/Container.png';
 import featureImage2 from '@/assets/images/Container 2.png';
 import featureImage3 from '@/assets/images/Container 3.png';
 import container4 from '@/assets/images/Container 4.png';
-import item1 from '@/assets/images/Item 1.png';
-import item2 from '@/assets/images/Item 2.png';
 import item3 from '@/assets/images/Item 3.png';
+import item5 from '@/assets/images/Item 5.png';
+import galleryCampus from '@/assets/images/Home/1.jpg';
 import Footer from '@/components/LandingPage/Footer.vue';
 
 defineOptions({
@@ -309,16 +309,16 @@ const showcaseItems = [
 
 const galleryImages = [
     {
-        src: item1,
-        alt: 'RFID item preview one',
-    },
-    {
-        src: item2,
-        alt: 'RFID item preview two',
-    },
-    {
         src: item3,
-        alt: 'RFID item preview three',
+        alt: 'RFID item preview',
+    },
+    {
+        src: item5,
+        alt: 'RFID equipment preview',
+    },
+    {
+        src: galleryCampus,
+        alt: 'School campus and RFID operations',
     },
 ];
 </script>

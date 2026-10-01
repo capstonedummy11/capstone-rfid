@@ -23,23 +23,11 @@
     </div>
 </template>
 <script setup>
-import item1 from '@/assets/images/Item 1.png';
-import item2 from '@/assets/images/Item 2.png';
 import item3 from '@/assets/images/Item 3.png';
-import item4 from '@/assets/images/Item 4.png';
 import item5 from '@/assets/images/Item 5.png';
 const gallery = [
     {
-        image: item1,
-    },
-    {
-        image: item2,
-    },
-    {
         image: item3,
-    },
-    {
-        image: item4,
     },
     {
         image: item5,
