@@ -14,7 +14,8 @@ class EnsureAdminLoginOtpVerified
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
-        if (! $user || ! $this->otp->requiresVerification($request, $user) || $request->routeIs('admin.login-verification.*', 'logout')) {
+        if (! $user || ! $this->otp->requiresVerification($request, $user) || $request->routeIs('admin.login-verification.*', 'logout')
+            || ($user->must_change_password && $request->routeIs('password.first-login', 'password.first-login.update'))) {
             return $next($request);
         }
 

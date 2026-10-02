@@ -57,6 +57,7 @@ Accounts created for Admin, Instructor, Registrar, Clinic, Student, or Parent re
 After successful authentication:
 
 - The user is redirected to **Create your private password** before any dashboard or role feature.
+- Admin and Root Admin accounts complete this password step before entering the email code sent for the current login. If the code expires during password setup, they can request a new code on the verification page.
 - Directly entering another protected URL redirects back to the password-change page.
 - The New Password field displays a live strength bar and checklist for at least 12 characters, lowercase and uppercase letters, at least one number, and at least one symbol.
 - Each checklist item turns green when satisfied, and the first-login form remains disabled until every displayed requirement is met. The password must also be confirmed and differ from the temporary password. Production additionally checks that it is not present in known compromised-password data.

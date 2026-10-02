@@ -53,6 +53,39 @@ test('admin password login requires the emailed otp before protected access', fu
     $this->get(route('admin.dashboard'))->assertOk();
 });
 
+test('new root admin completes the private password step before verifying the login otp', function () {
+    Mail::fake();
+    $admin = User::factory()->create([
+        'role' => 'admin',
+        'is_root_admin' => true,
+        'must_change_password' => true,
+    ]);
+
+    $this->post(route('staff.login.store'), [
+        'email' => $admin->email,
+        'password' => 'password',
+    ])->assertRedirect(route('admin.login-verification.show'));
+
+    $this->get(route('admin.login-verification.show'))
+        ->assertRedirect(route('password.first-login'));
+    $this->get(route('password.first-login'))->assertOk();
+
+    $this->put(route('password.first-login.update'), [
+        'password' => 'PrivatePassword123!',
+        'password_confirmation' => 'PrivatePassword123!',
+    ])->assertRedirect(route('dashboard'));
+
+    expect($admin->fresh()->must_change_password)->toBeFalse();
+    $this->get(route('admin.dashboard'))
+        ->assertRedirect(route('admin.login-verification.show'));
+    $this->get(route('admin.login-verification.show'))->assertOk();
+
+    $code = Mail::sent(AdminLoginOtpMail::class)->sole()->code;
+    $this->post(route('admin.login-verification.verify'), ['otp' => $code])
+        ->assertRedirect(route('admin.dashboard'));
+    $this->get(route('admin.dashboard'))->assertOk();
+});
+
 test('resending an admin login otp invalidates the previous code', function () {
     Mail::fake();
     $admin = User::factory()->create(['role' => 'admin']);
