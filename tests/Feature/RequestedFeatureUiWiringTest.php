@@ -106,6 +106,19 @@ test('password change and reset forms explain the twelve character minimum', fun
         ->toContain('PASSWORD_LENGTH_ERROR');
 });
 
+test('first-login password page is standalone and provides sign out', function () {
+    $app = file_get_contents(resource_path('js/app.js'));
+    $firstLoginPassword = file_get_contents(resource_path('js/pages/Auth/FirstLoginPassword.vue'));
+
+    expect($app)
+        ->toContain("'Auth/FirstLoginPassword'")
+        ->and($firstLoginPassword)
+        ->toContain("router.post(")
+        ->toContain("route('logout')")
+        ->toContain("title: 'Sign out?'")
+        ->toContain("'Sign out'");
+});
+
 test('password change and reset actions prevent duplicate rapid submissions', function () {
     $resetPassword = file_get_contents(resource_path('js/pages/Auth/ResetPassword.vue'));
     $firstLoginPassword = file_get_contents(resource_path('js/pages/Auth/FirstLoginPassword.vue'));

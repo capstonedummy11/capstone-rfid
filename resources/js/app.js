@@ -14,6 +14,7 @@ const noLayoutPages = [
     'Auth/Login',
     'Auth/StaffLogin',
     'Auth/StudentParentLogin',
+    'Auth/FirstLoginPassword',
 ];
 
 createInertiaApp({
