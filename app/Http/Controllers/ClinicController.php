@@ -126,6 +126,7 @@ class ClinicController
             ],
             'alertsByType' => $this->filteredAlerts($filters)
                 ->join('emergency_types', 'emergency_types.emergency_type_id', '=', 'emergency_alerts.emergency_type_id')
+                ->whereNull('emergency_types.deleted_at')
                 ->selectRaw('emergency_types.name as name, COUNT(*) as total')
                 ->groupBy('emergency_types.name')
                 ->orderByDesc('total')

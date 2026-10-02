@@ -863,18 +863,19 @@ class AttendanceManagementController extends Controller
     private function adminFilterOptions(): array
     {
         return [
-            'schoolYears' => DB::table('sections')->whereNotNull('school_year')->distinct()->orderByDesc('school_year')->pluck('school_year'),
-            'semesters' => DB::table('sections')->whereNotNull('semester')->distinct()->orderBy('semester')->pluck('semester'),
-            'departments' => DB::table('subjects')->whereNotNull('department')->where('department', '!=', '')->distinct()->orderBy('department')->pluck('department'),
+            'schoolYears' => DB::table('sections')->whereNull('sections.deleted_at')->whereNotNull('school_year')->distinct()->orderByDesc('school_year')->pluck('school_year'),
+            'semesters' => DB::table('sections')->whereNull('sections.deleted_at')->whereNotNull('semester')->distinct()->orderBy('semester')->pluck('semester'),
+            'departments' => DB::table('subjects')->whereNull('subjects.deleted_at')->whereNotNull('department')->where('department', '!=', '')->distinct()->orderBy('department')->pluck('department'),
             'courses' => DB::table('strands')
+                ->whereNull('strands.deleted_at')
                 ->orderBy('strand_name')
                 ->get(['strand_id as value', 'strand_code', 'strand_name'])
                 ->map(fn ($strand) => [
                     'value' => $strand->value,
                     'label' => trim(implode(' - ', array_filter([$strand->strand_code, $strand->strand_name]))),
                 ]),
-            'sections' => DB::table('sections')->orderBy('section_name')->get(['section_id as value', 'section_name as label']),
-            'instructors' => DB::table('instructors')->join('users', 'users.user_id', '=', 'instructors.user_id')->orderBy('users.name')->get(['instructors.instructor_id as value', 'users.name as label']),
+            'sections' => DB::table('sections')->whereNull('sections.deleted_at')->orderBy('section_name')->get(['section_id as value', 'section_name as label']),
+            'instructors' => DB::table('instructors')->whereNull('instructors.deleted_at')->join('users', 'users.user_id', '=', 'instructors.user_id')->whereNull('users.deleted_at')->orderBy('users.name')->get(['instructors.instructor_id as value', 'users.name as label']),
         ];
     }
 

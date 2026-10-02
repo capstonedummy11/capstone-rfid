@@ -452,6 +452,7 @@
                                         </button>
                                         <button
                                             type="button"
+                                            data-testid="delete-student"
                                             @click="deleteStudent(student)"
                                             aria-label="Delete student"
                                             class="group relative rounded-md bg-rose-500 p-2 text-white hover:bg-rose-600"
@@ -1884,6 +1885,13 @@ const deleteStudent = async (student: Student) => {
         {
             preserveState: true,
             onSuccess: () => router.reload({ only: ['students'] }),
+            onError: (errors) =>
+                showAlertModal(
+                    'Student not deleted',
+                    Object.values(errors).join(' ') ||
+                        'The student could not be deleted.',
+                    'error',
+                ),
         },
     );
 };

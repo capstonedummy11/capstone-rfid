@@ -128,7 +128,8 @@ class SectionController
         $request->validate([
             'section_name' => Rule::unique('sections', 'section_name')->where(fn ($query) => $query
                 ->where('academic_year_id', $academicYear->academic_year_id)
-                ->where('semester', $validated['semester'])),
+                ->where('semester', $validated['semester'])
+                ->whereNull('deleted_at')),
         ]);
 
         $section = Section::create($validated + ['academic_year_id' => $academicYear->academic_year_id]);
@@ -174,7 +175,8 @@ class SectionController
                 ->ignore($section->section_id, 'section_id')
                 ->where(fn ($query) => $query
                     ->where('academic_year_id', $academicYear->academic_year_id)
-                    ->where('semester', $validated['semester'])),
+                    ->where('semester', $validated['semester'])
+                    ->whereNull('deleted_at')),
         ]);
 
         $section->update($validated + ['academic_year_id' => $academicYear->academic_year_id]);

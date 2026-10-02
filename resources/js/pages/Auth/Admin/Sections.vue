@@ -215,6 +215,7 @@
                                         </button>
                                         <button
                                             v-if="section.is_writable"
+                                            data-testid="delete-section"
                                             @click="deleteSection(section)"
                                             class="rounded-md bg-rose-500 px-3 py-1 text-sm text-white hover:bg-rose-600"
                                         >
@@ -672,6 +673,13 @@ const deleteSection = async (section: Section) => {
         {
             preserveState: true,
             onSuccess: () => router.reload({ only: ['sections'] }),
+            onError: (errors) =>
+                showAlertModal(
+                    'Section not deleted',
+                    Object.values(errors).join(' ') ||
+                        'The section could not be deleted.',
+                    'error',
+                ),
         },
     );
 };

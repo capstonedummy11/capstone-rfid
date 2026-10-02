@@ -966,6 +966,7 @@ class AttendanceController
             ->leftJoin('attendances', 'attendances.attendance_id', '=', 'attendance_logs.main_attendance_id')
             ->leftJoin('strands', 'strands.strand_id', '=', 'students.strand_id')
             ->leftJoin('sections', 'sections.section_id', '=', 'students.section_id')
+            ->whereNull('students.deleted_at')
             ->where('attendance_logs.attendance_id', $attendanceSession->attendance_id)
             ->orderByDesc('attendance_logs.tap_datetime')
             ->orderByDesc('attendance_logs.id')
@@ -1088,6 +1089,9 @@ class AttendanceController
                     })
                     ->leftJoin('sections', 'sections.section_id', '=', 'schedules.section_id')
                     ->leftJoin('strands', 'strands.strand_id', '=', 'sections.strand_id')
+                    ->whereNull('subjects.deleted_at')
+                    ->whereNull('sections.deleted_at')
+                    ->whereNull('strands.deleted_at')
                     ->whereRaw('LOWER(TRIM(schedules.room)) = ?', [$normalizedRoom])
                     ->whereRaw('TIME(?) >= schedules.time_start AND TIME(?) < schedules.time_end', [$currentTime, $currentTime])
                     ->where(function ($query) use ($instructorProfileId, $instructor) {
@@ -1146,6 +1150,7 @@ class AttendanceController
                                 ->on('subjects.section_id', '=', 'schedules.section_id')
                                 ->where('subjects.user_id', '=', $instructor->user_id);
                         })
+                        ->whereNull('subjects.deleted_at')
                         ->whereRaw('TIME(?) >= schedules.time_start AND TIME(?) < schedules.time_end', [$currentTime, $currentTime])
                         ->get(['schedules.weekdays'])
                         ->filter(fn ($s) => $this->matchesWeekday((string) ($s->weekdays ?? ''), $weekday, $weekdayFull))
@@ -2053,7 +2058,11 @@ class AttendanceController
                 ->leftJoin('subjects', function ($join) {
                     $join->on('subjects.subject_code', '=', 'attendance_sessions.subject_code')
                         ->on('subjects.section_id', '=', 'schedules.section_id');
-                });
+                })
+                ->whereNull('instructors.deleted_at')
+                ->whereNull('instructor_users.deleted_at')
+                ->whereNull('sections.deleted_at')
+                ->whereNull('subjects.deleted_at');
         };
 
         $query = DB::table('attendance_logs')
@@ -2062,6 +2071,8 @@ class AttendanceController
             ->leftJoin('students', 'students.student_id', '=', 'attendance_logs.student_id')
             ->leftJoin('sections as student_sections', 'student_sections.section_id', '=', 'students.section_id')
             ->leftJoin('strands', 'strands.strand_id', '=', 'students.strand_id');
+
+        $query->whereNull('students.deleted_at');
 
         $sessionJoin($query);
 
@@ -2216,7 +2227,11 @@ class AttendanceController
                     ->on('schedules.subject_code', '=', 'subjects.subject_code');
             })
             ->leftJoin('instructors', 'instructors.instructor_id', '=', 'schedules.instructor_id')
-            ->leftJoin('users as subject_instructor_users', 'subject_instructor_users.user_id', '=', 'instructors.user_id');
+            ->leftJoin('users as subject_instructor_users', 'subject_instructor_users.user_id', '=', 'instructors.user_id')
+            ->whereNull('subjects.deleted_at')
+            ->whereNull('sections.deleted_at')
+            ->whereNull('instructors.deleted_at')
+            ->whereNull('subject_instructor_users.deleted_at');
 
         return Inertia::render('AttendanceLogs', [
             'title' => 'Attendance Logs',
@@ -2690,6 +2705,8 @@ class AttendanceController
 
         return DB::table('instructors')
             ->join('users', 'users.user_id', '=', 'instructors.user_id')
+            ->whereNull('instructors.deleted_at')
+            ->whereNull('users.deleted_at')
             ->where('instructors.instructor_id', $schedule->instructor_id)
             ->whereRaw('LOWER(users.rfid_tag) = ?', [$rfid])
             ->whereRaw('LOWER(users.role) = ?', ['instructor'])
@@ -2786,6 +2803,10 @@ class AttendanceController
                 $join->on('subjects.subject_code', '=', 'attendance_sessions.subject_code')
                     ->on('subjects.section_id', '=', 'schedules.section_id');
             })
+            ->whereNull('instructors.deleted_at')
+            ->whereNull('instructor_users.deleted_at')
+            ->whereNull('sections.deleted_at')
+            ->whereNull('subjects.deleted_at')
             ->whereNotNull('schedules.section_id')
             ->where(function ($query) use ($today) {
                 $query->whereDate('attendance_sessions.date', '<', $today)

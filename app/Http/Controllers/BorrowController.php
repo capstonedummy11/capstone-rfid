@@ -546,6 +546,8 @@ public function returnItems(Request $request): JsonResponse
     $studentBorrowers = Students::query()
       ->leftJoin('strands', 'students.strand_id', '=', 'strands.strand_id')
       ->leftJoin('sections', 'students.section_id', '=', 'sections.section_id')
+      ->whereNull('strands.deleted_at')
+      ->whereNull('sections.deleted_at')
       ->whereNotNull('students.rfid_tag')
       ->select([
         'students.rfid_tag as rfid',

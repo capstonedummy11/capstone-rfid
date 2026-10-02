@@ -181,6 +181,25 @@ test('student default password preview removes spaces and uses lowercase', funct
         ->toContain(').toLowerCase()');
 });
 
+test('section subject and student delete actions display server errors', function () {
+    $sections = file_get_contents(resource_path('js/pages/Auth/Admin/Sections.vue'));
+    $subjects = file_get_contents(resource_path('js/pages/Auth/Admin/Subjects.vue'));
+    $students = file_get_contents(resource_path('js/pages/Auth/Admin/Students.vue'));
+
+    expect($sections)
+        ->toContain("route('admin.sections.destroy', { id: section.section_id })")
+        ->toContain('onError: (errors) =>')
+        ->toContain('Section not deleted')
+        ->and($subjects)
+        ->toContain("route('admin.subjects.destroy', { id: subject.subject_id })")
+        ->toContain('onError: (errors) =>')
+        ->toContain('Subject not deleted')
+        ->and($students)
+        ->toContain("route('admin.students.destroy', { id: student.student_id })")
+        ->toContain('onError: (errors) =>')
+        ->toContain('Student not deleted');
+});
+
 test('clinic and registrar rows expose an application password reset flow', function () {
     $users = file_get_contents(resource_path('js/pages/Auth/Admin/UserManagement.vue'));
 

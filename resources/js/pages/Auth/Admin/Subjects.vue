@@ -228,6 +228,7 @@
                                             Add Offering
                                         </button>
                                         <button
+                                            data-testid="delete-subject"
                                             @click="deleteSubject(subject)"
                                             class="rounded-md bg-rose-500 px-3 py-1 text-sm text-white hover:bg-rose-600"
                                         >
@@ -1037,6 +1038,13 @@ const deleteSubject = async (subject: Subject) => {
         {
             preserveState: true,
             onSuccess: () => router.reload({ only: ['subjects'] }),
+            onError: (errors) =>
+                showAlertModal(
+                    'Subject not deleted',
+                    Object.values(errors).join(' ') ||
+                        'The subject could not be deleted.',
+                    'error',
+                ),
         },
     );
 };

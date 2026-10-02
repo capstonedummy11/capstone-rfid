@@ -454,7 +454,7 @@ class ReportController
             return null;
         }
 
-        return DB::table('instructors')->where('user_id', $userId)->value('instructor_id');
+        return DB::table('instructors')->whereNull('instructors.deleted_at')->where('user_id', $userId)->value('instructor_id');
     }
 
     private function scheduleIdsForInstructor(?int $instructorId): array
@@ -488,6 +488,7 @@ class ReportController
         }
 
         return DB::table('online_classes')
+            ->whereNull('online_classes.deleted_at')
             ->where('instructor_id', $instructorId)
             ->pluck('online_class_id')
             ->all();
@@ -500,8 +501,10 @@ class ReportController
 
         if ($role === 'parent' && Schema::hasTable('parent_student_links')) {
             return DB::table('parent_student_links')
+                ->join('students', 'students.student_id', '=', 'parent_student_links.student_id')
+                ->whereNull('students.deleted_at')
                 ->where('parent_user_id', $user?->user_id ?: 0)
-                ->pluck('student_id')
+                ->pluck('parent_student_links.student_id')
                 ->map(fn ($id) => (int) $id)
                 ->all();
         }
@@ -510,7 +513,7 @@ class ReportController
             return [];
         }
 
-        $query = DB::table('students');
+        $query = DB::table('students')->whereNull('students.deleted_at');
 
         if (Schema::hasColumn('students', 'email') && $user?->email) {
             $query->where('email', $user->email);

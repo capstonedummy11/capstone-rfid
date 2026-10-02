@@ -1533,7 +1533,8 @@ class StudentsController
             })
             ->leftJoin('subjects', function ($join) {
                 $join->on('subjects.subject_code', '=', 'online_classes.subject_code')
-                    ->on('subjects.section_id', '=', 'online_classes.section_id');
+                    ->on('subjects.section_id', '=', 'online_classes.section_id')
+                    ->whereNull('subjects.deleted_at');
             })
             ->when($enrollment,
                 fn ($query) => $query->where('online_classes.academic_year_id', $enrollment->academic_year_id)->where('online_classes.section_id', $enrollment->section_id),

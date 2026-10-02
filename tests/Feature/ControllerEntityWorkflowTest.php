@@ -189,7 +189,25 @@ test('section controller creates then reuses the section for index update and de
     $this->actingAs($admin)->delete(route('admin.sections.destroy', $section->section_id))
         ->assertRedirect()
         ->assertSessionHas('success');
-    $this->assertDatabaseMissing('sections', ['section_id' => $section->section_id]);
+    $this->assertSoftDeleted('sections', ['section_id' => $section->section_id]);
+
+    $this->actingAs($admin)->get(route('admin.sections.index', ['academic_year' => 'all']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Auth/Admin/Sections')
+            ->missing('sections.0'));
+
+    $this->actingAs($admin)->put(route('admin.sections.update', $section->section_id), [
+        'section_name' => 'SEC 11-C',
+        'strand_id' => $strand->strand_id,
+        'year_level' => 11,
+        'semester' => '1st Semester',
+        'school_year' => $year->name,
+        'status' => 'active',
+    ])->assertNotFound();
+
+    $this->actingAs($admin)->delete(route('admin.sections.destroy', $section->section_id))
+        ->assertNotFound();
 });
 
 test('subject controller creates catalog subject offering then updates removes offering and deletes catalog', function () {
@@ -242,6 +260,24 @@ test('subject controller creates catalog subject offering then updates removes o
         ->assertSessionHas('success');
 
     $this->assertSoftDeleted('subjects', ['subject_id' => $subject->subject_id]);
+
+    $this->actingAs($admin)->get(route('admin.subjects.index', ['academic_year_id' => 'all']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Auth/Admin/Subjects')
+            ->missing('subjects.0'));
+
+    $this->actingAs($admin)->put(route('admin.subjects.update', $subject->subject_id), [
+        'subject_name' => 'Should Not Update',
+        'subject_code' => 'CTRL-103',
+        'subject_description' => null,
+        'department' => 'ICT',
+        'unit' => 4,
+        'semester' => '1st Semester',
+    ])->assertNotFound();
+
+    $this->actingAs($admin)->delete(route('admin.subjects.destroy', $subject->subject_id))
+        ->assertNotFound();
 });
 
 test('instructor controller creates linked user then updates index and deletes through the user', function () {
@@ -833,6 +869,30 @@ test('student controller creates enrollment account parent link reset update and
         ->assertRedirect()
         ->assertSessionHas('success');
     $this->assertSoftDeleted('students', ['student_id' => $student->student_id]);
+
+    $this->actingAs($admin)->get(route('admin.students.index', ['academic_year' => 'all']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Auth/Admin/Students')
+            ->missing('students.0'));
+
+    $this->actingAs($admin)->put(route('admin.students.update', $student->student_id), [
+        'student_number' => 'STU-CTRL-003',
+        'first_name' => 'Should',
+        'last_name' => 'Not Update',
+        'email' => 'should.not.update@example.test',
+        'gender' => 'female',
+        'strand_id' => $strand->strand_id,
+        'section_id' => $section->section_id,
+        'year_level' => 11,
+        'semester' => '1st Semester',
+        'school_year' => $year->name,
+        'rfid_tag' => null,
+        'status' => 'active',
+    ])->assertNotFound();
+
+    $this->actingAs($admin)->delete(route('admin.students.destroy', $student->student_id))
+        ->assertNotFound();
 });
 
 test('message instructor create form validates and stores an encrypted inbox message', function () {

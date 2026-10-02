@@ -62,6 +62,7 @@ The command is defined in `composer.json` and explicitly runs the relevant featu
 | Searchable autosuggestions in large Admin relationship fields                                                                 | `tests/Feature/RequestedFeatureUiWiringTest.php`                                             |
 | Clinic responder assignment, notification, history, and case ownership                                                        | `tests/Feature/ClinicFlowTest.php`                                                           |
 | Add/create and delete modal routes across Admin, Clinic, Registrar, messaging, and portal workflows                           | `tests/Feature/ControllerEntityWorkflowTest.php` plus the module-specific feature tests      |
+| Section, Subject, and Student soft-delete visibility plus update/delete 404 behavior after deletion                          | `tests/Feature/ControllerEntityWorkflowTest.php`                                              |
 | Reuse of soft-deleted email, RFID, Student/Instructor number, Subject code, Strand code, and inventory barcode values         | `tests/Feature/SoftDeleteUniqueReuseTest.php`                                                |
 
 ## Full Backend Suite
@@ -94,7 +95,15 @@ php artisan test --compact --filter="clinic dispatch"
 
 ## Frontend Verification
 
-Compile all Vue, TypeScript, Tailwind, Inertia, and generated route assets:
+Run the Vue component tests:
+
+```bash
+npm run test
+```
+
+The delete-action suite uses Vitest, Vue Test Utils, and jsdom to verify confirmation, route IDs, successful list reloads, and visible server errors for Sections, Subjects, and Students.
+
+Then compile all Vue, TypeScript, Tailwind, Inertia, and generated route assets:
 
 ```bash
 npm run build
