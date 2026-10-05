@@ -1,10 +1,11 @@
 import { createInertiaApp, Head, Link } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
-import { createApp, h } from 'vue';
+import { createApp, Fragment, h } from 'vue';
 import '../css/app.css';
 import { initializeTheme } from './composables/useAppearance';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import AuthLayout from './layouts/AuthLayout.vue';
+import AppVersionBadge from './components/AppVersionBadge.vue';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
 
@@ -39,7 +40,10 @@ createInertiaApp({
         return page;
     },
     setup({ el, App, props, plugin }) {
-        createApp({ render: () => h(App, props) })
+        createApp({
+            render: () =>
+                h(Fragment, [h(App, props), h(AppVersionBadge)]),
+        })
             .use(plugin)
             .use(ZiggyVue)
             .component('Head', Head)

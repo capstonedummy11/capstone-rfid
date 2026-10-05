@@ -56,6 +56,7 @@ Never commit the real `.env`. Generate a unique `APP_KEY`, use production-only s
 | Variable | Purpose | Notes |
 | --- | --- | --- |
 | `APP_NAME` | Display name. | Used by Inertia/mail. |
+| `APP_VERSION` | Displayed release version. | Shown as a floating footer badge on every Inertia page. |
 | `APP_ENV` | `local`, `staging`, or `production`. | Production changes password strength and destructive-command protection. |
 | `APP_KEY` | Encryption key. | Required; changing it makes encrypted data unreadable, including encrypted message values. |
 | `APP_DEBUG` | Detailed errors. | `false` in production. |
