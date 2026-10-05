@@ -1839,12 +1839,22 @@ const triggerEmergencyCall = async (
           : emergencyHotline
             ? `Hotline SMS: not sent (${String(alertResult?.sms?.reason ?? 'unavailable').replaceAll('_', ' ')}).`
             : 'Hotline SMS: not attempted because no hotline was selected.';
+    const parentNotifications = alertResult?.parent_notifications;
+    const parentStatus = parentNotifications?.students_found
+        ? `Parent notifications: ${parentNotifications.email_sent ?? 0} email(s) and ${parentNotifications.sms_sent ?? 0} SMS sent to ${parentNotifications.parents_found ?? 0} linked parent(s).`
+        : '';
+    const parentWarnings = Array.isArray(parentNotifications?.warnings)
+        ? parentNotifications.warnings
+        : [];
+    const parentWarningHtml = parentWarnings.length
+        ? `<div style="margin-top:12px; padding:10px; border-radius:6px; background:#fff7ed; color:#9a3412; text-align:left;"><strong>Parent contact warning</strong><ul style="margin:6px 0 0 18px;">${parentWarnings.map((warning) => `<li>${escapeHtml(warning)}</li>`).join('')}</ul></div>`
+        : '';
     Swal.fire({
         icon: alertResult?.duplicate ? 'info' : 'warning',
         title: alertResult?.duplicate
             ? 'Existing Emergency Alert Kept'
             : `${emergencyType.name} Sent`,
-        html: `<p>${escapeHtml(panelMessage)}</p><p style="margin-top:10px; font-weight:800;">${escapeHtml(smsStatus)}</p>`,
+        html: `<p>${escapeHtml(panelMessage)}</p><p style="margin-top:10px; font-weight:800;">${escapeHtml(smsStatus)}</p>${parentStatus ? `<p style="margin-top:8px; font-weight:700;">${escapeHtml(parentStatus)}</p>` : ''}${parentWarningHtml}`,
         confirmButtonColor: '#dc2626',
     });
 };

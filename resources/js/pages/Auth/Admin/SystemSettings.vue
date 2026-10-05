@@ -1,7 +1,7 @@
 <script setup>
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
-import { computed } from 'vue';
+import { computed, reactive } from 'vue';
 import { confirmActionModal } from '@/lib/feedbackModal';
 
 const props = defineProps({
@@ -58,6 +58,16 @@ const props = defineProps({
             sounds: [],
         }),
     },
+    smsSettings: {
+        type: Object,
+        default: () => ({
+            providers: {
+                semaphore: { label: 'Semaphore', available: false },
+                iprog: { label: 'IPROG SMS', available: false },
+            },
+            primary: null,
+        }),
+    },
 });
 
 const page = usePage();
@@ -70,6 +80,16 @@ const faceUnavailableMessage = computed(
         props.faceRecognitionAvailability?.message ||
         'Face recognition is unavailable.',
 );
+
+const smsProviderDefinitions = [
+    { key: 'semaphore', label: 'Semaphore', field: 'sms_semaphore_available' },
+    { key: 'iprog', label: 'IPROG SMS', field: 'sms_iprog_available' },
+];
+
+const smsCheckState = reactive({
+    semaphore: { loading: false, success: null, message: '' },
+    iprog: { loading: false, success: null, message: '' },
+});
 
 const toggleParentPortal = () => {
     if (!form.parent_portal_enabled) {
@@ -127,6 +147,11 @@ const form = useForm({
                   "What is your mother's maiden name?",
                   'What was the name of your first pet?',
               ],
+    sms_semaphore_available: Boolean(
+        props.smsSettings.providers?.semaphore?.available,
+    ),
+    sms_iprog_available: Boolean(props.smsSettings.providers?.iprog?.available),
+    sms_primary_provider: props.smsSettings.primary ?? null,
 });
 
 const soundUploadForm = useForm({
@@ -165,6 +190,73 @@ const saveSettings = () => {
             });
         },
     });
+};
+
+const availableSmsProviders = computed(() =>
+    smsProviderDefinitions.filter((provider) => form[provider.field]),
+);
+const smsDisabled = computed(() => availableSmsProviders.value.length === 0);
+const showSmsPrimarySelector = computed(
+    () => availableSmsProviders.value.length > 1,
+);
+
+const normalizeSmsPrimary = () => {
+    const available = availableSmsProviders.value.map((provider) => provider.key);
+    if (!available.includes(form.sms_primary_provider)) {
+        form.sms_primary_provider = available[0] ?? null;
+    }
+};
+
+const toggleSmsProvider = () => {
+    normalizeSmsPrimary();
+};
+
+const checkSmsProvider = async (provider) => {
+    const state = smsCheckState[provider];
+    state.loading = true;
+    state.success = null;
+    state.message = '';
+
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        state.loading = false;
+        state.success = false;
+        state.message = 'You appear to be offline.';
+        return;
+    }
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 10000);
+
+    try {
+        const xsrfRaw = document.cookie
+            .split('; ')
+            .find((row) => row.startsWith('XSRF-TOKEN='))
+            ?.split('=')[1];
+        const response = await fetch(
+            route('admin.settings.sms.providers.check', { provider }),
+            {
+                method: 'POST',
+                credentials: 'same-origin',
+                signal: controller.signal,
+                headers: {
+                    Accept: 'application/json',
+                    'X-XSRF-TOKEN': xsrfRaw ? decodeURIComponent(xsrfRaw) : '',
+                },
+            },
+        );
+        const payload = await response.json().catch(() => ({}));
+        state.success = response.ok && payload.success === true;
+        state.message = payload.message ?? 'Provider check failed.';
+    } catch (error) {
+        state.success = false;
+        state.message =
+            error?.name === 'AbortError'
+                ? 'The provider check timed out after 10 seconds.'
+                : 'The provider check could not be completed.';
+    } finally {
+        window.clearTimeout(timeout);
+        state.loading = false;
+    }
 };
 
 const uploadEmergencySound = () => {
@@ -283,6 +375,126 @@ const toggleFaceSetting = (field) => {
                     class="mt-4 flex flex-col gap-4"
                     @submit.prevent="saveSettings"
                 >
+                    <section
+                        class="rounded-md border border-slate-200 bg-slate-50/40 p-4"
+                    >
+                        <div class="border-b border-slate-200 pb-3">
+                            <h3 class="text-sm font-bold text-slate-900">
+                                SMS Providers
+                            </h3>
+                            <p class="mt-1 text-sm text-slate-500">
+                                Mark configured providers as available for emergency
+                                and parent SMS notifications.
+                            </p>
+                        </div>
+
+                        <div class="mt-3 flex flex-col gap-3">
+                            <div
+                                v-for="provider in smsProviderDefinitions"
+                                :key="provider.key"
+                                class="rounded-md border border-slate-200 bg-white p-3"
+                            >
+                                <div
+                                    class="flex flex-wrap items-center justify-between gap-3"
+                                >
+                                    <label
+                                        class="flex min-w-0 items-center gap-3"
+                                    >
+                                        <input
+                                            v-model="form[provider.field]"
+                                            type="checkbox"
+                                            class="h-5 w-5 shrink-0 accent-brand"
+                                            @change="toggleSmsProvider"
+                                        />
+                                        <span>
+                                            <span
+                                                class="block text-sm font-bold text-slate-900"
+                                            >
+                                                {{ provider.label }} Available
+                                            </span>
+                                            <span
+                                                class="block text-xs text-slate-500"
+                                            >
+                                                Allow this provider to send SMS.
+                                            </span>
+                                        </span>
+                                    </label>
+                                    <button
+                                        type="button"
+                                        :disabled="
+                                            smsCheckState[provider.key].loading
+                                        "
+                                        class="rounded-md border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                        @click="checkSmsProvider(provider.key)"
+                                    >
+                                        {{
+                                            smsCheckState[provider.key].loading
+                                                ? 'Checking...'
+                                                : 'Check'
+                                        }}
+                                    </button>
+                                </div>
+                                <p
+                                    v-if="
+                                        smsCheckState[provider.key].success !==
+                                        null
+                                    "
+                                    class="mt-2 rounded-md px-3 py-2 text-xs font-semibold"
+                                    :class="
+                                        smsCheckState[provider.key].success
+                                            ? 'bg-emerald-50 text-emerald-700'
+                                            : 'bg-red-50 text-red-700'
+                                    "
+                                >
+                                    {{ smsCheckState[provider.key].message }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div
+                            v-if="showSmsPrimarySelector"
+                            class="mt-3 rounded-md border border-slate-200 bg-white p-3"
+                        >
+                            <label
+                                class="flex flex-col gap-1 text-sm font-bold text-slate-900"
+                            >
+                                Primary SMS provider
+                                <select
+                                    v-model="form.sms_primary_provider"
+                                    class="rounded-md border border-slate-300 px-3 py-2 text-sm font-normal text-slate-800 focus:ring-2 focus:ring-brand focus:outline-none"
+                                >
+                                    <option
+                                        v-for="provider in availableSmsProviders"
+                                        :key="provider.key"
+                                        :value="provider.key"
+                                    >
+                                        {{ provider.label }}
+                                    </option>
+                                </select>
+                            </label>
+                        </div>
+
+                        <p
+                            v-else-if="smsDisabled"
+                            class="mt-3 rounded-md bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800"
+                        >
+                            SMS is disabled because no provider is marked
+                            available.
+                        </p>
+                        <p
+                            v-else
+                            class="mt-3 text-xs text-slate-500"
+                        >
+                            The available provider will be used automatically.
+                        </p>
+                        <p
+                            v-if="form.errors.sms_primary_provider"
+                            class="mt-2 text-xs text-red-600"
+                        >
+                            {{ form.errors.sms_primary_provider }}
+                        </p>
+                    </section>
+
                     <label
                         class="flex items-center justify-between gap-4 rounded-md border border-slate-200 p-4"
                     >

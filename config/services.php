@@ -36,7 +36,7 @@ return [
     ],
 
     'compreface' => [
-        'url'     => env('COMPREFACE_URL', 'http://localhost:8000'),
+        'url' => env('COMPREFACE_URL', 'http://localhost:8000'),
         'api_key' => env('COMPREFACE_API_KEY', ''),
     ],
 
@@ -58,7 +58,15 @@ return [
         'key' => env('SEMAPHORE_API_KEY'),
         'sender_name' => env('SEMAPHORE_SENDER_NAME'),
         'endpoint' => env('SEMAPHORE_ENDPOINT', 'https://api.semaphore.co/api/v4/messages'),
+        'account_endpoint' => env('SEMAPHORE_ACCOUNT_ENDPOINT', 'https://api.semaphore.co/api/v4/account'),
         'enabled' => env('SEMAPHORE_ENABLED', true),
+    ],
+
+    'iprog' => [
+        'token' => env('IPROG_SMS_API_TOKEN'),
+        'endpoint' => env('IPROG_SMS_ENDPOINT', 'https://www.iprogsms.com/api/v1/sms_messages'),
+        'balance_endpoint' => env('IPROG_SMS_BALANCE_ENDPOINT', 'https://www.iprogsms.com/api/v1/account/sms_credits'),
+        'enabled' => env('IPROG_SMS_ENABLED', true),
     ],
 
 ];

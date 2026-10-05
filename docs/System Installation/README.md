@@ -174,6 +174,7 @@ Use HTTPS outside `localhost`, configure AWS billing alarms, review the default 
 | --- | --- |
 | `SEMAPHORE_ENABLED` | Enables/disables live SMS attempt. |
 | `SEMAPHORE_API_KEY`, `SEMAPHORE_SENDER_NAME`, `SEMAPHORE_ENDPOINT` | Semaphore SMS configuration. |
+| `IPROG_SMS_ENABLED`, `IPROG_SMS_API_TOKEN`, `IPROG_SMS_ENDPOINT` | IPROG SMS configuration. |
 | `MAIL_MAILER`, `MAIL_SCHEME`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME` | Laravel mail transport for reset, OTP, messages, class notices, dispatch, and letters. |
 | `MESSENGER_EMAIL_NOTIFICATION_COOLDOWN_MINUTES` | Minimum interval for repeated sender-to-recipient Messenger email alerts; default 5. |
 | `ADMIN_LOGIN_OTP_EXPIRES_MINUTES`, `ADMIN_LOGIN_OTP_RESEND_SECONDS`, `ADMIN_LOGIN_OTP_MAX_ATTEMPTS` | Admin per-login email-code lifetime, resend cooldown, and incorrect-attempt limit; defaults are 10 minutes, 60 seconds, and 5 attempts. |
@@ -289,7 +290,7 @@ Seeded credentials documented in [Default Account Passwords](../System%20Explana
 | Scheduler does not create online absences | Run `php artisan schedule:list`; start `schedule:work` locally or cron/Task Scheduler in production; inspect logs. Also verify enrollment status compatibility (`active` versus `enrolled`). |
 | Face recognition unavailable | Verify feature flag, AWS credentials/region/network/IAM and stored image; System Settings reports provider availability and keeps invalid combinations off. For liveness also verify its supported region, Cognito Identity Pool ID, backend create/get permissions, browser-role start permission, HTTPS/camera access, and cleared config cache. |
 | OTP/reset/message mail absent | Check mail transport, queue choice, logs, recipient email, and cooldown. With `MAIL_MAILER=log`, inspect Laravel logs rather than inbox. |
-| Emergency SMS absent | Check switch, active hotline with SMS enabled, number format, API key/sender/endpoint, network, and alert metadata/result. Alert storage does not prove SMS delivery. |
+| Emergency SMS absent | Check the provider availability and primary selection in Admin System Settings, active hotline with SMS enabled, number format, API key/sender/endpoint, network, and alert metadata/result. Alert storage does not prove SMS delivery. |
 | Parent cannot sign in | Confirm Parent Portal is on, account role is Parent, and the Parent is linked to a Student. Parent Excuse Letters is a separate switch. |
 | Page hidden but URL works | Some switches are menu-visibility controls only (notably Online Classes). Use documented middleware/controller behavior and fix route enforcement if a hard shutdown is required. |
 

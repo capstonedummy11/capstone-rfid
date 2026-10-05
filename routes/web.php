@@ -292,6 +292,9 @@ Route::prefix('admin')
             Route::post('/active-devices/{panelSessionId}/force-logout', [ActiveDeviceController::class, 'forceLogout'])->name('active-devices.force-logout');
             Route::get('/settings', [SystemSettingsController::class, 'edit'])->name('settings.edit');
             Route::put('/settings', [SystemSettingsController::class, 'update'])->name('settings.update');
+            Route::post('/settings/sms/providers/{provider}/check', [SystemSettingsController::class, 'checkSmsProvider'])
+                ->whereIn('provider', ['semaphore', 'iprog'])
+                ->name('settings.sms.providers.check');
             Route::post('/settings/emergency-sounds', [SystemSettingsController::class, 'storeEmergencySound'])->name('settings.emergency-sounds.store');
             Route::put('/settings/emergency-sounds/{id}/select', [SystemSettingsController::class, 'selectEmergencySound'])->name('settings.emergency-sounds.select');
             Route::delete('/settings/emergency-sounds/{id}', [SystemSettingsController::class, 'destroyEmergencySound'])->name('settings.emergency-sounds.destroy');

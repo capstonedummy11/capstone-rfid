@@ -83,7 +83,8 @@ Admin controls the switches on **System Settings**. The application shares their
 ## Emergency and clinic automation
 
 - The panel suppresses rapid duplicate alert submissions and stores the selected scope, people, location, notes, and hotline/SMS result in alert metadata.
-- An enabled matching hotline can trigger a Semaphore SMS attempt. Success or failure is returned and recorded; the alert itself remains saved even if SMS fails.
+- An enabled matching hotline can trigger SMS through the admin-selected primary provider, with the other available provider as fallback. Success or failure is returned and recorded; the alert itself remains saved even if SMS fails. Both providers default unavailable until an Admin enables them in System Settings.
+- A specific-student emergency also resolves the student's linked parent accounts and independently attempts parent email and SMS through the selected provider. If either contact method is missing, the other is still attempted and the panel result prompt identifies the missing email address or phone number. Parent delivery is best-effort, and missing contact details or provider failures do not prevent the alert from being saved. Area-wide alerts do not broadcast to every parent.
 - Clinic Dashboard plays the selected sound only after browser audio is enabled and a newly received open alert appears.
 - Acknowledge records the first acknowledgement time. Dispatch records dispatch time and response seconds.
 - Dispatch requires an active Clinic responder, creates or updates one Clinic Case per identified student (or a general incident case), assigns the responder, emails available context, and shows the assignment in **My Dispatch Assignments**.

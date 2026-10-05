@@ -52,7 +52,15 @@ class SystemSetting extends Model
 
     public const CLINIC_EMERGENCY_SOUND_LIBRARY = 'clinic.emergency_sound_library';
 
+    public const SMS_SEMAPHORE_AVAILABLE = 'sms.semaphore_available';
+
+    public const SMS_IPROG_AVAILABLE = 'sms.iprog_available';
+
+    public const SMS_PRIMARY_PROVIDER = 'sms.primary_provider';
+
     public const DEFAULT_CLINIC_EMERGENCY_SOUND_ID = 'default';
+
+    public const SMS_PROVIDER_NAMES = ['semaphore', 'iprog'];
 
     public const DEFAULT_SECURITY_QUESTIONS = [
         'What was the name of your first school?',
@@ -79,6 +87,36 @@ class SystemSetting extends Model
             'demo_attendance_panel_enabled' => static::boolean(static::DEMO_ATTENDANCE_PANEL_ENABLED, false),
             'online_class_face_recognition_default' => static::boolean(static::ONLINE_CLASS_FACE_RECOGNITION_DEFAULT, true),
             'online_classes_enabled' => static::boolean(static::ONLINE_CLASSES_ENABLED, true),
+        ];
+    }
+
+    public static function smsProviderSettings(): array
+    {
+        $availability = [
+            'semaphore' => static::boolean(static::SMS_SEMAPHORE_AVAILABLE, false),
+            'iprog' => static::boolean(static::SMS_IPROG_AVAILABLE, false),
+        ];
+        $savedPrimary = static::string(static::SMS_PRIMARY_PROVIDER, '');
+        $primary = in_array($savedPrimary, static::SMS_PROVIDER_NAMES, true)
+            && ($availability[$savedPrimary] ?? false)
+            ? $savedPrimary
+            : collect($availability)
+                ->filter()
+                ->keys()
+                ->first();
+
+        return [
+            'providers' => [
+                'semaphore' => [
+                    'label' => 'Semaphore',
+                    'available' => $availability['semaphore'],
+                ],
+                'iprog' => [
+                    'label' => 'IPROG SMS',
+                    'available' => $availability['iprog'],
+                ],
+            ],
+            'primary' => $primary,
         ];
     }
 

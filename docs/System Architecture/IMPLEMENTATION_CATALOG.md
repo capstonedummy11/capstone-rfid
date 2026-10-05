@@ -36,7 +36,7 @@ This catalog maps implementation classes and frontend building blocks to their r
 | `StudentParentLoginController` | Student/Parent-only login and Parent Portal enforcement. |
 | `StudentsController` | Student/enrollment/account/Parent management plus all Student/Parent portal data, letters, notifications, and compatibility message methods. |
 | `SubjectController` | Subject catalog and Subject Offering lifecycle. |
-| `SystemSettingsController` | Feature/attendance/security settings and emergency-sound library. |
+| `SystemSettingsController` | Feature/attendance/security settings, SMS provider availability/primary selection, provider checks, and emergency-sound library. |
 | `Settings/ProfileController` | Starter-kit profile update/delete. |
 | `Settings/PasswordController` | Authenticated password update. |
 | `Settings/TwoFactorAuthenticationController` | Two-factor settings page state. |
@@ -55,7 +55,8 @@ This catalog maps implementation classes and frontend building blocks to their r
 | `OnlineClassAuditLogger` | Before/after online-class action audit. |
 | `MessengerEmailNotificationService` | Cache-throttled sender-to-recipient email notification. |
 | `ExcuseLetterPdfService` | Generates approved letter PDF bytes with conditional Parent approval content. |
-| `SemaphoreSmsService` | Formats/sends hotline emergency SMS and returns structured success/failure. |
+| `SemaphoreSmsService` / `IprogSmsService` | Common SMS provider implementations for sending and read-only account checks. |
+| `SmsService` / `SmsProviderRegistry` | Resolves DB-configured primary SMS provider, performs fallback, and exposes provider checks without leaking credentials. |
 | `LegacyAcademicFallbackMonitor` | Counts reads that use deprecated academic assignment data. |
 | `Auth/AdminLoginOtpService` | Issues login-ID-bound hashed Admin email codes, verifies expiry/attempt limits, rotates resends, and records session verification. |
 

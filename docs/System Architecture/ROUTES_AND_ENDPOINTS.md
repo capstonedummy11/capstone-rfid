@@ -38,7 +38,7 @@ Console-only `/attendance-control-panel` endpoints include page GET plus POST op
 Prefix `/admin`, auth:
 
 - Admin or verified Instructor: dashboard; attendance scanner/logs/subject/summary/student/session/export/status; messages/reply; online-class CRUD/cancel; Student list; Schedule list.
-- Admin only: Academic Year lifecycle/rollover; Laboratory CRUD; Borrowing/return; RFID update/clear; Section, Subject/Offering, Schedule, Inventory/Item, Strand, Student/Parent, Instructor, User CRUD; Student, Instructor, Clinic, and Registrar administrative password resets; Activity and Online Class log exports; Active Device/PIN/session management; System Settings/sound library; prototype students-management route.
+- Admin only: Academic Year lifecycle/rollover; Laboratory CRUD; Borrowing/return; RFID update/clear; Section, Subject/Offering, Schedule, Inventory/Item, Strand, Student/Parent, Instructor, User CRUD; Student, Instructor, Clinic, and Registrar administrative password resets; Activity and Online Class log exports; Active Device/PIN/session management; System Settings/SMS provider checks/sound library; prototype students-management route.
 
 Endpoint names and controller methods are declared in `routes/web.php`; the runtime route list is authoritative when duplicate URIs exist. In particular, the final `GET /admin/inventory` closure is named `admin.inventory` and supersedes the earlier same-URI index route in the runtime list.
 
@@ -56,7 +56,7 @@ Prefix `/student-parent`, auth + `role:student,parent` + Parent Portal middlewar
 
 ## Settings endpoints
 
-Under `/settings`: authenticated profile GET/PATCH; verified account deletion, password GET/PUT, appearance GET, and password-confirmed two-factor GET. Fortify registers the supporting two-factor mutation endpoints.
+Under `/settings`: authenticated profile GET/PATCH; verified account deletion, password GET/PUT, appearance GET, and password-confirmed two-factor GET. Admin System Settings are under `/admin/settings`; `POST /admin/settings/sms/providers/{provider}/check` is admin-only, CSRF-protected, returns `{success, message}`, and performs a read-only provider account/balance check. Fortify registers the supporting two-factor mutation endpoints.
 
 ## Console commands and schedule
 

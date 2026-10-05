@@ -8,19 +8,22 @@ use App\Models\EmergencyAlert;
 use App\Models\EmergencyHotline;
 use App\Models\EmergencyType;
 use App\Models\PatientHistory;
+use App\Models\Students;
 use App\Models\User;
 use App\Notifications\ClinicDispatchAssigned;
-use App\Services\SemaphoreSmsService;
+use App\Notifications\EmergencyParentAlert;
+use App\Services\SmsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class EmergencyController
 {
-    public function storeAlert(Request $request, SemaphoreSmsService $sms): JsonResponse
+    public function storeAlert(Request $request, SmsService $sms): JsonResponse
     {
         $validated = $request->validate([
             'emergency_type_id' => ['required', 'exists:emergency_types,emergency_type_id'],
@@ -73,11 +76,25 @@ class EmergencyController
         );
 
         $smsResult = $this->sendHotlineSms($validated['metadata'] ?? [], $alert, $sms);
+        $parentResult = $this->notifyParents($alert, $validated['metadata'] ?? [], $sms);
+
+        $alert->update([
+            'metadata' => array_merge($alert->metadata ?? [], [
+                'parent_notification' => [
+                    'parents_found' => $parentResult['parents_found'],
+                    'email_sent' => $parentResult['email_sent'],
+                    'sms_sent' => $parentResult['sms_sent'],
+                    'failures' => $parentResult['failures'],
+                    'warnings' => $parentResult['warnings'],
+                ],
+            ]),
+        ]);
 
         return response()->json([
             'ok' => true,
             'alert' => $alert->load('type'),
             'sms' => $smsResult,
+            'parent_notifications' => $parentResult,
         ]);
     }
 
@@ -364,7 +381,7 @@ class EmergencyController
         return ['clinic', 'medical', 'fire', 'police', 'security', 'disaster', 'general', 'external'];
     }
 
-    private function sendHotlineSms(array $metadata, EmergencyAlert $alert, SemaphoreSmsService $sms): array
+    private function sendHotlineSms(array $metadata, EmergencyAlert $alert, SmsService $sms): array
     {
         $hotlineId = $metadata['emergency_hotline_id'] ?? null;
         if (! $hotlineId) {
@@ -380,6 +397,83 @@ class EmergencyController
         }
 
         return $sms->sendEmergencyAlert($hotline, $alert->loadMissing('type'));
+    }
+
+    private function notifyParents(EmergencyAlert $alert, array $metadata, SmsService $sms): array
+    {
+        $studentIds = collect($metadata['students'] ?? [])
+            ->filter(fn ($student) => is_array($student) && is_numeric($student['student_id'] ?? null))
+            ->pluck('student_id')
+            ->push($metadata['student_id'] ?? null)
+            ->filter(fn ($studentId) => is_numeric($studentId))
+            ->map(fn ($studentId) => (int) $studentId)
+            ->unique()
+            ->values();
+
+        if (($metadata['emergency_scope'] ?? null) === 'all' || $studentIds->isEmpty()) {
+            return [
+                'students_found' => 0,
+                'parents_found' => 0,
+                'email_sent' => 0,
+                'sms_sent' => 0,
+                'failures' => [],
+                'warnings' => [],
+                'reason' => 'no_specific_student',
+            ];
+        }
+
+        $students = Students::query()
+            ->with(['parentUsers' => fn ($query) => $query->whereRaw('LOWER(role) = ?', ['parent'])])
+            ->whereIn('student_id', $studentIds)
+            ->get();
+
+        $result = [
+            'students_found' => $students->count(),
+            'parents_found' => 0,
+            'email_sent' => 0,
+            'sms_sent' => 0,
+            'failures' => [],
+            'warnings' => [],
+        ];
+
+        foreach ($students as $student) {
+            foreach ($student->parentUsers as $parent) {
+                $result['parents_found']++;
+                $studentName = trim($student->first_name.' '.$student->last_name);
+                $parentName = trim((string) $parent->name) ?: 'Linked parent';
+
+                if (filter_var($parent->email, FILTER_VALIDATE_EMAIL)) {
+                    try {
+                        Notification::send($parent, new EmergencyParentAlert($alert->loadMissing('type'), $student));
+                        $result['email_sent']++;
+                    } catch (\Throwable $exception) {
+                        $result['failures'][] = 'email';
+                        Log::warning('Emergency parent email could not be sent.', [
+                            'alert_id' => $alert->emergency_alert_id,
+                            'parent_user_id' => $parent->user_id,
+                            'error' => $exception->getMessage(),
+                        ]);
+                    }
+                } else {
+                    $result['failures'][] = 'missing_parent_email';
+                    $result['warnings'][] = $parentName.' has no valid email address for '.$studentName.'. Email was not sent.';
+                }
+
+                if (trim((string) $parent->phone) === '') {
+                    $result['failures'][] = 'missing_parent_phone';
+                    $result['warnings'][] = $parentName.' has no phone number for '.$studentName.'. SMS was not sent.';
+                } else {
+                    $smsResult = $sms->sendParentAlert($parent, $student, $alert->loadMissing('type'));
+                    if ($smsResult['sent'] ?? false) {
+                        $result['sms_sent']++;
+                    } else {
+                        $result['failures'][] = 'sms';
+                    }
+                }
+            }
+        }
+
+        return $result;
     }
 
     private function logActivity(Request $request, string $action, string $tableName, string $description): void

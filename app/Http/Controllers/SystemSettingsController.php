@@ -5,8 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use App\Models\SystemSetting;
 use App\Services\AwsFaceRecognitionService;
+use App\Services\SmsService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -30,6 +33,7 @@ class SystemSettingsController
                 'questions' => SystemSetting::securityQuestions(),
             ],
             'clinicEmergencySoundSettings' => SystemSetting::clinicEmergencySoundSettings(),
+            'smsSettings' => SystemSetting::smsProviderSettings(),
         ]);
     }
 
@@ -53,6 +57,9 @@ class SystemSettingsController
             'late_threshold_minutes' => ['required', 'integer', 'min:0', 'max:180'],
             'security_questions' => ['nullable', 'array', 'min:3', 'max:20'],
             'security_questions.*' => ['required_with:security_questions', 'string', 'min:8', 'max:255', 'distinct'],
+            'sms_semaphore_available' => ['sometimes', 'boolean'],
+            'sms_iprog_available' => ['sometimes', 'boolean'],
+            'sms_primary_provider' => ['nullable', 'string', 'in:semaphore,iprog'],
         ]);
 
         $faceAvailability = (new AwsFaceRecognitionService)->availability();
@@ -102,6 +109,27 @@ class SystemSettingsController
             SystemSetting::setArray(SystemSetting::SECURITY_QUESTIONS, $questions);
         }
 
+        $smsSemaphoreAvailable = array_key_exists('sms_semaphore_available', $validated)
+            ? (bool) $validated['sms_semaphore_available']
+            : SystemSetting::boolean(SystemSetting::SMS_SEMAPHORE_AVAILABLE, false);
+        $smsIprogAvailable = array_key_exists('sms_iprog_available', $validated)
+            ? (bool) $validated['sms_iprog_available']
+            : SystemSetting::boolean(SystemSetting::SMS_IPROG_AVAILABLE, false);
+        $requestedSmsPrimary = array_key_exists('sms_primary_provider', $validated)
+            ? $validated['sms_primary_provider']
+            : SystemSetting::string(SystemSetting::SMS_PRIMARY_PROVIDER, '');
+        $availableSmsProviders = collect([
+            'semaphore' => $smsSemaphoreAvailable,
+            'iprog' => $smsIprogAvailable,
+        ])->filter()->keys();
+        $smsPrimary = in_array($requestedSmsPrimary, $availableSmsProviders->all(), true)
+            ? $requestedSmsPrimary
+            : $availableSmsProviders->first();
+
+        SystemSetting::setBoolean(SystemSetting::SMS_SEMAPHORE_AVAILABLE, $smsSemaphoreAvailable);
+        SystemSetting::setBoolean(SystemSetting::SMS_IPROG_AVAILABLE, $smsIprogAvailable);
+        SystemSetting::setString(SystemSetting::SMS_PRIMARY_PROVIDER, (string) ($smsPrimary ?? ''));
+
         ActivityLog::query()->create([
             'user_id' => Auth::id(),
             'action' => 'update',
@@ -110,6 +138,31 @@ class SystemSettingsController
         ]);
 
         return back()->with('success', $warning ?? 'System settings updated.');
+    }
+
+    public function checkSmsProvider(Request $request, string $provider, SmsService $sms): JsonResponse
+    {
+        abort_unless(in_array($provider, SystemSetting::SMS_PROVIDER_NAMES, true), 404);
+
+        try {
+            $result = $sms->checkProvider($provider);
+
+            return response()->json([
+                'success' => (bool) ($result['success'] ?? false),
+                'message' => (string) ($result['message'] ?? 'Provider check failed.'),
+            ]);
+        } catch (\Throwable $exception) {
+            Log::warning('SMS provider check failed unexpectedly.', [
+                'provider' => $provider,
+                'user_id' => Auth::id(),
+                'message' => $exception->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'The SMS provider check could not be completed.',
+            ]);
+        }
     }
 
     public function storeEmergencySound(Request $request)

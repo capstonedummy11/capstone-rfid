@@ -225,6 +225,7 @@ QUEUE_CONNECTION=sync
 
 MAIL_MAILER=log
 SEMAPHORE_ENABLED=false
+IPROG_SMS_ENABLED=false
 ```
 
 Important notes:
@@ -232,7 +233,7 @@ Important notes:
 - Leave `APP_KEY` as the generated value. Do not copy another installation's key.
 - `QUEUE_CONNECTION=sync` is the safe local value because this repository does not currently include database queue tables.
 - `MAIL_MAILER=log` writes local email attempts to the Laravel log instead of sending real email.
-- Keep Semaphore SMS and AWS Rekognition disabled or unconfigured until valid credentials and provider access are available.
+- Keep SMS providers and AWS Rekognition disabled or unconfigured until valid credentials and provider access are available. Configure provider credentials in `.env`, then enable the provider and choose the primary provider from Admin System Settings.
 - Never share or commit the completed `.env` file.
 
 ## Step 10: Create the MySQL Database
@@ -347,7 +348,7 @@ Then verify in the browser:
 4. Pages display styling and icons correctly.
 5. `storage/logs/laravel.log` does not show a new fatal error.
 
-Camera, RFID hardware, real email, AWS Rekognition, and Semaphore SMS require separate credentials, devices, permissions, and deployment-specific testing. A successful local page load does not prove those integrations are working.
+Camera, RFID hardware, real email, AWS Rekognition, and SMS providers require separate credentials, devices, permissions, and deployment-specific testing. A successful local page load does not prove those integrations are working.
 
 ## Daily Startup
 
