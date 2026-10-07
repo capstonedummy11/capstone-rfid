@@ -4,7 +4,6 @@
 // FEATURE:face-liveness - konektadong model, service, route, o UI para sa feature na ito.
 // FEATURE:rfid-attendance - konektadong model, service, route, o UI para sa feature na ito.
 // FEATURE:attendance-review - konektadong model, service, route, o UI para sa feature na ito.
-// This IS a test
 namespace App\Http\Controllers;
 
 use App\Models\AcademicYear;
