@@ -17,6 +17,8 @@ class HandleInertiaRequests extends Middleware
      */
     protected $rootView = 'app';
 
+    // @function version: Binubuo ang version string para sa Handle Inertia Requests.
+    // @useIn version: Inertia middleware lifecycle sa page requests
     /**
      * Determines the current asset version.
      *
@@ -27,6 +29,8 @@ class HandleInertiaRequests extends Middleware
         return parent::version($request);
     }
 
+    // @function share: Kinukuha ang share result para sa Handle Inertia Requests.
+    // @useIn share: Inertia middleware lifecycle sa page requests
     /**
      * Define the props that are shared by default.
      *

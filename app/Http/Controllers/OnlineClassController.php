@@ -1,4 +1,10 @@
 <?php
+// File purpose: Online class management at join attendance para sa Instructor at Student.
+// FEATURE:online-class-management - konektadong model, service, route, o UI para sa feature na ito.
+// FEATURE:online-class-join - konektadong model, service, route, o UI para sa feature na ito.
+// FEATURE:online-class-notifications - konektadong model, service, route, o UI para sa feature na ito.
+// FEATURE:face-recognition - konektadong model, service, route, o UI para sa feature na ito.
+// FEATURE:face-liveness - konektadong model, service, route, o UI para sa feature na ito.
 
 namespace App\Http\Controllers;
 
@@ -24,6 +30,8 @@ use Inertia\Inertia;
 
 class OnlineClassController
 {
+    // @function __construct: Tinatanggap ang dependencies ng Online Class sa pagbuo ng object.
+    // @useIn __construct: Laravel dependency injection kapag ginagamit ang OnlineClassController
     public function __construct(
         private OnlineClassAuditLogger $auditLogger,
         private OnlineClassNotificationService $notificationService,
@@ -31,6 +39,19 @@ class OnlineClassController
         private AwsFaceLivenessService $livenessService,
     ) {}
 
+    // @function index: Ibinabalik ang Auth/Admin/OnlineClasses page at data para sa request.
+    // @useIn index: routes/web.php:278 (online-classes.index)
+    /**
+     * @feature   Online Class Management
+     * @actor     Instructor
+     * @flow      Dito ginagawa, ina-update, at kina-cancel ang assigned online classes.
+     * @uses      resources/js/pages/Auth/Admin/OnlineClasses.vue; routes/web.php: OnlineClassController::index, OnlineClassController::store, OnlineClassController::update, OnlineClassController::cancel, OnlineClassController::destroy
+     * @related   Instructor workspace
+     * @disable   1) I-comment out ang routes/web.php: OnlineClassController::index, OnlineClassController::store, OnlineClassController::update, OnlineClassController::cancel, OnlineClassController::destroy.
+     * @disable   2) Itago ang action sa resources/js/pages/Auth/Admin/OnlineClasses.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Kung pati auto-absence ay off, alisin ang routes/console.php: online-classes:finalize-attendance schedule.
+     * @disable   4) Ihinto ang app/Http/Controllers/OnlineClassController.php: index matapos alisin ang routes. Side effect: mawawala ang online class management; puwede pa ring manatili ang existing class records.
+     */
     public function index(Request $request)
     {
         $this->attendanceFinalizer->finalizeEnded();
@@ -61,6 +82,8 @@ class OnlineClassController
         ]);
     }
 
+    // @function store: Pinoproseso ang bagong Online Class record.
+    // @useIn store: routes/web.php:280 (online-classes.store)
     public function store(Request $request)
     {
         $schedule = $this->authorizedSchedule($request, (int) $request->input('schedule_id'));
@@ -86,6 +109,8 @@ class OnlineClassController
         return back()->with('success', $faceWarning ?: 'Online class created.');
     }
 
+    // @function update: Pinoproseso ang pagbabago sa Online Class record.
+    // @useIn update: routes/web.php:282 (online-classes.update)
     public function update(Request $request, OnlineClass $onlineClass)
     {
         $this->authorizeManage($request, $onlineClass);
@@ -123,6 +148,8 @@ class OnlineClassController
         return back()->with('success', $faceWarning ?: 'Online class updated.');
     }
 
+    // @function cancel: Kina-cancel ang online class sa Online Class flow.
+    // @useIn cancel: routes/web.php:284 (online-classes.cancel)
     public function cancel(Request $request, OnlineClass $onlineClass)
     {
         $this->authorizeManage($request, $onlineClass);
@@ -139,6 +166,8 @@ class OnlineClassController
         return back()->with('success', 'Online class cancelled.');
     }
 
+    // @function destroy: Pinoproseso ang pagtanggal ng Online Class record.
+    // @useIn destroy: routes/web.php:286 (online-classes.destroy)
     public function destroy(Request $request, OnlineClass $onlineClass)
     {
         $this->authorizeManage($request, $onlineClass);
@@ -149,6 +178,8 @@ class OnlineClassController
         return back()->with('success', 'Online class deleted.');
     }
 
+    // @function studentIndex: Ibinabalik ang StudentParent/OnlineClasses page at data para sa request.
+    // @useIn studentIndex: routes/web.php:534 (online-classes.index)
     public function studentIndex(Request $request)
     {
         $this->attendanceFinalizer->finalizeEnded();
@@ -193,6 +224,18 @@ class OnlineClassController
         ]);
     }
 
+    // @function join: Kinukuha ang join result para sa Online Class.
+    // @useIn join: routes/web.php:536 (online-classes.join)
+    /**
+     * @feature   Online Class Viewing and Joining
+     * @actor     Student
+     * @flow      Dito sumasali ang eligible student sa class at nalolog ang attendance.
+     * @uses      resources/js/pages/StudentParent/OnlineClasses.vue; routes/web.php: OnlineClassController::studentIndex, OnlineClassController::join
+     * @related   Student workspace
+     * @disable   1) I-comment out ang routes/web.php: OnlineClassController::studentIndex, OnlineClassController::join.
+     * @disable   2) Itago ang action sa resources/js/pages/StudentParent/OnlineClasses.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/OnlineClassController.php: OnlineClassController::join matapos alisin ang routes. Side effect: mawawala ang online class viewing and joining.
+     */
     public function join(Request $request, OnlineClass $onlineClass)
     {
         $student = $this->currentStudent($request);
@@ -300,6 +343,8 @@ class OnlineClassController
         return back()->with('success', 'Online class attendance recorded.');
     }
 
+    // @function logs: Ibinabalik ang Auth/Admin/OnlineClassLogs page at data para sa request.
+    // @useIn logs: routes/web.php:370 (online-class-logs.index)
     public function logs(Request $request)
     {
         abort_unless(SystemSetting::boolean(SystemSetting::ONLINE_CLASSES_ENABLED, true), 404);
@@ -312,6 +357,8 @@ class OnlineClassController
         ]);
     }
 
+    // @function exportLogs: Ine-export ang logs sa Online Class flow.
+    // @useIn exportLogs: routes/web.php:372 (online-class-logs.export)
     public function exportLogs(Request $request)
     {
         abort_unless(SystemSetting::boolean(SystemSetting::ONLINE_CLASSES_ENABLED, true), 404);
@@ -336,6 +383,8 @@ class OnlineClassController
         ]);
     }
 
+    // @function validatedClassData: Binubuo ang validated class data value.
+    // @useIn validatedClassData: OnlineClassController::store (app/Http/Controllers/OnlineClassController.php)
     private function validatedClassData(Request $request): array
     {
         return $request->validate([
@@ -351,6 +400,8 @@ class OnlineClassController
         ]);
     }
 
+    // @function authorizedSchedule: Kinukuha ang authorized schedule result para sa Online Class.
+    // @useIn authorizedSchedule: OnlineClassController::store (app/Http/Controllers/OnlineClassController.php)
     private function authorizedSchedule(Request $request, int $scheduleId): Schedule
     {
         $schedule = Schedule::query()->with('academicYear')->findOrFail($scheduleId);
@@ -364,6 +415,8 @@ class OnlineClassController
         return $schedule;
     }
 
+    // @function authorizeManage: Sini-check ang access sa ang manage sa Online Class flow.
+    // @useIn authorizeManage: OnlineClassController::update (app/Http/Controllers/OnlineClassController.php)
     private function authorizeManage(Request $request, OnlineClass $onlineClass): void
     {
         $onlineClass->loadMissing('academicYear');
@@ -376,6 +429,8 @@ class OnlineClassController
         abort_unless((int) $onlineClass->instructor_id === (int) $this->instructorId($request->user()->user_id), 403);
     }
 
+    // @function scheduleOptions: Binubuo ang schedule options value.
+    // @useIn scheduleOptions: OnlineClassController::index (app/Http/Controllers/OnlineClassController.php)
     private function scheduleOptions(string $role, ?int $instructorId)
     {
         return Schedule::query()
@@ -394,6 +449,8 @@ class OnlineClassController
             ->values();
     }
 
+    // @function classPayload: Binubuo ang class payload value.
+    // @useIn classPayload: OnlineClassController::index (app/Http/Controllers/OnlineClassController.php)
     private function classPayload(OnlineClass $onlineClass, ?Students $student = null): array
     {
         $onlineClass->loadMissing('academicYear');
@@ -440,6 +497,8 @@ class OnlineClassController
         ];
     }
 
+    // @function currentStudent: Kinukuha ang current student result para sa Online Class.
+    // @useIn currentStudent: OnlineClassController::studentIndex (app/Http/Controllers/OnlineClassController.php)
     private function currentStudent(Request $request): ?Students
     {
         $role = strtolower((string) $request->user()?->role);
@@ -462,6 +521,8 @@ class OnlineClassController
         return Students::query()->with(['section', 'strand'])->where('email', $request->user()?->email)->first();
     }
 
+    // @function linkedStudentsPayload: Binubuo ang linked students payload value.
+    // @useIn linkedStudentsPayload: OnlineClassController::studentIndex (app/Http/Controllers/OnlineClassController.php)
     private function linkedStudentsPayload(Request $request)
     {
         if (strtolower((string) $request->user()?->role) !== 'parent') {
@@ -477,6 +538,8 @@ class OnlineClassController
             ->values() ?? [];
     }
 
+    // @function studentPayload: Binubuo ang student payload value.
+    // @useIn studentPayload: OnlineClassController::studentIndex (app/Http/Controllers/OnlineClassController.php)
     private function studentPayload(?Students $student): ?array
     {
         if (! $student) {
@@ -494,11 +557,15 @@ class OnlineClassController
         ];
     }
 
+    // @function instructorId: Kinukuha ang instructor id result para sa Online Class.
+    // @useIn instructorId: OnlineClassController::index (app/Http/Controllers/OnlineClassController.php)
     private function instructorId(?int $userId): ?int
     {
         return Instructor::query()->where('user_id', $userId)->value('instructor_id');
     }
 
+    // @function verifyStudentFaceCapture: Vini-verify ang student face capture sa Online Class flow.
+    // @useIn verifyStudentFaceCapture: OnlineClassController::join (app/Http/Controllers/OnlineClassController.php)
     private function verifyStudentFaceCapture(Students $student, string $image): array
     {
         if (! SystemSetting::boolean(SystemSetting::FACE_RECOGNITION_ENABLED, true)) {
@@ -557,6 +624,8 @@ class OnlineClassController
         ];
     }
 
+    // @function normalizeFaceRequirement: Nino-normalize ang face requirement sa Online Class flow.
+    // @useIn normalizeFaceRequirement: OnlineClassController::store (app/Http/Controllers/OnlineClassController.php)
     private function normalizeFaceRequirement(array $validated): array
     {
         $availability = (new AwsFaceRecognitionService)->availability();
@@ -573,6 +642,8 @@ class OnlineClassController
         return $validated;
     }
 
+    // @function faceRequirementWarning: Binubuo ang face requirement warning string para sa Online Class.
+    // @useIn faceRequirementWarning: OnlineClassController::store (app/Http/Controllers/OnlineClassController.php)
     private function faceRequirementWarning(array $validated): ?string
     {
         if (! (bool) ($validated['require_face_recognition'] ?? false)) {
@@ -587,6 +658,8 @@ class OnlineClassController
         return 'Face recognition is unavailable, so the class was saved with facial recognition off. '.$availability['message'];
     }
 
+    // @function onlineClassFaceAvailability: Kinukuha ang online class face availability result para sa Online Class.
+    // @useIn onlineClassFaceAvailability: OnlineClassController::index (app/Http/Controllers/OnlineClassController.php)
     private function onlineClassFaceAvailability(): array
     {
         if (! SystemSetting::boolean(SystemSetting::FACE_RECOGNITION_ENABLED, true)) {
@@ -599,6 +672,8 @@ class OnlineClassController
         return (new AwsFaceRecognitionService)->availability();
     }
 
+    // @function notifyInstructorFaceBypassOnce: Nagnonotify ang instructor face bypass once sa Online Class flow.
+    // @useIn notifyInstructorFaceBypassOnce: OnlineClassController::join (app/Http/Controllers/OnlineClassController.php)
     private function notifyInstructorFaceBypassOnce(OnlineClass $onlineClass, Students $student, string $reason): void
     {
         $onlineClass->loadMissing(['instructor.user', 'subject']);
@@ -635,6 +710,8 @@ class OnlineClassController
         ]);
     }
 
+    // @function storeAttachments: Sine-save ang attachments sa Online Class flow.
+    // @useIn storeAttachments: OnlineClassController::store (app/Http/Controllers/OnlineClassController.php)
     private function storeAttachments(Request $request, OnlineClass $onlineClass): void
     {
         foreach ($request->file('attachments', []) as $file) {
@@ -647,6 +724,8 @@ class OnlineClassController
         }
     }
 
+    // @function isRescheduled: Sinusuri kung rescheduled para sa Online Class.
+    // @useIn isRescheduled: OnlineClassController::update (app/Http/Controllers/OnlineClassController.php)
     private function isRescheduled(array $previous, array $current): bool
     {
         return $previous['scheduled_date'] !== $current['scheduled_date']
@@ -654,6 +733,8 @@ class OnlineClassController
             || $previous['end_time'] !== $current['end_time'];
     }
 
+    // @function logQuery: Binubuo ang log query database query.
+    // @useIn logQuery: OnlineClassController::logs (app/Http/Controllers/OnlineClassController.php)
     private function logQuery(Request $request)
     {
         return OnlineClassAuditLog::query()
@@ -677,6 +758,8 @@ class OnlineClassController
             ->latest('created_at');
     }
 
+    // @function applyLogAcademicDefaults: Inilalapat ang log academic defaults sa Online Class flow.
+    // @useIn applyLogAcademicDefaults: OnlineClassController::logs (app/Http/Controllers/OnlineClassController.php)
     private function applyLogAcademicDefaults(Request $request): void
     {
         if (! $request->filled('academic_year_id')) {

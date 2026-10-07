@@ -1,4 +1,5 @@
 <?php
+// File purpose: Messenger at Instructor excuse-letter review para sa signed-in actors.
 
 namespace App\Http\Controllers;
 
@@ -19,10 +20,14 @@ use Inertia\Inertia;
 
 class MessageController
 {
+    // @function __construct: Tinatanggap ang dependencies ng Message sa pagbuo ng object.
+    // @useIn __construct: Laravel dependency injection kapag ginagamit ang MessageController
     public function __construct(
         private readonly MessengerEmailNotificationService $emailNotifications,
     ) {}
 
+    // @function create: Ibinabalik ang Messages/Create page at data para sa request.
+    // @useIn create: routes/web.php:122 (messages.create)
     public function create()
     {
         return Inertia::render('Messages/Create', [
@@ -31,6 +36,8 @@ class MessageController
         ]);
     }
 
+    // @function store: Pinoproseso ang bagong Message record.
+    // @useIn store: routes/web.php:123 (messages.store)
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -72,6 +79,18 @@ class MessageController
         return back()->with('success', 'Message sent to the instructor.');
     }
 
+    // @function index: Ibinabalik ang Messages/Index page at data para sa request.
+    // @useIn index: routes/web.php:126 (messages.index)
+    /**
+     * @feature   Messenger and Attachments
+     * @actor     Shared / Core
+     * @flow      Dito nagpapalitan ng private messages at authorized attachments ang users.
+     * @uses      resources/js/pages/Messages/Index.vue; routes/web.php: MessageController::index, MessageController::sendConversationMessage, MessageController::unreadStatus, MessageController::markRead, MessageController::downloadAttachment
+     * @related   Authentication, Attendance, Reports
+     * @disable   1) I-comment out ang routes/web.php: MessageController::index, MessageController::sendConversationMessage, MessageController::unreadStatus, MessageController::markRead, MessageController::downloadAttachment.
+     * @disable   2) Itago ang action sa resources/js/pages/Messages/Index.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/MessageController.php: MessageController::index matapos alisin ang routes. Side effect: mawawala ang messenger and attachments.
+     */
     public function index(Request $request)
     {
         $user = $request->user();
@@ -259,6 +278,8 @@ class MessageController
         ]);
     }
 
+    // @function forwardExcuseLetterToParent: Kinukuha ang forward excuse letter to parent result para sa Message.
+    // @useIn forwardExcuseLetterToParent: routes/web.php:131 (messages.forward-to-parent)
     public function forwardExcuseLetterToParent(Request $request, StudentPortalMessage $message)
     {
         $user = $request->user();
@@ -305,6 +326,18 @@ class MessageController
         return back()->with('success', 'Excuse letter emailed to '.$parent->name.'.');
     }
 
+    // @function reviewExcuseLetter: Kinukuha ang review excuse letter result para sa Message.
+    // @useIn reviewExcuseLetter: routes/web.php:133 (messages.excuse-letters.review)
+    /**
+     * @feature   Excuse Letter Review
+     * @actor     Instructor
+     * @flow      Dito nagde-decide ang recipient Instructor sa delivered letter at nagpapadala ng email.
+     * @uses      resources/js/pages/Messages/Index.vue; routes/web.php: MessageController::reviewExcuseLetter
+     * @related   Instructor workspace
+     * @disable   1) I-comment out ang routes/web.php: MessageController::reviewExcuseLetter.
+     * @disable   2) Itago ang action sa resources/js/pages/Messages/Index.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/MessageController.php: MessageController::reviewExcuseLetter matapos alisin ang routes. Side effect: mawawala ang excuse letter review.
+     */
     public function reviewExcuseLetter(Request $request, StudentPortalMessage $message)
     {
         $instructor = $request->user();
@@ -401,6 +434,8 @@ class MessageController
         return back()->with('success', 'Excuse letter '.$decisionLabel.' and email sent to '.$emailRecipients->count().' recipient(s).');
     }
 
+    // @function sendConversationMessage: Ipinapadala ang conversation message sa Message flow.
+    // @useIn sendConversationMessage: routes/web.php:130 (messages.conversation.store)
     public function sendConversationMessage(Request $request)
     {
         $user = $request->user();
@@ -451,6 +486,8 @@ class MessageController
         return back()->with('success', 'Message sent.');
     }
 
+    // @function unreadStatus: Pinoproseso ang unread status at nagbabalik ng JSON response.
+    // @useIn unreadStatus: routes/web.php:128 (messages.unread-status)
     public function unreadStatus(Request $request)
     {
         $latest = StudentPortalMessage::query()
@@ -477,6 +514,8 @@ class MessageController
         ]);
     }
 
+    // @function markRead: Minamark ang read sa Message flow.
+    // @useIn markRead: routes/web.php:135 (messages.read)
     public function markRead(Request $request, StudentPortalMessage $message)
     {
         $user = $request->user();
@@ -491,6 +530,8 @@ class MessageController
         return back();
     }
 
+    // @function downloadAttachment: Idinodownload ang attachment sa Message flow.
+    // @useIn downloadAttachment: routes/web.php:137 (messages.attachments.show)
     public function downloadAttachment(Request $request, StudentPortalMessage $message)
     {
         $userId = (int) $request->user()?->user_id;
@@ -511,6 +552,8 @@ class MessageController
         return Storage::disk('public')->download($message->attachment_path, $message->attachment_name ?: 'message-attachment');
     }
 
+    // @function reply: Kinukuha ang reply result para sa Message.
+    // @useIn reply: routes/web.php:276 (messages.reply)
     public function reply(Request $request, Message $message)
     {
         $user = $request->user();
@@ -555,6 +598,8 @@ class MessageController
         return back()->with('success', 'Reply sent to the student portal.');
     }
 
+    // @function logActivity: Nilolog ang activity sa Message flow.
+    // @useIn logActivity: MessageController::store (app/Http/Controllers/MessageController.php)
     private function logActivity(string $action, string $tableName, string $description): void
     {
         ActivityLog::query()->create([
@@ -565,11 +610,15 @@ class MessageController
         ]);
     }
 
+    // @function escapeMailText: Binubuo ang escape mail text string para sa Message.
+    // @useIn escapeMailText: MessageController::forwardExcuseLetterToParent (app/Http/Controllers/MessageController.php)
     private function escapeMailText(string $value): string
     {
         return e($value);
     }
 
+    // @function inboxThreadMessage: Kinukuha ang inbox thread message result para sa Message.
+    // @useIn inboxThreadMessage: MessageController::index (app/Http/Controllers/MessageController.php)
     private function inboxThreadMessage(Message $message): array
     {
         return [
@@ -590,6 +639,8 @@ class MessageController
         ];
     }
 
+    // @function portalThreadMessage: Kinukuha ang portal thread message result para sa Message.
+    // @useIn portalThreadMessage: MessageController::index (app/Http/Controllers/MessageController.php)
     private function portalThreadMessage(StudentPortalMessage $message, int $currentUserId): array
     {
         $attachmentExtension = strtolower(pathinfo((string) $message->attachment_name, PATHINFO_EXTENSION));
@@ -612,6 +663,8 @@ class MessageController
         ];
     }
 
+    // @function instructorOptions: Binubuo ang instructor options value.
+    // @useIn instructorOptions: MessageController::create (app/Http/Controllers/MessageController.php)
     private function instructorOptions()
     {
         return Instructor::query()
@@ -631,6 +684,8 @@ class MessageController
             ->values();
     }
 
+    // @function recipientOptions: Binubuo ang recipient options value.
+    // @useIn recipientOptions: MessageController::index (app/Http/Controllers/MessageController.php)
     private function recipientOptions(?User $currentUser)
     {
         return User::query()
@@ -651,11 +706,15 @@ class MessageController
             ->values();
     }
 
+    // @function messageRoles: Kinukuha ang message roles result para sa Message.
+    // @useIn messageRoles: MessageController::sendConversationMessage (app/Http/Controllers/MessageController.php)
     private function messageRoles(): array
     {
         return ['admin', 'instructor', 'clinic', 'registrar', 'student', 'parent'];
     }
 
+    // @function isImageAttachment: Sinusuri kung image attachment para sa Message.
+    // @useIn isImageAttachment: MessageController::index (app/Http/Controllers/MessageController.php)
     private function isImageAttachment(StudentPortalMessage $message): bool
     {
         if ($message->attachment_mime && str_starts_with($message->attachment_mime, 'image/')) {
@@ -667,6 +726,8 @@ class MessageController
         return in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true);
     }
 
+    // @function isInboxImageAttachment: Sinusuri kung inbox image attachment para sa Message.
+    // @useIn isInboxImageAttachment: MessageController::inboxThreadMessage (app/Http/Controllers/MessageController.php)
     private function isInboxImageAttachment(Message $message): bool
     {
         if ($message->attachment_mime && str_starts_with($message->attachment_mime, 'image/')) {
@@ -678,6 +739,8 @@ class MessageController
         return in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true);
     }
 
+    // @function currentStudentContext: Kinukuha ang current student context result para sa Message.
+    // @useIn currentStudentContext: MessageController::index (app/Http/Controllers/MessageController.php)
     private function currentStudentContext(Request $request): ?Students
     {
         $role = strtolower((string) $request->user()?->role);
@@ -702,6 +765,8 @@ class MessageController
         return null;
     }
 
+    // @function linkedStudentsPayload: Binubuo ang linked students payload value.
+    // @useIn linkedStudentsPayload: MessageController::index (app/Http/Controllers/MessageController.php)
     private function linkedStudentsPayload(Request $request)
     {
         return $request->user()

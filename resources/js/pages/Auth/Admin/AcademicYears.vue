@@ -1,3 +1,4 @@
+<!-- FEATURE:academic-year-rollover - UI para sa academic year lifecycle and rollover. -->
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
@@ -18,6 +19,8 @@ const form = useForm({
     active_semester: '',
 });
 
+// @function submit: Isinusumite ang academic years sa Academic Years flow.
+// @useIn submit: resources/js/pages/Auth/Admin/AcademicYears.vue template
 const submit = () => {
     form.post(route('admin.academic-years.store'), {
         preserveScroll: true,
@@ -25,6 +28,8 @@ const submit = () => {
     });
 };
 
+// @function perform: Isinasagawa ang academic years sa Academic Years flow.
+// @useIn perform: resources/js/pages/Auth/Admin/AcademicYears.vue template @click
 const perform = async (year, action, warning) => {
     const result = await Swal.fire({
         icon: 'warning',
@@ -41,6 +46,8 @@ const perform = async (year, action, warning) => {
     });
 };
 
+// @function reopen: Binubuksan muli ang academic years sa Academic Years flow.
+// @useIn reopen: resources/js/pages/Auth/Admin/AcademicYears.vue template @click
 const reopen = async (year) => {
     const result = await Swal.fire({
         icon: 'warning',
@@ -64,6 +71,8 @@ const reopen = async (year) => {
     );
 };
 
+// @function updateSemester: Ina-update ang semester sa Academic Years flow.
+// @useIn updateSemester: resources/js/pages/Auth/Admin/AcademicYears.vue template @change
 const updateSemester = (year, activeSemester) => {
     useForm({
         name: year.name,
@@ -75,6 +84,8 @@ const updateSemester = (year, activeSemester) => {
     });
 };
 
+// @function badgeClass: Pinoproseso ang badge class para sa Academic Years.
+// @useIn badgeClass: resources/js/pages/Auth/Admin/AcademicYears.vue template
 const badgeClass = (status) =>
     ({
         draft: 'bg-amber-100 text-amber-800',
@@ -96,6 +107,8 @@ const selectedSectionStudents = ref(null);
 const rolloverConfigurationOpen = ref(false);
 const rolloverSubmitting = ref(false);
 
+// @function resetRolloverSelection: Nire-reset ang rollover selection sa Academic Years flow.
+// @useIn resetRolloverSelection: resources/js/pages/Auth/Admin/AcademicYears.vue:299
 const resetRolloverSelection = () => {
     rolloverSourceId.value = '';
     rolloverDestinationId.value = '';
@@ -109,6 +122,8 @@ const resetRolloverSelection = () => {
     rolloverConfigurationOpen.value = false;
 };
 
+// @function firstRolloverError: Kinukuha ang first rollover error result para sa Academic Years.
+// @useIn firstRolloverError: resources/js/pages/Auth/Admin/AcademicYears.vue:303
 const firstRolloverError = (errors) => {
     const firstError = Object.values(errors ?? {})
         .flat()
@@ -120,6 +135,8 @@ const firstRolloverError = (errors) => {
     );
 };
 
+// @function loadPreview: Niloload ang preview sa Academic Years flow.
+// @useIn loadPreview: resources/js/pages/Auth/Admin/AcademicYears.vue template @click
 const loadPreview = async () => {
     if (!rolloverSourceId.value || !rolloverDestinationId.value) return;
     previewBusy.value = true;
@@ -174,6 +191,8 @@ const loadPreview = async () => {
     }
 };
 
+// @function executeRollover: Isinasagawa ang rollover sa Academic Years flow.
+// @useIn executeRollover: resources/js/pages/Auth/Admin/AcademicYears.vue template @click
 const executeRollover = async () => {
     const invalid = sectionMappings.value.some(
         (mapping) =>
@@ -307,21 +326,29 @@ const executeRollover = async () => {
     });
 };
 
+// @function studentsForSection: Pinoproseso ang students for section para sa Academic Years.
+// @useIn studentsForSection: resources/js/pages/Auth/Admin/AcademicYears.vue template
 const studentsForSection = (mapping) =>
     preview.value?.items?.filter(
         (item) =>
             Number(item.source_section_id) ===
             Number(mapping.source_section_id),
     ) ?? [];
+// @function openSectionStudents: Binubuksan ang section students sa Academic Years flow.
+// @useIn openSectionStudents: resources/js/pages/Auth/Admin/AcademicYears.vue template @click
 const openSectionStudents = (mapping) => {
     selectedSectionStudents.value = mapping;
 };
+// @function destinationSectionsForMapping: Pinoproseso ang destination sections for mapping para sa Academic Years.
+// @useIn destinationSectionsForMapping: resources/js/pages/Auth/Admin/AcademicYears.vue template
 const destinationSectionsForMapping = (mapping) =>
     preview.value?.destination_sections?.filter(
         (section) =>
             String(section.year_level) ===
             String(mapping.destination_year_level),
     ) ?? [];
+// @function isSectionIncluded: Sinusuri kung section included para sa Academic Years.
+// @useIn isSectionIncluded: resources/js/pages/Auth/Admin/AcademicYears.vue template
 const isSectionIncluded = (sourceSectionId) =>
     Boolean(
         sectionMappings.value.find(
@@ -329,16 +356,22 @@ const isSectionIncluded = (sourceSectionId) =>
                 Number(mapping.source_section_id) === Number(sourceSectionId),
         )?.include,
     );
+// @function existingSectionIdFromChoice: Kinukuha ang existing section id from choice result para sa Academic Years.
+// @useIn existingSectionIdFromChoice: resources/js/pages/Auth/Admin/AcademicYears.vue:261
 const existingSectionIdFromChoice = (choice) => {
     if (!choice?.startsWith('existing:')) return null;
 
     return Number(choice.slice('existing:'.length));
 };
+// @function sourceSectionIdFromChoice: Kinukuha ang source section id from choice result para sa Academic Years.
+// @useIn sourceSectionIdFromChoice: resources/js/pages/Auth/Admin/AcademicYears.vue:259
 const sourceSectionIdFromChoice = (choice) => {
     if (!choice?.startsWith('rollover:')) return null;
 
     return Number(choice.slice('rollover:'.length));
 };
+// @function requiredDestinationYearLevel: Pinoproseso ang required destination year level para sa Academic Years.
+// @useIn requiredDestinationYearLevel: resources/js/pages/Auth/Admin/AcademicYears.vue:401
 const requiredDestinationYearLevel = (item, decision = null) =>
     (decision ??
         studentDecisions.value[item.source_student_enrollment_id]?.decision) ===
@@ -352,6 +385,8 @@ const promotionMappings = computed(() =>
           )
         : [],
 );
+// @function suggestedPromotionSectionName: Kinukuha ang suggested promotion section name result para sa Academic Years.
+// @useIn suggestedPromotionSectionName: resources/js/pages/Auth/Admin/AcademicYears.vue:474
 const suggestedPromotionSectionName = (mapping) => {
     const promotedName = mapping.destination_name.replace(
         /(^|\D)11(?=\D|$)/,
@@ -362,6 +397,8 @@ const suggestedPromotionSectionName = (mapping) => {
         ? `${mapping.destination_name} - Grade 12`
         : promotedName;
 };
+// @function initializePromotionMappings: Kinukuha ang initialize promotion mappings result para sa Academic Years.
+// @useIn initializePromotionMappings: resources/js/pages/Auth/Admin/AcademicYears.vue:156
 const initializePromotionMappings = () => {
     if (rolloverMode.value !== 'year') return;
 
@@ -392,6 +429,8 @@ const initializePromotionMappings = () => {
         mapping.promotion_destination_name = '';
     });
 };
+// @function selectedRolloverSectionsForStudent: Pinoproseso ang selected rollover sections for student para sa Academic Years.
+// @useIn selectedRolloverSectionsForStudent: resources/js/pages/Auth/Admin/AcademicYears.vue template
 const selectedRolloverSectionsForStudent = (item) =>
     sectionMappings.value.filter(
         (mapping) =>
@@ -399,16 +438,22 @@ const selectedRolloverSectionsForStudent = (item) =>
             Number(mapping.destination_year_level) ===
                 requiredDestinationYearLevel(item),
     );
+// @function existingDestinationSectionsForStudent: Pinoproseso ang existing destination sections for student para sa Academic Years.
+// @useIn existingDestinationSectionsForStudent: resources/js/pages/Auth/Admin/AcademicYears.vue template
 const existingDestinationSectionsForStudent = (item) =>
     preview.value?.destination_sections?.filter(
         (section) =>
             Number(section.year_level) === requiredDestinationYearLevel(item),
     ) ?? [];
+// @function resetStudentDestinationForDecision: Nire-reset ang student destination for decision sa Academic Years flow.
+// @useIn resetStudentDestinationForDecision: resources/js/pages/Auth/Admin/AcademicYears.vue template @change
 const resetStudentDestinationForDecision = (item) => {
     const studentDecision =
         studentDecisions.value[item.source_student_enrollment_id];
     studentDecision.destination_choice = '';
 };
+// @function clearStudentSelectionsForMapping: Nililinis ang student selections for mapping sa Academic Years flow.
+// @useIn clearStudentSelectionsForMapping: resources/js/pages/Auth/Admin/AcademicYears.vue template @change
 const clearStudentSelectionsForMapping = (mapping) => {
     if (mapping.include) return;
 
@@ -427,6 +472,8 @@ const clearStudentSelectionsForMapping = (mapping) => {
         });
     }
 };
+// @function rolloverSectionLabel: Kinukuha ang rollover section label result para sa Academic Years.
+// @useIn rolloverSectionLabel: resources/js/pages/Auth/Admin/AcademicYears.vue template
 const rolloverSectionLabel = (mapping) => {
     if (mapping.destination_section_id) {
         const section = preview.value?.destination_sections?.find(
@@ -441,6 +488,8 @@ const rolloverSectionLabel = (mapping) => {
 
     return `${mapping.destination_name} - Grade ${mapping.destination_year_level}`;
 };
+// @function promotionChoiceUsedByAnother: Pinoproseso ang promotion choice used by another para sa Academic Years.
+// @useIn promotionChoiceUsedByAnother: resources/js/pages/Auth/Admin/AcademicYears.vue:457
 const promotionChoiceUsedByAnother = (choice, mapping) =>
     promotionMappings.value.some(
         (candidate) =>
@@ -448,6 +497,8 @@ const promotionChoiceUsedByAnother = (choice, mapping) =>
                 Number(mapping.source_section_id) &&
             candidate.promotion_destination_choice === choice,
     );
+// @function availablePromotionRolloverMappings: Pinoproseso ang available promotion rollover mappings para sa Academic Years.
+// @useIn availablePromotionRolloverMappings: resources/js/pages/Auth/Admin/AcademicYears.vue template
 const availablePromotionRolloverMappings = (mapping) =>
     sectionMappings.value.filter(
         (candidate) =>
@@ -458,6 +509,8 @@ const availablePromotionRolloverMappings = (mapping) =>
                 mapping,
             ),
     );
+// @function availableExistingPromotionSections: Pinoproseso ang available existing promotion sections para sa Academic Years.
+// @useIn availableExistingPromotionSections: resources/js/pages/Auth/Admin/AcademicYears.vue template
 const availableExistingPromotionSections = (mapping) =>
     (preview.value?.destination_sections ?? []).filter(
         (section) =>
@@ -467,16 +520,22 @@ const availableExistingPromotionSections = (mapping) =>
                 mapping,
             ),
     );
+// @function onPromotionDestinationChange: Hinahandle ang promotion destination change sa Academic Years flow.
+// @useIn onPromotionDestinationChange: resources/js/pages/Auth/Admin/AcademicYears.vue template @change
 const onPromotionDestinationChange = (mapping) => {
     mapping.promotion_destination_name =
         mapping.promotion_destination_choice === 'new'
             ? suggestedPromotionSectionName(mapping)
             : '';
 };
+// @function openIndividualStudentAssignments: Binubuksan ang individual student assignments sa Academic Years flow.
+// @useIn openIndividualStudentAssignments: resources/js/pages/Auth/Admin/AcademicYears.vue template @click
 const openIndividualStudentAssignments = (mapping) => {
     rolloverConfigurationOpen.value = false;
     openSectionStudents(mapping);
 };
+// @function promotionDestinationLabel: Kinukuha ang promotion destination label result para sa Academic Years.
+// @useIn promotionDestinationLabel: resources/js/pages/Auth/Admin/AcademicYears.vue template
 const promotionDestinationLabel = (mapping) => {
     const choice = mapping?.promotion_destination_choice;
     if (choice === 'individual') return 'Assign each student individually';
@@ -507,12 +566,16 @@ const promotionDestinationLabel = (mapping) => {
 
     return 'No Grade 12 destination configured';
 };
+// @function sourceMappingForStudent: Pinoproseso ang source mapping for student para sa Academic Years.
+// @useIn sourceMappingForStudent: resources/js/pages/Auth/Admin/AcademicYears.vue:520
 const sourceMappingForStudent = (item) =>
     sectionMappings.value.find(
         (mapping) =>
             Number(mapping.source_section_id) ===
             Number(item.source_section_id),
     );
+// @function sectionDefaultDestinationLabel: Kinukuha ang section default destination label result para sa Academic Years.
+// @useIn sectionDefaultDestinationLabel: resources/js/pages/Auth/Admin/AcademicYears.vue template
 const sectionDefaultDestinationLabel = (item) => {
     const decision =
         studentDecisions.value[item.source_student_enrollment_id]?.decision;
@@ -523,6 +586,8 @@ const sectionDefaultDestinationLabel = (item) => {
 
     return 'No section mapping configured';
 };
+// @function hasSectionDefaultDestination: Sinusuri kung section default destination para sa Academic Years.
+// @useIn hasSectionDefaultDestination: resources/js/pages/Auth/Admin/AcademicYears.vue:225
 const hasSectionDefaultDestination = (item, decision) => {
     const sourceMapping = sourceMappingForStudent(item);
     if (decision === 'retain') return Boolean(sourceMapping?.include);
@@ -536,12 +601,16 @@ const hasSectionDefaultDestination = (item, decision) => {
         Boolean(sourceMapping.promotion_destination_name.trim())
     );
 };
+// @function sectionMappingForSubject: Pinoproseso ang section mapping for subject para sa Academic Years.
+// @useIn sectionMappingForSubject: resources/js/pages/Auth/Admin/AcademicYears.vue:548
 const sectionMappingForSubject = (subject) =>
     sectionMappings.value.find(
         (mapping) =>
             Number(mapping.source_section_id) ===
             Number(subject.source_section_id),
     );
+// @function subjectDestinationLabel: Kinukuha ang subject destination label result para sa Academic Years.
+// @useIn subjectDestinationLabel: resources/js/pages/Auth/Admin/AcademicYears.vue template
 const subjectDestinationLabel = (subject) => {
     if (!subject.include) return 'Excluded from rollover';
     const mapping = sectionMappingForSubject(subject);
@@ -564,6 +633,8 @@ const selectedSubjectCount = computed(
                 subject.include && isSectionIncluded(subject.source_section_id),
         ).length,
 );
+// @function isArchivedStudent: Sinusuri kung archived student para sa Academic Years.
+// @useIn isArchivedStudent: resources/js/pages/Auth/Admin/AcademicYears.vue template
 const isArchivedStudent = (item) =>
     rolloverMode.value === 'year' &&
     preview.value?.transition?.advance_grade &&
@@ -592,6 +663,8 @@ const groupedSectionMappings = computed(() => {
         }));
 });
 
+// @function academicYearsForRollover: Kinukuha ang academic years for rollover result para sa Academic Years.
+// @useIn academicYearsForRollover: resources/js/pages/Auth/Admin/AcademicYears.vue:614
 const academicYearsForRollover = (kind) =>
     props.academicYears.filter((year) => {
         if (rolloverMode.value === 'semester')
@@ -615,6 +688,8 @@ const rolloverSourceOptions = computed(() =>
 const rolloverDestinationOptions = computed(() =>
     academicYearsForRollover('destination'),
 );
+// @function onRolloverSourceChange: Hinahandle ang rollover source change sa Academic Years flow.
+// @useIn onRolloverSourceChange: resources/js/pages/Auth/Admin/AcademicYears.vue template @change
 const onRolloverSourceChange = () => {
     if (
         rolloverMode.value === 'semester' &&

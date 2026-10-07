@@ -13,6 +13,18 @@ use Inertia\Inertia;
 
 class InventoryController
 {
+    // @function indexAdmin: Ibinabalik ang Auth/Admin/Inventory page at data para sa request.
+    // @useIn indexAdmin: routes/web.php:339 (inventory.index)
+    /**
+     * @feature   Inventory Management
+     * @actor     Admin
+     * @flow      Dito nililista at ina-update ang inventory records at item status.
+     * @uses      resources/js/pages/Auth/Admin/Inventory.vue; routes/web.php: InventoryController::indexAdmin, InventoryController::store, InventoryController::update, InventoryController::destroy
+     * @related   Admin workspace
+     * @disable   1) I-comment out ang routes/web.php: InventoryController::indexAdmin, InventoryController::store, InventoryController::update, InventoryController::destroy.
+     * @disable   2) Itago ang action sa resources/js/pages/Auth/Admin/Inventory.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/InventoryController.php: InventoryController::indexAdmin matapos alisin ang routes. Side effect: mawawala ang inventory management.
+     */
     public function indexAdmin(Request $request)
     {
         if (! SystemSetting::boolean(SystemSetting::INVENTORY_ENABLED, false)) {
@@ -55,6 +67,8 @@ class InventoryController
         ]);
     }
 
+    // @function store: Pinoproseso ang bagong Inventory record.
+    // @useIn store: routes/web.php:341 (inventory.store)
     public function store(Request $request)
     {
         abort_unless(SystemSetting::boolean(SystemSetting::INVENTORY_ENABLED, false), 423, 'Inventory is currently disabled.');
@@ -82,6 +96,8 @@ class InventoryController
         return back()->with('success', 'Inventory added successfully.');
     }
 
+    // @function update: Pinoproseso ang pagbabago sa Inventory record.
+    // @useIn update: routes/web.php:343 (inventory.update)
     public function update(Request $request, int $id)
     {
         abort_unless(SystemSetting::boolean(SystemSetting::INVENTORY_ENABLED, false), 423, 'Inventory is currently disabled.');
@@ -114,6 +130,8 @@ class InventoryController
         return back()->with('success', 'Inventory updated successfully.');
     }
 
+    // @function destroy: Pinoproseso ang pagtanggal ng Inventory record.
+    // @useIn destroy: routes/web.php:345 (inventory.destroy)
     public function destroy(int $id)
     {
         abort_unless(SystemSetting::boolean(SystemSetting::INVENTORY_ENABLED, false), 423, 'Inventory is currently disabled.');
@@ -126,6 +144,8 @@ class InventoryController
         return back()->with('success', 'Inventory deleted successfully.');
     }
 
+    // @function log: Nilolog ang inventory sa Inventory flow.
+    // @useIn log: InventoryController::store (app/Http/Controllers/InventoryController.php)
     private function log(string $action, string $tableName, string $description): void
     {
         ActivityLog::create([

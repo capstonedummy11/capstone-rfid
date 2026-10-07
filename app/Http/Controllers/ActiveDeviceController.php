@@ -15,6 +15,18 @@ use Inertia\Inertia;
 
 class ActiveDeviceController
 {
+    // @function index: Ibinabalik ang Auth/Admin/ActiveDevices page at data para sa request.
+    // @useIn index: routes/web.php:374 (active-devices.index)
+    /**
+     * @feature   Laboratories and Devices
+     * @actor     Admin
+     * @flow      Dito kino-configure ang rooms, panel devices, PIN, at remote logout.
+     * @uses      resources/js/pages/Auth/Admin/ActiveDevices.vue; routes/web.php: ActiveDeviceController::index, ActiveDeviceController::store, ActiveDeviceController::update, ActiveDeviceController::destroy, ActiveDeviceController::updatePanelAccess, ActiveDeviceController::updatePanelDevicePin, ActiveDeviceController::forceLogout
+     * @related   Admin workspace
+     * @disable   1) I-comment out ang routes/web.php: ActiveDeviceController::index/store/update/destroy/updatePanelAccess/updatePanelDevicePin/forceLogout at LaboratoryController::indexAdmin/store/update/destroy.
+     * @disable   2) Itago ang action sa resources/js/pages/Auth/Admin/ActiveDevices.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Itago rin ang resources/js/pages/Auth/Admin/Laboratories.vue; ihinto ang app/Http/Controllers/ActiveDeviceController.php: index at app/Http/Controllers/LaboratoryController.php: indexAdmin matapos alisin ang routes. Side effect: hindi na ma-manage ang rooms at PIN; maaapektuhan ang Console access.
+     */
     public function index()
     {
         return Inertia::render('Auth/Admin/ActiveDevices', [
@@ -31,6 +43,8 @@ class ActiveDeviceController
         ]);
     }
 
+    // @function updatePanelAccess: Ina-update ang panel access sa Active Device flow.
+    // @useIn updatePanelAccess: routes/web.php:378 (active-devices.panel-access.update)
     public function updatePanelAccess(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -50,6 +64,8 @@ class ActiveDeviceController
         ]);
     }
 
+    // @function store: Pinoproseso ang bagong Active Device record.
+    // @useIn store: routes/web.php:376 (active-devices.store)
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -71,6 +87,8 @@ class ActiveDeviceController
         return back()->with('success', 'Panel device created.');
     }
 
+    // @function update: Pinoproseso ang pagbabago sa Active Device record.
+    // @useIn update: routes/web.php:380 (active-devices.update)
     public function update(Request $request, PanelDevice $device)
     {
         $validated = $request->validate([
@@ -89,6 +107,8 @@ class ActiveDeviceController
         return back()->with('success', 'Panel device updated.');
     }
 
+    // @function destroy: Pinoproseso ang pagtanggal ng Active Device record.
+    // @useIn destroy: routes/web.php:382 (active-devices.destroy)
     public function destroy(PanelDevice $device)
     {
         $hasOpenSession = RfidPanelSession::query()
@@ -103,6 +123,8 @@ class ActiveDeviceController
         return back()->with('success', 'Panel device deleted.');
     }
 
+    // @function updatePanelDevicePin: Ina-update ang panel device pin sa Active Device flow.
+    // @useIn updatePanelDevicePin: routes/web.php:384 (active-devices.pin.update)
     public function updatePanelDevicePin(Request $request, PanelDevice $device): JsonResponse
     {
         $validated = $request->validate([
@@ -117,6 +139,8 @@ class ActiveDeviceController
         ]);
     }
 
+    // @function forceLogout: Pinoproseso ang force logout at nagbabalik ng JSON response.
+    // @useIn forceLogout: routes/web.php:386 (active-devices.force-logout)
     public function forceLogout(Request $request, int $panelSessionId): JsonResponse
     {
         $session = RfidPanelSession::query()->findOrFail($panelSessionId);
@@ -156,6 +180,8 @@ class ActiveDeviceController
         ]);
     }
 
+    // @function deviceRows: Binubuo ang device rows value.
+    // @useIn deviceRows: ActiveDeviceController::index (app/Http/Controllers/ActiveDeviceController.php)
     private function deviceRows()
     {
         return PanelDevice::query()

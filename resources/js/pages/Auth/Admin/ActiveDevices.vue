@@ -1,3 +1,4 @@
+<!-- FEATURE:device-management - UI para sa laboratories and devices. -->
 <script setup>
 import { router, useForm } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
@@ -67,12 +68,16 @@ const activeLabCount = computed(
         ).length,
 );
 
+// @function statusClass: Kinukuha ang status class result para sa Active Devices.
+// @useIn statusClass: resources/js/pages/Auth/Admin/ActiveDevices.vue template
 const statusClass = (device) => {
     if (device.is_active) return 'bg-emerald-50 text-emerald-700';
     if (device.is_waiting) return 'bg-amber-50 text-amber-700';
     return 'bg-slate-100 text-slate-600';
 };
 
+// @function saveFaceSetting: Sine-save ang face setting sa Active Devices flow.
+// @useIn saveFaceSetting: resources/js/pages/Auth/Admin/ActiveDevices.vue template
 const saveFaceSetting = () => {
     settingsForm.put(route('admin.settings.update'), {
         preserveScroll: true,
@@ -90,6 +95,8 @@ const saveFaceSetting = () => {
     });
 };
 
+// @function savePanelAccess: Sine-save ang panel access sa Active Devices flow.
+// @useIn savePanelAccess: resources/js/pages/Auth/Admin/ActiveDevices.vue template
 const savePanelAccess = async () => {
     try {
         const xsrfRaw = document.cookie
@@ -142,6 +149,8 @@ const savePanelAccess = async () => {
     }
 };
 
+// @function resetLabForm: Nire-reset ang lab form sa Active Devices flow.
+// @useIn resetLabForm: resources/js/pages/Auth/Admin/ActiveDevices.vue template @click
 const resetLabForm = () => {
     editingLabId.value = null;
     labForm.name = '';
@@ -151,6 +160,8 @@ const resetLabForm = () => {
     labForm.clearErrors();
 };
 
+// @function saveLaboratory: Sine-save ang laboratory sa Active Devices flow.
+// @useIn saveLaboratory: resources/js/pages/Auth/Admin/ActiveDevices.vue template
 const saveLaboratory = () => {
     const options = {
         preserveScroll: true,
@@ -175,6 +186,8 @@ const saveLaboratory = () => {
     }
 };
 
+// @function editLaboratory: Pinoproseso ang edit laboratory para sa Active Devices.
+// @useIn editLaboratory: resources/js/pages/Auth/Admin/ActiveDevices.vue template @click
 const editLaboratory = (laboratory) => {
     editingLabId.value = laboratory.laboratory_id;
     labForm.name = laboratory.name;
@@ -183,6 +196,8 @@ const editLaboratory = (laboratory) => {
     labForm.status = laboratory.status ?? 'active';
 };
 
+// @function resetDeviceForm: Nire-reset ang device form sa Active Devices flow.
+// @useIn resetDeviceForm: resources/js/pages/Auth/Admin/ActiveDevices.vue template @click
 const resetDeviceForm = () => {
     editingDeviceId.value = null;
     deviceForm.reset();
@@ -190,6 +205,8 @@ const resetDeviceForm = () => {
     deviceForm.clearErrors();
 };
 
+// @function saveDevice: Sine-save ang device sa Active Devices flow.
+// @useIn saveDevice: resources/js/pages/Auth/Admin/ActiveDevices.vue template
 const saveDevice = () => {
     const options = {
         preserveScroll: true,
@@ -205,6 +222,8 @@ const saveDevice = () => {
     }
 };
 
+// @function editDevice: Pinoproseso ang edit device para sa Active Devices.
+// @useIn editDevice: resources/js/pages/Auth/Admin/ActiveDevices.vue template @click
 const editDevice = (device) => {
     editingDeviceId.value = device.panel_device_id;
     deviceForm.laboratory_id = String(device.laboratory_id ?? '');
@@ -214,6 +233,8 @@ const editDevice = (device) => {
     deviceForm.is_active = Boolean(device.is_enabled);
 };
 
+// @function toggleDevice: Tina-toggle ang device sa Active Devices flow.
+// @useIn toggleDevice: resources/js/pages/Auth/Admin/ActiveDevices.vue template @click
 const toggleDevice = (device) => {
     router.put(route('admin.active-devices.update', { device: device.panel_device_id }), {
         laboratory_id: device.laboratory_id,
@@ -223,6 +244,8 @@ const toggleDevice = (device) => {
     }, { preserveScroll: true });
 };
 
+// @function deleteDevice: Tinatanggal ang device sa Active Devices flow.
+// @useIn deleteDevice: resources/js/pages/Auth/Admin/ActiveDevices.vue template @click
 const deleteDevice = async (device) => {
     const result = await Swal.fire({
         title: `Delete ${device.device_label}?`,
@@ -236,6 +259,8 @@ const deleteDevice = async (device) => {
     router.delete(route('admin.active-devices.destroy', { device: device.panel_device_id }), { preserveScroll: true });
 };
 
+// @function setLaboratoryStatus: Sine-set ang laboratory status sa Active Devices flow.
+// @useIn setLaboratoryStatus: resources/js/pages/Auth/Admin/ActiveDevices.vue template @click
 const setLaboratoryStatus = (laboratory, status) => {
     router.put(
         route('admin.laboratories.update', { id: laboratory.laboratory_id }),
@@ -252,6 +277,8 @@ const setLaboratoryStatus = (laboratory, status) => {
     );
 };
 
+// @function deleteLaboratory: Tinatanggal ang laboratory sa Active Devices flow.
+// @useIn deleteLaboratory: resources/js/pages/Auth/Admin/ActiveDevices.vue template @click
 const deleteLaboratory = async (laboratory) => {
     const result = await Swal.fire({
         title: `Delete ${laboratory.name}?`,
@@ -277,6 +304,8 @@ const deleteLaboratory = async (laboratory) => {
     );
 };
 
+// @function forceLogout: Kinukuha ang force logout result para sa Active Devices.
+// @useIn forceLogout: resources/js/pages/Auth/Admin/ActiveDevices.vue template @click
 const forceLogout = async (device) => {
     if (!device.panel_session_id) return;
 
@@ -338,6 +367,8 @@ const forceLogout = async (device) => {
     }
 };
 
+// @function changePanelPin: Kinukuha ang change panel pin result para sa Active Devices.
+// @useIn changePanelPin: resources/js/pages/Auth/Admin/ActiveDevices.vue template @click
 const changePanelPin = async (device) => {
     const result = await Swal.fire({
         title: `Change PIN for ${device.device_label}`,

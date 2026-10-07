@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Storage;
 
 class AwsFaceRecognitionService
 {
+    // @function availability: Kinukuha ang availability result para sa Aws Face Recognition.
+    // @useIn availability: AwsFaceRecognitionService::isAvailable (app/Services/AwsFaceRecognitionService.php)
     public function availability(): array
     {
         if (! class_exists(\Aws\Rekognition\RekognitionClient::class)) {
@@ -43,11 +45,25 @@ class AwsFaceRecognitionService
         ];
     }
 
+    // @function isAvailable: Sinusuri kung available para sa Aws Face Recognition.
+    // @useIn isAvailable: TODO(verify): walang direct caller na nakita sa static search
     public function isAvailable(): bool
     {
         return (bool) $this->availability()['available'];
     }
 
+    // @function compareBase64WithStoredImage: Kinukuha ang compare base64 with stored image result para sa Aws Face Recognition.
+    // @useIn compareBase64WithStoredImage: app/Http/Controllers/AttendanceController.php
+    /**
+     * @feature   Face Recognition
+     * @actor     Shared / Core
+     * @flow      Ipinapadala sa AWS CompareFaces ang enrolled source bytes at captured target bytes. Pass kapag similarity >= services.aws_rekognition.similarity_threshold (default 90); fail o null result kapag walang match o may provider error.
+     * @uses      resources/js/components/CameraCapture.vue; app/Services/AwsFaceRecognitionService.php: AwsFaceRecognitionService::compareBase64WithStoredImage
+     * @related   Authentication, Attendance, Reports
+     * @disable   1) I-off ang SystemSetting::FACE_RECOGNITION_ENABLED sa app/Models/SystemSetting.php.
+     * @disable   2) Itago ang face action sa resources/js/pages/AttendanceControlPanel.vue.
+     * @disable   3) Alisin ang AttendanceController::studentFaceCheck at OnlineClassController::join face calls bago ihinto ang app/Services/AwsFaceRecognitionService.php: compareBase64WithStoredImage. Side effect: kailangang sundin ang documented fallback o titigil ang face-required flows.
+     */
     public function compareBase64WithStoredImage(string $capturedDataUrl, string $storedPath): ?array
     {
         if (! class_exists(\Aws\Rekognition\RekognitionClient::class)) {
@@ -108,6 +124,8 @@ class AwsFaceRecognitionService
         }
     }
 
+    // @function decodeDataUrl: Binubuo ang decode data url string para sa Aws Face Recognition.
+    // @useIn decodeDataUrl: AwsFaceRecognitionService::compareBase64WithStoredImage (app/Services/AwsFaceRecognitionService.php)
     private function decodeDataUrl(string $dataUrl): ?string
     {
         $base64 = preg_replace('/^data:[^;]+;base64,/', '', $dataUrl);

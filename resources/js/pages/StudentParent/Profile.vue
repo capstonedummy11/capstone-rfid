@@ -46,11 +46,15 @@ const displayedPhotoUrl = computed(() => {
     return localPhotoUrl.value || props.user.profile_photo_url || null;
 });
 
+// @function clearLocalPhotoUrl: Nililinis ang local photo url sa Profile flow.
+// @useIn clearLocalPhotoUrl: resources/js/pages/StudentParent/Profile.vue:56
 const clearLocalPhotoUrl = () => {
     if (localPhotoUrl.value) URL.revokeObjectURL(localPhotoUrl.value);
     localPhotoUrl.value = null;
 };
 
+// @function selectPhoto: Pinipili ang photo sa Profile flow.
+// @useIn selectPhoto: resources/js/pages/StudentParent/Profile.vue template @change
 const selectPhoto = (event) => {
     const file = event.target.files?.[0] || null;
     clearLocalPhotoUrl();
@@ -61,6 +65,8 @@ const selectPhoto = (event) => {
     if (file) localPhotoUrl.value = URL.createObjectURL(file);
 };
 
+// @function removePhoto: Tinatanggal ang photo sa Profile flow.
+// @useIn removePhoto: resources/js/pages/StudentParent/Profile.vue template @click
 const removePhoto = () => {
     clearLocalPhotoUrl();
     form.profile_photo = null;
@@ -75,6 +81,8 @@ const passwordForm = useForm({
 });
 const isPasswordSubmitting = ref(false);
 
+// @function saveProfile: Sine-save ang profile sa Profile flow.
+// @useIn saveProfile: resources/js/pages/StudentParent/Profile.vue template
 const saveProfile = () => {
     if (isProfileSubmitting.value) return;
 
@@ -94,6 +102,8 @@ const saveProfile = () => {
     });
 };
 
+// @function savePassword: Sine-save ang password sa Profile flow.
+// @useIn savePassword: resources/js/pages/StudentParent/Profile.vue template
 const savePassword = () => {
     if (isPasswordSubmitting.value) return;
 

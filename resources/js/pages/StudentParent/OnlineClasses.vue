@@ -1,3 +1,4 @@
+<!-- FEATURE:online-class-join - UI para sa online class viewing and joining. -->
 <script setup>
 import { router, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
@@ -21,6 +22,8 @@ const props = defineProps({
     selectedAcademicYearId: { type: [Number, String, null], default: null },
 });
 
+// @function changeAcademicYear: Pinoproseso ang change academic year para sa Online Classes.
+// @useIn changeAcademicYear: resources/js/pages/StudentParent/OnlineClasses.vue template @change
 const changeAcademicYear = (event) =>
     router.get(
         window.location.pathname,
@@ -41,12 +44,16 @@ const verificationBusy = ref(false);
 const faceAvailable = computed(() =>
     Boolean(props.faceRecognitionAvailability?.available),
 );
+// @function xsrfToken: Pinoproseso ang xsrf token para sa Online Classes.
+// @useIn xsrfToken: resources/js/pages/StudentParent/OnlineClasses.vue:142
 const xsrfToken = () =>
     document.cookie
         .split('; ')
         .find((row) => row.startsWith('XSRF-TOKEN='))
         ?.split('=')[1];
 
+// @function postJoin: Pinoproseso ang post join para sa Online Classes.
+// @useIn postJoin: resources/js/pages/StudentParent/OnlineClasses.vue:79
 const postJoin = (
     onlineClass,
     faceVerified = false,
@@ -71,6 +78,8 @@ const postJoin = (
     );
 };
 
+// @function joinClass: Kinukuha ang join class result para sa Online Classes.
+// @useIn joinClass: resources/js/pages/StudentParent/OnlineClasses.vue template @click
 const joinClass = (onlineClass) => {
     if (onlineClass.require_face_recognition) {
         if (!faceAvailable.value) {
@@ -89,6 +98,8 @@ const joinClass = (onlineClass) => {
     postJoin(onlineClass, false);
 };
 
+// @function closeVerification: Isinasara ang verification sa Online Classes flow.
+// @useIn closeVerification: resources/js/pages/StudentParent/OnlineClasses.vue template @click
 const closeVerification = () => {
     verifyingClass.value = null;
     verificationError.value = '';
@@ -97,6 +108,8 @@ const closeVerification = () => {
     cameraRef.value?.resetCapture();
 };
 
+// @function verifyFaceAndJoin: Vini-verify ang face and join sa Online Classes flow.
+// @useIn verifyFaceAndJoin: resources/js/pages/StudentParent/OnlineClasses.vue template @click
 const verifyFaceAndJoin = async () => {
     if (!verifyingClass.value) return;
 

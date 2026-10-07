@@ -9,8 +9,12 @@ use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
 
 class LoginResponse implements LoginResponseContract
 {
+    // @function __construct: Tinatanggap ang dependencies ng Login Response sa pagbuo ng object.
+    // @useIn __construct: Laravel dependency injection kapag ginagamit ang LoginResponse
     public function __construct(private readonly AdminLoginOtpService $adminOtp) {}
 
+    // @function toResponse: Kinukuha ang to response result para sa Login Response.
+    // @useIn toResponse: Laravel response contract
     public function toResponse($request)
     {
         $user = $request->user();

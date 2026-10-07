@@ -1,4 +1,5 @@
 <?php
+// FEATURE:academic-year-rollover - konektadong model, service, route, o UI para sa feature na ito.
 
 namespace App\Services;
 
@@ -10,6 +11,8 @@ use Illuminate\Validation\ValidationException;
 
 class AcademicYearRolloverService
 {
+    // @function preview: Kinukuha ang preview result para sa Academic Year Rollover.
+    // @useIn preview: AcademicYearRolloverService::execute (app/Services/AcademicYearRolloverService.php)
     public function preview(AcademicYear $source, AcademicYear $destination, string $mode = 'year', ?string $destinationSemester = null): array
     {
         $this->validateYears($source, $destination, $mode);
@@ -104,6 +107,8 @@ class AcademicYearRolloverService
         ];
     }
 
+    // @function execute: Isinasagawa ang academic year rollover sa Academic Year Rollover flow.
+    // @useIn execute: app/Http/Controllers/AcademicYearController.php
     public function execute(AcademicYear $source, AcademicYear $destination, User $actor, array $decisions, array $sectionMappings, string $mode = 'year', ?string $destinationSemester = null, ?array $subjectSelections = null): AcademicYearRollover
     {
         $preview = $this->preview($source, $destination, $mode, $destinationSemester);
@@ -224,6 +229,8 @@ class AcademicYearRolloverService
         });
     }
 
+    // @function resolveSections: Hinahanap ang sections sa Academic Year Rollover flow.
+    // @useIn resolveSections: AcademicYearRolloverService::execute (app/Services/AcademicYearRolloverService.php)
     private function resolveSections(AcademicYear $source, AcademicYear $destination, array $mappings, string $mode = 'year', ?string $destinationSemester = null): array
     {
         $map = [];
@@ -264,6 +271,8 @@ class AcademicYearRolloverService
         return $map;
     }
 
+    // @function resolvePromotionSections: Hinahanap ang promotion sections sa Academic Year Rollover flow.
+    // @useIn resolvePromotionSections: AcademicYearRolloverService::execute (app/Services/AcademicYearRolloverService.php)
     private function resolvePromotionSections(AcademicYear $source, AcademicYear $destination, array $mappings, array $sectionMap, array $transition): array
     {
         if (! $transition['advance_grade']) {
@@ -339,6 +348,8 @@ class AcademicYearRolloverService
         return $promotionMap;
     }
 
+    // @function copySubjectOfferings: Kinukuha ang copy subject offerings result para sa Academic Year Rollover.
+    // @useIn copySubjectOfferings: AcademicYearRolloverService::execute (app/Services/AcademicYearRolloverService.php)
     private function copySubjectOfferings(AcademicYear $source, AcademicYear $destination, array $sectionMap, array $transition, ?array $subjectSelections): array
     {
         $offeringMap = [];
@@ -380,6 +391,8 @@ class AcademicYearRolloverService
         return $offeringMap;
     }
 
+    // @function transition: Kinukuha ang transition result para sa Academic Year Rollover.
+    // @useIn transition: AcademicYearRolloverService::preview (app/Services/AcademicYearRolloverService.php)
     private function transition(AcademicYear $source, $enrollments, string $mode = 'year', ?string $destinationSemester = null): array
     {
         $currentSemester = $source->active_semester ?: $enrollments->pluck('semester')->filter()->first() ?: '2nd Semester';
@@ -404,6 +417,8 @@ class AcademicYearRolloverService
         ];
     }
 
+    // @function validateYears: Vinavalidate ang years sa Academic Year Rollover flow.
+    // @useIn validateYears: AcademicYearRolloverService::preview (app/Services/AcademicYearRolloverService.php)
     private function validateYears(AcademicYear $source, AcademicYear $destination, string $mode = 'year'): void
     {
         if ($mode === 'semester') {

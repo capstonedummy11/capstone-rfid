@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    // @function up: Ginagawa o binabago ang database schema para sa migration na ito.
+    // @useIn up: Laravel migration runner
     public function up(): void
     {
         Schema::table('instructors', function (Blueprint $table) {
@@ -25,6 +27,8 @@ return new class extends Migration
         $this->createGeneratedUniqueIndexes();
     }
 
+    // @function down: Ibinabalik ang schema changes ng migration na ito.
+    // @useIn down: Laravel migration runner
     public function down(): void
     {
         if (in_array(DB::getDriverName(), ['sqlite', 'pgsql'], true)) {
@@ -41,6 +45,8 @@ return new class extends Migration
         });
     }
 
+    // @function createPartialUniqueIndexes: Gumagawa ng ang partial unique indexes sa 2026 10 01 000001 scope unique indexes to active records flow.
+    // @useIn createPartialUniqueIndexes: Laravel migration runner
     private function createPartialUniqueIndexes(): void
     {
         $indexes = [
@@ -61,6 +67,8 @@ return new class extends Migration
         }
     }
 
+    // @function dropPartialUniqueIndexes: Pinoproseso ang drop partial unique indexes para sa 2026 10 01 000001 scope unique indexes to active records.
+    // @useIn dropPartialUniqueIndexes: Laravel migration runner
     private function dropPartialUniqueIndexes(): void
     {
         $indexes = [
@@ -81,6 +89,8 @@ return new class extends Migration
         }
     }
 
+    // @function createGeneratedUniqueIndexes: Gumagawa ng ang generated unique indexes sa 2026 10 01 000001 scope unique indexes to active records flow.
+    // @useIn createGeneratedUniqueIndexes: Laravel migration runner
     private function createGeneratedUniqueIndexes(): void
     {
         $this->replaceWithGeneratedIndex('users', 'email', 'active_email', 'users_active_email_unique');
@@ -94,6 +104,8 @@ return new class extends Migration
         $this->replaceWithGeneratedIndex('inventory_items', 'barcode', 'active_barcode', 'inventory_items_active_barcode_unique');
     }
 
+    // @function dropGeneratedUniqueIndexes: Pinoproseso ang drop generated unique indexes para sa 2026 10 01 000001 scope unique indexes to active records.
+    // @useIn dropGeneratedUniqueIndexes: Laravel migration runner
     private function dropGeneratedUniqueIndexes(): void
     {
         $definitions = [
@@ -117,6 +129,8 @@ return new class extends Migration
         }
     }
 
+    // @function replaceWithGeneratedIndex: Pinoproseso ang replace with generated index para sa 2026 10 01 000001 scope unique indexes to active records.
+    // @useIn replaceWithGeneratedIndex: Laravel migration runner
     private function replaceWithGeneratedIndex(
         string $tableName,
         string $sourceColumn,

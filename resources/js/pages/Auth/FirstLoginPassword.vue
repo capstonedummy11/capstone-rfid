@@ -1,3 +1,4 @@
+<!-- FEATURE:first-login-password - UI para sa first-login password setup. -->
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
@@ -71,6 +72,8 @@ const passwordStrength = computed(() => {
     };
 });
 
+// @function submit: Isinusumite ang first login password sa First Login Password flow.
+// @useIn submit: resources/js/pages/Auth/FirstLoginPassword.vue template
 const submit = () => {
     if (isSubmitting.value) return;
 
@@ -93,6 +96,8 @@ const submit = () => {
     });
 };
 
+// @function signOut: Kinukuha ang sign out result para sa First Login Password.
+// @useIn signOut: resources/js/pages/Auth/FirstLoginPassword.vue template @click
 const signOut = async () => {
     const result = await Swal.fire({
         title: 'Sign out?',

@@ -1,3 +1,4 @@
+<!-- FEATURE:online-class-management - UI para sa online class management. -->
 <script setup>
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
@@ -47,6 +48,8 @@ const scheduleSearchOptions = computed(() =>
     })),
 );
 
+// @function resetForm: Nire-reset ang form sa Online Classes flow.
+// @useIn resetForm: resources/js/pages/Auth/Admin/OnlineClasses.vue template @click
 const resetForm = () => {
     editing.value = null;
     form.reset();
@@ -54,6 +57,8 @@ const resetForm = () => {
     form.attachments = [];
 };
 
+// @function editClass: Pinoproseso ang edit class para sa Online Classes.
+// @useIn editClass: resources/js/pages/Auth/Admin/OnlineClasses.vue template @click
 const editClass = (onlineClass) => {
     editing.value = onlineClass;
     form.schedule_id = onlineClass.schedule_id;
@@ -67,6 +72,8 @@ const editClass = (onlineClass) => {
     form.attachments = [];
 };
 
+// @function saveClass: Sine-save ang class sa Online Classes flow.
+// @useIn saveClass: resources/js/pages/Auth/Admin/OnlineClasses.vue template
 const saveClass = () => {
     const options = {
         preserveScroll: true,
@@ -98,6 +105,8 @@ const saveClass = () => {
     form.post(route('admin.online-classes.store'), options);
 };
 
+// @function toggleFaceRequirement: Tina-toggle ang face requirement sa Online Classes flow.
+// @useIn toggleFaceRequirement: resources/js/pages/Auth/Admin/OnlineClasses.vue template @change
 const toggleFaceRequirement = () => {
     if (!faceAvailable.value) {
         form.require_face_recognition = false;
@@ -109,6 +118,8 @@ const toggleFaceRequirement = () => {
     }
 };
 
+// @function cancelClass: Kina-cancel ang class sa Online Classes flow.
+// @useIn cancelClass: resources/js/pages/Auth/Admin/OnlineClasses.vue template @click
 const cancelClass = (onlineClass) => {
     router.put(
         route('admin.online-classes.cancel', onlineClass.online_class_id),
@@ -117,6 +128,8 @@ const cancelClass = (onlineClass) => {
     );
 };
 
+// @function deleteClass: Tinatanggal ang class sa Online Classes flow.
+// @useIn deleteClass: resources/js/pages/Auth/Admin/OnlineClasses.vue template @click
 const deleteClass = (onlineClass) => {
     router.delete(
         route('admin.online-classes.destroy', onlineClass.online_class_id),

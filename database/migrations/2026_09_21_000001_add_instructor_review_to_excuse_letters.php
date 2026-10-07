@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    // @function up: Ginagawa o binabago ang database schema para sa migration na ito.
+    // @useIn up: Laravel migration runner
     public function up(): void
     {
         $this->addMissingColumns();
@@ -29,6 +31,8 @@ return new class extends Migration
             });
     }
 
+    // @function down: Ibinabalik ang schema changes ng migration na ito.
+    // @useIn down: Laravel migration runner
     public function down(): void
     {
         $this->dropForeignKeyForColumn('excuse_letter_reviewed_by_user_id');
@@ -51,6 +55,8 @@ return new class extends Migration
         });
     }
 
+    // @function addMissingColumns: Nagdadagdag ng ang missing columns sa 2026 09 21 000001 add instructor review to excuse letters flow.
+    // @useIn addMissingColumns: Laravel migration runner
     private function addMissingColumns(): void
     {
         $definitions = [
@@ -74,6 +80,8 @@ return new class extends Migration
         }
     }
 
+    // @function addMissingForeignKeys: Nagdadagdag ng ang missing foreign keys sa 2026 09 21 000001 add instructor review to excuse letters flow.
+    // @useIn addMissingForeignKeys: Laravel migration runner
     private function addMissingForeignKeys(): void
     {
         if (! $this->hasForeignKeyForColumn('student_excuse_letter_id')) {
@@ -95,12 +103,16 @@ return new class extends Migration
         }
     }
 
+    // @function hasForeignKeyForColumn: Sinusuri kung foreign key for column para sa 2026 09 21 000001 add instructor review to excuse letters.
+    // @useIn hasForeignKeyForColumn: Laravel migration runner
     private function hasForeignKeyForColumn(string $column): bool
     {
         return collect(Schema::getForeignKeys('student_portal_messages'))
             ->contains(fn (array $foreignKey): bool => in_array($column, $foreignKey['columns'], true));
     }
 
+    // @function dropForeignKeyForColumn: Kinukuha ang drop foreign key for column result para sa 2026 09 21 000001 add instructor review to excuse letters.
+    // @useIn dropForeignKeyForColumn: Laravel migration runner
     private function dropForeignKeyForColumn(string $column): void
     {
         $foreignKey = collect(Schema::getForeignKeys('student_portal_messages'))

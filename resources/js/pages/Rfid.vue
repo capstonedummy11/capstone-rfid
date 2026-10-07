@@ -349,6 +349,8 @@ const filteredRows = computed<RfidRow[]>(() => {
     });
 });
 
+// @function onFilterChange: Hinahandle ang filter change sa Rfid flow.
+// @useIn onFilterChange: resources/js/pages/Rfid.vue template @input
 const onFilterChange = () => {
     const query = {
         search: search.value,
@@ -391,12 +393,16 @@ const filteredOwners = computed<UnassignedOwner[]>(() => {
     );
 });
 
+// @function resetFilters: Nire-reset ang filters sa Rfid flow.
+// @useIn resetFilters: resources/js/pages/Rfid.vue template @click
 const resetFilters = () => {
     search.value = '';
     selectedType.value = 'all';
     onFilterChange();
 };
 
+// @function openEditModal: Binubuksan ang edit modal sa Rfid flow.
+// @useIn openEditModal: resources/js/pages/Rfid.vue template @click
 const openEditModal = (row: RfidRow) => {
     selectedRow.value = row;
     form.reset();
@@ -404,22 +410,30 @@ const openEditModal = (row: RfidRow) => {
     showModal.value = true;
 };
 
+// @function closeModal: Isinasara ang modal sa Rfid flow.
+// @useIn closeModal: resources/js/pages/Rfid.vue template @click
 const closeModal = () => {
     showModal.value = false;
     selectedRow.value = null;
     form.reset();
 };
 
+// @function openRegisterModal: Binubuksan ang register modal sa Rfid flow.
+// @useIn openRegisterModal: resources/js/pages/Rfid.vue template @click
 const openRegisterModal = () => {
     registerForm.reset();
     showRegisterModal.value = true;
 };
 
+// @function closeRegisterModal: Isinasara ang register modal sa Rfid flow.
+// @useIn closeRegisterModal: resources/js/pages/Rfid.vue template @click
 const closeRegisterModal = () => {
     showRegisterModal.value = false;
     registerForm.reset();
 };
 
+// @function submitNewRfid: Isinusumite ang new rfid sa Rfid flow.
+// @useIn submitNewRfid: resources/js/pages/Rfid.vue template
 const submitNewRfid = () => {
     if (!registerForm.ownerKey || !registerForm.rfid_tag) {
         showAlertModal(
@@ -452,6 +466,8 @@ const submitNewRfid = () => {
     );
 };
 
+// @function submitRfid: Isinusumite ang rfid sa Rfid flow.
+// @useIn submitRfid: resources/js/pages/Rfid.vue template
 const submitRfid = () => {
     if (!selectedRow.value) return;
 
@@ -470,6 +486,8 @@ const submitRfid = () => {
     );
 };
 
+// @function clearRfid: Nililinis ang rfid sa Rfid flow.
+// @useIn clearRfid: resources/js/pages/Rfid.vue template @click
 const clearRfid = async (row: RfidRow) => {
     const confirmed = await confirmActionModal({
         title: 'Clear RFID assignment?',

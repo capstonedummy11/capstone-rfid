@@ -14,6 +14,8 @@ class MinimalSeeder extends Seeder
 
     private const LEGACY_ROOT_ADMIN_EMAIL = 'root.admin@sample.com';
 
+    // @function run: Pinapatakbo ang Minimal Seeder task.
+    // @useIn run: php artisan db:seed
     /**
      * Seed only the records required to start a clean installation.
      *
@@ -90,6 +92,8 @@ class MinimalSeeder extends Seeder
         );
     }
 
+    // @function createSetting: Gumagawa ng ang setting sa Minimal Seeder flow.
+    // @useIn createSetting: MinimalSeeder::run (database/seeders/MinimalSeeder.php)
     private function createSetting(string $key, mixed $value, string $type): void
     {
         SystemSetting::query()->firstOrCreate(
@@ -101,6 +105,8 @@ class MinimalSeeder extends Seeder
         );
     }
 
+    // @function seedCurrentAcademicYear: Pinoproseso ang seed current academic year para sa Minimal Seeder.
+    // @useIn seedCurrentAcademicYear: MinimalSeeder::run (database/seeders/MinimalSeeder.php)
     private function seedCurrentAcademicYear(User $rootAdmin): void
     {
         $today = now();

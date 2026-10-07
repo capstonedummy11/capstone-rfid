@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Hash;
 
 class ComlabUserSeeder extends Seeder
 {
+  // @function run: Pinapatakbo ang Comlab User Seeder task.
+  // @useIn run: php artisan db:seed
   /**
    * Seed COMLAB user accounts (COMLAB 1 to COMLAB 5).
    */

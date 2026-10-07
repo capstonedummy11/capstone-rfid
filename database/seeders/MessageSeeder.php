@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Storage;
 
 class MessageSeeder extends Seeder
 {
+    // @function run: Pinapatakbo ang Message Seeder task.
+    // @useIn run: php artisan db:seed
     public function run(): void
     {
         $student = Students::query()

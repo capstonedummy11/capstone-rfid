@@ -12,6 +12,8 @@ use Illuminate\Validation\Rules\Password;
 
 class AppServiceProvider extends ServiceProvider
 {
+    // @function register: Nirerehistro ang dependencies ng App Service.
+    // @useIn register: Laravel service provider lifecycle
     /**
      * Register any application services.
      */
@@ -20,6 +22,8 @@ class AppServiceProvider extends ServiceProvider
         //
     }
 
+    // @function boot: Nirerehistro ang startup behavior ng App Service.
+    // @useIn boot: Laravel service provider lifecycle
     /**
      * Bootstrap any application services.
      */
@@ -34,6 +38,8 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
     }
 
+    // @function configureDefaults: Pinoproseso ang configure defaults para sa App Service.
+    // @useIn configureDefaults: AppServiceProvider::boot (app/Providers/AppServiceProvider.php)
     /**
      * Configure default behaviors for production-ready applications.
      */

@@ -10,6 +10,8 @@ use Illuminate\Validation\Rule;
 
 class AuthController
 {
+    // @function register: Nirerehistro ang dependencies ng Auth.
+    // @useIn register: routes/web.php:541 (register.store)
     public function register(Request $request)
     {
         $register = $request->validate([

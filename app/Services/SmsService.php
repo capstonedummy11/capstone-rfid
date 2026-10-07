@@ -1,4 +1,5 @@
 <?php
+// FEATURE:emergency-alerts - konektadong model, service, route, o UI para sa feature na ito.
 
 namespace App\Services;
 
@@ -10,10 +11,14 @@ use App\Models\User;
 
 class SmsService
 {
+    // @function __construct: Tinatanggap ang dependencies ng Sms sa pagbuo ng object.
+    // @useIn __construct: Laravel dependency injection kapag ginagamit ang SmsService
     public function __construct(
         private readonly SmsProviderRegistry $providers,
     ) {}
 
+    // @function sendEmergencyAlert: Ipinapadala ang emergency alert sa Sms flow.
+    // @useIn sendEmergencyAlert: app/Http/Controllers/EmergencyController.php
     public function sendEmergencyAlert(EmergencyHotline $hotline, EmergencyAlert $alert): array
     {
         if (! $hotline->sms_enabled) {
@@ -27,6 +32,8 @@ class SmsService
         );
     }
 
+    // @function sendParentAlert: Ipinapadala ang parent alert sa Sms flow.
+    // @useIn sendParentAlert: app/Http/Controllers/EmergencyController.php
     public function sendParentAlert(User $parent, Students $student, EmergencyAlert $alert): array
     {
         return $this->sendWithFallback(
@@ -36,11 +43,15 @@ class SmsService
         );
     }
 
+    // @function checkProvider: Sini-check ang provider sa Sms flow.
+    // @useIn checkProvider: app/Http/Controllers/SystemSettingsController.php
     public function checkProvider(string $provider): array
     {
         return $this->providers->get($provider)->check();
     }
 
+    // @function sendWithFallback: Ipinapadala ang with fallback sa Sms flow.
+    // @useIn sendWithFallback: SmsService::sendEmergencyAlert (app/Services/SmsService.php)
     private function sendWithFallback(EmergencyAlert $alert, string $message, ?string $recipient): array
     {
         if (trim((string) $recipient) === '') {
@@ -85,6 +96,8 @@ class SmsService
         ];
     }
 
+    // @function emergencyMessage: Binubuo ang emergency message string para sa Sms.
+    // @useIn emergencyMessage: SmsService::sendEmergencyAlert (app/Services/SmsService.php)
     private function emergencyMessage(EmergencyHotline $hotline, EmergencyAlert $alert): string
     {
         return implode(' ', [
@@ -97,6 +110,8 @@ class SmsService
         ]);
     }
 
+    // @function parentMessage: Binubuo ang parent message string para sa Sms.
+    // @useIn parentMessage: SmsService::sendParentAlert (app/Services/SmsService.php)
     private function parentMessage(Students $student, EmergencyAlert $alert): string
     {
         return implode(' ', [

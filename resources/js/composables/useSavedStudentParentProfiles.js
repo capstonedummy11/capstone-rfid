@@ -6,6 +6,8 @@ const staffPendingPreferenceKey = 'staffSavePreference:v1';
 const maxProfiles = 5;
 const profileTtlMs = 30 * 24 * 60 * 60 * 1000;
 
+// @function safeParse: Kinukuha ang safe parse result para sa use Saved Student Parent Profiles.
+// @useIn safeParse: resources/js/composables/useSavedStudentParentProfiles.js:75
 const safeParse = (value) => {
     try {
         return JSON.parse(value);
@@ -14,6 +16,8 @@ const safeParse = (value) => {
     }
 };
 
+// @function initialsFor: Kinukuha ang initials for result para sa use Saved Student Parent Profiles.
+// @useIn initialsFor: resources/js/composables/useSavedStudentParentProfiles.js:41
 const initialsFor = (name, email) => {
     const source = String(name || email || '').trim();
 
@@ -24,6 +28,8 @@ const initialsFor = (name, email) => {
     return parts.map((part) => part.charAt(0).toUpperCase()).join('');
 };
 
+// @function normalizeProfile: Nino-normalize ang profile sa use Saved Student Parent Profiles flow.
+// @useIn normalizeProfile: resources/js/composables/useSavedStudentParentProfiles.js:132
 const normalizeProfile = (profile) => {
     const email = String(profile?.email || '')
         .trim()
@@ -43,30 +49,40 @@ const normalizeProfile = (profile) => {
     };
 };
 
+// @function isFreshProfile: Sinusuri kung fresh profile para sa use Saved Student Parent Profiles.
+// @useIn isFreshProfile: resources/js/composables/useSavedStudentParentProfiles.js:82
 const isFreshProfile = (profile) => {
     const savedAt = Date.parse(profile?.savedAt || '');
 
     return Number.isFinite(savedAt) && Date.now() - savedAt <= profileTtlMs;
 };
 
+// @function writeProfiles: Kinukuha ang write profiles result para sa use Saved Student Parent Profiles.
+// @useIn writeProfiles: resources/js/composables/useSavedStudentParentProfiles.js:86
 const writeProfiles = (profiles) => {
     if (typeof window === 'undefined') return;
 
     window.localStorage.setItem(storageKey, JSON.stringify(profiles));
 };
 
+// @function writeStaffProfiles: Kinukuha ang write staff profiles result para sa use Saved Student Parent Profiles.
+// @useIn writeStaffProfiles: resources/js/composables/useSavedStudentParentProfiles.js:176
 const writeStaffProfiles = (profiles) => {
     if (typeof window === 'undefined') return;
 
     window.localStorage.setItem(staffStorageKey, JSON.stringify(profiles));
 };
 
+// @function clearLegacyProfiles: Nililinis ang legacy profiles sa use Saved Student Parent Profiles flow.
+// @useIn clearLegacyProfiles: resources/js/composables/useSavedStudentParentProfiles.js:73
 const clearLegacyProfiles = () => {
     if (typeof window === 'undefined') return;
 
     window.localStorage.removeItem(legacyStorageKey);
 };
 
+// @function getSavedStudentParentProfiles: Kinukuha ang saved student parent profiles sa use Saved Student Parent Profiles flow.
+// @useIn getSavedStudentParentProfiles: resources/js/composables/useSavedStudentParentProfiles.js:136
 export const getSavedStudentParentProfiles = () => {
     if (typeof window === 'undefined') return [];
 
@@ -88,6 +104,8 @@ export const getSavedStudentParentProfiles = () => {
     return profiles;
 };
 
+// @function setStudentParentSavePreference: Sine-set ang student parent save preference sa use Saved Student Parent Profiles flow.
+// @useIn setStudentParentSavePreference: resources/js/pages/Auth/StudentParentLogin.vue
 export const setStudentParentSavePreference = (email, shouldSave) => {
     if (typeof window === 'undefined') return;
 
@@ -107,6 +125,8 @@ export const setStudentParentSavePreference = (email, shouldSave) => {
     );
 };
 
+// @function consumeStudentParentSavePreference: Ginagamit nang isang beses ang student parent save preference sa use Saved Student Parent Profiles flow.
+// @useIn consumeStudentParentSavePreference: resources/js/layouts/AuthLayout.vue
 export const consumeStudentParentSavePreference = (email) => {
     if (typeof window === 'undefined') return null;
 
@@ -124,6 +144,8 @@ export const consumeStudentParentSavePreference = (email) => {
     return Boolean(preference.shouldSave);
 };
 
+// @function saveStudentParentProfile: Sine-save ang student parent profile sa use Saved Student Parent Profiles flow.
+// @useIn saveStudentParentProfile: resources/js/layouts/AuthLayout.vue
 export const saveStudentParentProfile = (user) => {
     const role = String(user?.role || '').toLowerCase();
 
@@ -140,6 +162,8 @@ export const saveStudentParentProfile = (user) => {
     writeProfiles([profile, ...remainingProfiles].slice(0, maxProfiles));
 };
 
+// @function removeSavedStudentParentProfile: Tinatanggal ang saved student parent profile sa use Saved Student Parent Profiles flow.
+// @useIn removeSavedStudentParentProfile: resources/js/pages/Auth/StudentParentLogin.vue
 export const removeSavedStudentParentProfile = (email) => {
     const normalizedEmail = String(email || '')
         .trim()
@@ -153,6 +177,8 @@ export const removeSavedStudentParentProfile = (email) => {
     return profiles;
 };
 
+// @function getSavedStaffProfiles: Kinukuha ang saved staff profiles sa use Saved Student Parent Profiles flow.
+// @useIn getSavedStaffProfiles: resources/js/composables/useSavedStudentParentProfiles.js:226
 export const getSavedStaffProfiles = () => {
     if (typeof window === 'undefined') return [];
 
@@ -178,6 +204,8 @@ export const getSavedStaffProfiles = () => {
     return profiles;
 };
 
+// @function setStaffSavePreference: Sine-set ang staff save preference sa use Saved Student Parent Profiles flow.
+// @useIn setStaffSavePreference: resources/js/pages/Auth/StaffLogin.vue
 export const setStaffSavePreference = (email, shouldSave) => {
     if (typeof window === 'undefined') return;
 
@@ -197,6 +225,8 @@ export const setStaffSavePreference = (email, shouldSave) => {
     );
 };
 
+// @function consumeStaffSavePreference: Ginagamit nang isang beses ang staff save preference sa use Saved Student Parent Profiles flow.
+// @useIn consumeStaffSavePreference: resources/js/layouts/AuthLayout.vue
 export const consumeStaffSavePreference = (email) => {
     if (typeof window === 'undefined') return null;
 
@@ -214,6 +244,8 @@ export const consumeStaffSavePreference = (email) => {
     return Boolean(preference.shouldSave);
 };
 
+// @function saveStaffProfile: Sine-save ang staff profile sa use Saved Student Parent Profiles flow.
+// @useIn saveStaffProfile: resources/js/layouts/AuthLayout.vue
 export const saveStaffProfile = (user) => {
     const role = String(user?.role || '').toLowerCase();
 
@@ -230,6 +262,8 @@ export const saveStaffProfile = (user) => {
     writeStaffProfiles([profile, ...remainingProfiles].slice(0, maxProfiles));
 };
 
+// @function removeSavedStaffProfile: Tinatanggal ang saved staff profile sa use Saved Student Parent Profiles flow.
+// @useIn removeSavedStaffProfile: resources/js/pages/Auth/StaffLogin.vue
 export const removeSavedStaffProfile = (email) => {
     const normalizedEmail = String(email || '')
         .trim()

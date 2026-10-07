@@ -8,6 +8,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsurePasswordIsChanged
 {
+    // @function handle: Pinoproseso ang request o event para sa Ensure Password Is Changed.
+    // @useIn handle: Laravel web middleware pipeline
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();

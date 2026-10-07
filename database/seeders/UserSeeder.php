@@ -12,6 +12,8 @@ class UserSeeder extends Seeder
 
     private const LEGACY_ROOT_ADMIN_EMAIL = 'root.admin@sample.com';
 
+    // @function run: Pinapatakbo ang User Seeder task.
+    // @useIn run: php artisan db:seed
     /**
      * Run the database seeds.
      */

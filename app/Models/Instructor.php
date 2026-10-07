@@ -23,6 +23,8 @@ class Instructor extends Model
         'status',
     ];
 
+    // @function user: Ibinabalik ang user Eloquent belongsTo relationship.
+    // @useIn user: Eloquent relationship property at eager loading
     /**
      * Get the user associated with the instructor
      */
@@ -31,6 +33,8 @@ class Instructor extends Model
         return $this->belongsTo(User::class, 'user_id', 'user_id');
     }
 
+    // @function strand: Ibinabalik ang strand Eloquent belongsTo relationship.
+    // @useIn strand: Eloquent relationship property at eager loading
     /**
      * Get the strand associated with the instructor
      */
@@ -39,6 +43,8 @@ class Instructor extends Model
         return $this->belongsTo(Strand::class, 'strand_id', 'strand_id');
     }
 
+    // @function subjectOfferings: Ibinabalik ang subject offerings Eloquent hasMany relationship.
+    // @useIn subjectOfferings: Eloquent relationship property at eager loading
     public function subjectOfferings(): HasMany
     {
         return $this->hasMany(SubjectOffering::class, 'instructor_id', 'instructor_id');

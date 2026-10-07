@@ -1,3 +1,4 @@
+<!-- FEATURE:academic-scheduling - UI para sa academic structure and scheduling. -->
 <template>
     <div class="flex h-[calc(100vh-64px)] overflow-hidden bg-slate-50">
         <!-- Left sidebar: Laboratory navigation -->
@@ -795,6 +796,8 @@ const selectedAcademicYearId = ref<string | number>(
 );
 const selectedSemester = ref<string>(props.filters.semester ?? '');
 
+// @function changeAcademicYear: Pinoproseso ang change academic year para sa Schedules.
+// @useIn changeAcademicYear: resources/js/pages/Auth/Admin/Schedules.vue template @change
 const changeAcademicYear = () =>
     router.get(
         route('admin.schedules.index'),
@@ -829,6 +832,8 @@ const emptyMessage = computed(() => {
         : 'Select a room to view its schedule.';
 });
 
+// @function selectLaboratory: Pinipili ang laboratory sa Schedules flow.
+// @useIn selectLaboratory: resources/js/pages/Auth/Admin/Schedules.vue template @click
 const selectLaboratory = (id: number | null) => {
     if (!isAdmin.value) return;
     selectedLaboratoryId.value = id;
@@ -896,6 +901,8 @@ const dashboardStats = computed(() => ({
     ).size,
 }));
 
+// @function parseMinutes: Kinukuha ang parse minutes result para sa Schedules.
+// @useIn parseMinutes: resources/js/pages/Auth/Admin/Schedules.vue:925
 // â”€â”€â”€ Timetable grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const parseMinutes = (t: string): number => {
@@ -903,9 +910,13 @@ const parseMinutes = (t: string): number => {
     return parseInt(parts[0] ?? '0') * 60 + parseInt(parts[1] ?? '0');
 };
 
+// @function normalizeTime: Nino-normalize ang time sa Schedules flow.
+// @useIn normalizeTime: resources/js/pages/Auth/Admin/Schedules.vue template
 const normalizeTime = (t: string | null | undefined): string =>
     String(t ?? '').slice(0, 5);
 
+// @function formatSlot: Fino-format ang slot sa Schedules flow.
+// @useIn formatSlot: resources/js/pages/Auth/Admin/Schedules.vue template
 const formatSlot = (slot: string): string => {
     const [h, m] = slot.split(':');
     const hour = parseInt(h ?? '0');
@@ -986,6 +997,8 @@ const modalErrorMessages = computed(() => [
     ]),
 ]);
 
+// @function openAddModal: Binubuksan ang add modal sa Schedules flow.
+// @useIn openAddModal: resources/js/pages/Auth/Admin/Schedules.vue template @click
 const openAddModal = () => {
     if (!isAdmin.value) return;
     if (selectedLaboratoryId.value === null) return;
@@ -999,6 +1012,8 @@ const openAddModal = () => {
     showModal.value = true;
 };
 
+// @function openEditModal: Binubuksan ang edit modal sa Schedules flow.
+// @useIn openEditModal: resources/js/pages/Auth/Admin/Schedules.vue template @click
 const openEditModal = (schedule: Schedule) => {
     if (!isAdmin.value) return;
     isEditing.value = true;
@@ -1026,6 +1041,8 @@ const openEditModal = (schedule: Schedule) => {
     showModal.value = true;
 };
 
+// @function closeModal: Isinasara ang modal sa Schedules flow.
+// @useIn closeModal: resources/js/pages/Auth/Admin/Schedules.vue template @click
 const closeModal = () => {
     showModal.value = false;
     isEditing.value = false;
@@ -1036,6 +1053,8 @@ const closeModal = () => {
     deleteForm.clearErrors();
 };
 
+// @function submitForm: Isinusumite ang form sa Schedules flow.
+// @useIn submitForm: resources/js/pages/Auth/Admin/Schedules.vue template
 const submitForm = () => {
     form.clearErrors();
     deleteForm.clearErrors();
@@ -1109,6 +1128,8 @@ const submitForm = () => {
     });
 };
 
+// @function deleteSchedule: Tinatanggal ang schedule sa Schedules flow.
+// @useIn deleteSchedule: resources/js/pages/Auth/Admin/Schedules.vue template @click
 const deleteSchedule = async (schedule: Schedule | null) => {
     if (!schedule || deleteForm.processing) return;
     const confirmed = await confirmActionModal({

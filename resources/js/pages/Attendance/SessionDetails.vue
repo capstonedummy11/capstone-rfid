@@ -1,3 +1,4 @@
+<!-- FEATURE:attendance-review - UI para sa assigned attendance and corrections. -->
 <script setup>
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
@@ -37,6 +38,8 @@ const filteredRows = computed(() => {
                 (sortDirection.value === 'asc' ? 1 : -1),
         );
 });
+// @function openEdit: Binubuksan ang edit sa Session Details flow.
+// @useIn openEdit: resources/js/pages/Attendance/SessionDetails.vue template @click
 const openEdit = (row) => {
     editing.value = row;
     editStatus.value = ['Present', 'Late', 'Absent', 'Excused'].includes(
@@ -46,11 +49,19 @@ const openEdit = (row) => {
         : 'present';
     remarks.value = row.remarks ?? '';
 };
+// @function studentRowKey: Binubuo ang student row key value.
+// @useIn studentRowKey: resources/js/pages/Attendance/SessionDetails.vue:54
 const studentRowKey = (row) => String(row.student_id ?? '');
+// @function hasTapEvents: Sinusuri kung tap events para sa Session Details.
+// @useIn hasTapEvents: resources/js/pages/Attendance/SessionDetails.vue template
 const hasTapEvents = (row) =>
     Array.isArray(row.tap_events) && row.tap_events.length > 0;
+// @function isStudentExpanded: Sinusuri kung student expanded para sa Session Details.
+// @useIn isStudentExpanded: resources/js/pages/Attendance/SessionDetails.vue template
 const isStudentExpanded = (row) =>
     expandedStudents.value[studentRowKey(row)] === true;
+// @function toggleStudentDetails: Tina-toggle ang student details sa Session Details flow.
+// @useIn toggleStudentDetails: resources/js/pages/Attendance/SessionDetails.vue template @click
 const toggleStudentDetails = (row) => {
     if (!hasTapEvents(row)) return;
 
@@ -60,6 +71,8 @@ const toggleStudentDetails = (row) => {
         [key]: !expandedStudents.value[key],
     };
 };
+// @function save: Sine-save ang session details sa Session Details flow.
+// @useIn save: resources/js/pages/Attendance/SessionDetails.vue template @click
 const save = () =>
     router.patch(
         props.session.type === 'online'

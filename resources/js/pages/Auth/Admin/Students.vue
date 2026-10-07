@@ -1,3 +1,4 @@
+<!-- FEATURE:student-management - UI para sa student and parent management. -->
 <template>
     <div class="w-full">
         <div class="mx-auto max-w-[1400px] px-4 py-6">
@@ -1467,6 +1468,8 @@ const enrollmentSemesterOptions = computed(() =>
         : [],
 );
 
+// @function onFilterChange: Hinahandle ang filter change sa Students flow.
+// @useIn onFilterChange: resources/js/pages/Auth/Admin/Students.vue template @input
 const onFilterChange = () => {
     router.get(
         route('admin.students.index'),
@@ -1487,6 +1490,8 @@ const onFilterChange = () => {
     );
 };
 
+// @function resetFilters: Nire-reset ang filters sa Students flow.
+// @useIn resetFilters: resources/js/pages/Auth/Admin/Students.vue template @click
 const resetFilters = () => {
     search.value = '';
     selectedStrand.value = '';
@@ -1498,6 +1503,8 @@ const resetFilters = () => {
     onFilterChange();
 };
 
+// @function toggleArchivedStudents: Tina-toggle ang archived students sa Students flow.
+// @useIn toggleArchivedStudents: resources/js/pages/Auth/Admin/Students.vue template @click
 const toggleArchivedStudents = () => {
     const leaveArchive = viewingArchivedStudents.value;
     selectedStatus.value = leaveArchive ? '' : 'graduated';
@@ -1509,6 +1516,8 @@ const toggleArchivedStudents = () => {
     onFilterChange();
 };
 
+// @function openAddModal: Binubuksan ang add modal sa Students flow.
+// @useIn openAddModal: resources/js/pages/Auth/Admin/Students.vue template @click
 const openAddModal = () => {
     if (!canManageStudents.value) return;
     isEditing.value = false;
@@ -1520,6 +1529,8 @@ const openAddModal = () => {
     showModal.value = true;
 };
 
+// @function openEditModal: Binubuksan ang edit modal sa Students flow.
+// @useIn openEditModal: resources/js/pages/Auth/Admin/Students.vue template @click
 const openEditModal = (student: Student) => {
     if (!canManageStudents.value) return;
     isEditing.value = true;
@@ -1546,6 +1557,8 @@ const openEditModal = (student: Student) => {
     showModal.value = true;
 };
 
+// @function closeModal: Isinasara ang modal sa Students flow.
+// @useIn closeModal: resources/js/pages/Auth/Admin/Students.vue template @click
 const closeModal = () => {
     showModal.value = false;
     isEditing.value = false;
@@ -1556,6 +1569,8 @@ const closeModal = () => {
     form.reset();
 };
 
+// @function resetParentForm: Nire-reset ang parent form sa Students flow.
+// @useIn resetParentForm: resources/js/pages/Auth/Admin/Students.vue template @click
 const resetParentForm = () => {
     selectedParent.value = null;
     parentForm.reset();
@@ -1563,6 +1578,8 @@ const resetParentForm = () => {
     parentForm.relationship = 'parent';
 };
 
+// @function openParentModal: Binubuksan ang parent modal sa Students flow.
+// @useIn openParentModal: resources/js/pages/Auth/Admin/Students.vue template @click
 const openParentModal = (student: Student) => {
     if (!canManageStudents.value) return;
     selectedStudent.value = student;
@@ -1570,22 +1587,30 @@ const openParentModal = (student: Student) => {
     resetParentForm();
 };
 
+// @function closeParentModal: Isinasara ang parent modal sa Students flow.
+// @useIn closeParentModal: resources/js/pages/Auth/Admin/Students.vue template @click
 const closeParentModal = () => {
     showParentModal.value = false;
     selectedStudent.value = null;
     resetParentForm();
 };
 
+// @function openEnrollmentHistory: Binubuksan ang enrollment history sa Students flow.
+// @useIn openEnrollmentHistory: resources/js/pages/Auth/Admin/Students.vue template @click
 const openEnrollmentHistory = (student: Student) => {
     selectedStudent.value = student;
     showEnrollmentModal.value = true;
 };
 
+// @function closeEnrollmentHistory: Isinasara ang enrollment history sa Students flow.
+// @useIn closeEnrollmentHistory: resources/js/pages/Auth/Admin/Students.vue template @click
 const closeEnrollmentHistory = () => {
     showEnrollmentModal.value = false;
     selectedStudent.value = null;
 };
 
+// @function editParent: Pinoproseso ang edit parent para sa Students.
+// @useIn editParent: resources/js/pages/Auth/Admin/Students.vue template @click
 const editParent = (parent: ParentAccount) => {
     selectedParent.value = parent;
     parentForm.clearErrors();
@@ -1598,6 +1623,8 @@ const editParent = (parent: ParentAccount) => {
     parentForm.password = '';
 };
 
+// @function submitParentForm: Isinusumite ang parent form sa Students flow.
+// @useIn submitParentForm: resources/js/pages/Auth/Admin/Students.vue template
 const submitParentForm = () => {
     if (!selectedStudent.value) return;
 
@@ -1639,6 +1666,8 @@ const submitParentForm = () => {
     );
 };
 
+// @function unlinkParent: Kinukuha ang unlink parent result para sa Students.
+// @useIn unlinkParent: resources/js/pages/Auth/Admin/Students.vue template @click
 const unlinkParent = async (parent: ParentAccount) => {
     if (!selectedStudent.value) return;
     const result = await Swal.fire({
@@ -1686,11 +1715,15 @@ const unlinkParent = async (parent: ParentAccount) => {
     );
 };
 
+// @function defaultStudentPassword: Pinoproseso ang default student password para sa Students.
+// @useIn defaultStudentPassword: resources/js/pages/Auth/Admin/Students.vue:1698
 const defaultStudentPassword = (student: Student) =>
     `${student.first_name ?? ''}${student.last_name ?? ''}`
         .replace(/\s+/g, '')
         .toLowerCase() || String(student.student_number ?? '').toLowerCase();
 
+// @function resetStudentPassword: Nire-reset ang student password sa Students flow.
+// @useIn resetStudentPassword: resources/js/pages/Auth/Admin/Students.vue template @click
 const resetStudentPassword = async (student: Student) => {
     if (!canManageStudents.value) return;
 
@@ -1721,6 +1754,8 @@ const resetStudentPassword = async (student: Student) => {
     );
 };
 
+// @function submitForm: Isinusumite ang form sa Students flow.
+// @useIn submitForm: resources/js/pages/Auth/Admin/Students.vue template
 const submitForm = () => {
     if (
         !form.first_name ||
@@ -1764,6 +1799,8 @@ const submitForm = () => {
     }
 };
 
+// @function getXsrf: Kinukuha ang xsrf sa Students flow.
+// @useIn getXsrf: resources/js/pages/Auth/Admin/Students.vue:1791
 const getXsrf = () => {
     const raw = document.cookie
         .split('; ')
@@ -1772,6 +1809,8 @@ const getXsrf = () => {
     return raw ? decodeURIComponent(raw) : '';
 };
 
+// @function uploadFaceImageBlob: Ina-upload ang face image blob sa Students flow.
+// @useIn uploadFaceImageBlob: resources/js/pages/Auth/Admin/Students.vue:1819
 const uploadFaceImageBlob = async (blob: Blob, filename: string) => {
     if (!selectedStudent.value) return;
     faceImageUploading.value = true;
@@ -1812,6 +1851,8 @@ const uploadFaceImageBlob = async (blob: Blob, filename: string) => {
     }
 };
 
+// @function handleFaceImageFile: Pinoproseso ang face image file sa Students flow.
+// @useIn handleFaceImageFile: resources/js/pages/Auth/Admin/Students.vue template @change
 const handleFaceImageFile = async (event: Event) => {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (!file) return;
@@ -1819,6 +1860,8 @@ const handleFaceImageFile = async (event: Event) => {
     (event.target as HTMLInputElement).value = '';
 };
 
+// @function captureAndUploadFaceImage: Kinukuha ang capture and upload face image result para sa Students.
+// @useIn captureAndUploadFaceImage: resources/js/pages/Auth/Admin/Students.vue template @click
 const captureAndUploadFaceImage = async () => {
     const dataUrl = faceImageCameraRef.value?.captureFrame();
     if (!dataUrl) return;
@@ -1827,6 +1870,8 @@ const captureAndUploadFaceImage = async () => {
     await uploadFaceImageBlob(blob, 'capture.jpg');
 };
 
+// @function removeFaceImage: Tinatanggal ang face image sa Students flow.
+// @useIn removeFaceImage: resources/js/pages/Auth/Admin/Students.vue template @click
 const removeFaceImage = async (index: number) => {
     if (!selectedStudent.value) return;
     faceImageUploading.value = true;
@@ -1864,6 +1909,8 @@ const removeFaceImage = async (index: number) => {
     }
 };
 
+// @function deleteStudent: Tinatanggal ang student sa Students flow.
+// @useIn deleteStudent: resources/js/pages/Auth/Admin/Students.vue template @click
 const deleteStudent = async (student: Student) => {
     if (!canManageStudents.value) return;
     const result = await Swal.fire({
@@ -1896,9 +1943,13 @@ const deleteStudent = async (student: Student) => {
     );
 };
 
+// @function capitalizeFirst: Pinoproseso ang capitalize first para sa Students.
+// @useIn capitalizeFirst: resources/js/pages/Auth/Admin/Students.vue template
 const capitalizeFirst = (str: string) =>
     str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
 
+// @function statusClasses: Pinoproseso ang status classes para sa Students.
+// @useIn statusClasses: resources/js/pages/Auth/Admin/Students.vue template
 const statusClasses = (status: string) => [
     'rounded-md px-2 py-1 text-xs font-medium',
     status === 'active'

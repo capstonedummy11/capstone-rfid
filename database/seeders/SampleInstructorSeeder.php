@@ -16,6 +16,8 @@ class SampleInstructorSeeder extends Seeder
 {
     private const SAMPLE_INSTRUCTOR_RFID = 'RFID-INSTRUCTOR-SAMPLE';
 
+    // @function run: Pinapatakbo ang Sample Instructor Seeder task.
+    // @useIn run: php artisan db:seed
     /**
      * Seed a complete sample instructor account with class data.
      */

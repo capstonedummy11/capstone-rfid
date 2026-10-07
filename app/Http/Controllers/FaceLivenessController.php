@@ -1,4 +1,5 @@
 <?php
+// FEATURE:face-liveness - konektadong model, service, route, o UI para sa feature na ito.
 
 namespace App\Http\Controllers;
 
@@ -9,6 +10,8 @@ use Illuminate\Validation\Rule;
 
 class FaceLivenessController
 {
+    // @function store: Pinoproseso ang bagong Face Liveness record.
+    // @useIn store: routes/web.php:152 (faceLiveness.store)
     public function store(Request $request, AwsFaceLivenessService $service): JsonResponse
     {
         $validated = $request->validate([
@@ -41,6 +44,8 @@ class FaceLivenessController
         return response()->json($result);
     }
 
+    // @function show: Ibinabalik ang detalye ng napiling record.
+    // @useIn show: routes/web.php:154 (faceLiveness.show)
     public function show(Request $request, string $sessionId, AwsFaceLivenessService $service): JsonResponse
     {
         try {

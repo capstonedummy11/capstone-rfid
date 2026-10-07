@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 
 class RootAuditService
 {
+    // @function record: Nagtatala ng ang root audit sa Root Audit flow.
+    // @useIn record: app/Services/RootTransferService.php
     public function record(string $action, ?User $actor = null, ?User $target = null, array $metadata = [], ?Request $request = null, ?int $transferId = null, ?int $overrideId = null): RootAuditLog
     {
         return RootAuditLog::query()->create([

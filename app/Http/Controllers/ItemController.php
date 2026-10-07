@@ -1,4 +1,5 @@
 <?php
+// FEATURE:inventory-management - konektadong model, service, route, o UI para sa feature na ito.
 
 namespace App\Http\Controllers;
 
@@ -10,6 +11,8 @@ use Illuminate\Validation\Rule;
 
 class ItemController extends Controller
 {
+    // @function store: Pinoproseso ang bagong Item record.
+    // @useIn store: routes/web.php:449 (items.store)
     public function store(Request $request)
     {
         abort_unless(SystemSetting::boolean(SystemSetting::INVENTORY_ENABLED, false), 423, 'Inventory is currently disabled.');
@@ -33,6 +36,8 @@ class ItemController extends Controller
         return back()->with('success', 'Item added successfully.');
     }
 
+    // @function update: Pinoproseso ang pagbabago sa Item record.
+    // @useIn update: routes/web.php:447 (items.update)
     public function update(Request $request, Item $item)
     {
         abort_unless(SystemSetting::boolean(SystemSetting::INVENTORY_ENABLED, false), 423, 'Inventory is currently disabled.');
@@ -50,6 +55,8 @@ class ItemController extends Controller
         return back();
     }
 
+    // @function destroy: Pinoproseso ang pagtanggal ng Item record.
+    // @useIn destroy: routes/web.php:448 (items.destroy)
     public function destroy(Item $item)
     {
         abort_unless(SystemSetting::boolean(SystemSetting::INVENTORY_ENABLED, false), 423, 'Inventory is currently disabled.');

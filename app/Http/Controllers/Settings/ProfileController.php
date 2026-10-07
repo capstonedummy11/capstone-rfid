@@ -16,6 +16,8 @@ use Inertia\Response;
 
 class ProfileController extends Controller
 {
+    // @function edit: Ibinabalik ang settings/Profile page at data para sa request.
+    // @useIn edit: routes/settings.php:12 (profile.edit)
     /**
      * Show the user's profile settings page.
      */
@@ -28,6 +30,8 @@ class ProfileController extends Controller
         ]);
     }
 
+    // @function update: Pinoproseso ang pagbabago sa Profile record.
+    // @useIn update: routes/settings.php:13 (profile.update)
     /**
      * Update the user's profile information.
      */
@@ -55,6 +59,8 @@ class ProfileController extends Controller
         return to_route('profile.edit')->with('success', 'Profile updated.');
     }
 
+    // @function destroy: Pinoproseso ang pagtanggal ng Profile record.
+    // @useIn destroy: routes/settings.php:17 (profile.destroy)
     /**
      * Delete the user's profile.
      */

@@ -11,13 +11,19 @@ class RootOwnershipNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
+    // @function __construct: Tinatanggap ang dependencies ng Root Ownership Notification sa pagbuo ng object.
+    // @useIn __construct: Laravel dependency injection kapag ginagamit ang RootOwnershipNotification
     public function __construct(private readonly string $event, private readonly array $details) {}
 
+    // @function via: Kinukuha ang via result para sa Root Ownership Notification.
+    // @useIn via: Laravel notification delivery
     public function via(object $notifiable): array
     {
         return ['mail'];
     }
 
+    // @function toMail: Kinukuha ang to mail result para sa Root Ownership Notification.
+    // @useIn toMail: Laravel notification delivery
     public function toMail(object $notifiable): MailMessage
     {
         $mail = (new MailMessage)

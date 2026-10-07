@@ -113,6 +113,9 @@ const activeGalleryIndex = ref(0);
 const visibleGalleryCount = ref(1);
 let galleryAutoplayTimer = null;
 
+// @function scrollToShowcase: Ini-scroll ang to showcase sa Student Parent Login flow.
+// @useIn scrollToShowcase: resources/js/pages/Auth/StudentParentLogin.vue template @click
+// Iniikot ang showcase index at ini-scroll ang napiling card sa viewport.
 const scrollToShowcase = (index) => {
     const track = showcaseTrack.value;
     if (!track || showcaseItems.length === 0) return;
@@ -132,10 +135,16 @@ const scrollToShowcase = (index) => {
     activeShowcaseIndex.value = normalizedIndex;
 };
 
+// @function moveShowcase: Inililipat ang showcase sa Student Parent Login flow.
+// @useIn moveShowcase: resources/js/pages/Auth/StudentParentLogin.vue template @click
+// Ginagamit ng arrows ang kasalukuyang showcase index bilang starting point.
 const moveShowcase = (direction) => {
     scrollToShowcase(activeShowcaseIndex.value + direction);
 };
 
+// @function syncShowcaseIndex: Sini-sync ang showcase index sa Student Parent Login flow.
+// @useIn syncShowcaseIndex: resources/js/pages/Auth/StudentParentLogin.vue template
+// Hinahanap ang card na pinakamalapit sa kaliwang edge pagkatapos mag-scroll.
 const syncShowcaseIndex = () => {
     const track = showcaseTrack.value;
     if (!track) return;
@@ -158,6 +167,9 @@ const syncShowcaseIndex = () => {
     activeShowcaseIndex.value = closestIndex;
 };
 
+// @function scrollToGallery: Ini-scroll ang to gallery sa Student Parent Login flow.
+// @useIn scrollToGallery: resources/js/pages/Auth/StudentParentLogin.vue template @click
+// Nililimitahan ang gallery scroll sa valid positions para walang blank slide.
 const scrollToGallery = (index) => {
     const track = galleryTrack.value;
     if (!track || galleryImages.length === 0) return;
@@ -177,10 +189,16 @@ const scrollToGallery = (index) => {
     activeGalleryIndex.value = normalizedIndex;
 };
 
+// @function moveGallery: Inililipat ang gallery sa Student Parent Login flow.
+// @useIn moveGallery: resources/js/pages/Auth/StudentParentLogin.vue template @click
+// Inililipat ang gallery ng isang position mula sa kasalukuyang slide.
 const moveGallery = (direction) => {
     scrollToGallery(activeGalleryIndex.value + direction);
 };
 
+// @function syncGalleryIndex: Sini-sync ang gallery index sa Student Parent Login flow.
+// @useIn syncGalleryIndex: resources/js/pages/Auth/StudentParentLogin.vue template
+// Ina-update ang active slide base sa nakikitang gallery position.
 const syncGalleryIndex = () => {
     const track = galleryTrack.value;
     if (!track) return;
@@ -216,6 +234,9 @@ const galleryPositions = computed(() =>
     ),
 );
 
+// @function updateGallerySize: Ina-update ang gallery size sa Student Parent Login flow.
+// @useIn updateGallerySize: resources/js/pages/Auth/StudentParentLogin.vue:360
+// Ina-adjust ang dami ng visible slides ayon sa screen width.
 const updateGallerySize = () => {
     visibleGalleryCount.value = window.matchMedia('(min-width: 1024px)').matches
         ? 3
@@ -229,6 +250,9 @@ const updateGallerySize = () => {
     scrollToGallery(activeGalleryIndex.value);
 };
 
+// @function startGalleryAutoplay: Sinisimulan ang gallery autoplay sa Student Parent Login flow.
+// @useIn startGalleryAutoplay: resources/js/pages/Auth/StudentParentLogin.vue template @mouseleave
+// Nagsisimula ng timer maliban kung naka-reduced motion ang browser.
 const startGalleryAutoplay = () => {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
         return;
@@ -243,6 +267,9 @@ const startGalleryAutoplay = () => {
     }, 5000);
 };
 
+// @function stopGalleryAutoplay: Itinitigil ang gallery autoplay sa Student Parent Login flow.
+// @useIn stopGalleryAutoplay: resources/js/pages/Auth/StudentParentLogin.vue template @mouseenter
+// Inaalis ang active timer para hindi magpatuloy ang gallery autoplay.
 const stopGalleryAutoplay = () => {
     if (galleryAutoplayTimer) {
         window.clearInterval(galleryAutoplayTimer);
@@ -250,6 +277,9 @@ const stopGalleryAutoplay = () => {
     }
 };
 
+// @function resumeGalleryAutoplay: Ipinagpapatuloy ang gallery autoplay sa Student Parent Login flow.
+// @useIn resumeGalleryAutoplay: resources/js/pages/Auth/StudentParentLogin.vue template @focusout
+// Ibinabalik ang autoplay kapag lumabas ang focus sa gallery controls.
 const resumeGalleryAutoplay = (event) => {
     if (!galleryControls.value?.contains(event.relatedTarget)) {
         startGalleryAutoplay();
@@ -279,6 +309,9 @@ const galleryImages = [
     },
 ];
 
+// @function selectProfile: Pinipili ang profile sa Student Parent Login flow.
+// @useIn selectProfile: resources/js/pages/Auth/StudentParentLogin.vue template @click
+// Pinipili ang saved account at hinihingi ulit ang password bago mag-login.
 const selectProfile = (index) => {
     selectedIndex.value = index;
     useDifferentAccount.value = false;
@@ -287,6 +320,9 @@ const selectProfile = (index) => {
     form.clearErrors();
 };
 
+// @function showDifferentAccount: Ipinapakita ang different account sa Student Parent Login flow.
+// @useIn showDifferentAccount: resources/js/pages/Auth/StudentParentLogin.vue template @click
+// Nire-reset ang form para makagamit ng ibang account.
 const showDifferentAccount = () => {
     useDifferentAccount.value = true;
     form.email = '';
@@ -295,6 +331,9 @@ const showDifferentAccount = () => {
     form.clearErrors();
 };
 
+// @function removeProfile: Tinatanggal ang profile sa Student Parent Login flow.
+// @useIn removeProfile: resources/js/pages/Auth/StudentParentLogin.vue template
+// Tinatanggal ang browser-saved profile at pinipili ang susunod na available.
 const removeProfile = (index) => {
     const profile = profiles.value[index];
 
@@ -314,6 +353,9 @@ const removeProfile = (index) => {
     selectProfile(selectedIndex.value);
 };
 
+// @function login: Pinoproseso ang login para sa Student Parent Login.
+// @useIn login: resources/js/pages/Auth/StudentParentLogin.vue template @click
+// Sine-save ang account preference at ipinapadala ang login form sa server.
 const login = () => {
     const shouldSave = !useDifferentAccount.value ? true : saveOnDevice.value;
 
@@ -325,6 +367,9 @@ const login = () => {
     form.post(route('student-parent.login.store'));
 };
 
+// @function revealLoginPanel: Ipinapakita ang login panel sa Student Parent Login flow.
+// @useIn revealLoginPanel: resources/js/pages/Auth/StudentParentLogin.vue template @click
+// Binubuksan ang login panel at isinasara ang mobile menu.
 const revealLoginPanel = () => {
     showLoginPanel.value = true;
     isMenuOpen.value = false;
@@ -434,19 +479,10 @@ onBeforeUnmount(() => {
                     "
                 >
                     <div>
-                        <p
-                            class="text-sm font-bold tracking-[0.25em] text-white/70 uppercase"
-                        >
-                            Student and Parent Portal
-                        </p>
                         <h1
-                            class="mt-5 text-[34px] leading-tight font-semibold md:text-[54px]"
+                            class="text-[34px] leading-tight font-semibold md:text-[54px]"
                         >
-                            RFID-Based Attendance
-                            <br />
-                            Monitoring, Borrowing, and
-                            <br />
-                            Inventory Management System
+                            RFID AND FACIAL RECOGNITION ATTENDANCE SYSTEM
                         </h1>
                         <p
                             class="mt-6 max-w-2xl text-base leading-7 text-white/90 md:text-lg"

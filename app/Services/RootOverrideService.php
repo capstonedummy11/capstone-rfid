@@ -13,8 +13,12 @@ use Illuminate\Validation\ValidationException;
 
 class RootOverrideService
 {
+    // @function __construct: Tinatanggap ang dependencies ng Root Override sa pagbuo ng object.
+    // @useIn __construct: Laravel dependency injection kapag ginagamit ang RootOverrideService
     public function __construct(private readonly RootOwnershipSwapService $swap, private readonly RootAuditService $audit) {}
 
+    // @function request: Pinoproseso ang request sa database transaction.
+    // @useIn request: app/Http/Controllers/RootOverrideController.php
     public function request(User $actor, User $target, string $reason, Request $httpRequest): RootOverrideRequest
     {
         $override = DB::transaction(function () use ($actor, $target, $reason, $httpRequest) {
@@ -40,6 +44,8 @@ class RootOverrideService
         return $override;
     }
 
+    // @function decide: Pinoproseso ang decide sa database transaction.
+    // @useIn decide: app/Http/Controllers/RootOverrideController.php
     public function decide(RootOverrideRequest $override, User $actor, string $decision, ?string $comment, Request $request): void
     {
         DB::transaction(function () use ($override, $actor, $decision, $comment, $request) {
@@ -66,6 +72,8 @@ class RootOverrideService
         $this->notifyParties($override, 'override_'.$decision, 'Emergency Root Admin override updated', 'An emergency override received an '.$decision.' decision.');
     }
 
+    // @function processDue: Pinoproseso ang due sa Root Override flow.
+    // @useIn processDue: routes/console.php
     public function processDue(): void
     {
         RootOverrideRequest::query()->whereIn('status', ['pending', 'approved'])->get()->each(function (RootOverrideRequest $override) {
@@ -91,6 +99,8 @@ class RootOverrideService
         });
     }
 
+    // @function isEligibleApprover: Sinusuri kung eligible approver para sa Root Override.
+    // @useIn isEligibleApprover: RootOverrideService::decide (app/Services/RootOverrideService.php)
     private function isEligibleApprover(User $user): bool
     {
         if ($user->trashed() || strtolower((string) $user->role) !== 'admin') {
@@ -101,6 +111,8 @@ class RootOverrideService
         return $emails === [] || in_array(strtolower($user->email), $emails, true);
     }
 
+    // @function notifyParties: Nagnonotify ang parties sa Root Override flow.
+    // @useIn notifyParties: RootOverrideService::request (app/Services/RootOverrideService.php)
     private function notifyParties(RootOverrideRequest $override, string $event, string $subject, string $message): void
     {
         Notification::send([$override->fromUser, $override->toUser], new RootOwnershipNotification($event, compact('subject', 'message') + [

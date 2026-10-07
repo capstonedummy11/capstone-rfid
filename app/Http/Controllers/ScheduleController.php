@@ -38,6 +38,18 @@ class ScheduleController
         'saturday' => 'Sat',
     ];
 
+    // @function indexAdmin: Ibinabalik ang Auth/Admin/Schedules page at data para sa request.
+    // @useIn indexAdmin: routes/web.php:290 (schedules.index)
+    /**
+     * @feature   Academic Structure and Scheduling
+     * @actor     Admin
+     * @flow      Dito binubuo ang strands, sections, subjects, offerings, at class schedules.
+     * @uses      resources/js/pages/Auth/Admin/Schedules.vue; routes/web.php: ScheduleController::indexAdmin, ScheduleController::store, ScheduleController::update, ScheduleController::destroy
+     * @related   Admin workspace
+     * @disable   1) I-comment out ang routes/web.php: ScheduleController::indexAdmin/store/update/destroy, SectionController::indexAdmin/store/update/destroy, SubjectController::indexAdmin/store/update/destroy/storeOffering/destroyOffering/removeOfferingInstructor, StrandController::indexAdmin/store/update/destroy.
+     * @disable   2) Itago ang action sa resources/js/pages/Auth/Admin/Schedules.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Itago rin ang resources/js/pages/Auth/Admin/Sections.vue, resources/js/pages/Auth/Admin/Subjects.vue, at resources/js/pages/Auth/Admin/Strands.vue; ihinto ang app/Http/Controllers/ScheduleController.php: indexAdmin matapos alisin ang routes. Side effect: hindi na makakapag-configure ng academic structure o schedule ang Admin.
+     */
     public function indexAdmin(Request $request)
     {
         $user = $request->user();
@@ -160,6 +172,8 @@ class ScheduleController
         ]);
     }
 
+    // @function store: Pinoproseso ang bagong Schedule record.
+    // @useIn store: routes/web.php:333 (schedules.store)
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -189,6 +203,8 @@ class ScheduleController
         return back()->with('success', 'Schedule added successfully.');
     }
 
+    // @function update: Pinoproseso ang pagbabago sa Schedule record.
+    // @useIn update: routes/web.php:335 (schedules.update)
     public function update(Request $request, int $id)
     {
         $schedule = Schedule::findOrFail($id);
@@ -224,6 +240,8 @@ class ScheduleController
         return back()->with('success', 'Schedule updated successfully.');
     }
 
+    // @function destroy: Pinoproseso ang pagtanggal ng Schedule record.
+    // @useIn destroy: routes/web.php:337 (schedules.destroy)
     public function destroy(int $id)
     {
         $schedule = Schedule::findOrFail($id);
@@ -241,6 +259,8 @@ class ScheduleController
         return back()->with('success', 'Schedule deleted successfully.');
     }
 
+    // @function resolveOffering: Hinahanap ang offering sa Schedule flow.
+    // @useIn resolveOffering: ScheduleController::store (app/Http/Controllers/ScheduleController.php)
     private function resolveOffering(array $validated): array
     {
         if (empty($validated['subject_offering_id'])) {
@@ -287,6 +307,8 @@ class ScheduleController
         ]);
     }
 
+    // @function assertCurrentAcademicContext: Sini-check ang current academic context sa Schedule flow.
+    // @useIn assertCurrentAcademicContext: ScheduleController::resolveOffering (app/Http/Controllers/ScheduleController.php)
     private function assertCurrentAcademicContext(int|string|null $academicYearId, ?string $semester): void
     {
         $currentAcademicYear = AcademicYear::currentOrLatest();
@@ -303,6 +325,8 @@ class ScheduleController
         }
     }
 
+    // @function normalizeWeekdays: Nino-normalize ang weekdays sa Schedule flow.
+    // @useIn normalizeWeekdays: ScheduleController::store (app/Http/Controllers/ScheduleController.php)
     private function normalizeWeekdays(string $weekdays): string
     {
         $tokens = preg_split('/[,\-\/\s]+/', strtolower(trim($weekdays)), -1, PREG_SPLIT_NO_EMPTY) ?: [];
@@ -325,6 +349,8 @@ class ScheduleController
             ->implode(',');
     }
 
+    // @function assertQuarterHourTimes: Sini-check ang quarter hour times sa Schedule flow.
+    // @useIn assertQuarterHourTimes: ScheduleController::store (app/Http/Controllers/ScheduleController.php)
     private function assertQuarterHourTimes(array $validated): void
     {
         $errors = [];
@@ -341,6 +367,8 @@ class ScheduleController
         }
     }
 
+    // @function assertScheduleIsNotRunning: Sini-check ang schedule is not running sa Schedule flow.
+    // @useIn assertScheduleIsNotRunning: ScheduleController::update (app/Http/Controllers/ScheduleController.php)
     private function assertScheduleIsNotRunning(Schedule $schedule, string $operation): void
     {
         $now = now();
@@ -383,6 +411,8 @@ class ScheduleController
         ]);
     }
 
+    // @function assertNoScheduleConflict: Sini-check ang no schedule conflict sa Schedule flow.
+    // @useIn assertNoScheduleConflict: ScheduleController::store (app/Http/Controllers/ScheduleController.php)
     private function assertNoScheduleConflict(array $attributes, ?int $ignoreScheduleId = null): void
     {
         $startTime = $attributes['time_start'].':00';
@@ -450,6 +480,8 @@ class ScheduleController
         ]);
     }
 
+    // @function log: Nilolog ang schedule sa Schedule flow.
+    // @useIn log: ScheduleController::store (app/Http/Controllers/ScheduleController.php)
     private function log(string $action, string $tableName, string $description): void
     {
         ActivityLog::create([

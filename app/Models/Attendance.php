@@ -1,4 +1,6 @@
 <?php
+// FEATURE:rfid-attendance - konektadong model, service, route, o UI para sa feature na ito.
+// FEATURE:attendance-review - konektadong model, service, route, o UI para sa feature na ito.
 
 namespace App\Models;
 
@@ -43,6 +45,8 @@ class Attendance extends Model
         'date' => 'date',
     ];
 
+    // @function booted: Nirerehistro ang model event hooks para sa Attendance.
+    // @useIn booted: Eloquent model boot lifecycle
     protected static function booted(): void
     {
         static::creating(function (Attendance $attendance) {
@@ -60,25 +64,39 @@ class Attendance extends Model
         });
     }
 
+    // @function subjectRecord: Ibinabalik ang subject record Eloquent belongsTo relationship.
+    // @useIn subjectRecord: Eloquent relationship property at eager loading
     public function subjectRecord(): BelongsTo
     {
         return $this->belongsTo(Subject::class, 'subject_id', 'subject_id');
     }
 
+    // @function schedule: Ibinabalik ang schedule Eloquent belongsTo relationship.
+    // @useIn schedule: Eloquent relationship property at eager loading
     public function schedule(): BelongsTo
     {
         return $this->belongsTo(Schedule::class, 'schedule_id', 'scheduled_id');
     }
 
+    // @function student: Ibinabalik ang student Eloquent belongsTo relationship.
+    // @useIn student: Eloquent relationship property at eager loading
     public function student(): BelongsTo
     {
         return $this->belongsTo(Students::class, 'student_id', 'student_id');
     }
 
+    // @function academicYear: Ibinabalik ang academic year Eloquent belongsTo relationship.
+    // @useIn academicYear: Eloquent relationship property at eager loading
     public function academicYear(): BelongsTo { return $this->belongsTo(AcademicYear::class, 'academic_year_id', 'academic_year_id'); }
+    // @function subjectOffering: Ibinabalik ang subject offering Eloquent belongsTo relationship.
+    // @useIn subjectOffering: Eloquent relationship property at eager loading
     public function subjectOffering(): BelongsTo { return $this->belongsTo(SubjectOffering::class, 'subject_offering_id', 'subject_offering_id'); }
+    // @function studentEnrollment: Ibinabalik ang student enrollment Eloquent belongsTo relationship.
+    // @useIn studentEnrollment: Eloquent relationship property at eager loading
     public function studentEnrollment(): BelongsTo { return $this->belongsTo(StudentEnrollment::class, 'student_enrollment_id', 'student_enrollment_id'); }
 
+    // @function attendanceLogs: Ibinabalik ang attendance logs Eloquent hasMany relationship.
+    // @useIn attendanceLogs: Eloquent relationship property at eager loading
     public function attendanceLogs(): HasMany
     {
         return $this->hasMany(AttendanceLog::class, 'main_attendance_id', 'attendance_id');

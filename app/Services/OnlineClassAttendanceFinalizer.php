@@ -1,4 +1,6 @@
 <?php
+// FEATURE:online-class-management - konektadong model, service, route, o UI para sa feature na ito.
+// FEATURE:online-class-join - konektadong model, service, route, o UI para sa feature na ito.
 
 namespace App\Services;
 
@@ -9,6 +11,8 @@ use Illuminate\Support\Facades\DB;
 
 class OnlineClassAttendanceFinalizer
 {
+    // @function finalizeEnded: Kinukuha ang finalize ended result para sa Online Class Attendance Finalizer.
+    // @useIn finalizeEnded: routes/console.php
     public function finalizeEnded(): int
     {
         $created = 0;
@@ -28,6 +32,8 @@ class OnlineClassAttendanceFinalizer
         return $created;
     }
 
+    // @function finalize: Kinukuha ang finalize result para sa Online Class Attendance Finalizer.
+    // @useIn finalize: OnlineClassAttendanceFinalizer::finalizeEnded (app/Services/OnlineClassAttendanceFinalizer.php)
     public function finalize(OnlineClass $onlineClass): int
     {
         if ($onlineClass->status === 'cancelled' || ! $this->hasEnded($onlineClass)) {
@@ -75,6 +81,8 @@ class OnlineClassAttendanceFinalizer
         return DB::table('online_class_attendances')->insertOrIgnore($rows->all());
     }
 
+    // @function hasEnded: Sinusuri kung ended para sa Online Class Attendance Finalizer.
+    // @useIn hasEnded: OnlineClassAttendanceFinalizer::finalizeEnded (app/Services/OnlineClassAttendanceFinalizer.php)
     public function hasEnded(OnlineClass $onlineClass): bool
     {
         return Carbon::parse($onlineClass->scheduled_date->format('Y-m-d').' '.$onlineClass->end_time)->isPast();

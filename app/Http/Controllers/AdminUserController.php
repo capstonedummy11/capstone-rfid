@@ -22,6 +22,18 @@ class AdminUserController extends Controller
 {
     private const MANAGED_ROLES = ['admin', 'clinic', 'registrar'];
 
+    // @function index: Ibinabalik ang Auth/Admin/UserManagement page at data para sa request.
+    // @useIn index: routes/web.php:351 (users.index)
+    /**
+     * @feature   User and Role Management
+     * @actor     Admin
+     * @flow      Dito minamanage ang staff accounts, roles, at password resets.
+     * @uses      resources/js/pages/Auth/Admin/UserManagement.vue; routes/web.php: AdminUserController::index, AdminUserController::store, AdminUserController::update, AdminUserController::resetPassword, AdminUserController::destroy
+     * @related   Admin workspace
+     * @disable   1) I-comment out ang routes/web.php: AdminUserController::index, AdminUserController::store, AdminUserController::update, AdminUserController::resetPassword, AdminUserController::destroy.
+     * @disable   2) Itago ang action sa resources/js/pages/Auth/Admin/UserManagement.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/AdminUserController.php: AdminUserController::index matapos alisin ang routes. Side effect: mawawala ang user and role management.
+     */
     public function index(Request $request)
     {
         $actor = $request->user();
@@ -47,6 +59,9 @@ class AdminUserController extends Controller
         ]);
     }
 
+    // @function store: Pinoproseso ang bagong Admin User record.
+    // @useIn store: routes/web.php:353 (users.store)
+    // Gumagawa ng staff account matapos ang role at Root Admin authorization checks.
     public function store(Request $request)
     {
         $actor = $request->user();
@@ -72,6 +87,9 @@ class AdminUserController extends Controller
         return back()->with('success', 'User account created.');
     }
 
+    // @function update: Pinoproseso ang pagbabago sa Admin User record.
+    // @useIn update: routes/web.php:355 (users.update)
+    // Binabago ang staff account habang pinoprotektahan ang Root Admin privileges.
     public function update(Request $request, int $id)
     {
         $actor = $request->user();
@@ -102,6 +120,9 @@ class AdminUserController extends Controller
         return back()->with('success', 'User account updated.');
     }
 
+    // @function resetPassword: Nire-reset ang password sa Admin User flow.
+    // @useIn resetPassword: routes/web.php:357 (users.password.reset-default)
+    // Ibinabalik ang managed account sa default password at first-login setup.
     public function resetPassword(Request $request, int $id)
     {
         $actor = $request->user();
@@ -132,6 +153,9 @@ class AdminUserController extends Controller
         );
     }
 
+    // @function destroy: Pinoproseso ang pagtanggal ng Admin User record.
+    // @useIn destroy: routes/web.php:360 (users.destroy)
+    // Tinatanggal ang pinapayagang account nang hindi nawawala ang huling Root Admin.
     public function destroy(Request $request, int $id)
     {
         $actor = $request->user();
@@ -156,6 +180,9 @@ class AdminUserController extends Controller
         return back()->with('success', 'User account deleted.');
     }
 
+    // @function validatedUser: Kinukuha ang validated user result para sa Admin User.
+    // @useIn validatedUser: AdminUserController::store (app/Http/Controllers/AdminUserController.php)
+    // Nagbabalik ng validated account fields para sa create o update.
     private function validatedUser(Request $request, ?User $user = null): array
     {
         $rules = [
@@ -172,6 +199,9 @@ class AdminUserController extends Controller
         return $request->validate($rules);
     }
 
+    // @function rejectRootAdminAssignment: Pinoproseso ang reject root admin assignment para sa Admin User.
+    // @useIn rejectRootAdminAssignment: AdminUserController::store (app/Http/Controllers/AdminUserController.php)
+    // Hinaharang ang direct Root Admin assignment sa normal account form.
     private function rejectRootAdminAssignment(Request $request): void
     {
         if ($request->boolean('is_root_admin')) {
@@ -181,6 +211,9 @@ class AdminUserController extends Controller
         }
     }
 
+    // @function authorizeAdminWrite: Sini-check ang access sa ang admin write sa Admin User flow.
+    // @useIn authorizeAdminWrite: AdminUserController::store (app/Http/Controllers/AdminUserController.php)
+    // Root Admin lang ang puwedeng gumawa o magbago ng Admin privilege.
     private function authorizeAdminWrite(?User $actor, string $role, bool $makeRoot): void
     {
         if (($role === 'admin' || $makeRoot) && ! $this->isRootAdmin($actor)) {
@@ -188,6 +221,9 @@ class AdminUserController extends Controller
         }
     }
 
+    // @function authorizeUserChange: Sini-check ang access sa ang user change sa Admin User flow.
+    // @useIn authorizeUserChange: AdminUserController::update (app/Http/Controllers/AdminUserController.php)
+    // Sini-check ang role change at target account bago ito isulat.
     private function authorizeUserChange(?User $actor, User $target, string $newRole, bool $makeRoot): void
     {
         if (($this->isAdmin($target) || $newRole === 'admin' || $makeRoot) && ! $this->isRootAdmin($actor)) {
@@ -199,6 +235,9 @@ class AdminUserController extends Controller
         }
     }
 
+    // @function userPayload: Binubuo ang user payload value.
+    // @useIn userPayload: AdminUserController::index (app/Http/Controllers/AdminUserController.php)
+    // Binubuo ang user data at allowed actions para sa management page.
     private function userPayload(User $user, ?User $actor): array
     {
         $actorIsRoot = $this->isRootAdmin($actor);
@@ -218,6 +257,9 @@ class AdminUserController extends Controller
         ];
     }
 
+    // @function roleOptions: Binubuo ang role options value.
+    // @useIn roleOptions: AdminUserController::index (app/Http/Controllers/AdminUserController.php)
+    // Nililimitahan ang available role choices ayon sa current actor.
     private function roleOptions(?User $actor): array
     {
         return collect(self::MANAGED_ROLES)
@@ -230,16 +272,25 @@ class AdminUserController extends Controller
             ->all();
     }
 
+    // @function isAdmin: Sinusuri kung admin para sa Admin User.
+    // @useIn isAdmin: AdminUserController::destroy (app/Http/Controllers/AdminUserController.php)
+    // Tinitingnan kung Admin ang account.
     private function isAdmin(?User $user): bool
     {
         return strtolower((string) $user?->role) === 'admin';
     }
 
+    // @function isRootAdmin: Sinusuri kung root admin para sa Admin User.
+    // @useIn isRootAdmin: AdminUserController::index (app/Http/Controllers/AdminUserController.php)
+    // Tinitingnan kung Admin ang account at may Root Admin flag.
     private function isRootAdmin(?User $user): bool
     {
         return $this->isAdmin($user) && (bool) $user?->is_root_admin;
     }
 
+    // @function rootAdminCount: Kinukuha ang root admin count result para sa Admin User.
+    // @useIn rootAdminCount: AdminUserController::destroy (app/Http/Controllers/AdminUserController.php)
+    // Binibilang ang active Root Admin accounts para sa safety checks.
     private function rootAdminCount(): int
     {
         return User::query()
@@ -248,6 +299,9 @@ class AdminUserController extends Controller
             ->count();
     }
 
+    // @function defaultPassword: Binubuo ang default password string para sa Admin User.
+    // @useIn defaultPassword: AdminUserController::resetPassword (app/Http/Controllers/AdminUserController.php)
+    // Binubuo ang default password mula sa account name.
     private function defaultPassword(User $user): string
     {
         $name = trim($user->name.' '.($user->last_name ?? ''));
@@ -255,6 +309,9 @@ class AdminUserController extends Controller
         return Str::lower(preg_replace('/\s+/u', '', $name) ?? '');
     }
 
+    // @function rootOwnershipPayload: Binubuo ang root ownership payload value.
+    // @useIn rootOwnershipPayload: AdminUserController::index (app/Http/Controllers/AdminUserController.php)
+    // Kinukuha ang pending ownership requests at approval context para sa page.
     private function rootOwnershipPayload(Request $request, ?User $actor): array
     {
         $activeTransfer = RootTransferRequest::query()->with(['fromUser', 'toUser', 'requester'])
@@ -296,6 +353,9 @@ class AdminUserController extends Controller
         ];
     }
 
+    // @function logActivity: Nilolog ang activity sa Admin User flow.
+    // @useIn logActivity: AdminUserController::store (app/Http/Controllers/AdminUserController.php)
+    // Nagtatala ng activity para sa history at audit.
     private function logActivity(?User $actor, string $action, string $tableName, string $description): void
     {
         ActivityLog::query()->create([

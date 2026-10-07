@@ -11,11 +11,15 @@ use Laravel\Fortify\Fortify;
 
 class StoreRootTransferRequest extends FormRequest
 {
+    // @function authorize: Sinusuri ang authorize condition para sa Store Root Transfer Request.
+    // @useIn authorize: Laravel FormRequest validation lifecycle
     public function authorize(): bool
     {
         return $this->user()?->can('manage-root-ownership') ?? false;
     }
 
+    // @function rules: Kinukuha ang rules result para sa Store Root Transfer Request.
+    // @useIn rules: Laravel FormRequest validation lifecycle
     public function rules(): array
     {
         return [
@@ -26,6 +30,8 @@ class StoreRootTransferRequest extends FormRequest
         ];
     }
 
+    // @function passedValidation: Pinoproseso ang passed validation para sa Store Root Transfer Request.
+    // @useIn passedValidation: Laravel FormRequest validation lifecycle
     protected function passedValidation(): void
     {
         $user = $this->user();

@@ -1,3 +1,4 @@
+<!-- FEATURE:root-ownership - UI para sa ownership transfer and override. -->
 <script setup>
 import { router, useForm } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
@@ -43,6 +44,8 @@ const countdown = computed(() => {
     return `${days}d ${hours}h ${minutes}m`;
 });
 
+// @function submitTransfer: Isinusumite ang transfer sa Root Ownership Panel flow.
+// @useIn submitTransfer: resources/js/components/Admin/RootOwnershipPanel.vue template
 const submitTransfer = () => {
     responseMessage.value = '';
     transfer.post(route('admin.root-ownership.transfers.store'), {
@@ -58,6 +61,8 @@ const submitTransfer = () => {
     });
 };
 
+// @function cancelTransfer: Kina-cancel ang transfer sa Root Ownership Panel flow.
+// @useIn cancelTransfer: resources/js/components/Admin/RootOwnershipPanel.vue template @click
 const cancelTransfer = async () => {
     if (
         !(await confirmActionModal({
@@ -75,11 +80,15 @@ const cancelTransfer = async () => {
     );
 };
 
+// @function submitOverride: Isinusumite ang override sa Root Ownership Panel flow.
+// @useIn submitOverride: resources/js/components/Admin/RootOwnershipPanel.vue template
 const submitOverride = () =>
     override.post(route('admin.root-ownership.overrides.store'), {
         preserveScroll: true,
         onSuccess: () => override.reset(),
     });
+// @function decideOverride: Pinoproseso ang decide override para sa Root Ownership Panel.
+// @useIn decideOverride: resources/js/components/Admin/RootOwnershipPanel.vue template @click
 const decideOverride = (value) => {
     decision.decision = value;
     decision.post(
@@ -91,6 +100,8 @@ const decideOverride = (value) => {
     );
 };
 
+// @function filterAudit: Pinoproseso ang filter audit para sa Root Ownership Panel.
+// @useIn filterAudit: resources/js/components/Admin/RootOwnershipPanel.vue template
 const filterAudit = () => {
     router.get(route('admin.users.index'), auditFilters.value, {
         preserveState: true,

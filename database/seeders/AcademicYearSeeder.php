@@ -7,6 +7,8 @@ use Illuminate\Database\Seeder;
 
 class AcademicYearSeeder extends Seeder
 {
+    // @function run: Pinapatakbo ang Academic Year Seeder task.
+    // @useIn run: php artisan db:seed
     /**
      * Seed the academic year used by the existing demo records.
      */

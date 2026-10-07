@@ -1,3 +1,4 @@
+<!-- FEATURE:clinic-dispatch - UI para sa emergency alert response and dispatch. -->
 <script setup>
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
@@ -119,6 +120,8 @@ const calendarDays = computed(() => {
     return days;
 });
 
+// @function resetTypeForm: Nire-reset ang type form sa Dashboard flow.
+// @useIn resetTypeForm: resources/js/pages/Clinic/Dashboard.vue template @click
 const resetTypeForm = () => {
     editingTypeId.value = null;
     typeForm.reset();
@@ -127,6 +130,8 @@ const resetTypeForm = () => {
     typeForm.sort_order = 0;
 };
 
+// @function editType: Pinoproseso ang edit type para sa Dashboard.
+// @useIn editType: resources/js/pages/Clinic/Dashboard.vue template @click
 const editType = (type) => {
     editingTypeId.value = type.emergency_type_id;
     typeForm.name = type.name || '';
@@ -136,6 +141,8 @@ const editType = (type) => {
     typeForm.sort_order = type.sort_order || 0;
 };
 
+// @function refreshDashboard: Pinoproseso ang refresh dashboard para sa Dashboard.
+// @useIn refreshDashboard: resources/js/pages/Clinic/Dashboard.vue:179
 const refreshDashboard = (
     only = [
         'alerts',
@@ -153,6 +160,8 @@ const refreshDashboard = (
     });
 };
 
+// @function setAlertProcessing: Sine-set ang alert processing sa Dashboard flow.
+// @useIn setAlertProcessing: resources/js/pages/Clinic/Dashboard.vue:225
 const setAlertProcessing = (id, isProcessing) => {
     const next = new Set(processingAlertIds.value);
 
@@ -165,8 +174,12 @@ const setAlertProcessing = (id, isProcessing) => {
     processingAlertIds.value = next;
 };
 
+// @function isAlertProcessing: Sinusuri kung alert processing para sa Dashboard.
+// @useIn isAlertProcessing: resources/js/pages/Clinic/Dashboard.vue template
 const isAlertProcessing = (id) => processingAlertIds.value.has(id);
 
+// @function submitType: Isinusumite ang type sa Dashboard flow.
+// @useIn submitType: resources/js/pages/Clinic/Dashboard.vue template
 const submitType = () => {
     if (editingTypeId.value) {
         typeForm.put(
@@ -191,6 +204,8 @@ const submitType = () => {
     });
 };
 
+// @function deleteType: Tinatanggal ang type sa Dashboard flow.
+// @useIn deleteType: resources/js/pages/Clinic/Dashboard.vue template @click
 const deleteType = async (type) => {
     const confirmed = await confirmActionModal({
         title: 'Delete emergency type?',
@@ -207,6 +222,8 @@ const deleteType = async (type) => {
     );
 };
 
+// @function updateAlert: Ina-update ang alert sa Dashboard flow.
+// @useIn updateAlert: resources/js/pages/Clinic/Dashboard.vue template @change
 const updateAlert = (id, status) => {
     router.put(
         route('clinic.emergency-alerts.update', { id }),
@@ -218,6 +235,8 @@ const updateAlert = (id, status) => {
     );
 };
 
+// @function dispatchAlert: Ipinapadala ang alert sa Dashboard flow.
+// @useIn dispatchAlert: resources/js/pages/Clinic/Dashboard.vue template @click
 const dispatchAlert = (id) => {
     const clinicUserId = selectedClinicByAlert.value[id];
     if (!clinicUserId) return;
@@ -234,6 +253,8 @@ const dispatchAlert = (id) => {
     );
 };
 
+// @function ignoreAlert: Pinoproseso ang ignore alert para sa Dashboard.
+// @useIn ignoreAlert: resources/js/pages/Clinic/Dashboard.vue template @click
 const ignoreAlert = (id) => {
     setAlertProcessing(id, true);
 
@@ -248,12 +269,16 @@ const ignoreAlert = (id) => {
     );
 };
 
+// @function highestAlertId: Pinoproseso ang highest alert id para sa Dashboard.
+// @useIn highestAlertId: resources/js/pages/Clinic/Dashboard.vue:309
 const highestAlertId = (alerts) =>
     Math.max(
         0,
         ...(alerts ?? []).map((alert) => Number(alert.emergency_alert_id) || 0),
     );
 
+// @function unlockAlertAudio: Kinukuha ang unlock alert audio result para sa Dashboard.
+// @useIn unlockAlertAudio: resources/js/pages/Clinic/Dashboard.vue:302
 const unlockAlertAudio = () => {
     if (audioUnlocked.value || typeof window === 'undefined') return;
 
@@ -285,6 +310,8 @@ watch(selectedEmergencySoundUrl, (url) => {
     registerAudioUnlockListeners();
 });
 
+// @function playEmergencySound: Kinukuha ang play emergency sound result para sa Dashboard.
+// @useIn playEmergencySound: resources/js/pages/Clinic/Dashboard.vue:317
 const playEmergencySound = () => {
     if (!audioUnlocked.value || !alertAudio) return;
 
@@ -295,6 +322,8 @@ const playEmergencySound = () => {
     });
 };
 
+// @function registerAudioUnlockListeners: Kinukuha ang register audio unlock listeners result para sa Dashboard.
+// @useIn registerAudioUnlockListeners: resources/js/pages/Clinic/Dashboard.vue:286
 const registerAudioUnlockListeners = () => {
     if (typeof window === 'undefined') return;
 

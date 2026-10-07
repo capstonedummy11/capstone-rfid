@@ -10,6 +10,8 @@ use Illuminate\Support\Str;
 
 class AccessRevocationService
 {
+    // @function revokeAccess: Pinoproseso ang revoke access sa database transaction.
+    // @useIn revokeAccess: app/Services/RootOwnershipSwapService.php
     public function revokeAccess(User $user): AccessRevocationResult
     {
         return DB::transaction(function () use ($user): AccessRevocationResult {
@@ -31,6 +33,8 @@ class AccessRevocationService
         });
     }
 
+    // @function clearDatabaseSessions: Nililinis ang database sessions sa Access Revocation flow.
+    // @useIn clearDatabaseSessions: AccessRevocationService::revokeAccess (app/Services/Auth/AccessRevocationService.php)
     protected function clearDatabaseSessions(User $user, array &$skippedReasons): ?int
     {
         if (config('session.driver') !== 'database') {
@@ -55,6 +59,8 @@ class AccessRevocationService
         return DB::table($table)->where('user_id', $user->getKey())->delete();
     }
 
+    // @function revokePassportTokens: Kinukuha ang revoke passport tokens result para sa Access Revocation.
+    // @useIn revokePassportTokens: AccessRevocationService::revokeAccess (app/Services/Auth/AccessRevocationService.php)
     protected function revokePassportTokens(User $user, array &$skippedReasons): array
     {
         if (! Schema::hasTable('oauth_access_tokens')) {
@@ -83,6 +89,8 @@ class AccessRevocationService
         return [$accessCount, $refreshCount];
     }
 
+    // @function revokeSanctumTokens: Kinukuha ang revoke sanctum tokens result para sa Access Revocation.
+    // @useIn revokeSanctumTokens: AccessRevocationService::revokeAccess (app/Services/Auth/AccessRevocationService.php)
     protected function revokeSanctumTokens(User $user, array &$skippedReasons): int
     {
         if (! Schema::hasTable('personal_access_tokens')) {

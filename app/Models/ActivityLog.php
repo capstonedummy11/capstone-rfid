@@ -1,4 +1,6 @@
 <?php
+// FEATURE:audit-logging - konektadong model, service, route, o UI para sa feature na ito.
+// FEATURE:admin-logs - konektadong model, service, route, o UI para sa feature na ito.
 
 namespace App\Models;
 
@@ -40,6 +42,8 @@ class ActivityLog extends Model
         'created_at' => 'datetime',
     ];
 
+    // @function user: Ibinabalik ang user Eloquent belongsTo relationship.
+    // @useIn user: Eloquent relationship property at eager loading
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id', 'user_id');

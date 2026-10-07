@@ -122,6 +122,8 @@ onUnmounted(() => {
   clearInterval(timer)
 })
 
+// @function updateDateTime: Ina-update ang date time sa Attendance Scanner flow.
+// @useIn updateDateTime: resources/js/pages/AttendanceScanner.vue:117
 const updateDateTime = () => {
   const now = new Date()
   currentDate.value = now.toLocaleDateString('en-US', {
@@ -133,6 +135,8 @@ const updateDateTime = () => {
   currentTime.value = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
 }
 
+// @function simulateScan: Kinukuha ang simulate scan result para sa Attendance Scanner.
+// @useIn simulateScan: resources/js/pages/AttendanceScanner.vue template @click
 const simulateScan = () => {
   const now = new Date()
   const time = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })

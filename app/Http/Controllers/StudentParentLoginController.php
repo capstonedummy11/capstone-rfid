@@ -1,4 +1,5 @@
 <?php
+// FEATURE:authentication - konektadong model, service, route, o UI para sa feature na ito.
 
 namespace App\Http\Controllers;
 
@@ -12,6 +13,8 @@ class StudentParentLoginController
 {
     private const ALLOWED_ROLES = ['student', 'parent'];
 
+    // @function store: Pinoproseso ang bagong Student Parent Login record.
+    // @useIn store: routes/web.php:86
     public function store(Request $request)
     {
         $credentials = $request->validate([

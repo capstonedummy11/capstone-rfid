@@ -56,15 +56,21 @@ const subjectThemes = {
         hover: 'hover:border-cyan-300',
     },
 };
+// @function themeFor: Pinoproseso ang theme for para sa Subject Selection.
+// @useIn themeFor: resources/js/pages/Attendance/SubjectSelection.vue template
 const themeFor = (subject) =>
     subjectThemes[subject.color_theme] ?? subjectThemes.blue;
 
+// @function applyFilters: Inilalapat ang filters sa Subject Selection flow.
+// @useIn applyFilters: resources/js/pages/Attendance/SubjectSelection.vue template @click
 const applyFilters = () =>
     router.get(route('admin.attendance.logs'), filters, {
         preserveState: true,
         replace: true,
     });
 
+// @function resetFilters: Nire-reset ang filters sa Subject Selection flow.
+// @useIn resetFilters: resources/js/pages/Attendance/SubjectSelection.vue template @click
 const resetFilters = () => {
     Object.keys(filters).forEach((key) => (filters[key] = ''));
     applyFilters();

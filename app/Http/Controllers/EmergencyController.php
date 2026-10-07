@@ -1,4 +1,5 @@
 <?php
+// File purpose: Emergency alerts, hotline setup, at Clinic dispatch para sa Console at Clinic.
 
 namespace App\Http\Controllers;
 
@@ -23,6 +24,18 @@ use Inertia\Inertia;
 
 class EmergencyController
 {
+    // @function storeAlert: Sine-save ang alert sa Emergency flow.
+    // @useIn storeAlert: routes/web.php:181 (attendanceControlPanel.emergencyAlert)
+    /**
+     * @feature   Emergency Alerts and Delivery
+     * @actor     Shared / Core
+     * @flow      Dito sine-save ang emergency alert at ina-attempt ang hotline at Parent notifications.
+     * @uses      resources/js/pages/AttendanceControlPanel.vue; routes/web.php: EmergencyController::storeAlert
+     * @related   Authentication, Attendance, Reports
+     * @disable   1) I-comment out ang routes/web.php: EmergencyController::storeAlert.
+     * @disable   2) Itago ang action sa resources/js/pages/AttendanceControlPanel.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/EmergencyController.php: EmergencyController::storeAlert matapos alisin ang routes. Side effect: mawawala ang emergency alerts and delivery.
+     */
     public function storeAlert(Request $request, SmsService $sms): JsonResponse
     {
         $validated = $request->validate([
@@ -98,6 +111,18 @@ class EmergencyController
         ]);
     }
 
+    // @function hotlines: Ibinabalik ang Clinic/EmergencyHotlines page at data para sa request.
+    // @useIn hotlines: routes/web.php:480 (emergency-hotlines.index)
+    /**
+     * @feature   Emergency Types and Hotlines
+     * @actor     Clinic
+     * @flow      Dito sine-set ang emergency types at matching hotlines.
+     * @uses      resources/js/pages/Clinic/EmergencyHotlines.vue; routes/web.php: EmergencyController::hotlines, EmergencyController::storeHotline, EmergencyController::updateHotline, EmergencyController::destroyHotline, EmergencyController::storeType, EmergencyController::updateType, EmergencyController::destroyType
+     * @related   Clinic workspace
+     * @disable   1) I-comment out ang routes/web.php: EmergencyController::hotlines, EmergencyController::storeHotline, EmergencyController::updateHotline, EmergencyController::destroyHotline, EmergencyController::storeType, EmergencyController::updateType, EmergencyController::destroyType.
+     * @disable   2) Itago ang action sa resources/js/pages/Clinic/EmergencyHotlines.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/EmergencyController.php: EmergencyController::hotlines matapos alisin ang routes. Side effect: mawawala ang emergency types and hotlines.
+     */
     public function hotlines()
     {
         return Inertia::render('Clinic/EmergencyHotlines', [
@@ -111,6 +136,8 @@ class EmergencyController
         ]);
     }
 
+    // @function storeHotline: Sine-save ang hotline sa Emergency flow.
+    // @useIn storeHotline: routes/web.php:482 (emergency-hotlines.store)
     public function storeHotline(Request $request)
     {
         $validated = $this->validateHotline($request);
@@ -127,6 +154,8 @@ class EmergencyController
         return back()->with('success', 'Emergency hotline added.');
     }
 
+    // @function updateHotline: Ina-update ang hotline sa Emergency flow.
+    // @useIn updateHotline: routes/web.php:484 (emergency-hotlines.update)
     public function updateHotline(Request $request, int $id)
     {
         $hotline = EmergencyHotline::query()->findOrFail($id);
@@ -144,6 +173,8 @@ class EmergencyController
         return back()->with('success', 'Emergency hotline updated.');
     }
 
+    // @function destroyHotline: Tinatanggal ang hotline sa Emergency flow.
+    // @useIn destroyHotline: routes/web.php:486 (emergency-hotlines.destroy)
     public function destroyHotline(Request $request, int $id)
     {
         $hotline = EmergencyHotline::query()->findOrFail($id);
@@ -157,6 +188,8 @@ class EmergencyController
         return back()->with('success', 'Emergency hotline deleted.');
     }
 
+    // @function storeType: Sine-save ang type sa Emergency flow.
+    // @useIn storeType: routes/web.php:488 (emergency-types.store)
     public function storeType(Request $request)
     {
         $validated = $request->validate([
@@ -178,6 +211,8 @@ class EmergencyController
         return back()->with('success', 'Emergency type added.');
     }
 
+    // @function updateType: Ina-update ang type sa Emergency flow.
+    // @useIn updateType: routes/web.php:490 (emergency-types.update)
     public function updateType(Request $request, int $id)
     {
         $type = EmergencyType::findOrFail($id);
@@ -200,6 +235,8 @@ class EmergencyController
         return back()->with('success', 'Emergency type updated.');
     }
 
+    // @function destroyType: Tinatanggal ang type sa Emergency flow.
+    // @useIn destroyType: routes/web.php:492 (emergency-types.destroy)
     public function destroyType(Request $request, int $id)
     {
         $type = EmergencyType::findOrFail($id);
@@ -212,6 +249,8 @@ class EmergencyController
         return back()->with('success', 'Emergency type deleted.');
     }
 
+    // @function updateAlertStatus: Ina-update ang alert status sa Emergency flow.
+    // @useIn updateAlertStatus: routes/web.php:494 (emergency-alerts.update)
     public function updateAlertStatus(Request $request, int $id)
     {
         $alert = EmergencyAlert::findOrFail($id);
@@ -229,6 +268,18 @@ class EmergencyController
         return back()->with('success', 'Emergency alert updated.');
     }
 
+    // @function dispatchAlert: Ipinapadala ang alert sa Emergency flow.
+    // @useIn dispatchAlert: routes/web.php:496 (emergency-alerts.dispatch)
+    /**
+     * @feature   Emergency Alert Response and Dispatch
+     * @actor     Clinic
+     * @flow      Dito ina-assign ang Clinic responder at gumagawa ng linked case.
+     * @uses      resources/js/pages/Clinic/Dashboard.vue; routes/web.php: EmergencyController::dispatchAlert, EmergencyController::updateAlertStatus
+     * @related   Clinic workspace
+     * @disable   1) I-comment out ang routes/web.php: EmergencyController::dispatchAlert, EmergencyController::updateAlertStatus.
+     * @disable   2) Itago ang action sa resources/js/pages/Clinic/Dashboard.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/EmergencyController.php: EmergencyController::dispatchAlert matapos alisin ang routes. Side effect: mawawala ang emergency alert response and dispatch.
+     */
     public function dispatchAlert(Request $request, int $id)
     {
         $validated = $request->validate([
@@ -323,6 +374,8 @@ class EmergencyController
         return back()->with('success', 'Emergency response assigned to '.$assignedClinic->name.'.');
     }
 
+    // @function studentDispatchHistory: Kinukuha ang student dispatch history result para sa Emergency.
+    // @useIn studentDispatchHistory: EmergencyController::dispatchAlert (app/Http/Controllers/EmergencyController.php)
     private function studentDispatchHistory($student): array
     {
         if (! $student) {
@@ -347,6 +400,8 @@ class EmergencyController
         return array_values([...$history, ...$attendance]) ?: ['No previous clinic or attendance history was found.'];
     }
 
+    // @function validateHotline: Vinavalidate ang hotline sa Emergency flow.
+    // @useIn validateHotline: EmergencyController::storeHotline (app/Http/Controllers/EmergencyController.php)
     private function validateHotline(Request $request): array
     {
         return $request->validate([
@@ -361,6 +416,8 @@ class EmergencyController
         ]);
     }
 
+    // @function hotlinePayload: Binubuo ang hotline payload value.
+    // @useIn hotlinePayload: EmergencyController::hotlines (app/Http/Controllers/EmergencyController.php)
     private function hotlinePayload(EmergencyHotline $hotline): array
     {
         return [
@@ -376,11 +433,15 @@ class EmergencyController
         ];
     }
 
+    // @function hotlineCategories: Kinukuha ang hotline categories result para sa Emergency.
+    // @useIn hotlineCategories: EmergencyController::validateHotline (app/Http/Controllers/EmergencyController.php)
     private function hotlineCategories(): array
     {
         return ['clinic', 'medical', 'fire', 'police', 'security', 'disaster', 'general', 'external'];
     }
 
+    // @function sendHotlineSms: Ipinapadala ang hotline sms sa Emergency flow.
+    // @useIn sendHotlineSms: EmergencyController::storeAlert (app/Http/Controllers/EmergencyController.php)
     private function sendHotlineSms(array $metadata, EmergencyAlert $alert, SmsService $sms): array
     {
         $hotlineId = $metadata['emergency_hotline_id'] ?? null;
@@ -399,6 +460,8 @@ class EmergencyController
         return $sms->sendEmergencyAlert($hotline, $alert->loadMissing('type'));
     }
 
+    // @function notifyParents: Nagnonotify ang parents sa Emergency flow.
+    // @useIn notifyParents: EmergencyController::storeAlert (app/Http/Controllers/EmergencyController.php)
     private function notifyParents(EmergencyAlert $alert, array $metadata, SmsService $sms): array
     {
         $studentIds = collect($metadata['students'] ?? [])
@@ -476,6 +539,8 @@ class EmergencyController
         return $result;
     }
 
+    // @function logActivity: Nilolog ang activity sa Emergency flow.
+    // @useIn logActivity: EmergencyController::storeAlert (app/Http/Controllers/EmergencyController.php)
     private function logActivity(Request $request, string $action, string $tableName, string $description): void
     {
         ActivityLog::query()->create([

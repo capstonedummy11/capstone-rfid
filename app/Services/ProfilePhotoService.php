@@ -9,6 +9,8 @@ use Illuminate\Validation\ValidationException;
 
 class ProfilePhotoService
 {
+    // @function update: Pinoproseso ang pagbabago sa Profile Photo record.
+    // @useIn update: app/Http/Controllers/StudentsController.php
     public function update(User $user, ?UploadedFile $photo, bool $removePhoto): void
     {
         if (! $photo && ! $removePhoto) {

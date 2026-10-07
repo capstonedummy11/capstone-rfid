@@ -12,6 +12,8 @@ defineProps({
 });
 
 const form = useForm({ email: '' });
+// @function submit: Isinusumite ang forgot password sa Forgot Password flow.
+// @useIn submit: resources/js/pages/Auth/ForgotPassword.vue template
 const submit = () => form.post(route('password.email'));
 </script>
 

@@ -14,6 +14,18 @@ use Inertia\Inertia;
 
 class InstructorVerificationController
 {
+    // @function show: Ibinabalik ang Auth/InstructorVerify page at data para sa request.
+    // @useIn show: routes/web.php:213 (verify)
+    /**
+     * @feature   Login Verification
+     * @actor     Instructor
+     * @flow      Pagkatapos ng login, dito kinukumpleto ang face, email OTP, o security-question check.
+     * @uses      resources/js/pages/Auth/InstructorVerify.vue; routes/web.php: InstructorVerificationController::show, InstructorVerificationController::verifyFace, InstructorVerificationController::sendOtp, InstructorVerificationController::verifyOtp, InstructorVerificationController::setupSecurity, InstructorVerificationController::verifySecurity
+     * @related   Instructor workspace
+     * @disable   1) I-comment out ang routes/web.php: InstructorVerificationController::show, InstructorVerificationController::verifyFace, InstructorVerificationController::sendOtp, InstructorVerificationController::verifyOtp, InstructorVerificationController::setupSecurity, InstructorVerificationController::verifySecurity.
+     * @disable   2) Itago ang action sa resources/js/pages/Auth/InstructorVerify.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/InstructorVerificationController.php: InstructorVerificationController::show matapos alisin ang routes. Side effect: mawawala ang login verification.
+     */
     public function show(Request $request)
     {
         $user = $request->user();
@@ -43,6 +55,8 @@ class InstructorVerificationController
         ]);
     }
 
+    // @function verifyFace: Vini-verify ang face sa Instructor Verification flow.
+    // @useIn verifyFace: routes/web.php:215 (verify.face)
     public function verifyFace(Request $request, AwsFaceLivenessService $livenessService)
     {
         $validated = $request->validate([
@@ -86,6 +100,8 @@ class InstructorVerificationController
         return redirect()->route('admin.dashboard');
     }
 
+    // @function sendOtp: Ipinapadala ang otp sa Instructor Verification flow.
+    // @useIn sendOtp: routes/web.php:217 (verify.otp.send)
     public function sendOtp(Request $request)
     {
         $user = $request->user();
@@ -116,6 +132,8 @@ class InstructorVerificationController
         return back()->with('success', 'OTP sent to '.$user->email.'. It expires in 10 minutes.');
     }
 
+    // @function verifyOtp: Vini-verify ang otp sa Instructor Verification flow.
+    // @useIn verifyOtp: routes/web.php:219 (verify.otp)
     public function verifyOtp(Request $request)
     {
         $validated = $request->validate([
@@ -135,6 +153,8 @@ class InstructorVerificationController
         return redirect()->route('admin.dashboard');
     }
 
+    // @function setupSecurity: Kinukuha ang setup security result para sa Instructor Verification.
+    // @useIn setupSecurity: routes/web.php:221 (verify.security.setup)
     public function setupSecurity(Request $request)
     {
         $availableSecurityQuestions = SystemSetting::securityQuestions();
@@ -173,6 +193,8 @@ class InstructorVerificationController
         return back()->with('success', 'Security questions saved.');
     }
 
+    // @function verifySecurity: Vini-verify ang security sa Instructor Verification flow.
+    // @useIn verifySecurity: routes/web.php:223 (verify.security)
     public function verifySecurity(Request $request)
     {
         $validated = $request->validate([
@@ -197,11 +219,15 @@ class InstructorVerificationController
         return redirect()->route('admin.dashboard');
     }
 
+    // @function normalizeAnswer: Nino-normalize ang answer sa Instructor Verification flow.
+    // @useIn normalizeAnswer: InstructorVerificationController::setupSecurity (app/Http/Controllers/InstructorVerificationController.php)
     private function normalizeAnswer(string $answer): string
     {
         return strtolower(trim(preg_replace('/\s+/', ' ', $answer)));
     }
 
+    // @function storedSecurityQuestions: Kinukuha ang stored security questions result para sa Instructor Verification.
+    // @useIn storedSecurityQuestions: InstructorVerificationController::show (app/Http/Controllers/InstructorVerificationController.php)
     private function storedSecurityQuestions($user): array
     {
         $questions = collect($user->security_questions ?? [])

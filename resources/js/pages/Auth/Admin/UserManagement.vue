@@ -1,3 +1,4 @@
+<!-- FEATURE:user-management - UI para sa user and role management. -->
 <script setup>
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import {
@@ -70,10 +71,14 @@ const roleLabels = {
     registrar: 'Registrar',
 };
 
+// @function roleLabel: Pinoproseso ang role label para sa User Management.
+// @useIn roleLabel: resources/js/pages/Auth/Admin/UserManagement.vue template
 const roleLabel = (role) =>
     roleLabels[String(role || '').toLowerCase()] ||
     String(role || '').replace('_', ' ');
 
+// @function resetForm: Nire-reset ang form sa User Management flow.
+// @useIn resetForm: resources/js/pages/Auth/Admin/UserManagement.vue template @click
 const resetForm = () => {
     editingId.value = null;
     form.reset();
@@ -82,6 +87,8 @@ const resetForm = () => {
     showPasswordConfirmation.value = false;
 };
 
+// @function editUser: Pinoproseso ang edit user para sa User Management.
+// @useIn editUser: resources/js/pages/Auth/Admin/UserManagement.vue template @click
 const editUser = (user) => {
     editingId.value = user.id;
     form.name = user.name || '';
@@ -94,6 +101,8 @@ const editUser = (user) => {
     showPasswordConfirmation.value = false;
 };
 
+// @function submit: Isinusumite ang user management sa User Management flow.
+// @useIn submit: resources/js/pages/Auth/Admin/UserManagement.vue template
 const submit = () => {
     form.clearErrors('password_confirmation');
 
@@ -119,22 +128,30 @@ const submit = () => {
     });
 };
 
+// @function defaultPassword: Pinoproseso ang default password para sa User Management.
+// @useIn defaultPassword: resources/js/pages/Auth/Admin/UserManagement.vue template
 const defaultPassword = (user) =>
     `${user.name ?? ''}${user.last_name ?? ''}`
         .replace(/\s+/g, '')
         .toLowerCase();
 
+// @function openPasswordReset: Binubuksan ang password reset sa User Management flow.
+// @useIn openPasswordReset: resources/js/pages/Auth/Admin/UserManagement.vue template @click
 const openPasswordReset = (user) => {
     if (!user.can_reset_password) return;
     passwordResetForm.clearErrors();
     passwordResetUser.value = user;
 };
 
+// @function closePasswordReset: Isinasara ang password reset sa User Management flow.
+// @useIn closePasswordReset: resources/js/pages/Auth/Admin/UserManagement.vue template @click
 const closePasswordReset = () => {
     if (passwordResetForm.processing) return;
     passwordResetUser.value = null;
 };
 
+// @function confirmPasswordReset: Kinukuha ang confirm password reset result para sa User Management.
+// @useIn confirmPasswordReset: resources/js/pages/Auth/Admin/UserManagement.vue template @click
 const confirmPasswordReset = () => {
     const user = passwordResetUser.value;
     if (!user || passwordResetForm.processing) return;
@@ -163,6 +180,8 @@ const confirmPasswordReset = () => {
     );
 };
 
+// @function deleteUser: Tinatanggal ang user sa User Management flow.
+// @useIn deleteUser: resources/js/pages/Auth/Admin/UserManagement.vue template @click
 const deleteUser = async (user) => {
     if (!user.can_delete) return;
     const confirmed = await confirmActionModal({

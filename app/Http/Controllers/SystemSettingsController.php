@@ -16,6 +16,18 @@ use Inertia\Inertia;
 
 class SystemSettingsController
 {
+    // @function edit: Ibinabalik ang Auth/Admin/SystemSettings page at data para sa request.
+    // @useIn edit: routes/web.php:388 (settings.edit)
+    /**
+     * @feature   System Settings
+     * @actor     Admin
+     * @flow      Dito sine-set ang feature switches, attendance rules, SMS, at emergency sounds.
+     * @uses      resources/js/pages/Auth/Admin/SystemSettings.vue; routes/web.php: SystemSettingsController::edit, SystemSettingsController::update, SystemSettingsController::checkSmsProvider, SystemSettingsController::storeEmergencySound, SystemSettingsController::selectEmergencySound, SystemSettingsController::destroyEmergencySound
+     * @related   Admin workspace
+     * @disable   1) I-comment out ang routes/web.php: SystemSettingsController::edit, SystemSettingsController::update, SystemSettingsController::checkSmsProvider, SystemSettingsController::storeEmergencySound, SystemSettingsController::selectEmergencySound, SystemSettingsController::destroyEmergencySound.
+     * @disable   2) Itago ang action sa resources/js/pages/Auth/Admin/SystemSettings.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/SystemSettingsController.php: SystemSettingsController::edit matapos alisin ang routes. Side effect: mawawala ang system settings.
+     */
     public function edit()
     {
         $faceAvailability = (new AwsFaceRecognitionService)->availability();
@@ -37,6 +49,8 @@ class SystemSettingsController
         ]);
     }
 
+    // @function update: Pinoproseso ang pagbabago sa System Settings record.
+    // @useIn update: routes/web.php:390 (settings.update)
     public function update(Request $request)
     {
         $validated = $request->validate([
@@ -140,6 +154,8 @@ class SystemSettingsController
         return back()->with('success', $warning ?? 'System settings updated.');
     }
 
+    // @function checkSmsProvider: Sini-check ang sms provider sa System Settings flow.
+    // @useIn checkSmsProvider: routes/web.php:392 (settings.sms.providers.check)
     public function checkSmsProvider(Request $request, string $provider, SmsService $sms): JsonResponse
     {
         abort_unless(in_array($provider, SystemSetting::SMS_PROVIDER_NAMES, true), 404);
@@ -165,6 +181,8 @@ class SystemSettingsController
         }
     }
 
+    // @function storeEmergencySound: Sine-save ang emergency sound sa System Settings flow.
+    // @useIn storeEmergencySound: routes/web.php:396 (settings.emergency-sounds.store)
     public function storeEmergencySound(Request $request)
     {
         $validated = $request->validate([
@@ -208,6 +226,8 @@ class SystemSettingsController
         return back()->with('success', 'Emergency sound uploaded and selected.');
     }
 
+    // @function selectEmergencySound: Pinipili ang emergency sound sa System Settings flow.
+    // @useIn selectEmergencySound: routes/web.php:398 (settings.emergency-sounds.select)
     public function selectEmergencySound(string $id)
     {
         $settings = SystemSetting::clinicEmergencySoundSettings();
@@ -236,6 +256,8 @@ class SystemSettingsController
         return back()->with('success', 'Emergency sound selected.');
     }
 
+    // @function destroyEmergencySound: Tinatanggal ang emergency sound sa System Settings flow.
+    // @useIn destroyEmergencySound: routes/web.php:400 (settings.emergency-sounds.destroy)
     public function destroyEmergencySound(string $id)
     {
         if ($id === SystemSetting::DEFAULT_CLINIC_EMERGENCY_SOUND_ID) {
@@ -274,6 +296,8 @@ class SystemSettingsController
         return back()->with('success', 'Emergency sound deleted.');
     }
 
+    // @function showEmergencySound: Ipinapakita ang emergency sound sa System Settings flow.
+    // @useIn showEmergencySound: routes/web.php:457 (emergency-sounds.show)
     public function showEmergencySound(string $id)
     {
         abort_if($id === SystemSetting::DEFAULT_CLINIC_EMERGENCY_SOUND_ID, 404);

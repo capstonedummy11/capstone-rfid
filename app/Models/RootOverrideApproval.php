@@ -9,11 +9,15 @@ class RootOverrideApproval extends Model
 {
     protected $guarded = [];
 
+    // @function request: Ibinabalik ang request Eloquent belongsTo relationship.
+    // @useIn request: Eloquent relationship property at eager loading
     public function request(): BelongsTo
     {
         return $this->belongsTo(RootOverrideRequest::class, 'root_override_request_id');
     }
 
+    // @function approver: Ibinabalik ang approver Eloquent belongsTo relationship.
+    // @useIn approver: Eloquent relationship property at eager loading
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approver_id', 'user_id');

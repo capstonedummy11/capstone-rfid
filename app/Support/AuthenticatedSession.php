@@ -14,6 +14,8 @@ final class AuthenticatedSession
 
     public const ISSUED_AT = 'auth_session.issued_at';
 
+    // @function issue: Pinoproseso ang issue para sa Authenticated Session.
+    // @useIn issue: app/Http/Controllers/StudentParentLoginController.php
     public static function issue(Request $request, Authenticatable $user): void
     {
         $request->session()->put([
@@ -23,12 +25,16 @@ final class AuthenticatedSession
         ]);
     }
 
+    // @function hasIdentity: Sinusuri kung identity para sa Authenticated Session.
+    // @useIn hasIdentity: app/Http/Middleware/EnsureAuthenticatedSessionIdentity.php
     public static function hasIdentity(Request $request): bool
     {
         return $request->session()->has(self::USER_ID)
             && $request->session()->has(self::LOGIN_ID);
     }
 
+    // @function belongsTo: Sinusuri ang belongs to condition para sa Authenticated Session.
+    // @useIn belongsTo: app/Http/Middleware/EnsureAuthenticatedSessionIdentity.php
     public static function belongsTo(Request $request, Authenticatable $user): bool
     {
         return hash_equals(

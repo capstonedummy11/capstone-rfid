@@ -9,6 +9,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 class HandleAppearance
 {
+    // @function handle: Pinoproseso ang request o event para sa Handle Appearance.
+    // @useIn handle: Laravel web middleware pipeline
     /**
      * Handle an incoming request.
      *

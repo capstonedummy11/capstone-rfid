@@ -1,4 +1,5 @@
 <?php
+// File purpose: Student records at Student/Parent portal, kasama ang letters, attendance, at notifications.
 
 namespace App\Http\Controllers;
 
@@ -37,6 +38,8 @@ use Inertia\Inertia;
 
 class StudentsController
 {
+    // @function __construct: Tinatanggap ang dependencies ng Students sa pagbuo ng object.
+    // @useIn __construct: Laravel dependency injection kapag ginagamit ang StudentsController
     public function __construct(
         private readonly MessengerEmailNotificationService $emailNotifications,
         private readonly OnlineClassAttendanceFinalizer $onlineAttendanceFinalizer,
@@ -44,11 +47,25 @@ class StudentsController
         private readonly StudentEnrollmentService $studentEnrollmentService,
     ) {}
 
+    // @function index: Wala pang implementasyon ang legacy index placeholder.
+    // @useIn index: TODO(verify): walang direct caller na nakita sa static search
     public function index()
     {
         //
     }
 
+    // @function indexAdmin: Ibinabalik ang Auth/Admin/Students page at data para sa request.
+    // @useIn indexAdmin: routes/web.php:288 (students.index)
+    /**
+     * @feature   Student and Parent Management
+     * @actor     Admin
+     * @flow      Dito ginagawa ang student records, enrollment, at linked Parent accounts.
+     * @uses      resources/js/pages/Auth/Admin/Students.vue; routes/web.php: StudentsController::indexAdmin, StudentsController::store, StudentsController::update, StudentsController::destroy, StudentsController::storeParent, StudentsController::updateParent, StudentsController::destroyParent
+     * @related   Admin workspace
+     * @disable   1) I-comment out ang routes/web.php: StudentsController::indexAdmin, StudentsController::store, StudentsController::update, StudentsController::destroy, StudentsController::storeParent, StudentsController::updateParent, StudentsController::destroyParent.
+     * @disable   2) Itago ang action sa resources/js/pages/Auth/Admin/Students.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/StudentsController.php: StudentsController::indexAdmin matapos alisin ang routes. Side effect: mawawala ang student and parent management.
+     */
     public function indexAdmin(Request $request)
     {
         $currentAcademicYear = AcademicYear::active();
@@ -243,11 +260,15 @@ class StudentsController
         ]);
     }
 
+    // @function create: Inihahanda ang create form o page.
+    // @useIn create: StudentsController::store (app/Http/Controllers/StudentsController.php)
     public function create()
     {
         //
     }
 
+    // @function store: Pinoproseso ang bagong Students record.
+    // @useIn store: routes/web.php:406 (students.store)
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -309,16 +330,22 @@ class StudentsController
         return back()->with('success', 'Student added successfully. Student account created with default password '.$this->defaultStudentPassword($student).'.');
     }
 
+    // @function show: Ibinabalik ang detalye ng napiling record.
+    // @useIn show: TODO(verify): walang direct caller na nakita sa static search
     public function show(Students $students)
     {
         //
     }
 
+    // @function edit: Inihahanda ang edit form o page.
+    // @useIn edit: TODO(verify): walang direct caller na nakita sa static search
     public function edit(Students $students)
     {
         //
     }
 
+    // @function update: Pinoproseso ang pagbabago sa Students record.
+    // @useIn update: routes/web.php:408 (students.update)
     public function update(Request $request, $id)
     {
         $student = Students::findOrFail($id);
@@ -365,6 +392,8 @@ class StudentsController
         return back()->with('success', 'Student updated successfully.');
     }
 
+    // @function resetStudentAccountPassword: Nire-reset ang student account password sa Students flow.
+    // @useIn resetStudentAccountPassword: routes/web.php:409 (students.password.reset-default)
     public function resetStudentAccountPassword(int $id)
     {
         $student = Students::query()->findOrFail($id);
@@ -381,6 +410,8 @@ class StudentsController
         return back()->with('success', 'Student account password reset to '.$password.'.');
     }
 
+    // @function storeParent: Sine-save ang parent sa Students flow.
+    // @useIn storeParent: routes/web.php:414 (students.parents.store)
     public function storeParent(Request $request, int $id)
     {
         $student = Students::query()->findOrFail($id);
@@ -442,6 +473,8 @@ class StudentsController
         return back()->with('success', $message);
     }
 
+    // @function updateParent: Ina-update ang parent sa Students flow.
+    // @useIn updateParent: routes/web.php:416 (students.parents.update)
     public function updateParent(Request $request, int $id, int $parent)
     {
         $student = Students::query()->findOrFail($id);
@@ -482,6 +515,8 @@ class StudentsController
         return back()->with('success', 'Parent account updated.');
     }
 
+    // @function destroyParent: Tinatanggal ang parent sa Students flow.
+    // @useIn destroyParent: routes/web.php:418 (students.parents.destroy)
     public function destroyParent(Request $request, int $id, int $parent)
     {
         $student = Students::query()->findOrFail($id);
@@ -497,6 +532,8 @@ class StudentsController
         return back()->with('success', 'Parent account unlinked from student.');
     }
 
+    // @function uploadFaceImage: Ina-upload ang face image sa Students flow.
+    // @useIn uploadFaceImage: TODO(verify): walang direct caller na nakita sa static search
     public function uploadFaceImage(Request $request, $id)
     {
         $request->validate([
@@ -527,6 +564,8 @@ class StudentsController
         ]);
     }
 
+    // @function deleteFaceImage: Tinatanggal ang face image sa Students flow.
+    // @useIn deleteFaceImage: TODO(verify): walang direct caller na nakita sa static search
     public function deleteFaceImage($id, $index)
     {
         $student = Students::findOrFail($id);
@@ -549,6 +588,8 @@ class StudentsController
         ]);
     }
 
+    // @function destroy: Pinoproseso ang pagtanggal ng Students record.
+    // @useIn destroy: routes/web.php:412 (students.destroy)
     public function destroy($id)
     {
         $student = Students::findOrFail($id);
@@ -567,6 +608,18 @@ class StudentsController
         return back()->with('success', 'Student deleted successfully.');
     }
 
+    // @function portalDashboard: Ibinabalik ang StudentParent/Dashboard page at data para sa request.
+    // @useIn portalDashboard: routes/web.php:504 (dashboard)
+    /**
+     * @feature   Linked Student Dashboard and Attendance
+     * @actor     Parent
+     * @flow      Dito nakikita ng Parent ang dashboard ng linked student.
+     * @uses      resources/js/pages/StudentParent/Dashboard.vue; routes/web.php: StudentsController::portalDashboard, StudentsController::portalAttendance
+     * @related   Parent workspace
+     * @disable   1) I-comment out ang routes/web.php: StudentsController::portalDashboard, StudentsController::portalAttendance.
+     * @disable   2) Itago ang action sa resources/js/pages/StudentParent/Dashboard.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/StudentsController.php: StudentsController::portalDashboard matapos alisin ang routes. Side effect: mawawala ang linked student dashboard and attendance.
+     */
     public function portalDashboard(Request $request)
     {
         $student = $this->currentStudent($request);
@@ -593,6 +646,8 @@ class StudentsController
         ]);
     }
 
+    // @function portalProfile: Ibinabalik ang StudentParent/Profile page at data para sa request.
+    // @useIn portalProfile: routes/web.php:505 (profile.show)
     public function portalProfile(Request $request)
     {
         return Inertia::render('StudentParent/Profile', [
@@ -604,6 +659,8 @@ class StudentsController
         ]);
     }
 
+    // @function updatePortalProfile: Ina-update ang portal profile sa Students flow.
+    // @useIn updatePortalProfile: routes/web.php:506 (profile.update)
     public function updatePortalProfile(Request $request)
     {
         $validated = $request->validate([
@@ -636,6 +693,8 @@ class StudentsController
         return back()->with('success', 'Profile updated.');
     }
 
+    // @function updatePortalPassword: Ina-update ang portal password sa Students flow.
+    // @useIn updatePortalPassword: routes/web.php:507 (password.update)
     public function updatePortalPassword(Request $request)
     {
         $validated = $request->validate([
@@ -652,6 +711,18 @@ class StudentsController
         return back()->with('success', 'Password updated.');
     }
 
+    // @function portalAttendance: Ibinabalik ang StudentParent/Attendance page at data para sa request.
+    // @useIn portalAttendance: routes/web.php:516 (attendance)
+    /**
+     * @feature   Attendance History
+     * @actor     Student
+     * @flow      Dito nakikita ng student ang sariling physical at online attendance.
+     * @uses      resources/js/pages/StudentParent/Attendance.vue; routes/web.php: StudentsController::portalAttendance
+     * @related   Student workspace
+     * @disable   1) I-comment out ang routes/web.php: StudentsController::portalAttendance.
+     * @disable   2) Itago ang action sa resources/js/pages/StudentParent/Attendance.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/StudentsController.php: StudentsController::portalAttendance matapos alisin ang routes. Side effect: mawawala ang attendance history.
+     */
     public function portalAttendance(Request $request)
     {
         $student = $this->currentStudent($request);
@@ -668,6 +739,8 @@ class StudentsController
         ]);
     }
 
+    // @function portalExcuseLetters: Ibinabalik ang StudentParent/ExcuseLetters page at data para sa request.
+    // @useIn portalExcuseLetters: routes/web.php:518 (excuse-letters.index)
     public function portalExcuseLetters(Request $request)
     {
         $student = $this->currentStudent($request);
@@ -695,6 +768,18 @@ class StudentsController
         ]);
     }
 
+    // @function storePortalExcuseLetter: Sine-save ang portal excuse letter sa Students flow.
+    // @useIn storePortalExcuseLetter: routes/web.php:520 (excuse-letters.store)
+    /**
+     * @feature   Excuse Letter Submission
+     * @actor     Student
+     * @flow      Dito nagsusubmit ng letter ang student; Parent approval muna kung enabled.
+     * @uses      resources/js/pages/StudentParent/ExcuseLetters.vue; routes/web.php: StudentsController::portalExcuseLetters, StudentsController::storePortalExcuseLetter
+     * @related   Student workspace
+     * @disable   1) I-comment out ang routes/web.php: StudentsController::portalExcuseLetters, StudentsController::storePortalExcuseLetter.
+     * @disable   2) Itago ang action sa resources/js/pages/StudentParent/ExcuseLetters.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/StudentsController.php: StudentsController::storePortalExcuseLetter matapos alisin ang routes. Side effect: mawawala ang excuse letter submission.
+     */
     public function storePortalExcuseLetter(Request $request)
     {
         $student = $this->currentStudent($request);
@@ -788,6 +873,18 @@ class StudentsController
         });
     }
 
+    // @function approvePortalExcuseLetter: Kinukuha ang approve portal excuse letter result para sa Students.
+    // @useIn approvePortalExcuseLetter: routes/web.php:522 (excuse-letters.approve)
+    /**
+     * @feature   Excuse Letter Approval
+     * @actor     Parent
+     * @flow      Dito pinipirmahan at ina-approve ng Parent ang pending letter.
+     * @uses      resources/js/pages/StudentParent/ExcuseLetters.vue; routes/web.php: StudentsController::approvePortalExcuseLetter
+     * @related   Parent workspace
+     * @disable   1) I-comment out ang routes/web.php: StudentsController::approvePortalExcuseLetter.
+     * @disable   2) Itago ang action sa resources/js/pages/StudentParent/ExcuseLetters.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/StudentsController.php: StudentsController::approvePortalExcuseLetter matapos alisin ang routes. Side effect: mawawala ang excuse letter approval.
+     */
     public function approvePortalExcuseLetter(Request $request, StudentExcuseLetter $letter)
     {
         abort_if(! SystemSetting::boolean(SystemSetting::PARENT_PORTAL_ENABLED, false), 403, 'Parent portal is disabled.');
@@ -824,6 +921,8 @@ class StudentsController
             : 'Excuse letter approved, but no assigned teacher was found for this section.');
     }
 
+    // @function downloadPortalExcuseLetter: Idinodownload ang portal excuse letter sa Students flow.
+    // @useIn downloadPortalExcuseLetter: routes/web.php:523 (excuse-letters.download)
     public function downloadPortalExcuseLetter(Request $request, StudentExcuseLetter $letter)
     {
         $student = $this->currentStudent($request);
@@ -845,6 +944,8 @@ class StudentsController
         ]);
     }
 
+    // @function downloadPortalExcuseLetterAttachment: Idinodownload ang portal excuse letter attachment sa Students flow.
+    // @useIn downloadPortalExcuseLetterAttachment: routes/web.php:524 (excuse-letters.attachment)
     public function downloadPortalExcuseLetterAttachment(Request $request, StudentExcuseLetter $letter)
     {
         $student = $this->currentStudent($request);
@@ -856,6 +957,8 @@ class StudentsController
         return Storage::disk('public')->download($letter->attachment_path, $letter->attachment_name ?: 'excuse-letter-attachment');
     }
 
+    // @function portalMessages: Ibinabalik ang StudentParent/Messages page at data para sa request.
+    // @useIn portalMessages: TODO(verify): walang direct caller na nakita sa static search
     public function portalMessages(Request $request)
     {
         $student = $this->currentStudent($request);
@@ -880,6 +983,8 @@ class StudentsController
         ]);
     }
 
+    // @function storePortalMessage: Sine-save ang portal message sa Students flow.
+    // @useIn storePortalMessage: TODO(verify): walang direct caller na nakita sa static search
     public function storePortalMessage(Request $request)
     {
         $student = $this->currentStudent($request);
@@ -944,6 +1049,18 @@ class StudentsController
         return back()->with('success', 'Message sent.');
     }
 
+    // @function portalNotifications: Ibinabalik ang StudentParent/Notifications page at data para sa request.
+    // @useIn portalNotifications: routes/web.php:530 (notifications.index)
+    /**
+     * @feature   Online Class Notifications
+     * @actor     Parent
+     * @flow      Dito nakikita at minamark read ang class-change notices ng linked student.
+     * @uses      resources/js/pages/StudentParent/Notifications.vue; routes/web.php: StudentsController::portalNotifications, StudentsController::markPortalNotificationRead
+     * @related   Parent workspace
+     * @disable   1) I-comment out ang routes/web.php: StudentsController::portalNotifications, StudentsController::markPortalNotificationRead.
+     * @disable   2) Itago ang action sa resources/js/pages/StudentParent/Notifications.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/StudentsController.php: StudentsController::portalNotifications matapos alisin ang routes. Side effect: mawawala ang online class notifications.
+     */
     public function portalNotifications(Request $request)
     {
         $student = $this->currentStudent($request);
@@ -974,6 +1091,8 @@ class StudentsController
         ]);
     }
 
+    // @function markPortalNotificationRead: Minamark ang portal notification read sa Students flow.
+    // @useIn markPortalNotificationRead: routes/web.php:532 (notifications.read)
     public function markPortalNotificationRead(Request $request, OnlineClassNotification $notification)
     {
         $student = $this->currentStudent($request);
@@ -987,6 +1106,8 @@ class StudentsController
         return back();
     }
 
+    // @function logActivity: Nilolog ang activity sa Students flow.
+    // @useIn logActivity: StudentsController::store (app/Http/Controllers/StudentsController.php)
     private function logActivity(string $action, string $tableName, string $description): void
     {
         ActivityLog::create([
@@ -997,6 +1118,8 @@ class StudentsController
         ]);
     }
 
+    // @function currentStudent: Kinukuha ang current student result para sa Students.
+    // @useIn currentStudent: StudentsController::portalDashboard (app/Http/Controllers/StudentsController.php)
     private function currentStudent(Request $request): ?Students
     {
         $role = strtolower((string) $request->user()?->role);
@@ -1025,6 +1148,8 @@ class StudentsController
             ->first();
     }
 
+    // @function portalEnrollment: Kinukuha ang portal enrollment result para sa Students.
+    // @useIn portalEnrollment: StudentsController::portalDashboard (app/Http/Controllers/StudentsController.php)
     private function portalEnrollment(Request $request, ?Students $student): ?StudentEnrollment
     {
         if (! $student) {
@@ -1042,6 +1167,8 @@ class StudentsController
             ?? $query->latest('student_enrollment_id')->first();
     }
 
+    // @function portalAcademicYearOptions: Binubuo ang portal academic year options value.
+    // @useIn portalAcademicYearOptions: StudentsController::portalAttendance (app/Http/Controllers/StudentsController.php)
     private function portalAcademicYearOptions(?Students $student)
     {
         return $student?->enrollments()->with('academicYear')->get()
@@ -1054,6 +1181,8 @@ class StudentsController
             ])->unique('academic_year_id')->values() ?? collect();
     }
 
+    // @function linkedStudentsPayload: Binubuo ang linked students payload value.
+    // @useIn linkedStudentsPayload: StudentsController::portalDashboard (app/Http/Controllers/StudentsController.php)
     private function linkedStudentsPayload(Request $request)
     {
         if (strtolower((string) $request->user()?->role) !== 'parent') {
@@ -1069,6 +1198,8 @@ class StudentsController
             ->values() ?? [];
     }
 
+    // @function studentPayload: Binubuo ang student payload value.
+    // @useIn studentPayload: StudentsController::portalDashboard (app/Http/Controllers/StudentsController.php)
     private function studentPayload(?Students $student, ?StudentEnrollment $enrollment = null): ?array
     {
         if (! $student) {
@@ -1099,6 +1230,8 @@ class StudentsController
         ];
     }
 
+    // @function parentPayload: Binubuo ang parent payload value.
+    // @useIn parentPayload: StudentsController::indexAdmin (app/Http/Controllers/StudentsController.php)
     private function parentPayload(User $parent): array
     {
         return [
@@ -1113,6 +1246,8 @@ class StudentsController
         ];
     }
 
+    // @function createOrUpdateStudentAccount: Gumagawa ng ang or update student account sa Students flow.
+    // @useIn createOrUpdateStudentAccount: StudentsController::store (app/Http/Controllers/StudentsController.php)
     private function createOrUpdateStudentAccount(Students $student, ?User $studentUser = null): User
     {
         $studentUser ??= $this->studentAccountFor($student);
@@ -1139,6 +1274,8 @@ class StudentsController
         return $studentUser;
     }
 
+    // @function studentAccountFor: Kinukuha ang student account for result para sa Students.
+    // @useIn studentAccountFor: StudentsController::update (app/Http/Controllers/StudentsController.php)
     private function studentAccountFor(Students $student): ?User
     {
         if (blank($student->email)) {
@@ -1151,6 +1288,8 @@ class StudentsController
             ->first();
     }
 
+    // @function defaultStudentPassword: Binubuo ang default student password string para sa Students.
+    // @useIn defaultStudentPassword: StudentsController::store (app/Http/Controllers/StudentsController.php)
     private function defaultStudentPassword(Students $student): string
     {
         $password = Str::lower(preg_replace('/\s+/u', '', trim($student->first_name.$student->last_name)) ?? '');
@@ -1158,11 +1297,15 @@ class StudentsController
         return $password !== '' ? $password : Str::lower((string) $student->student_number);
     }
 
+    // @function defaultParentPassword: Binubuo ang default parent password string para sa Students.
+    // @useIn defaultParentPassword: StudentsController::storeParent (app/Http/Controllers/StudentsController.php)
     private function defaultParentPassword(string $firstName, string $lastName): string
     {
         return Str::lower(preg_replace('/\s+/u', '', trim($firstName.$lastName)) ?? '');
     }
 
+    // @function sendApprovedExcuseLetterToTeachers: Ipinapadala ang approved excuse letter to teachers sa Students flow.
+    // @useIn sendApprovedExcuseLetterToTeachers: StudentsController::storePortalExcuseLetter (app/Http/Controllers/StudentsController.php)
     private function sendApprovedExcuseLetterToTeachers(StudentExcuseLetter $letter, User $sender): int
     {
         $letter->loadMissing(['student.section', 'studentEnrollment', 'submittedBy', 'parentApprovedBy']);
@@ -1242,6 +1385,8 @@ class StudentsController
         return $teacherUsers->count();
     }
 
+    // @function notifyParentsExcuseLetterNeedsApproval: Nagnonotify ang parents excuse letter needs approval sa Students flow.
+    // @useIn notifyParentsExcuseLetterNeedsApproval: StudentsController::storePortalExcuseLetter (app/Http/Controllers/StudentsController.php)
     private function notifyParentsExcuseLetterNeedsApproval(StudentExcuseLetter $letter): int
     {
         $student = $letter->student;
@@ -1287,6 +1432,8 @@ class StudentsController
         return $sent;
     }
 
+    // @function emailApprovedExcuseLetterToTeacher: Kinukuha ang email approved excuse letter to teacher result para sa Students.
+    // @useIn emailApprovedExcuseLetterToTeacher: StudentsController::sendApprovedExcuseLetterToTeachers (app/Http/Controllers/StudentsController.php)
     private function emailApprovedExcuseLetterToTeacher(
         User $teacher,
         StudentExcuseLetter $letter,
@@ -1322,6 +1469,8 @@ class StudentsController
         }
     }
 
+    // @function storeApprovedExcuseLetterPdf: Sine-save ang approved excuse letter pdf sa Students flow.
+    // @useIn storeApprovedExcuseLetterPdf: StudentsController::sendApprovedExcuseLetterToTeachers (app/Http/Controllers/StudentsController.php)
     private function storeApprovedExcuseLetterPdf(StudentExcuseLetter $letter, Students $student): array
     {
         $studentName = trim($student->first_name.' '.$student->last_name);
@@ -1341,6 +1490,8 @@ class StudentsController
         return [$path, $filename];
     }
 
+    // @function teacherUsersForStudent: Kinukuha ang teacher users for student result para sa Students.
+    // @useIn teacherUsersForStudent: StudentsController::sendApprovedExcuseLetterToTeachers (app/Http/Controllers/StudentsController.php)
     private function teacherUsersForStudent(Students $student, ?StudentEnrollment $enrollment = null)
     {
         $sectionId = $enrollment?->section_id ?? $student->section_id;
@@ -1363,6 +1514,8 @@ class StudentsController
             ->get();
     }
 
+    // @function teacherSuggestionPayload: Binubuo ang teacher suggestion payload value.
+    // @useIn teacherSuggestionPayload: StudentsController::portalExcuseLetters (app/Http/Controllers/StudentsController.php)
     private function teacherSuggestionPayload(Students $student, ?StudentEnrollment $enrollment = null)
     {
         return $this->teacherUsersForStudent($student, $enrollment)
@@ -1375,6 +1528,8 @@ class StudentsController
             ->values();
     }
 
+    // @function validTeacherRecipientIds: Kinukuha ang valid teacher recipient ids result para sa Students.
+    // @useIn validTeacherRecipientIds: StudentsController::storePortalExcuseLetter (app/Http/Controllers/StudentsController.php)
     private function validTeacherRecipientIds(Students $student, array $recipientIds, ?StudentEnrollment $enrollment = null): ?array
     {
         $validIds = $this->teacherUsersForStudent($student, $enrollment)
@@ -1398,6 +1553,8 @@ class StudentsController
         return $selectedIds === [] ? null : $selectedIds;
     }
 
+    // @function approvedExcuseLetterMessageBody: Binubuo ang approved excuse letter message body string para sa Students.
+    // @useIn approvedExcuseLetterMessageBody: StudentsController::sendApprovedExcuseLetterToTeachers (app/Http/Controllers/StudentsController.php)
     private function approvedExcuseLetterMessageBody(StudentExcuseLetter $letter, Students $student, User $sender): string
     {
         $studentName = trim($student->first_name.' '.$student->last_name);
@@ -1418,6 +1575,8 @@ class StudentsController
         ])));
     }
 
+    // @function storedAttachmentMime: Binubuo ang stored attachment mime string para sa Students.
+    // @useIn storedAttachmentMime: StudentsController::sendApprovedExcuseLetterToTeachers (app/Http/Controllers/StudentsController.php)
     private function storedAttachmentMime(?string $path): ?string
     {
         return $path && Storage::disk('public')->exists($path)
@@ -1425,6 +1584,8 @@ class StudentsController
             : null;
     }
 
+    // @function storedAttachmentSize: Kinukuha ang stored attachment size result para sa Students.
+    // @useIn storedAttachmentSize: StudentsController::sendApprovedExcuseLetterToTeachers (app/Http/Controllers/StudentsController.php)
     private function storedAttachmentSize(?string $path): ?int
     {
         return $path && Storage::disk('public')->exists($path)
@@ -1432,6 +1593,8 @@ class StudentsController
             : null;
     }
 
+    // @function attendanceQuery: Binubuo ang attendance query database query.
+    // @useIn attendanceQuery: StudentsController::combinedAttendancePayloads (app/Http/Controllers/StudentsController.php)
     private function attendanceQuery(?Students $student, ?StudentEnrollment $enrollment = null)
     {
         return $student
@@ -1441,6 +1604,8 @@ class StudentsController
             : Students::query()->whereRaw('1 = 0');
     }
 
+    // @function attendancePayload: Binubuo ang attendance payload value.
+    // @useIn attendancePayload: StudentsController::combinedAttendancePayloads (app/Http/Controllers/StudentsController.php)
     private function attendancePayload($attendance): array
     {
         $sessionId = DB::table('attendance_sessions')
@@ -1514,6 +1679,8 @@ class StudentsController
         ];
     }
 
+    // @function combinedAttendancePayloads: Kinukuha ang combined attendance payloads result para sa Students.
+    // @useIn combinedAttendancePayloads: StudentsController::portalDashboard (app/Http/Controllers/StudentsController.php)
     private function combinedAttendancePayloads(?Students $student, ?StudentEnrollment $enrollment = null)
     {
         if (! $student) {
@@ -1567,6 +1734,8 @@ class StudentsController
             ->values();
     }
 
+    // @function onlineAttendancePayload: Binubuo ang online attendance payload value.
+    // @useIn onlineAttendancePayload: StudentsController::combinedAttendancePayloads (app/Http/Controllers/StudentsController.php)
     private function onlineAttendancePayload(object $attendance): array
     {
         $joinedAt = $attendance->joined_at ? \Carbon\Carbon::parse($attendance->joined_at) : null;
@@ -1620,6 +1789,8 @@ class StudentsController
         ];
     }
 
+    // @function tapRoomStatus: Binubuo ang tap room status string para sa Students.
+    // @useIn tapRoomStatus: StudentsController::attendancePayload (app/Http/Controllers/StudentsController.php)
     private function tapRoomStatus(?string $tapType): string
     {
         return match ($tapType) {
@@ -1629,6 +1800,8 @@ class StudentsController
         };
     }
 
+    // @function shortTime: Binubuo ang short time string para sa Students.
+    // @useIn shortTime: StudentsController::attendancePayload (app/Http/Controllers/StudentsController.php)
     private function shortTime($value): ?string
     {
         if (! $value) {
@@ -1638,6 +1811,8 @@ class StudentsController
         return date('g:i A', strtotime((string) $value));
     }
 
+    // @function durationLabel: Binubuo ang duration label string para sa Students.
+    // @useIn durationLabel: StudentsController::attendancePayload (app/Http/Controllers/StudentsController.php)
     private function durationLabel($start, $end): ?string
     {
         if (! $start || ! $end) {
@@ -1651,6 +1826,8 @@ class StudentsController
         return trim(($hours ? "{$hours}h " : '').($minutes ? "{$minutes}m" : '')) ?: '0m';
     }
 
+    // @function messageQuery: Binubuo ang message query database query.
+    // @useIn messageQuery: StudentsController::portalDashboard (app/Http/Controllers/StudentsController.php)
     private function messageQuery(Request $request, Students $student)
     {
         $userId = (int) $request->user()?->user_id;
@@ -1666,6 +1843,8 @@ class StudentsController
             ->latest();
     }
 
+    // @function messagePayload: Binubuo ang message payload value.
+    // @useIn messagePayload: StudentsController::portalDashboard (app/Http/Controllers/StudentsController.php)
     private function messagePayload(StudentPortalMessage $message): array
     {
         return [
@@ -1687,6 +1866,8 @@ class StudentsController
         ];
     }
 
+    // @function letterPayload: Binubuo ang letter payload value.
+    // @useIn letterPayload: StudentsController::portalExcuseLetters (app/Http/Controllers/StudentsController.php)
     private function letterPayload(StudentExcuseLetter $letter, ?Request $request = null): array
     {
         $role = strtolower((string) $request?->user()?->role);

@@ -1,4 +1,6 @@
 <?php
+// FEATURE:clinic-records - konektadong model, service, route, o UI para sa feature na ito.
+// FEATURE:clinic-dispatch - konektadong model, service, route, o UI para sa feature na ito.
 
 namespace App\Models;
 
@@ -31,11 +33,15 @@ class ClinicCase extends Model
         'occurred_at' => 'datetime',
     ];
 
+    // @function alert: Ibinabalik ang alert Eloquent belongsTo relationship.
+    // @useIn alert: Eloquent relationship property at eager loading
     public function alert(): BelongsTo
     {
         return $this->belongsTo(EmergencyAlert::class, 'emergency_alert_id', 'emergency_alert_id');
     }
 
+    // @function assignedResponder: Ibinabalik ang assigned responder Eloquent belongsTo relationship.
+    // @useIn assignedResponder: Eloquent relationship property at eager loading
     public function assignedResponder(): BelongsTo
     {
         return $this->belongsTo(User::class, 'handled_by_user_id', 'user_id');

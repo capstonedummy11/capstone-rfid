@@ -1,4 +1,5 @@
 <?php
+// FEATURE:authentication - konektadong model, service, route, o UI para sa feature na ito.
 
 namespace App\Http\Middleware;
 
@@ -10,6 +11,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsureAuthenticatedSessionIdentity
 {
+    // @function handle: Pinoproseso ang request o event para sa Ensure Authenticated Session Identity.
+    // @useIn handle: Laravel web middleware pipeline
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();

@@ -22,6 +22,8 @@ const form = useForm({
 });
 const isSubmitting = ref(false);
 
+// @function submit: Isinusumite ang reset password sa Reset Password flow.
+// @useIn submit: resources/js/pages/Auth/ResetPassword.vue template
 const submit = () => {
     if (isSubmitting.value) return;
 

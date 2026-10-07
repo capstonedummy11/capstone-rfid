@@ -10,6 +10,8 @@ class ProfileUpdateRequest extends FormRequest
 {
     use ProfileValidationRules;
 
+    // @function rules: Kinukuha ang rules result para sa Profile Update Request.
+    // @useIn rules: Laravel FormRequest validation lifecycle
     /**
      * Get the validation rules that apply to the request.
      *

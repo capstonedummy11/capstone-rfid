@@ -17,6 +17,8 @@ class OnlineClassAttachment extends Model
         'file_size',
     ];
 
+    // @function onlineClass: Ibinabalik ang online class Eloquent belongsTo relationship.
+    // @useIn onlineClass: Eloquent relationship property at eager loading
     public function onlineClass(): BelongsTo
     {
         return $this->belongsTo(OnlineClass::class, 'online_class_id', 'online_class_id');

@@ -13,11 +13,25 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReportController
 {
+    // @function index: Ibinabalik ang Reports/Index page at data para sa request.
+    // @useIn index: routes/web.php:141 (reports.index)
+    /**
+     * @feature   Reports and Exports
+     * @actor     Shared / Core
+     * @flow      Dito fina-filter at ine-export ang role-scoped reports.
+     * @uses      resources/js/pages/Reports/Index.vue; routes/web.php: ReportController::index, ReportController::export
+     * @related   Authentication, Attendance, Reports
+     * @disable   1) I-comment out ang routes/web.php: ReportController::index, ReportController::export.
+     * @disable   2) Itago ang action sa resources/js/pages/Reports/Index.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/ReportController.php: ReportController::index matapos alisin ang routes. Side effect: mawawala ang reports and exports.
+     */
     public function index(Request $request)
     {
         return Inertia::render('Reports/Index', $this->reportPayload($request));
     }
 
+    // @function export: Ine-export ang report sa Report flow.
+    // @useIn export: routes/web.php:143 (reports.export)
     public function export(Request $request): StreamedResponse
     {
         $payload = $this->reportPayload($request);
@@ -47,6 +61,8 @@ class ReportController
         }, $filename, ['Content-Type' => 'text/csv']);
     }
 
+    // @function reportPayload: Binubuo ang report payload value.
+    // @useIn reportPayload: ReportController::index (app/Http/Controllers/ReportController.php)
     private function reportPayload(Request $request): array
     {
         $role = strtolower((string) $request->user()?->role);
@@ -67,6 +83,8 @@ class ReportController
         };
     }
 
+    // @function adminReport: Kinukuha ang admin report result para sa Report.
+    // @useIn adminReport: ReportController::reportPayload (app/Http/Controllers/ReportController.php)
     private function adminReport(array $filters): array
     {
         $charts = [
@@ -90,6 +108,8 @@ class ReportController
         ], $charts, $filters);
     }
 
+    // @function clinicReport: Kinukuha ang clinic report result para sa Report.
+    // @useIn clinicReport: ReportController::reportPayload (app/Http/Controllers/ReportController.php)
     private function clinicReport(array $filters): array
     {
         $charts = [
@@ -111,6 +131,8 @@ class ReportController
         ], $charts, $filters);
     }
 
+    // @function registrarReport: Kinukuha ang registrar report result para sa Report.
+    // @useIn registrarReport: ReportController::reportPayload (app/Http/Controllers/ReportController.php)
     private function registrarReport(array $filters): array
     {
         $strandRows = $this->joinedStudentGroup('strands', 'strand_id', 'strand_code', $filters);
@@ -134,6 +156,8 @@ class ReportController
         ], $charts, $filters);
     }
 
+    // @function instructorReport: Kinukuha ang instructor report result para sa Report.
+    // @useIn instructorReport: ReportController::reportPayload (app/Http/Controllers/ReportController.php)
     private function instructorReport(Request $request, array $filters): array
     {
         $instructorId = $this->instructorId((int) $request->user()->user_id);
@@ -163,6 +187,8 @@ class ReportController
         ], $charts, $filters);
     }
 
+    // @function studentReport: Kinukuha ang student report result para sa Report.
+    // @useIn studentReport: ReportController::reportPayload (app/Http/Controllers/ReportController.php)
     private function studentReport(Request $request, array $filters): array
     {
         $studentIds = $this->studentIdsForUser($request);
@@ -189,6 +215,8 @@ class ReportController
         ], $charts, $filters);
     }
 
+    // @function parentReport: Kinukuha ang parent report result para sa Report.
+    // @useIn parentReport: ReportController::reportPayload (app/Http/Controllers/ReportController.php)
     private function parentReport(Request $request, array $filters): array
     {
         $studentIds = $this->studentIdsForUser($request);
@@ -215,6 +243,8 @@ class ReportController
         ], $charts, $filters);
     }
 
+    // @function payload: Kinukuha ang payload result para sa Report.
+    // @useIn payload: ReportController::adminReport (app/Http/Controllers/ReportController.php)
     private function payload(string $role, string $title, array $summaryCards, array $charts, array $filters): array
     {
         return [
@@ -231,11 +261,15 @@ class ReportController
         ];
     }
 
+    // @function card: Kinukuha ang card result para sa Report.
+    // @useIn card: ReportController::adminReport (app/Http/Controllers/ReportController.php)
     private function card(string $label, int $value, ?string $detail = null): array
     {
         return compact('label', 'value', 'detail');
     }
 
+    // @function chart: Kinukuha ang chart result para sa Report.
+    // @useIn chart: ReportController::adminReport (app/Http/Controllers/ReportController.php)
     private function chart(string $title, array $data, string $type = 'bar'): array
     {
         return [
@@ -245,6 +279,8 @@ class ReportController
         ];
     }
 
+    // @function grouped: Kinukuha ang grouped result para sa Report.
+    // @useIn grouped: ReportController::adminReport (app/Http/Controllers/ReportController.php)
     private function grouped(string $table, string $column, array $filters = [], string $dateColumn = 'created_at', ?Closure $scope = null): array
     {
         if (! Schema::hasTable($table) || ! Schema::hasColumn($table, $column)) {
@@ -273,6 +309,8 @@ class ReportController
             ->all();
     }
 
+    // @function dateSeries: Kinukuha ang date series result para sa Report.
+    // @useIn dateSeries: ReportController::adminReport (app/Http/Controllers/ReportController.php)
     private function dateSeries(string $table, string $dateColumn, array $filters = [], ?Closure $scope = null): array
     {
         if (! Schema::hasTable($table) || ! Schema::hasColumn($table, $dateColumn)) {
@@ -303,6 +341,8 @@ class ReportController
             ->all();
     }
 
+    // @function joinedStudentGroup: Kinukuha ang joined student group result para sa Report.
+    // @useIn joinedStudentGroup: ReportController::registrarReport (app/Http/Controllers/ReportController.php)
     private function joinedStudentGroup(string $joinTable, string $key, string $labelColumn, array $filters = []): array
     {
         if (! Schema::hasTable('students') || ! Schema::hasTable($joinTable)) {
@@ -328,6 +368,8 @@ class ReportController
             ->all();
     }
 
+    // @function countTable: Binibilang ang table sa Report flow.
+    // @useIn countTable: ReportController::adminReport (app/Http/Controllers/ReportController.php)
     private function countTable(string $table, array $filters = [], string $dateColumn = 'created_at', ?Closure $scope = null): int
     {
         if (! Schema::hasTable($table)) {
@@ -346,6 +388,8 @@ class ReportController
         return (int) $query->count();
     }
 
+    // @function applyDateRange: Inilalapat ang date range sa Report flow.
+    // @useIn applyDateRange: ReportController::grouped (app/Http/Controllers/ReportController.php)
     private function applyDateRange(Builder $query, string $table, array $filters, string $dateColumn): void
     {
         if (! $dateColumn || ! Schema::hasColumn($table, $dateColumn)) {
@@ -361,6 +405,8 @@ class ReportController
         }
     }
 
+    // @function applyAcademicYear: Inilalapat ang academic year sa Report flow.
+    // @useIn applyAcademicYear: ReportController::grouped (app/Http/Controllers/ReportController.php)
     private function applyAcademicYear(Builder $query, string $table, array $filters): void
     {
         $yearId = $filters['academic_year_id'] ?? null;
@@ -402,6 +448,8 @@ class ReportController
         }
     }
 
+    // @function resolvedAcademicYearId: Kinukuha ang resolved academic year id result para sa Report.
+    // @useIn resolvedAcademicYearId: ReportController::reportPayload (app/Http/Controllers/ReportController.php)
     private function resolvedAcademicYearId(Request $request, string $role): int|string|null
     {
         $requested = $request->input('academic_year_id');
@@ -423,6 +471,8 @@ class ReportController
         return $yearId;
     }
 
+    // @function withoutDeleted: Pinoproseso ang without deleted para sa Report.
+    // @useIn withoutDeleted: ReportController::grouped (app/Http/Controllers/ReportController.php)
     private function withoutDeleted(Builder $query, string $table): void
     {
         if (Schema::hasColumn($table, 'deleted_at')) {
@@ -430,6 +480,8 @@ class ReportController
         }
     }
 
+    // @function tableRows: Binubuo ang table rows value.
+    // @useIn tableRows: ReportController::payload (app/Http/Controllers/ReportController.php)
     private function tableRows(array $charts): array
     {
         $rows = [];
@@ -448,6 +500,8 @@ class ReportController
         return $rows;
     }
 
+    // @function instructorId: Kinukuha ang instructor id result para sa Report.
+    // @useIn instructorId: ReportController::instructorReport (app/Http/Controllers/ReportController.php)
     private function instructorId(int $userId): ?int
     {
         if (! Schema::hasTable('instructors')) {
@@ -457,6 +511,8 @@ class ReportController
         return DB::table('instructors')->whereNull('instructors.deleted_at')->where('user_id', $userId)->value('instructor_id');
     }
 
+    // @function scheduleIdsForInstructor: Kinukuha ang schedule ids for instructor result para sa Report.
+    // @useIn scheduleIdsForInstructor: ReportController::instructorReport (app/Http/Controllers/ReportController.php)
     private function scheduleIdsForInstructor(?int $instructorId): array
     {
         if (! $instructorId || ! Schema::hasTable('schedules') || ! Schema::hasColumn('schedules', 'instructor_id')) {
@@ -469,6 +525,8 @@ class ReportController
             ->all();
     }
 
+    // @function handledSections: Kinukuha ang handled sections result para sa Report.
+    // @useIn handledSections: ReportController::instructorReport (app/Http/Controllers/ReportController.php)
     private function handledSections(?int $instructorId): int
     {
         if (! $instructorId || ! Schema::hasTable('schedules') || ! Schema::hasColumn('schedules', 'instructor_id')) {
@@ -481,6 +539,8 @@ class ReportController
             ->count('section_id');
     }
 
+    // @function onlineClassIdsForInstructor: Kinukuha ang online class ids for instructor result para sa Report.
+    // @useIn onlineClassIdsForInstructor: ReportController::instructorReport (app/Http/Controllers/ReportController.php)
     private function onlineClassIdsForInstructor(?int $instructorId): array
     {
         if (! $instructorId || ! Schema::hasTable('online_classes') || ! Schema::hasColumn('online_classes', 'instructor_id')) {
@@ -494,6 +554,8 @@ class ReportController
             ->all();
     }
 
+    // @function studentIdsForUser: Kinukuha ang student ids for user result para sa Report.
+    // @useIn studentIdsForUser: ReportController::studentReport (app/Http/Controllers/ReportController.php)
     private function studentIdsForUser(Request $request): array
     {
         $user = $request->user();
@@ -527,6 +589,8 @@ class ReportController
             ->all();
     }
 
+    // @function sectionIdsForStudents: Kinukuha ang section ids for students result para sa Report.
+    // @useIn sectionIdsForStudents: ReportController::studentReport (app/Http/Controllers/ReportController.php)
     private function sectionIdsForStudents(array $studentIds, int|string|null $academicYearId = null): array
     {
         if (! $studentIds || ! Schema::hasTable('students') || ! Schema::hasColumn('students', 'section_id')) {
@@ -545,6 +609,8 @@ class ReportController
             ->all();
     }
 
+    // @function label: Binubuo ang label string para sa Report.
+    // @useIn label: ReportController::grouped (app/Http/Controllers/ReportController.php)
     private function label(string $value): string
     {
         return trim(ucwords(str_replace(['_', '-'], ' ', $value))) ?: 'Unspecified';

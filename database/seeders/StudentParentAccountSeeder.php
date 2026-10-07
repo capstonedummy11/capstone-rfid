@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Hash;
 
 class StudentParentAccountSeeder extends Seeder
 {
+    // @function run: Pinapatakbo ang Student Parent Account Seeder task.
+    // @useIn run: php artisan db:seed
     /**
      * Run the database seeds.
      */
@@ -82,6 +84,8 @@ class StudentParentAccountSeeder extends Seeder
         $this->command?->info('Linked parent account to student: '.$student->student_number);
     }
 
+    // @function resolveStudent: Hinahanap ang student sa Student Parent Account Seeder flow.
+    // @useIn resolveStudent: StudentParentAccountSeeder::run (database/seeders/StudentParentAccountSeeder.php)
     private function resolveStudent(): Students
     {
         $student = Students::query()
@@ -138,6 +142,8 @@ class StudentParentAccountSeeder extends Seeder
         );
     }
 
+    // @function resolveSecondStudent: Hinahanap ang second student sa Student Parent Account Seeder flow.
+    // @useIn resolveSecondStudent: StudentParentAccountSeeder::run (database/seeders/StudentParentAccountSeeder.php)
     private function resolveSecondStudent(Students $fallbackStudent): Students
     {
         $student = Students::query()

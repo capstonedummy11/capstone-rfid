@@ -21,11 +21,15 @@ class Inventory extends Model
         'quantity',
     ];
 
+    // @function item: Ibinabalik ang item Eloquent belongsTo relationship.
+    // @useIn item: Eloquent relationship property at eager loading
     public function item(): BelongsTo
     {
         return $this->belongsTo(Device::class, 'item_id', 'item_id');
     }
 
+    // @function transactions: Ibinabalik ang transactions Eloquent hasMany relationship.
+    // @useIn transactions: Eloquent relationship property at eager loading
     public function transactions(): HasMany
     {
         return $this->hasMany(Transaction::class, 'inventory_id', 'inventory_id');

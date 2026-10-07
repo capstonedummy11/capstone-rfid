@@ -9,6 +9,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsureParentPortalEnabled
 {
+    // @function handle: Pinoproseso ang request o event para sa Ensure Parent Portal Enabled.
+    // @useIn handle: Laravel web middleware pipeline
     public function handle(Request $request, Closure $next): Response
     {
         $isParent = strtolower(trim((string) $request->user()?->role)) === 'parent';

@@ -14,6 +14,8 @@ use Inertia\Inertia;
 
 class InstructorsController
 {
+    // @function index: Wala pang implementasyon ang legacy index placeholder.
+    // @useIn index: TODO(verify): walang direct caller na nakita sa static search
     /**
      * Display a listing of the resource.
      */
@@ -24,6 +26,18 @@ class InstructorsController
 
     /**
      * Display admin listing of the resource.
+     */
+    // @function indexAdmin: Ibinabalik ang Auth/Admin/Instructors page at data para sa request.
+    // @useIn indexAdmin: routes/web.php:420 (instructors.index)
+    /**
+     * @feature   Instructor Management
+     * @actor     Admin
+     * @flow      Dito minamanage ang Instructor records at account recovery.
+     * @uses      resources/js/pages/Auth/Admin/Instructors.vue; routes/web.php: InstructorsController::indexAdmin, InstructorsController::store, InstructorsController::update, InstructorsController::destroy, InstructorsController::resetPassword
+     * @related   Admin workspace
+     * @disable   1) I-comment out ang routes/web.php: InstructorsController::indexAdmin, InstructorsController::store, InstructorsController::update, InstructorsController::destroy, InstructorsController::resetPassword.
+     * @disable   2) Itago ang action sa resources/js/pages/Auth/Admin/Instructors.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/InstructorsController.php: InstructorsController::indexAdmin matapos alisin ang routes. Side effect: mawawala ang instructor management.
      */
     public function indexAdmin(Request $request)
     {
@@ -104,6 +118,8 @@ class InstructorsController
         ]);
     }
 
+    // @function create: Inihahanda ang create form o page.
+    // @useIn create: InstructorsController::store (app/Http/Controllers/InstructorsController.php)
     /**
      * Show the form for creating a new resource.
      */
@@ -112,6 +128,8 @@ class InstructorsController
         //
     }
 
+    // @function store: Pinoproseso ang bagong Instructors record.
+    // @useIn store: routes/web.php:422 (instructors.store)
     /**
      * Store a newly created resource in storage.
      */
@@ -161,6 +179,8 @@ class InstructorsController
         );
     }
 
+    // @function show: Ibinabalik ang detalye ng napiling record.
+    // @useIn show: TODO(verify): walang direct caller na nakita sa static search
     /**
      * Display the specified resource.
      */
@@ -169,6 +189,8 @@ class InstructorsController
         //
     }
 
+    // @function edit: Inihahanda ang edit form o page.
+    // @useIn edit: TODO(verify): walang direct caller na nakita sa static search
     /**
      * Show the form for editing the specified resource.
      */
@@ -177,6 +199,8 @@ class InstructorsController
         //
     }
 
+    // @function update: Pinoproseso ang pagbabago sa Instructors record.
+    // @useIn update: routes/web.php:424 (instructors.update)
     /**
      * Update the specified resource in storage.
      */
@@ -219,6 +243,8 @@ class InstructorsController
         return back()->with('success', 'Instructor updated successfully.');
     }
 
+    // @function resetPassword: Nire-reset ang password sa Instructors flow.
+    // @useIn resetPassword: routes/web.php:426 (instructors.password.reset-default)
     public function resetPassword(int $id)
     {
         $instructor = Instructor::query()->with('user')->findOrFail($id);
@@ -249,6 +275,8 @@ class InstructorsController
         );
     }
 
+    // @function resetSecurityQuestions: Nire-reset ang security questions sa Instructors flow.
+    // @useIn resetSecurityQuestions: routes/web.php:428 (instructors.security-questions.reset)
     public function resetSecurityQuestions(int $id)
     {
         $instructor = Instructor::query()->with('user')->findOrFail($id);
@@ -275,6 +303,8 @@ class InstructorsController
         );
     }
 
+    // @function destroy: Pinoproseso ang pagtanggal ng Instructors record.
+    // @useIn destroy: routes/web.php:431 (instructors.destroy)
     /**
      * Remove the specified resource from storage.
      */
@@ -290,6 +320,8 @@ class InstructorsController
         return back()->with('success', 'Instructor deleted successfully.');
     }
 
+    // @function defaultPassword: Binubuo ang default password string para sa Instructors.
+    // @useIn defaultPassword: InstructorsController::store (app/Http/Controllers/InstructorsController.php)
     private function defaultPassword(string $firstName, string $lastName): string
     {
         return Str::lower(preg_replace('/\s+/u', '', $firstName.$lastName) ?? '');

@@ -42,6 +42,8 @@ const filteredInstructors = computed(() => {
     );
 });
 
+// @function conversationPartner: Kinukuha ang conversation partner result para sa Messages.
+// @useIn conversationPartner: resources/js/pages/StudentParent/Messages.vue:61
 const conversationPartner = (message) => {
     const senderIsMe = Number(message.sender_user_id) === currentUserId.value;
 
@@ -105,6 +107,8 @@ const selectedConversation = computed(
         ) ?? null,
 );
 
+// @function selectRecipient: Pinipili ang recipient sa Messages flow.
+// @useIn selectRecipient: resources/js/pages/StudentParent/Messages.vue template @click
 const selectRecipient = (instructor) => {
     recipientSearch.value = '';
     selectedRecipient.value = instructor;
@@ -114,12 +118,16 @@ const selectRecipient = (instructor) => {
     form.attachment = null;
 };
 
+// @function selectConversation: Pinipili ang conversation sa Messages flow.
+// @useIn selectConversation: resources/js/pages/StudentParent/Messages.vue template @click
 const selectConversation = (conversation) => {
     selectedConversationKey.value = conversation.key;
     selectedRecipient.value = null;
     form.instructor_user_id = conversation.partner.id;
 };
 
+// @function sendMessage: Ipinapadala ang message sa Messages flow.
+// @useIn sendMessage: resources/js/pages/StudentParent/Messages.vue template
 const sendMessage = () => {
     form.post(route('student-parent.messages.store'), {
         forceFormData: true,

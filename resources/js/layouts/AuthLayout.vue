@@ -25,6 +25,8 @@ const latestUnreadMessageId = ref(null);
 let messagePollTimer = null;
 let messagePollingInitialized = false;
 
+// @function pollUnreadMessages: Kinukuha ang poll unread messages result para sa Auth Layout.
+// @useIn pollUnreadMessages: resources/js/layouts/AuthLayout.vue:70
 const pollUnreadMessages = async (notify = true) => {
     try {
         const response = await fetch(route('messages.unread-status'), {

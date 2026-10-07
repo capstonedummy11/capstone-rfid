@@ -18,6 +18,8 @@ use Illuminate\Support\Facades\Hash;
 
 class SeniorHighAcademicSeeder extends Seeder
 {
+    // @function run: Pinapatakbo ang Senior High Academic Seeder task.
+    // @useIn run: php artisan db:seed
     /**
      * Seed sample senior high sections, laboratories, subjects, and instructor schedules.
      */

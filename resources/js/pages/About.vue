@@ -200,6 +200,8 @@ const developers = ref([
     },
 ]);
 
+// @function revealEasterEgg: Ipinapakita ang easter egg sa About flow.
+// @useIn revealEasterEgg: resources/js/pages/About.vue template @click
 function revealEasterEgg(developer) {
     if (developer.revealed) {
         return;

@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Hash;
 
 class EmergencySeeder extends Seeder
 {
+    // @function run: Pinapatakbo ang Emergency Seeder task.
+    // @useIn run: php artisan db:seed
     public function run(): void
     {
         User::updateOrCreate(

@@ -7,6 +7,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class RootTransferResource extends JsonResource
 {
+    // @function toArray: Kinukuha ang to array result para sa Root Transfer Resource.
+    // @useIn toArray: Laravel JSON resource serialization
     public function toArray(Request $request): array
     {
         return [

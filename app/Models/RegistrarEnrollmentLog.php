@@ -16,6 +16,8 @@ class RegistrarEnrollmentLog extends Model
         'identifier',
     ];
 
+    // @function registrar: Ibinabalik ang registrar Eloquent belongsTo relationship.
+    // @useIn registrar: Eloquent relationship property at eager loading
     public function registrar(): BelongsTo
     {
         return $this->belongsTo(User::class, 'registrar_user_id', 'user_id');

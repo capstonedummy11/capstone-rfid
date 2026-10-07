@@ -1,3 +1,4 @@
+// FEATURE:face-liveness - UI para sa face liveness.
 import { FaceLivenessDetector } from '@aws-amplify/ui-react-liveness';
 import '@aws-amplify/ui-react/styles.css';
 import { Amplify } from 'aws-amplify';
@@ -18,6 +19,8 @@ type SessionResponse = {
 
 export class FaceLivenessError extends Error {}
 
+// @function livenessFailureMessage: Kinukuha ang liveness failure message result para sa face Liveness.
+// @useIn livenessFailureMessage: resources/js/lib/faceLiveness.tsx:110
 const livenessFailureMessage = (
     payload: Record<string, unknown>,
     httpStatus: number,
@@ -53,6 +56,8 @@ const livenessFailureMessage = (
     return `${message} Test details: ${details.join(', ')}.`;
 };
 
+// @function xsrfToken: Kinukuha ang xsrf token result para sa face Liveness.
+// @useIn xsrfToken: resources/js/lib/faceLiveness.tsx:75
 const xsrfToken = () => {
     const encodedToken = document.cookie
         .split('; ')
@@ -64,6 +69,8 @@ const xsrfToken = () => {
     return encodedToken ? decodeURIComponent(encodedToken) : '';
 };
 
+// @function requestJson: Kinukuha ang request json result para sa face Liveness.
+// @useIn requestJson: resources/js/lib/faceLiveness.tsx:101
 async function requestJson(url: string, body: object) {
     const response = await fetch(url, {
         method: 'POST',
@@ -80,6 +87,8 @@ async function requestJson(url: string, body: object) {
     return { response, payload };
 }
 
+// @function LivenessDialog: Kinukuha ang liveness dialog result para sa face Liveness.
+// @useIn LivenessDialog: resources/js/lib/faceLiveness.tsx:285
 function LivenessDialog({
     session,
     finish,
@@ -92,6 +101,8 @@ function LivenessDialog({
     const [message, setMessage] = React.useState('');
     const completing = React.useRef(false);
 
+    // @function complete: Kinukuha ang complete result para sa face Liveness.
+    // @useIn complete: resources/js/lib/faceLiveness.tsx:174
     const complete = async () => {
         if (completing.current) return;
         completing.current = true;
@@ -228,6 +239,8 @@ function LivenessDialog({
     );
 }
 
+// @function runFaceLiveness: Pinapatakbo ang face liveness sa face Liveness flow.
+// @useIn runFaceLiveness: resources/js/pages/StudentParent/OnlineClasses.vue
 export async function runFaceLiveness({
     purpose,
     subjectKey,
@@ -267,6 +280,8 @@ export async function runFaceLiveness({
 
     return new Promise<string>((resolve, reject) => {
         let finished = false;
+        // @function finish: Kinukuha ang finish result para sa face Liveness.
+        // @useIn finish: resources/js/lib/faceLiveness.tsx:107
         const finish = (token?: string, error?: Error) => {
             if (finished) return;
             finished = true;

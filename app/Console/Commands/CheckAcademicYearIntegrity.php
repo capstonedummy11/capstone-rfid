@@ -11,6 +11,8 @@ class CheckAcademicYearIntegrity extends Command
     protected $signature = 'academic-years:check-integrity {--json : Emit machine-readable JSON}';
     protected $description = 'Reconcile academic-year foreign keys, enrollment compatibility, and active-year invariants.';
 
+    // @function handle: Pinoproseso ang request o event para sa Check Academic Year Integrity.
+    // @useIn handle: Artisan command na nakarehistro sa Laravel console
     public function handle(): int
     {
         $checks = [
@@ -34,6 +36,8 @@ class CheckAcademicYearIntegrity extends Command
         return $errors->isEmpty() ? self::SUCCESS : self::FAILURE;
     }
 
+    // @function orphanChecks: Kinukuha ang orphan checks result para sa Check Academic Year Integrity.
+    // @useIn orphanChecks: CheckAcademicYearIntegrity::handle (app/Console/Commands/CheckAcademicYearIntegrity.php)
     private function orphanChecks(): array
     {
         $relations = [
@@ -56,6 +60,8 @@ class CheckAcademicYearIntegrity extends Command
             })->values()->all();
     }
 
+    // @function check: Sini-check ang check academic year integrity sa Check Academic Year Integrity flow.
+    // @useIn check: CheckAcademicYearIntegrity::handle (app/Console/Commands/CheckAcademicYearIntegrity.php)
     private function check(string $name, int $count, string $description): array
     {
         return compact('name', 'count', 'description');

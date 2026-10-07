@@ -36,11 +36,15 @@ const displayedPhotoUrl = computed(() => {
     return localPhotoUrl.value || user.value?.profile_photo_url || null;
 });
 
+// @function clearLocalPhotoUrl: Nililinis ang local photo url sa Profile flow.
+// @useIn clearLocalPhotoUrl: resources/js/pages/settings/Profile.vue:46
 const clearLocalPhotoUrl = () => {
     if (localPhotoUrl.value) URL.revokeObjectURL(localPhotoUrl.value);
     localPhotoUrl.value = null;
 };
 
+// @function selectPhoto: Pinipili ang photo sa Profile flow.
+// @useIn selectPhoto: resources/js/pages/settings/Profile.vue template @change
 const selectPhoto = (event) => {
     const file = event.target.files?.[0] || null;
     clearLocalPhotoUrl();
@@ -51,6 +55,8 @@ const selectPhoto = (event) => {
     if (file) localPhotoUrl.value = URL.createObjectURL(file);
 };
 
+// @function removePhoto: Tinatanggal ang photo sa Profile flow.
+// @useIn removePhoto: resources/js/pages/settings/Profile.vue template @click
 const removePhoto = () => {
     clearLocalPhotoUrl();
     form.profile_photo = null;
@@ -58,6 +64,8 @@ const removePhoto = () => {
     if (photoInput.value) photoInput.value.value = '';
 };
 
+// @function saveProfile: Sine-save ang profile sa Profile flow.
+// @useIn saveProfile: resources/js/pages/settings/Profile.vue template
 const saveProfile = () => {
     if (isSubmitting.value) return;
 

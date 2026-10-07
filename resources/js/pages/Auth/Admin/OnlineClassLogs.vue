@@ -1,3 +1,4 @@
+<!-- FEATURE:admin-logs - konektadong model, service, route, o UI para sa feature na ito. -->
 <script setup>
 import { router } from '@inertiajs/vue3';
 import { reactive } from 'vue';
@@ -21,10 +22,14 @@ const form = reactive({
     semester: props.filters.semester || '',
 });
 
+// @function applyFilters: Inilalapat ang filters sa Online Class Logs flow.
+// @useIn applyFilters: resources/js/pages/Auth/Admin/OnlineClassLogs.vue template
 const applyFilters = () => {
     router.get(route('admin.online-class-logs.index'), form, { preserveState: true, preserveScroll: true });
 };
 
+// @function exportCsv: Ine-export ang csv sa Online Class Logs flow.
+// @useIn exportCsv: resources/js/pages/Auth/Admin/OnlineClassLogs.vue template @click
 const exportCsv = () => {
     window.location.href = route('admin.online-class-logs.export', form);
 };

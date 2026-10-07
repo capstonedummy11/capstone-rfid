@@ -1,3 +1,5 @@
+<!-- FEATURE:messenger - UI para sa messenger and attachments. -->
+<!-- FEATURE:excuse-letter-review - UI para sa excuse letter review. -->
 <script setup>
 import LinkedStudentSelector from '@/components/StudentPortal/LinkedStudentSelector.vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
@@ -69,6 +71,8 @@ const filteredRecipients = computed(() => {
     );
 });
 
+// @function partnerFor: Kinukuha ang partner for result para sa Index.
+// @useIn partnerFor: resources/js/pages/Messages/Index.vue:89
 const partnerFor = (message) => {
     const senderIsMe = Number(message.sender_user_id) === currentUserId.value;
 
@@ -147,6 +151,8 @@ watch(
     { immediate: true },
 );
 
+// @function conversationForUser: Pinoproseso ang conversation for user para sa Index.
+// @useIn conversationForUser: resources/js/pages/Messages/Index.vue:184
 const conversationForUser = (userId) =>
     conversations.value.find(
         (conversation) => Number(conversation.partner.id) === Number(userId),
@@ -177,6 +183,8 @@ watch(
     { immediate: true },
 );
 
+// @function selectRecipient: Pinipili ang recipient sa Index flow.
+// @useIn selectRecipient: resources/js/pages/Messages/Index.vue template @click
 const selectRecipient = (recipient) => {
     search.value = '';
     const existingConversation = conversationForUser(recipient.user_id);
@@ -192,6 +200,8 @@ const selectRecipient = (recipient) => {
     clearAttachment();
 };
 
+// @function selectConversation: Pinipili ang conversation sa Index flow.
+// @useIn selectConversation: resources/js/pages/Messages/Index.vue template @click
 const selectConversation = (conversation) => {
     selectedConversationKey.value = conversation.key;
     selectedRecipient.value = null;
@@ -199,6 +209,8 @@ const selectConversation = (conversation) => {
     clearAttachment();
 };
 
+// @function sendMessage: Ipinapadala ang message sa Index flow.
+// @useIn sendMessage: resources/js/pages/Messages/Index.vue template
 const sendMessage = () => {
     const recipientId = form.recipient_user_id;
 
@@ -225,12 +237,16 @@ const sendMessage = () => {
     });
 };
 
+// @function roleLabel: Pinoproseso ang role label para sa Index.
+// @useIn roleLabel: resources/js/pages/Messages/Index.vue template
 const roleLabel = (role) =>
     String(role || '')
         .split('_')
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
         .join(' ');
 
+// @function formatBytes: Fino-format ang bytes sa Index flow.
+// @useIn formatBytes: resources/js/pages/Messages/Index.vue template
 const formatBytes = (bytes) => {
     const size = Number(bytes || 0);
     if (!size) return '';
@@ -239,6 +255,8 @@ const formatBytes = (bytes) => {
     return `${(size / 1024 / 1024).toFixed(1)} MB`;
 };
 
+// @function clearAttachment: Nililinis ang attachment sa Index flow.
+// @useIn clearAttachment: resources/js/pages/Messages/Index.vue template @click
 const clearAttachment = () => {
     form.attachment = null;
     if (fileInput.value) fileInput.value.value = '';
@@ -250,6 +268,8 @@ const forwardForm = useForm({
     body: '',
 });
 
+// @function canForwardToParent: Sinusuri kung forward to parent para sa Index.
+// @useIn canForwardToParent: resources/js/pages/Messages/Index.vue template
 const canForwardToParent = (message) =>
     ['admin', 'instructor'].includes(currentRole.value) &&
     Number(message.sender_user_id) !== currentUserId.value &&
@@ -272,18 +292,24 @@ const forwardSubject = computed(
     () => `Excuse Letter - ${forwardStudentName.value} - ${forwardDate.value}`,
 );
 
+// @function openForwardModal: Binubuksan ang forward modal sa Index flow.
+// @useIn openForwardModal: resources/js/pages/Messages/Index.vue template
 const openForwardModal = (message) => {
     forwardMessage.value = message;
     forwardForm.parent_user_id = message.parents?.[0]?.user_id || '';
     forwardForm.body = `Please find attached the excuse letter for your child.\n\nKindly review the attached document.\n\nRegards,\n${page.props.auth?.user?.name || 'School Staff'}`;
 };
 
+// @function closeForwardModal: Isinasara ang forward modal sa Index flow.
+// @useIn closeForwardModal: resources/js/pages/Messages/Index.vue template @click
 const closeForwardModal = () => {
     if (forwardForm.processing) return;
     forwardMessage.value = null;
     forwardForm.reset();
 };
 
+// @function sendForwardEmail: Ipinapadala ang forward email sa Index flow.
+// @useIn sendForwardEmail: resources/js/pages/Messages/Index.vue template
 const sendForwardEmail = () => {
     if (!forwardMessage.value) return;
 
@@ -310,6 +336,8 @@ const reviewDecisionLabel = computed(() =>
     reviewForm.decision === 'approved' ? 'Approve' : 'Deny',
 );
 
+// @function openReviewModal: Binubuksan ang review modal sa Index flow.
+// @useIn openReviewModal: resources/js/pages/Messages/Index.vue template
 const openReviewModal = (message, decision) => {
     const student = message.excuse_letter_review?.student;
     const parents = message.excuse_letter_review?.parents ?? [];
@@ -328,6 +356,8 @@ const openReviewModal = (message, decision) => {
     reviewForm.email_body = `Dear Student/Parent,\n\nThe excuse letter for ${studentName} has been ${result} by the instructor.\n\nSubject: ${message.subject}\n\nRegards,\n${page.props.auth?.user?.name || 'Instructor'}`;
 };
 
+// @function closeReviewModal: Isinasara ang review modal sa Index flow.
+// @useIn closeReviewModal: resources/js/pages/Messages/Index.vue template @click
 const closeReviewModal = () => {
     if (reviewForm.processing) return;
     reviewMessage.value = null;
@@ -335,6 +365,8 @@ const closeReviewModal = () => {
     reviewForm.clearErrors();
 };
 
+// @function submitReview: Isinusumite ang review sa Index flow.
+// @useIn submitReview: resources/js/pages/Messages/Index.vue template
 const submitReview = () => {
     if (!reviewMessage.value || reviewForm.recipients.length === 0) {
         reviewForm.setError(
@@ -355,6 +387,8 @@ const submitReview = () => {
     );
 };
 
+// @function reviewedStatusLabel: Kinukuha ang reviewed status label result para sa Index.
+// @useIn reviewedStatusLabel: resources/js/pages/Messages/Index.vue template
 const reviewedStatusLabel = (status) => {
     if (status === 'instructor_approved') return 'Instructor approved';
     if (status === 'instructor_denied') return 'Instructor denied';

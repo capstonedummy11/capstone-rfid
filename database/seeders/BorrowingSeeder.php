@@ -12,6 +12,8 @@ use Illuminate\Support\Carbon;
 
 class BorrowingSeeder extends Seeder
 {
+  // @function run: Pinapatakbo ang Borrowing Seeder task.
+  // @useIn run: php artisan db:seed
   public function run(): void
   {
     $students = Students::limit(5)->get();

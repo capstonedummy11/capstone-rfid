@@ -1,3 +1,6 @@
+<!-- FEATURE:emergency-alerts - UI para sa emergency alerts and delivery. -->
+<!-- FEATURE:console-borrowing - UI para sa console borrowing. -->
+<!-- FEATURE:rfid-attendance - UI para sa rfid attendance console. -->
 <script setup>
 defineOptions({
     layout: null,
@@ -183,12 +186,18 @@ const modeClass = computed(
 
 const attendanceCount = computed(() => attendanceRecords.value.length);
 
+// @function studentRecordKey: Binubuo ang student record key value.
+// @useIn studentRecordKey: resources/js/pages/AttendanceControlPanel.vue:193
 const studentRecordKey = (record) =>
     String(record?.student_id ?? record?.rfid ?? record?.id ?? '');
 
+// @function isStudentDetailsExpanded: Sinusuri kung student details expanded para sa Attendance Control Panel.
+// @useIn isStudentDetailsExpanded: resources/js/pages/AttendanceControlPanel.vue template
 const isStudentDetailsExpanded = (record) =>
     expandedAttendanceStudents.value[studentRecordKey(record)] === true;
 
+// @function toggleStudentDetails: Tina-toggle ang student details sa Attendance Control Panel flow.
+// @useIn toggleStudentDetails: resources/js/pages/AttendanceControlPanel.vue template @click
 const toggleStudentDetails = (record) => {
     const key = studentRecordKey(record);
     if (!key) return;
@@ -272,6 +281,8 @@ const borrowCatalogMap = computed(() => {
     return map;
 });
 
+// @function resolveBorrowItemsPayload: Hinahanap ang borrow items payload sa Attendance Control Panel flow.
+// @useIn resolveBorrowItemsPayload: resources/js/pages/AttendanceControlPanel.vue:289
 const resolveBorrowItemsPayload = (payload) => {
     if (Array.isArray(payload)) return payload;
     if (payload && typeof payload === 'object' && Array.isArray(payload.items))
@@ -302,6 +313,8 @@ const attendeesSlideVisible = computed(
     () => panelUnlocked.value && currentMode.value === 'attendance',
 );
 
+// @function updateClock: Ina-update ang clock sa Attendance Control Panel flow.
+// @useIn updateClock: resources/js/pages/AttendanceControlPanel.vue:2434
 const updateClock = () => {
     const now = new Date();
     currentDate.value = now.toLocaleDateString('en-US', {
@@ -318,6 +331,8 @@ const updateClock = () => {
     });
 };
 
+// @function pushHistory: Pinoproseso ang push history para sa Attendance Control Panel.
+// @useIn pushHistory: resources/js/pages/AttendanceControlPanel.vue:692
 const pushHistory = (title, subtitle, tone = 'neutral') => {
     scanHistory.value.unshift({
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -334,6 +349,8 @@ const pushHistory = (title, subtitle, tone = 'neutral') => {
     scanHistory.value = scanHistory.value.slice(0, 8);
 };
 
+// @function triggerPulse: Pinoproseso ang trigger pulse para sa Attendance Control Panel.
+// @useIn triggerPulse: resources/js/pages/AttendanceControlPanel.vue:2107
 const triggerPulse = (rfid) => {
     lastScanned.value = rfid;
     scanPulse.value = true;
@@ -342,11 +359,15 @@ const triggerPulse = (rfid) => {
     }, 650);
 };
 
+// @function normalizeRfid: Nino-normalize ang rfid sa Attendance Control Panel flow.
+// @useIn normalizeRfid: resources/js/pages/AttendanceControlPanel.vue:294
 const normalizeRfid = (value) =>
     String(value ?? '')
         .trim()
         .toLowerCase();
 
+// @function escapeHtml: Pinoproseso ang escape html para sa Attendance Control Panel.
+// @useIn escapeHtml: resources/js/pages/AttendanceControlPanel.vue:671
 const escapeHtml = (value = '') =>
     String(value)
         .replaceAll('&', '&amp;')
@@ -355,6 +376,8 @@ const escapeHtml = (value = '') =>
         .replaceAll('"', '&quot;')
         .replaceAll("'", '&#039;');
 
+// @function xsrfToken: Kinukuha ang xsrf token result para sa Attendance Control Panel.
+// @useIn xsrfToken: resources/js/pages/AttendanceControlPanel.vue:772
 const xsrfToken = () => {
     const xsrfRaw = document.cookie
         .split('; ')
@@ -364,6 +387,8 @@ const xsrfToken = () => {
     return xsrfRaw ? decodeURIComponent(xsrfRaw) : '';
 };
 
+// @function resolveInstructorRfidPrompt: Hinahanap ang instructor rfid prompt sa Attendance Control Panel flow.
+// @useIn resolveInstructorRfidPrompt: resources/js/pages/AttendanceControlPanel.vue:2246
 const resolveInstructorRfidPrompt = (rfid) => {
     const scannedRfid = String(rfid ?? '').trim();
     if (!pendingInstructorRfidPrompt || !scannedRfid) return false;
@@ -381,6 +406,8 @@ const resolveInstructorRfidPrompt = (rfid) => {
     return true;
 };
 
+// @function requestInstructorRfidPrompt: Pinoproseso ang request instructor rfid prompt para sa Attendance Control Panel.
+// @useIn requestInstructorRfidPrompt: resources/js/pages/AttendanceControlPanel.vue:531
 const requestInstructorRfidPrompt = ({
     title = 'Instructor RFID Required',
     text,
@@ -425,6 +452,8 @@ const requestInstructorRfidPrompt = ({
         },
     });
 
+// @function setTapHeadline: Sine-set ang tap headline sa Attendance Control Panel flow.
+// @useIn setTapHeadline: resources/js/pages/AttendanceControlPanel.vue:749
 const setTapHeadline = (message, holdMs = 2200) => {
     tapHeadline.value = message;
     if (tapHeadlineTimer) {
@@ -437,6 +466,8 @@ const setTapHeadline = (message, holdMs = 2200) => {
     }, holdMs);
 };
 
+// @function triggerCameraCapture: Kinukuha ang trigger camera capture result para sa Attendance Control Panel.
+// @useIn triggerCameraCapture: resources/js/pages/AttendanceControlPanel.vue:902
 const triggerCameraCapture = () => {
     if (captureResetTimer) clearTimeout(captureResetTimer);
     const dataUrl = cameraRef.value?.captureFrame() ?? null;
@@ -451,6 +482,8 @@ const triggerCameraCapture = () => {
     return dataUrl;
 };
 
+// @function showStudentTemporarily: Ipinapakita ang student temporarily sa Attendance Control Panel flow.
+// @useIn showStudentTemporarily: resources/js/pages/AttendanceControlPanel.vue:799
 const showStudentTemporarily = (student) => {
     activeStudent.value = student;
 
@@ -464,6 +497,8 @@ const showStudentTemporarily = (student) => {
     }, STUDENT_INFO_VISIBLE_MS);
 };
 
+// @function lookupRfidFromServer: Hinahanap ang rfid from server sa Attendance Control Panel flow.
+// @useIn lookupRfidFromServer: resources/js/pages/AttendanceControlPanel.vue:2108
 const lookupRfidFromServer = async (rfid) => {
     try {
         const xsrfRaw = document.cookie
@@ -492,6 +527,8 @@ const lookupRfidFromServer = async (rfid) => {
     }
 };
 
+// @function recordStudentTapOnServer: Nagtatala ng ang student tap on server sa Attendance Control Panel flow.
+// @useIn recordStudentTapOnServer: resources/js/pages/AttendanceControlPanel.vue:1030
 const recordStudentTapOnServer = async (student, extra = {}) => {
     try {
         const xsrfRaw = document.cookie
@@ -524,6 +561,8 @@ const recordStudentTapOnServer = async (student, extra = {}) => {
     }
 };
 
+// @function requestInstructorTapForTemporaryMovement: Kinukuha ang request instructor tap for temporary movement result para sa Attendance Control Panel.
+// @useIn requestInstructorTapForTemporaryMovement: resources/js/pages/AttendanceControlPanel.vue:1047
 const requestInstructorTapForTemporaryMovement = async (student) => {
     const result = await requestInstructorRfidPrompt({
         title: 'Instructor RFID Required',
@@ -542,6 +581,8 @@ const requestInstructorTapForTemporaryMovement = async (student) => {
     return String(result.value || '').trim();
 };
 
+// @function loadAttendanceLogsFromServer: Niloload ang attendance logs from server sa Attendance Control Panel flow.
+// @useIn loadAttendanceLogsFromServer: resources/js/pages/AttendanceControlPanel.vue:698
 const loadAttendanceLogsFromServer = async () => {
     if (!selectedRoom.value) return;
 
@@ -579,6 +620,8 @@ const loadAttendanceLogsFromServer = async () => {
     }
 };
 
+// @function syncPanelSessionState: Sini-sync ang panel session state sa Attendance Control Panel flow.
+// @useIn syncPanelSessionState: resources/js/pages/AttendanceControlPanel.vue:697
 const syncPanelSessionState = async (status, extra = {}) => {
     if (!selectedRoom.value) return;
     if (status === 'borrowing' && !borrowingEnabled.value) return;
@@ -614,6 +657,8 @@ const syncPanelSessionState = async (status, extra = {}) => {
     }
 };
 
+// @function persistPanelRuntime: Pinoproseso ang persist panel runtime para sa Attendance Control Panel.
+// @useIn persistPanelRuntime: resources/js/pages/AttendanceControlPanel.vue:2461
 const persistPanelRuntime = () => {
     const runtime = {
         sessionActive: sessionActive.value,
@@ -627,10 +672,14 @@ const persistPanelRuntime = () => {
     localStorage.setItem(PANEL_RUNTIME_KEY, JSON.stringify(runtime));
 };
 
+// @function clearPanelRuntime: Nililinis ang panel runtime sa Attendance Control Panel flow.
+// @useIn clearPanelRuntime: resources/js/pages/AttendanceControlPanel.vue:2003
 const clearPanelRuntime = () => {
     localStorage.removeItem(PANEL_RUNTIME_KEY);
 };
 
+// @function showToast: Ipinapakita ang toast sa Attendance Control Panel flow.
+// @useIn showToast: resources/js/pages/AttendanceControlPanel.vue:699
 const showToast = (icon, title) => {
     Swal.fire({
         toast: true,
@@ -646,6 +695,8 @@ const showToast = (icon, title) => {
     });
 };
 
+// @function showStudentToast: Ipinapakita ang student toast sa Attendance Control Panel flow.
+// @useIn showStudentToast: resources/js/pages/AttendanceControlPanel.vue:829
 const showStudentToast = (student, message, icon = 'success') => {
     const photoSrc =
         capturedPhotoUrl.value ??
@@ -677,6 +728,8 @@ const showStudentToast = (student, message, icon = 'success') => {
     });
 };
 
+// @function startAttendanceSession: Sinisimulan ang attendance session sa Attendance Control Panel flow.
+// @useIn startAttendanceSession: resources/js/pages/AttendanceControlPanel.vue:2132
 const startAttendanceSession = (professor) => {
     sessionActive.value = true;
     currentMode.value = 'attendance';
@@ -696,6 +749,8 @@ const startAttendanceSession = (professor) => {
     showToast('success', 'Attendance recording started');
 };
 
+// @function endAttendanceSession: Tinatapos ang attendance session sa Attendance Control Panel flow.
+// @useIn endAttendanceSession: TODO(verify): walang direct caller na nakita sa static search
 const endAttendanceSession = () => {
     if (!activeProfessor.value) return;
 
@@ -718,6 +773,8 @@ const endAttendanceSession = () => {
     showToast('info', 'Attendance session ended');
 };
 
+// @function enableDismissClassMode: Kinukuha ang enable dismiss class mode result para sa Attendance Control Panel.
+// @useIn enableDismissClassMode: resources/js/pages/AttendanceControlPanel.vue:1886
 const enableDismissClassMode = async () => {
     const confirmation = await Swal.fire({
         icon: 'warning',
@@ -751,6 +808,8 @@ const enableDismissClassMode = async () => {
     showToast('info', 'All checked-in student taps will be checkout');
 };
 
+// @function checkStudentFaceForAttendance: Sini-check ang student face for attendance sa Attendance Control Panel flow.
+// @useIn checkStudentFaceForAttendance: resources/js/pages/AttendanceControlPanel.vue:822
 const checkStudentFaceForAttendance = async (
     student,
     base64DataUrl = null,
@@ -792,6 +851,8 @@ const checkStudentFaceForAttendance = async (
     }
 };
 
+// @function recordAttendance: Nagtatala ng ang attendance sa Attendance Control Panel flow.
+// @useIn recordAttendance: resources/js/pages/AttendanceControlPanel.vue:2177
 const recordAttendance = async (student) => {
     showStudentTemporarily(student);
 
@@ -1137,6 +1198,8 @@ const recordAttendance = async (student) => {
     );
 };
 
+// @function submitBorrowingUpdate: Isinusumite ang borrowing update sa Attendance Control Panel flow.
+// @useIn submitBorrowingUpdate: resources/js/pages/AttendanceControlPanel.vue:1404
 const submitBorrowingUpdate = async (borrower, selectedItems) => {
     const barcodes = selectedItems
         .map((item) => String(item?.barcode ?? '').trim())
@@ -1199,16 +1262,22 @@ const submitBorrowingUpdate = async (borrower, selectedItems) => {
     }
 };
 
+// @function processBorrowerMode: Pinoproseso ang borrower mode sa Attendance Control Panel flow.
+// @useIn processBorrowerMode: resources/js/pages/AttendanceControlPanel.vue:2173
 const processBorrowerMode = (student) => {
     const borrower = student;
     showStudentTemporarily(borrower);
 
+    // @function getActiveBorrowedItems: Kinukuha ang active borrowed items sa Attendance Control Panel flow.
+    // @useIn getActiveBorrowedItems: resources/js/pages/AttendanceControlPanel.vue:1231
     const getActiveBorrowedItems = () => {
         const rfidKey = normalizeRfid(borrower?.rfid);
         const payload = props.borrowItemsByRfid?.[rfidKey];
         return resolveBorrowItemsPayload(payload);
     };
 
+    // @function renderBorrowList: Nire-render ang borrow list sa Attendance Control Panel flow.
+    // @useIn renderBorrowList: resources/js/pages/AttendanceControlPanel.vue:1255
     const renderBorrowList = (items) => {
         if (!items.length) {
             return '<div class="rounded-xl border border-dashed border-slate-300 p-3 text-xs text-slate-500">No items scanned yet.</div>';
@@ -1246,6 +1315,8 @@ const processBorrowerMode = (student) => {
     const BARCODE_TIMEOUT = 300;
     const BARCODE_FINALIZE_DELAY = 120;
 
+    // @function updateSelectedListUi: Ina-update ang selected list ui sa Attendance Control Panel flow.
+    // @useIn updateSelectedListUi: resources/js/pages/AttendanceControlPanel.vue:1318
     const updateSelectedListUi = () => {
         const container = document.getElementById('borrow-scan-items');
         if (!container) return;
@@ -1254,6 +1325,8 @@ const processBorrowerMode = (student) => {
         );
     };
 
+    // @function finalizeBarcode: Kinukuha ang finalize barcode result para sa Attendance Control Panel.
+    // @useIn finalizeBarcode: resources/js/pages/AttendanceControlPanel.vue:1334
     const finalizeBarcode = () => {
         const scanned = barcodeBuffer.trim();
         barcodeBuffer = '';
@@ -1315,6 +1388,8 @@ const processBorrowerMode = (student) => {
         updateSelectedListUi();
     };
 
+    // @function barcodeKeydownHandler: Kinukuha ang barcode keydown handler result para sa Attendance Control Panel.
+    // @useIn barcodeKeydownHandler: resources/js/pages/AttendanceControlPanel.vue:1386
     const barcodeKeydownHandler = (event) => {
         const currentKeyTime = Date.now();
         if (currentKeyTime - barcodeLastKeyTime > BARCODE_TIMEOUT) {
@@ -1439,6 +1514,8 @@ const processBorrowerMode = (student) => {
     return swalPromise;
 };
 
+// @function triggerEmergencyCall: Kinukuha ang trigger emergency call result para sa Attendance Control Panel.
+// @useIn triggerEmergencyCall: resources/js/pages/AttendanceControlPanel.vue:1905
 const triggerEmergencyCall = async (
     selectedType = null,
     selectedHotline = null,
@@ -1531,6 +1608,8 @@ const triggerEmergencyCall = async (
             if (!unmatchedResult.isConfirmed) return;
         }
     }
+    // @function renderSelectedStudents: Nire-render ang selected students sa Attendance Control Panel flow.
+    // @useIn renderSelectedStudents: resources/js/pages/AttendanceControlPanel.vue:1598
     const renderSelectedStudents = () => {
         if (selectedStudents.size === 0) {
             return '<div style="padding:12px; color:#64748b; text-align:center;">No student selected yet.</div>';
@@ -1549,6 +1628,8 @@ const triggerEmergencyCall = async (
             )
             .join('');
     };
+    // @function renderMatches: Nire-render ang matches sa Attendance Control Panel flow.
+    // @useIn renderMatches: resources/js/pages/AttendanceControlPanel.vue:1620
     const renderMatches = (query) => {
         const normalized = String(query ?? '').trim().toLowerCase();
         if (!normalized) return '';
@@ -1613,6 +1694,8 @@ const triggerEmergencyCall = async (
                     if (emergencyScope === 'people') search.focus();
                 });
             });
+            // @function refresh: Pinoproseso ang refresh para sa Attendance Control Panel.
+            // @useIn refresh: resources/js/pages/AttendanceControlPanel.vue:1635
             const refresh = () => {
                 matches.innerHTML = renderMatches(search.value);
                 selected.innerHTML = renderSelectedStudents();
@@ -1859,6 +1942,8 @@ const triggerEmergencyCall = async (
     });
 };
 
+// @function showInstructorOptions: Ipinapakita ang instructor options sa Attendance Control Panel flow.
+// @useIn showInstructorOptions: resources/js/pages/AttendanceControlPanel.vue:2150
 const showInstructorOptions = async () => {
     if (currentMode.value === 'borrowing' && borrowingEnabled.value) {
         const result = await Swal.fire({
@@ -1977,6 +2062,8 @@ const showInstructorOptions = async () => {
     }
 };
 
+// @function logoutPanel: Pinoproseso ang logout panel para sa Attendance Control Panel.
+// @useIn logoutPanel: resources/js/pages/AttendanceControlPanel.vue template @click
 const logoutPanel = async () => {
     const roomToClose = selectedRoom.value;
     panelUnlocked.value = false;
@@ -2025,6 +2112,8 @@ const logoutPanel = async () => {
     }
 };
 
+// @function performForcedPanelLogout: Isinasagawa ang forced panel logout sa Attendance Control Panel flow.
+// @useIn performForcedPanelLogout: resources/js/pages/AttendanceControlPanel.vue:2097
 const performForcedPanelLogout = async (
     message = 'This panel was logged out by an administrator.',
 ) => {
@@ -2061,6 +2150,8 @@ const performForcedPanelLogout = async (
     return message;
 };
 
+// @function checkPanelStatus: Sini-check ang panel status sa Attendance Control Panel flow.
+// @useIn checkPanelStatus: resources/js/pages/AttendanceControlPanel.vue:2436
 const checkPanelStatus = async () => {
     if (!panelUnlocked.value || !selectedRoom.value) return;
 
@@ -2098,6 +2189,8 @@ const checkPanelStatus = async () => {
     }
 };
 
+// @function handleRfidScan: Pinoproseso ang rfid scan sa Attendance Control Panel flow.
+// @useIn handleRfidScan: resources/js/pages/AttendanceControlPanel.vue:2251
 const handleRfidScan = async (rfid) => {
     if (!rfid) return;
 
@@ -2235,6 +2328,8 @@ const handleRfidScan = async (rfid) => {
     });
 };
 
+// @function finalizeScan: Kinukuha ang finalize scan result para sa Attendance Control Panel.
+// @useIn finalizeScan: resources/js/pages/AttendanceControlPanel.vue:2283
 const finalizeScan = () => {
     const scannedValue = rfidBuffer.trim();
     rfidBuffer = '';
@@ -2248,6 +2343,8 @@ const finalizeScan = () => {
     handleRfidScan(scannedValue);
 };
 
+// @function handleKeydown: Pinoproseso ang keydown sa Attendance Control Panel flow.
+// @useIn handleKeydown: resources/js/pages/AttendanceControlPanel.vue:2437
 // RFID tag reading happens here: keyboard/scanner input is buffered and finalized into one tag value.
 const handleKeydown = (event) => {
     if (!isListening.value) return;
@@ -2292,6 +2389,8 @@ const handleKeydown = (event) => {
     }
 };
 
+// @function toggleListening: Tina-toggle ang listening sa Attendance Control Panel flow.
+// @useIn toggleListening: resources/js/pages/AttendanceControlPanel.vue template @click
 const toggleListening = () => {
     isListening.value = !isListening.value;
     lastAction.value = isListening.value
@@ -2310,10 +2409,14 @@ const toggleListening = () => {
     syncPanelSessionState(isListening.value ? 'online' : 'paused');
 };
 
+// @function runDemoTap: Pinapatakbo ang demo tap sa Attendance Control Panel flow.
+// @useIn runDemoTap: resources/js/pages/AttendanceControlPanel.vue template @click
 const runDemoTap = () => {
     runConfiguredDemoTap('professorTap', 'Professor Tap RFID is not set.');
 };
 
+// @function runConfiguredDemoTap: Pinapatakbo ang configured demo tap sa Attendance Control Panel flow.
+// @useIn runConfiguredDemoTap: resources/js/pages/AttendanceControlPanel.vue:2317
 const runConfiguredDemoTap = (key, missingMessage) => {
     if (!demoAttendanceEnabled.value) return;
 
@@ -2326,6 +2429,8 @@ const runConfiguredDemoTap = (key, missingMessage) => {
     handleRfidScan(rfid);
 };
 
+// @function demoProfessorRetap: Pinoproseso ang demo professor retap para sa Attendance Control Panel.
+// @useIn demoProfessorRetap: resources/js/pages/AttendanceControlPanel.vue template @click
 const demoProfessorRetap = () => {
     runConfiguredDemoTap(
         'secondProfessorTap',
@@ -2333,6 +2438,8 @@ const demoProfessorRetap = () => {
     );
 };
 
+// @function runDemoStudentTap: Pinapatakbo ang demo student tap sa Attendance Control Panel flow.
+// @useIn runDemoStudentTap: resources/js/pages/AttendanceControlPanel.vue template @click
 const runDemoStudentTap = () => {
     if (!sessionActive.value || currentMode.value !== 'attendance') {
         showToast('warning', 'Start attendance session first');
@@ -2342,6 +2449,8 @@ const runDemoStudentTap = () => {
     runConfiguredDemoTap('studentTap', 'Student Tap RFID is not set.');
 };
 
+// @function runSecondDemoStudentTap: Pinapatakbo ang second demo student tap sa Attendance Control Panel flow.
+// @useIn runSecondDemoStudentTap: resources/js/pages/AttendanceControlPanel.vue template @click
 const runSecondDemoStudentTap = () => {
     if (!sessionActive.value || currentMode.value !== 'attendance') {
         showToast('warning', 'Start attendance session first');
@@ -2354,6 +2463,8 @@ const runSecondDemoStudentTap = () => {
     );
 };
 
+// @function runDemoBorrowTap: Pinapatakbo ang demo borrow tap sa Attendance Control Panel flow.
+// @useIn runDemoBorrowTap: TODO(verify): walang direct caller na nakita sa static search
 const runDemoBorrowTap = () => {
     if (!sessionActive.value) {
         showToast('warning', 'Start attendance session first');

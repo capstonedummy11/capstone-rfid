@@ -8,6 +8,8 @@ use Laravel\Fortify\Fortify;
 
 class EmailVerificationNotificationSentResponse implements EmailVerificationNotificationSentResponseContract
 {
+    // @function toResponse: Kinukuha ang to response result para sa Email Verification Notification Sent Response.
+    // @useIn toResponse: Laravel response contract
     public function toResponse($request)
     {
         return $request->wantsJson()

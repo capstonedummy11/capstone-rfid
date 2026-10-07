@@ -1,4 +1,6 @@
 <?php
+// FEATURE:emergency-alerts - konektadong model, service, route, o UI para sa feature na ito.
+// FEATURE:clinic-dispatch - konektadong model, service, route, o UI para sa feature na ito.
 
 namespace App\Models;
 
@@ -39,11 +41,15 @@ class EmergencyAlert extends Model
         'response_seconds' => 'integer',
     ];
 
+    // @function type: Ibinabalik ang type Eloquent belongsTo relationship.
+    // @useIn type: Eloquent relationship property at eager loading
     public function type(): BelongsTo
     {
         return $this->belongsTo(EmergencyType::class, 'emergency_type_id', 'emergency_type_id');
     }
 
+    // @function cases: Ibinabalik ang cases Eloquent hasMany relationship.
+    // @useIn cases: Eloquent relationship property at eager loading
     public function cases(): HasMany
     {
         return $this->hasMany(ClinicCase::class, 'emergency_alert_id', 'emergency_alert_id');

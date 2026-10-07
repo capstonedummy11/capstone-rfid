@@ -1,4 +1,5 @@
 <?php
+// FEATURE:online-class-notifications - konektadong model, service, route, o UI para sa feature na ito.
 
 namespace App\Services;
 
@@ -10,8 +11,12 @@ use Throwable;
 
 class OnlineClassNotificationService
 {
+    // @function __construct: Tinatanggap ang dependencies ng Online Class Notification sa pagbuo ng object.
+    // @useIn __construct: Laravel dependency injection kapag ginagamit ang OnlineClassNotificationService
     public function __construct(private OnlineClassAuditLogger $auditLogger) {}
 
+    // @function notifyStudents: Nagnonotify ang students sa Online Class Notification flow.
+    // @useIn notifyStudents: app/Http/Controllers/OnlineClassController.php
     public function notifyStudents(OnlineClass $onlineClass, string $event): void
     {
         $onlineClass->loadMissing(['section', 'subject', 'instructor.user']);
@@ -65,11 +70,15 @@ class OnlineClassNotificationService
         }
     }
 
+    // @function title: Binubuo ang title string para sa Online Class Notification.
+    // @useIn title: OnlineClassNotificationService::notifyStudents (app/Services/OnlineClassNotificationService.php)
     private function title(OnlineClass $onlineClass, string $event): string
     {
         return 'Online class '.str_replace('_', ' ', $event).': '.$onlineClass->title;
     }
 
+    // @function body: Binubuo ang body string para sa Online Class Notification.
+    // @useIn body: OnlineClassNotificationService::notifyStudents (app/Services/OnlineClassNotificationService.php)
     private function body(OnlineClass $onlineClass, string $event): string
     {
         return implode("\n", [

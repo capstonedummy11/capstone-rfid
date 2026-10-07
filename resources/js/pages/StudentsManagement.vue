@@ -354,6 +354,8 @@ const filteredStudents = computed(() => {
     });
 });
 
+// @function editStudent: Pinoproseso ang edit student para sa Students Management.
+// @useIn editStudent: resources/js/pages/StudentsManagement.vue template @click
 const editStudent = (student) => {
     editingStudent.value = student;
     studentForm.value = {
@@ -366,6 +368,8 @@ const editStudent = (student) => {
     showEditStudentModal.value = true;
 };
 
+// @function deleteStudent: Tinatanggal ang student sa Students Management flow.
+// @useIn deleteStudent: resources/js/pages/StudentsManagement.vue template @click
 const deleteStudent = async (student) => {
     const confirmed = await confirmActionModal({
         title: 'Delete student?',
@@ -379,6 +383,8 @@ const deleteStudent = async (student) => {
     }
 };
 
+// @function saveStudent: Sine-save ang student sa Students Management flow.
+// @useIn saveStudent: resources/js/pages/StudentsManagement.vue template
 const saveStudent = () => {
     if (showEditStudentModal.value) {
         // Update existing student
@@ -396,6 +402,8 @@ const saveStudent = () => {
     closeModal();
 };
 
+// @function closeModal: Isinasara ang modal sa Students Management flow.
+// @useIn closeModal: resources/js/pages/StudentsManagement.vue template @click
 const closeModal = () => {
     showAddStudentModal.value = false;
     showEditStudentModal.value = false;

@@ -1,4 +1,7 @@
 <?php
+// FEATURE:root-ownership - konektadong model, service, route, o UI para sa feature na ito.
+// FEATURE:online-class-management - konektadong model, service, route, o UI para sa feature na ito.
+// FEATURE:online-class-join - konektadong model, service, route, o UI para sa feature na ito.
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;

@@ -22,11 +22,15 @@ class Transaction extends Model
         'transaction_type',
     ];
 
+    // @function inventory: Ibinabalik ang inventory Eloquent belongsTo relationship.
+    // @useIn inventory: Eloquent relationship property at eager loading
     public function inventory(): BelongsTo
     {
         return $this->belongsTo(Inventory::class, 'inventory_id', 'inventory_id');
     }
 
+    // @function item: Ibinabalik ang item Eloquent belongsTo relationship.
+    // @useIn item: Eloquent relationship property at eager loading
     public function item(): BelongsTo
     {
         return $this->belongsTo(Device::class, 'item_id', 'item_id');

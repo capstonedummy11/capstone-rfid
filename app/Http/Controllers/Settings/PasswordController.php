@@ -10,6 +10,8 @@ use Inertia\Response;
 
 class PasswordController extends Controller
 {
+    // @function edit: Ibinabalik ang settings/Password page at data para sa request.
+    // @useIn edit: routes/settings.php:19 (user-password.edit)
     /**
      * Show the user's password settings page.
      */
@@ -20,6 +22,8 @@ class PasswordController extends Controller
         ]);
     }
 
+    // @function update: Pinoproseso ang pagbabago sa Password record.
+    // @useIn update: routes/settings.php:21 (user-password.update)
     /**
      * Update the user's password.
      */

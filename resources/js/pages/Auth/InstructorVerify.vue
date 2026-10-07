@@ -1,3 +1,4 @@
+<!-- FEATURE:instructor-verification - UI para sa login verification. -->
 <script setup>
 import CameraCapture from '@/components/CameraCapture.vue';
 import { FaceLivenessError, runFaceLiveness } from '@/lib/faceLiveness';
@@ -83,6 +84,8 @@ const methodOptions = computed(() => [
     },
 ]);
 
+// @function availableSetupQuestions: Kinukuha ang available setup questions result para sa Instructor Verify.
+// @useIn availableSetupQuestions: resources/js/pages/Auth/InstructorVerify.vue template
 const availableSetupQuestions = (index) => {
     const currentQuestion = setupForm.questions[index]?.question;
     const selectedQuestions = new Set(
@@ -99,9 +102,13 @@ const availableSetupQuestions = (index) => {
     );
 };
 
+// @function setupQuestionError: Pinoproseso ang setup question error para sa Instructor Verify.
+// @useIn setupQuestionError: resources/js/pages/Auth/InstructorVerify.vue template
 const setupQuestionError = (index, field) =>
     setupForm.errors[`questions.${index}.${field}`];
 
+// @function verifyFace: Vini-verify ang face sa Instructor Verify flow.
+// @useIn verifyFace: resources/js/pages/Auth/InstructorVerify.vue template @click
 const verifyFace = async () => {
     faceForm.clearErrors();
 
@@ -135,16 +142,22 @@ const verifyFace = async () => {
     }
 };
 
+// @function sendOtp: Ipinapadala ang otp sa Instructor Verify flow.
+// @useIn sendOtp: resources/js/pages/Auth/InstructorVerify.vue template @click
 const sendOtp = () => {
     otpSendForm.post(route('instructor.verify.otp.send'), {
         preserveScroll: true,
     });
 };
 
+// @function submitOtp: Isinusumite ang otp sa Instructor Verify flow.
+// @useIn submitOtp: resources/js/pages/Auth/InstructorVerify.vue template
 const submitOtp = () => {
     otpForm.post(route('instructor.verify.otp'), { preserveScroll: true });
 };
 
+// @function setupSecurity: Kinukuha ang setup security result para sa Instructor Verify.
+// @useIn setupSecurity: resources/js/pages/Auth/InstructorVerify.vue template
 const setupSecurity = () => {
     setupForm.clearErrors();
 
@@ -199,12 +212,16 @@ const setupSecurity = () => {
         });
 };
 
+// @function verifySecurity: Vini-verify ang security sa Instructor Verify flow.
+// @useIn verifySecurity: resources/js/pages/Auth/InstructorVerify.vue template
 const verifySecurity = () => {
     securityForm.post(route('instructor.verify.security'), {
         preserveScroll: true,
     });
 };
 
+// @function logout: Pinoproseso ang logout para sa Instructor Verify.
+// @useIn logout: resources/js/pages/Auth/InstructorVerify.vue template @click
 const logout = () => {
     router.post(route('logout'));
 };

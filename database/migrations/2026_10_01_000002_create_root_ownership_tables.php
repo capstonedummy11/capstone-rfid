@@ -1,11 +1,15 @@
 <?php
 
+// FEATURE:root-ownership - Dito ang transfer, override, at audit tables ng Root ownership.
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    // @function up: Ginagawa o binabago ang database schema para sa migration na ito.
+    // @useIn up: Laravel migration runner
     public function up(): void
     {
         Schema::create('root_transfer_requests', function (Blueprint $table) {
@@ -72,6 +76,8 @@ return new class extends Migration
         });
     }
 
+    // @function down: Ibinabalik ang schema changes ng migration na ito.
+    // @useIn down: Laravel migration runner
     public function down(): void
     {
         Schema::dropIfExists('root_audit_logs');

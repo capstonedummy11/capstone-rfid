@@ -1,3 +1,4 @@
+<!-- FEATURE:academic-scheduling - konektadong model, service, route, o UI para sa feature na ito. -->
 <template>
     <div class="w-full">
         <div class="mx-auto max-w-[1400px] px-4 py-6">
@@ -553,6 +554,8 @@ const schoolYearWarning = computed(() => {
     return '';
 });
 
+// @function onFilterChange: Hinahandle ang filter change sa Sections flow.
+// @useIn onFilterChange: resources/js/pages/Auth/Admin/Sections.vue template @change
 const onFilterChange = () => {
     router.get(
         route('admin.sections.index'),
@@ -572,6 +575,8 @@ const onFilterChange = () => {
     );
 };
 
+// @function resetFilters: Nire-reset ang filters sa Sections flow.
+// @useIn resetFilters: resources/js/pages/Auth/Admin/Sections.vue template @click
 const resetFilters = () => {
     search.value = '';
     selectedStrand.value = '';
@@ -582,6 +587,8 @@ const resetFilters = () => {
     onFilterChange();
 };
 
+// @function openAddModal: Binubuksan ang add modal sa Sections flow.
+// @useIn openAddModal: resources/js/pages/Auth/Admin/Sections.vue template @click
 const openAddModal = () => {
     isEditing.value = false;
     selectedSection.value = null;
@@ -596,6 +603,8 @@ const openAddModal = () => {
     showModal.value = true;
 };
 
+// @function openEditModal: Binubuksan ang edit modal sa Sections flow.
+// @useIn openEditModal: resources/js/pages/Auth/Admin/Sections.vue template @click
 const openEditModal = (section: Section) => {
     isEditing.value = true;
     selectedSection.value = section;
@@ -610,6 +619,8 @@ const openEditModal = (section: Section) => {
     showModal.value = true;
 };
 
+// @function closeModal: Isinasara ang modal sa Sections flow.
+// @useIn closeModal: resources/js/pages/Auth/Admin/Sections.vue template @click
 const closeModal = () => {
     showModal.value = false;
     isEditing.value = false;
@@ -617,6 +628,8 @@ const closeModal = () => {
     form.reset();
 };
 
+// @function submitForm: Isinusumite ang form sa Sections flow.
+// @useIn submitForm: resources/js/pages/Auth/Admin/Sections.vue template
 const submitForm = () => {
     if (
         !form.section_name ||
@@ -657,6 +670,8 @@ const submitForm = () => {
     }
 };
 
+// @function deleteSection: Tinatanggal ang section sa Sections flow.
+// @useIn deleteSection: resources/js/pages/Auth/Admin/Sections.vue template @click
 const deleteSection = async (section: Section) => {
     const confirmed = await confirmActionModal({
         title: 'Delete section?',
@@ -684,9 +699,13 @@ const deleteSection = async (section: Section) => {
     );
 };
 
+// @function capitalizeFirst: Pinoproseso ang capitalize first para sa Sections.
+// @useIn capitalizeFirst: resources/js/pages/Auth/Admin/Sections.vue template
 const capitalizeFirst = (str: string) =>
     str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
 
+// @function getYearLabel: Kinukuha ang year label sa Sections flow.
+// @useIn getYearLabel: resources/js/pages/Auth/Admin/Sections.vue template
 const getYearLabel = (year: string | number) => {
     const yearMap: Record<string | number, string> = {
         '11': 'Grade 11',
@@ -695,6 +714,8 @@ const getYearLabel = (year: string | number) => {
     return yearMap[year] || String(year);
 };
 
+// @function statusClasses: Pinoproseso ang status classes para sa Sections.
+// @useIn statusClasses: resources/js/pages/Auth/Admin/Sections.vue template
 const statusClasses = (status: string) => [
     'rounded-md px-2 py-1 text-xs font-medium',
     status === 'active'

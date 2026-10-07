@@ -1,3 +1,4 @@
+<!-- FEATURE:admin-login-otp - UI para sa admin login email otp. -->
 <script setup>
 import logo from '@/assets/images/logo-only.jpg';
 import schoolPhoto from '@/assets/images/pasayCitysouth.png';
@@ -34,6 +35,8 @@ const expiryLabel = computed(() => {
     return `${minutes}:${String(seconds).padStart(2, '0')}`;
 });
 
+// @function submit: Isinusumite ang admin login verification sa Admin Login Verification flow.
+// @useIn submit: resources/js/pages/Auth/AdminLoginVerification.vue template
 const submit = () => {
     verifyForm.clearErrors();
     verifyForm.otp = verifyForm.otp.replace(/\D/g, '').slice(0, 6);
@@ -43,6 +46,8 @@ const submit = () => {
     });
 };
 
+// @function resend: Pinoproseso ang resend para sa Admin Login Verification.
+// @useIn resend: resources/js/pages/Auth/AdminLoginVerification.vue template @click
 const resend = () => {
     resendForm.post(route('admin.login-verification.resend'), {
         preserveScroll: true,

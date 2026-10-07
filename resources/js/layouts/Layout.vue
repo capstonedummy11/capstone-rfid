@@ -81,6 +81,8 @@ import { useLogin } from '@/composables/useLogin';
 const isMenuOpen = ref(false);
 const { isLoginOpen } = useLogin();
 
+// @function handleLogin: Pinoproseso ang login sa Layout flow.
+// @useIn handleLogin: resources/js/layouts/Layout.vue template @click
 function handleLogin() {
     isMenuOpen.value = false;
     isLoginOpen.value = true;

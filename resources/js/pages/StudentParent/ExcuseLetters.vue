@@ -1,3 +1,5 @@
+<!-- FEATURE:excuse-letter-approval - UI para sa excuse letter approval. -->
+<!-- FEATURE:excuse-letter-submission - UI para sa excuse letter submission. -->
 <script setup lang="ts">
 import { useForm, usePage } from '@inertiajs/vue3';
 import { Paperclip, X } from 'lucide-vue-next';
@@ -55,12 +57,16 @@ watch(
     },
 );
 
+// @function selectAttachment: Pinipili ang attachment sa Excuse Letters flow.
+// @useIn selectAttachment: resources/js/pages/StudentParent/ExcuseLetters.vue template @change
 const selectAttachment = (event: Event) => {
     const input = event.target as HTMLInputElement;
     form.attachment = input.files?.[0] ?? null;
     form.clearErrors('attachment');
 };
 
+// @function clearAttachment: Nililinis ang attachment sa Excuse Letters flow.
+// @useIn clearAttachment: resources/js/pages/StudentParent/ExcuseLetters.vue template @click
 const clearAttachment = () => {
     form.attachment = null;
     form.clearErrors('attachment');
@@ -88,8 +94,12 @@ type LetterFormField =
     | 'recipient_user_ids'
     | 'attachment';
 
+// @function validateLetterForm: Vinavalidate ang letter form sa Excuse Letters flow.
+// @useIn validateLetterForm: resources/js/pages/StudentParent/ExcuseLetters.vue:189
 const validateLetterForm = () => {
     let isValid = true;
+    // @function setError: Sine-set ang error sa Excuse Letters flow.
+    // @useIn setError: resources/js/pages/StudentParent/ExcuseLetters.vue:96
     const setError = (field: LetterFormField, message: string) => {
         form.setError(field, message);
         isValid = false;
@@ -181,6 +191,8 @@ const validateLetterForm = () => {
     return isValid;
 };
 
+// @function submitLetter: Isinusumite ang letter sa Excuse Letters flow.
+// @useIn submitLetter: resources/js/pages/StudentParent/ExcuseLetters.vue template
 const submitLetter = () => {
     form.clearErrors();
 
@@ -211,6 +223,8 @@ const selectedStudentQuery = computed(() =>
 
 const approvalForms = reactive({});
 
+// @function approvalFormFor: Kinukuha ang approval form for result para sa Excuse Letters.
+// @useIn approvalFormFor: resources/js/pages/StudentParent/ExcuseLetters.vue template
 const approvalFormFor = (letter) => {
     if (!approvalForms[letter.id]) {
         approvalForms[letter.id] = useForm({
@@ -222,6 +236,8 @@ const approvalFormFor = (letter) => {
     return approvalForms[letter.id];
 };
 
+// @function approveLetter: Pinoproseso ang approve letter para sa Excuse Letters.
+// @useIn approveLetter: resources/js/pages/StudentParent/ExcuseLetters.vue template
 const approveLetter = (letter) => {
     const approveForm = approvalFormFor(letter);
     approveForm.put(
@@ -236,6 +252,8 @@ const approveLetter = (letter) => {
     );
 };
 
+// @function statusLabel: Pinoproseso ang status label para sa Excuse Letters.
+// @useIn statusLabel: resources/js/pages/StudentParent/ExcuseLetters.vue template
 const statusLabel = (status) =>
     String(status || '')
         .split('_')
@@ -273,6 +291,8 @@ const formErrorMessages = computed(() => [
     ...new Set(Object.values(form.errors)),
 ]);
 
+// @function addRecipient: Nagdadagdag ng ang recipient sa Excuse Letters flow.
+// @useIn addRecipient: resources/js/pages/StudentParent/ExcuseLetters.vue template @click
 const addRecipient = () => {
     const search = recipientSearch.value.trim().toLowerCase();
     const exactRecipient = availableRecipientSuggestions.value.find(
@@ -302,6 +322,8 @@ const addRecipient = () => {
     recipientSearch.value = '';
 };
 
+// @function addRecipientById: Nagdadagdag ng ang recipient by id sa Excuse Letters flow.
+// @useIn addRecipientById: resources/js/pages/StudentParent/ExcuseLetters.vue template @click
 const addRecipientById = (userId) => {
     if (form.recipient_user_ids.includes(userId)) {
         return;
@@ -312,12 +334,16 @@ const addRecipientById = (userId) => {
     recipientSearch.value = '';
 };
 
+// @function removeRecipient: Tinatanggal ang recipient sa Excuse Letters flow.
+// @useIn removeRecipient: resources/js/pages/StudentParent/ExcuseLetters.vue template @click
 const removeRecipient = (userId) => {
     form.recipient_user_ids = form.recipient_user_ids.filter(
         (selectedId) => selectedId !== userId,
     );
 };
 
+// @function letterRecipients: Kinukuha ang letter recipients result para sa Excuse Letters.
+// @useIn letterRecipients: resources/js/pages/StudentParent/ExcuseLetters.vue template
 const letterRecipients = (letter) => {
     const selectedIds = letter.recipient_user_ids || [];
 

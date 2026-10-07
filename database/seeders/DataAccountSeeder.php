@@ -6,6 +6,8 @@ use Illuminate\Database\Seeder;
 
 class DataAccountSeeder extends Seeder
 {
+    // @function run: Pinapatakbo ang Data Account Seeder task.
+    // @useIn run: php artisan db:seed
     /**
      * Seed login accounts, console accounts, and portal account links.
      */

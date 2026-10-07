@@ -22,7 +22,11 @@ const currentUrlReactive = computed(
     () => new URL(page.url, window?.location.origin).pathname,
 );
 
+// @function useCurrentUrl: Kinukuha ang use current url result para sa use Current Url.
+// @useIn useCurrentUrl: TODO(verify): walang direct caller na nakita sa static search
 export function useCurrentUrl(): UseCurrentUrlReturn {
+    // @function isCurrentUrl: Sinusuri kung current url para sa use Current Url.
+    // @useIn isCurrentUrl: resources/js/composables/useCurrentUrl.ts:51
     function isCurrentUrl(
         urlToCheck: NonNullable<InertiaLinkProps['href']>,
         currentUrl?: string,
@@ -43,6 +47,8 @@ export function useCurrentUrl(): UseCurrentUrlReturn {
         }
     }
 
+    // @function whenCurrentUrl: Hinahandle ang current url sa use Current Url flow.
+    // @useIn whenCurrentUrl: resources/js/composables/useCurrentUrl.ts:13
     function whenCurrentUrl(
         urlToCheck: NonNullable<InertiaLinkProps['href']>,
         ifTrue: any,

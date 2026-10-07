@@ -1,3 +1,4 @@
+<!-- FEATURE:device-management - konektadong model, service, route, o UI para sa feature na ito. -->
 <template>
     <div class="w-full">
         <div class="mx-auto max-w-[1400px] px-4 py-6">
@@ -348,6 +349,8 @@ const filteredLaboratories = computed<Laboratory[]>(() => {
     });
 });
 
+// @function onFilterChange: Hinahandle ang filter change sa Laboratories flow.
+// @useIn onFilterChange: resources/js/pages/Auth/Admin/Laboratories.vue template @input
 const onFilterChange = () => {
     const query = {
         search: search.value,
@@ -361,12 +364,16 @@ const onFilterChange = () => {
     );
 };
 
+// @function resetFilters: Nire-reset ang filters sa Laboratories flow.
+// @useIn resetFilters: resources/js/pages/Auth/Admin/Laboratories.vue template @click
 const resetFilters = () => {
     search.value = '';
     selectedStatus.value = '';
     window.location.href = window.location.pathname;
 };
 
+// @function openAddModal: Binubuksan ang add modal sa Laboratories flow.
+// @useIn openAddModal: resources/js/pages/Auth/Admin/Laboratories.vue template @click
 const openAddModal = () => {
     isEditing.value = false;
     selectedLaboratory.value = null;
@@ -375,6 +382,8 @@ const openAddModal = () => {
     showModal.value = true;
 };
 
+// @function openEditModal: Binubuksan ang edit modal sa Laboratories flow.
+// @useIn openEditModal: resources/js/pages/Auth/Admin/Laboratories.vue template @click
 const openEditModal = (laboratory: Laboratory) => {
     isEditing.value = true;
     selectedLaboratory.value = laboratory;
@@ -386,6 +395,8 @@ const openEditModal = (laboratory: Laboratory) => {
     showModal.value = true;
 };
 
+// @function closeModal: Isinasara ang modal sa Laboratories flow.
+// @useIn closeModal: resources/js/pages/Auth/Admin/Laboratories.vue template @click
 const closeModal = () => {
     showModal.value = false;
     isEditing.value = false;
@@ -393,6 +404,8 @@ const closeModal = () => {
     form.reset();
 };
 
+// @function submitForm: Isinusumite ang form sa Laboratories flow.
+// @useIn submitForm: resources/js/pages/Auth/Admin/Laboratories.vue template
 const submitForm = () => {
     if (!form.name || !form.location) {
         showAlertModal(
@@ -429,6 +442,8 @@ const submitForm = () => {
     }
 };
 
+// @function deleteLaboratory: Tinatanggal ang laboratory sa Laboratories flow.
+// @useIn deleteLaboratory: resources/js/pages/Auth/Admin/Laboratories.vue template @click
 const deleteLaboratory = async (laboratory: Laboratory) => {
     const confirmed = await confirmActionModal({
         title: 'Delete laboratory?',
@@ -447,6 +462,8 @@ const deleteLaboratory = async (laboratory: Laboratory) => {
     );
 };
 
+// @function capitalizeFirst: Kinukuha ang capitalize first result para sa Laboratories.
+// @useIn capitalizeFirst: resources/js/pages/Auth/Admin/Laboratories.vue template
 const capitalizeFirst = (str: string) => {
     if (!str) return '';
     return str.charAt(0).toUpperCase() + str.slice(1);

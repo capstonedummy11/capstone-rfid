@@ -1,5 +1,7 @@
 import Swal, { type SweetAlertIcon } from 'sweetalert2';
 
+// @function showAlertModal: Ipinapakita ang alert modal sa feedback Modal flow.
+// @useIn showAlertModal: resources/js/pages/Rfid.vue
 export const showAlertModal = (
     title: string,
     text: string,
@@ -13,6 +15,8 @@ export const showAlertModal = (
         confirmButtonColor: '#2563eb',
     });
 
+// @function confirmActionModal: Kinukuha ang confirm action modal result para sa feedback Modal.
+// @useIn confirmActionModal: resources/js/pages/StudentsManagement.vue
 export const confirmActionModal = async ({
     title,
     text,

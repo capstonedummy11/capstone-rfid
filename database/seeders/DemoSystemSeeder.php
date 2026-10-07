@@ -30,6 +30,8 @@ class DemoSystemSeeder extends Seeder
 {
     private string $schoolYear = '2026-2027';
 
+    // @function run: Pinapatakbo ang Demo System Seeder task.
+    // @useIn run: php artisan db:seed
     public function run(): void
     {
         $users = $this->seedUsers();
@@ -43,6 +45,8 @@ class DemoSystemSeeder extends Seeder
         $this->seedActivityLogs($users['admin'], $users['instructor']);
     }
 
+    // @function seedUsers: Kinukuha ang seed users result para sa Demo System Seeder.
+    // @useIn seedUsers: DemoSystemSeeder::run (database/seeders/DemoSystemSeeder.php)
     private function seedUsers(): array
     {
         $admin = User::updateOrCreate(
@@ -88,6 +92,8 @@ class DemoSystemSeeder extends Seeder
         return compact('admin', 'instructor', 'clinic', 'console');
     }
 
+    // @function seedAcademicSetup: Kinukuha ang seed academic setup result para sa Demo System Seeder.
+    // @useIn seedAcademicSetup: DemoSystemSeeder::run (database/seeders/DemoSystemSeeder.php)
     private function seedAcademicSetup(User $instructorUser): array
     {
         $academicYear = AcademicYear::query()->firstOrCreate(
@@ -239,6 +245,8 @@ class DemoSystemSeeder extends Seeder
         ];
     }
 
+    // @function seedStudents: Kinukuha ang seed students result para sa Demo System Seeder.
+    // @useIn seedStudents: DemoSystemSeeder::run (database/seeders/DemoSystemSeeder.php)
     private function seedStudents(AcademicYear $academicYear, Strand $strand, $sections)
     {
         $rows = [
@@ -290,6 +298,8 @@ class DemoSystemSeeder extends Seeder
         })->values();
     }
 
+    // @function seedInventoryItems: Kinukuha ang seed inventory items result para sa Demo System Seeder.
+    // @useIn seedInventoryItems: DemoSystemSeeder::run (database/seeders/DemoSystemSeeder.php)
     private function seedInventoryItems()
     {
         $rows = [
@@ -309,6 +319,8 @@ class DemoSystemSeeder extends Seeder
         ))->values();
     }
 
+    // @function seedBorrowing: Kinukuha ang seed borrowing result para sa Demo System Seeder.
+    // @useIn seedBorrowing: DemoSystemSeeder::run (database/seeders/DemoSystemSeeder.php)
     private function seedBorrowing($students, User $instructor, $items): void
     {
         $records = [
@@ -384,6 +396,8 @@ class DemoSystemSeeder extends Seeder
         }
     }
 
+    // @function seedAttendance: Pinoproseso ang seed attendance para sa Demo System Seeder.
+    // @useIn seedAttendance: DemoSystemSeeder::run (database/seeders/DemoSystemSeeder.php)
     private function seedAttendance($students, $schedules, User $admin): void
     {
         $schedule = $schedules[0];
@@ -483,6 +497,8 @@ class DemoSystemSeeder extends Seeder
         );
     }
 
+    // @function seedClinicAndEmergency: Pinoproseso ang seed clinic and emergency para sa Demo System Seeder.
+    // @useIn seedClinicAndEmergency: DemoSystemSeeder::run (database/seeders/DemoSystemSeeder.php)
     private function seedClinicAndEmergency(Students $student, User $clinic, User $instructor, Schedule $schedule): void
     {
         $type = EmergencyType::updateOrCreate(
@@ -547,6 +563,8 @@ class DemoSystemSeeder extends Seeder
         );
     }
 
+    // @function seedActivityLogs: Pinoproseso ang seed activity logs para sa Demo System Seeder.
+    // @useIn seedActivityLogs: DemoSystemSeeder::run (database/seeders/DemoSystemSeeder.php)
     private function seedActivityLogs(User $admin, User $instructor): void
     {
         $logs = [

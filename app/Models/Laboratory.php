@@ -20,6 +20,8 @@ class Laboratory extends Model
         'status'
     ];
 
+    // @function panelDevices: Ibinabalik ang panel devices Eloquent hasMany relationship.
+    // @useIn panelDevices: Eloquent relationship property at eager loading
     public function panelDevices(): HasMany
     {
         return $this->hasMany(PanelDevice::class, 'laboratory_id', 'laboratory_id');

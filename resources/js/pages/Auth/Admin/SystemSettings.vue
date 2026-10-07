@@ -1,3 +1,4 @@
+<!-- FEATURE:system-settings - UI para sa system settings. -->
 <script setup>
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
@@ -91,6 +92,8 @@ const smsCheckState = reactive({
     iprog: { loading: false, success: null, message: '' },
 });
 
+// @function toggleParentPortal: Tina-toggle ang parent portal sa System Settings flow.
+// @useIn toggleParentPortal: resources/js/pages/Auth/Admin/SystemSettings.vue template @change
 const toggleParentPortal = () => {
     if (!form.parent_portal_enabled) {
         form.parent_excuse_letters_enabled = false;
@@ -166,15 +169,21 @@ const selectedEmergencySoundId = computed(
     () => props.clinicEmergencySoundSettings.selected_id ?? 'default',
 );
 
+// @function addQuestion: Nagdadagdag ng ang question sa System Settings flow.
+// @useIn addQuestion: resources/js/pages/Auth/Admin/SystemSettings.vue template @click
 const addQuestion = () => {
     form.security_questions.push('');
 };
 
+// @function removeQuestion: Tinatanggal ang question sa System Settings flow.
+// @useIn removeQuestion: resources/js/pages/Auth/Admin/SystemSettings.vue template @click
 const removeQuestion = (index) => {
     if (form.security_questions.length <= 3) return;
     form.security_questions.splice(index, 1);
 };
 
+// @function saveSettings: Sine-save ang settings sa System Settings flow.
+// @useIn saveSettings: resources/js/pages/Auth/Admin/SystemSettings.vue template
 const saveSettings = () => {
     form.put(route('admin.settings.update'), {
         preserveScroll: true,
@@ -200,6 +209,8 @@ const showSmsPrimarySelector = computed(
     () => availableSmsProviders.value.length > 1,
 );
 
+// @function normalizeSmsPrimary: Nino-normalize ang sms primary sa System Settings flow.
+// @useIn normalizeSmsPrimary: resources/js/pages/Auth/Admin/SystemSettings.vue:212
 const normalizeSmsPrimary = () => {
     const available = availableSmsProviders.value.map((provider) => provider.key);
     if (!available.includes(form.sms_primary_provider)) {
@@ -207,10 +218,14 @@ const normalizeSmsPrimary = () => {
     }
 };
 
+// @function toggleSmsProvider: Tina-toggle ang sms provider sa System Settings flow.
+// @useIn toggleSmsProvider: resources/js/pages/Auth/Admin/SystemSettings.vue template @change
 const toggleSmsProvider = () => {
     normalizeSmsPrimary();
 };
 
+// @function checkSmsProvider: Sini-check ang sms provider sa System Settings flow.
+// @useIn checkSmsProvider: resources/js/pages/Auth/Admin/SystemSettings.vue template @click
 const checkSmsProvider = async (provider) => {
     const state = smsCheckState[provider];
     state.loading = true;
@@ -259,6 +274,8 @@ const checkSmsProvider = async (provider) => {
     }
 };
 
+// @function uploadEmergencySound: Ina-upload ang emergency sound sa System Settings flow.
+// @useIn uploadEmergencySound: resources/js/pages/Auth/Admin/SystemSettings.vue template @click
 const uploadEmergencySound = () => {
     soundUploadForm.post(route('admin.settings.emergency-sounds.store'), {
         preserveScroll: true,
@@ -278,6 +295,8 @@ const uploadEmergencySound = () => {
     });
 };
 
+// @function selectEmergencySound: Pinipili ang emergency sound sa System Settings flow.
+// @useIn selectEmergencySound: resources/js/pages/Auth/Admin/SystemSettings.vue template @change
 const selectEmergencySound = (sound) => {
     if (sound.id === selectedEmergencySoundId.value) return;
 
@@ -288,6 +307,8 @@ const selectEmergencySound = (sound) => {
     );
 };
 
+// @function deleteEmergencySound: Tinatanggal ang emergency sound sa System Settings flow.
+// @useIn deleteEmergencySound: resources/js/pages/Auth/Admin/SystemSettings.vue template @click
 const deleteEmergencySound = async (sound) => {
     if (sound.is_default) return;
     const confirmed = await confirmActionModal({
@@ -302,6 +323,8 @@ const deleteEmergencySound = async (sound) => {
     );
 };
 
+// @function formatSoundSize: Fino-format ang sound size sa System Settings flow.
+// @useIn formatSoundSize: resources/js/pages/Auth/Admin/SystemSettings.vue template
 const formatSoundSize = (size) => {
     const bytes = Number(size ?? 0);
     if (!Number.isFinite(bytes) || bytes <= 0) return 'Built in';
@@ -309,6 +332,8 @@ const formatSoundSize = (size) => {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
+// @function toggleFaceSetting: Tina-toggle ang face setting sa System Settings flow.
+// @useIn toggleFaceSetting: resources/js/pages/Auth/Admin/SystemSettings.vue template @change
 const toggleFaceSetting = (field) => {
     if (!faceAvailable.value) {
         form[field] = false;

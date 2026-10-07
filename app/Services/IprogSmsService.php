@@ -1,4 +1,5 @@
 <?php
+// FEATURE:emergency-alerts - konektadong model, service, route, o UI para sa feature na ito.
 
 namespace App\Services;
 
@@ -12,11 +13,15 @@ use Illuminate\Support\Facades\Log;
 
 class IprogSmsService implements SmsProvider
 {
+    // @function send: Ipinapadala ang iprog sms sa Iprog Sms flow.
+    // @useIn send: TODO(verify): walang direct caller na nakita sa static search
     public function send(string $recipient, string $message): array
     {
         return $this->sendMessage($recipient, $message);
     }
 
+    // @function check: Sini-check ang iprog sms sa Iprog Sms flow.
+    // @useIn check: TODO(verify): walang direct caller na nakita sa static search
     public function check(): array
     {
         $token = trim((string) config('services.iprog.token', ''));
@@ -54,6 +59,8 @@ class IprogSmsService implements SmsProvider
         }
     }
 
+    // @function sendEmergencyAlert: Ipinapadala ang emergency alert sa Iprog Sms flow.
+    // @useIn sendEmergencyAlert: TODO(verify): walang direct caller na nakita sa static search
     public function sendEmergencyAlert(EmergencyHotline $hotline, EmergencyAlert $alert): array
     {
         if (! config('services.iprog.enabled', true)) {
@@ -72,6 +79,8 @@ class IprogSmsService implements SmsProvider
         );
     }
 
+    // @function sendParentAlert: Ipinapadala ang parent alert sa Iprog Sms flow.
+    // @useIn sendParentAlert: TODO(verify): walang direct caller na nakita sa static search
     public function sendParentAlert(User $parent, Students $student, EmergencyAlert $alert): array
     {
         return $this->sendMessage(
@@ -82,6 +91,8 @@ class IprogSmsService implements SmsProvider
         );
     }
 
+    // @function sendMessage: Ipinapadala ang message sa Iprog Sms flow.
+    // @useIn sendMessage: IprogSmsService::send (app/Services/IprogSmsService.php)
     private function sendMessage(?string $recipient, string $message, ?EmergencyAlert $alert = null, array $logContext = []): array
     {
         if (! config('services.iprog.enabled', true)) {
@@ -135,6 +146,8 @@ class IprogSmsService implements SmsProvider
         }
     }
 
+    // @function normalizeNumber: Nino-normalize ang number sa Iprog Sms flow.
+    // @useIn normalizeNumber: IprogSmsService::sendMessage (app/Services/IprogSmsService.php)
     private function normalizeNumber(?string $number): string
     {
         $number = preg_replace('/[^\d+]/', '', (string) $number) ?? '';
@@ -147,6 +160,8 @@ class IprogSmsService implements SmsProvider
         return $number;
     }
 
+    // @function emergencyMessage: Binubuo ang emergency message string para sa Iprog Sms.
+    // @useIn emergencyMessage: IprogSmsService::sendEmergencyAlert (app/Services/IprogSmsService.php)
     private function emergencyMessage(EmergencyHotline $hotline, EmergencyAlert $alert): string
     {
         return implode(' ', [
@@ -159,6 +174,8 @@ class IprogSmsService implements SmsProvider
         ]);
     }
 
+    // @function parentMessage: Binubuo ang parent message string para sa Iprog Sms.
+    // @useIn parentMessage: IprogSmsService::sendParentAlert (app/Services/IprogSmsService.php)
     private function parentMessage(Students $student, EmergencyAlert $alert): string
     {
         return implode(' ', [

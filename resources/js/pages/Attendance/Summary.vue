@@ -14,6 +14,8 @@ const statusFilter = ref('');
 const sortKey = ref('student_name');
 const sortDirection = ref('asc');
 
+// @function valueFor: Pinoproseso ang value for para sa Summary.
+// @useIn valueFor: resources/js/pages/Attendance/Summary.vue:41
 const valueFor = (row, key) =>
     key === 'student_name' ||
     key === 'student_number' ||
@@ -45,6 +47,8 @@ const sortedRows = computed(() => {
                 ) * (sortDirection.value === 'asc' ? 1 : -1),
         );
 });
+// @function sort: Pinoproseso ang sort para sa Summary.
+// @useIn sort: resources/js/pages/Attendance/Summary.vue template @click
 const sort = (key) => {
     if (sortKey.value === key)
         sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc';

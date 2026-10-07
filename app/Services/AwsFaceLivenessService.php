@@ -24,6 +24,8 @@ class AwsFaceLivenessService
         'us-west-2',
     ];
 
+    // @function availability: Kinukuha ang availability result para sa Aws Face Liveness.
+    // @useIn availability: AwsFaceLivenessService::createSession (app/Services/AwsFaceLivenessService.php)
     public function availability(): array
     {
         if (! config('services.aws_rekognition.liveness.enabled', false)) {
@@ -58,6 +60,8 @@ class AwsFaceLivenessService
         ];
     }
 
+    // @function createSession: Gumagawa ng ang session sa Aws Face Liveness flow.
+    // @useIn createSession: app/Http/Controllers/FaceLivenessController.php
     public function createSession(Request $request, string $purpose, string $subjectKey): array
     {
         $availability = $this->availability();
@@ -95,6 +99,18 @@ class AwsFaceLivenessService
         ];
     }
 
+    // @function completeSession: Kinukuha ang complete session result para sa Aws Face Liveness.
+    // @useIn completeSession: app/Http/Controllers/FaceLivenessController.php
+    /**
+     * @feature   Face Liveness
+     * @actor     Shared / Core
+     * @flow      AWS Face Liveness session ang nagsusuri ng video. Pass lang kung SUCCEEDED, confidence >= services.aws_rekognition.liveness.confidence_threshold (default 90), at may reference image; kung fail, walang single-use face token.
+     * @uses      resources/js/lib/faceLiveness.tsx; app/Services/AwsFaceLivenessService.php: AwsFaceLivenessService::completeSession
+     * @related   Authentication, Attendance, Reports
+     * @disable   1) I-off ang services.aws_rekognition.liveness.enabled sa config/services.php.
+     * @disable   2) Itago ang liveness UI sa resources/js/lib/faceLiveness.tsx.
+     * @disable   3) Alisin ang FaceLivenessController::store/show routes sa routes/web.php at calls sa AttendanceController::studentFaceCheck, InstructorVerificationController::verifyFace, OnlineClassController::join bago ihinto ang app/Services/AwsFaceLivenessService.php: completeSession. Side effect: still-image face check na lang ang matitira.
+     */
     public function completeSession(Request $request, string $sessionId): array
     {
         $sessions = $request->session()->get('face_liveness_sessions', []);
@@ -149,6 +165,8 @@ class AwsFaceLivenessService
         ];
     }
 
+    // @function consumeReferenceImage: Ginagamit nang isang beses ang reference image sa Aws Face Liveness flow.
+    // @useIn consumeReferenceImage: app/Http/Controllers/AttendanceController.php
     public function consumeReferenceImage(Request $request, string $token, string $purpose, string $subjectKey): ?string
     {
         $tokens = $request->session()->get('face_liveness_tokens', []);
@@ -175,6 +193,8 @@ class AwsFaceLivenessService
         return 'data:image/jpeg;base64,'.base64_encode($bytes);
     }
 
+    // @function client: Kinukuha ang client result para sa Aws Face Liveness.
+    // @useIn client: AwsFaceLivenessService::createSession (app/Services/AwsFaceLivenessService.php)
     private function client(): RekognitionClient
     {
         $credentials = [

@@ -1,4 +1,5 @@
 <?php
+// FEATURE:academic-scheduling - konektadong model, service, route, o UI para sa feature na ito.
 
 namespace App\Http\Controllers;
 
@@ -18,6 +19,8 @@ use Inertia\Inertia;
 
 class SubjectController
 {
+    // @function indexAdmin: Ibinabalik ang Auth/Admin/Subjects page at data para sa request.
+    // @useIn indexAdmin: routes/web.php:325 (subjects.index)
     public function indexAdmin(Request $request)
     {
         $filters = [
@@ -116,6 +119,8 @@ class SubjectController
         ]);
     }
 
+    // @function store: Pinoproseso ang bagong Subject record.
+    // @useIn store: routes/web.php:326 (subjects.store)
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -139,6 +144,8 @@ class SubjectController
         return back()->with('success', 'Subject added successfully.');
     }
 
+    // @function update: Pinoproseso ang pagbabago sa Subject record.
+    // @useIn update: routes/web.php:327 (subjects.update)
     public function update(Request $request, int $id)
     {
         $subject = Subject::findOrFail($id);
@@ -170,6 +177,8 @@ class SubjectController
         return back()->with('success', 'Subject updated successfully.');
     }
 
+    // @function destroy: Pinoproseso ang pagtanggal ng Subject record.
+    // @useIn destroy: routes/web.php:328 (subjects.destroy)
     public function destroy(int $id)
     {
         $subject = Subject::findOrFail($id);
@@ -183,6 +192,8 @@ class SubjectController
         return back()->with('success', 'Subject deleted successfully.');
     }
 
+    // @function storeOffering: Sine-save ang offering sa Subject flow.
+    // @useIn storeOffering: routes/web.php:329 (subjects.offerings.store)
     public function storeOffering(Request $request, Subject $subject)
     {
         $validated = $request->validate([
@@ -227,6 +238,8 @@ class SubjectController
         return back()->with('success', 'Subject offering added.');
     }
 
+    // @function destroyOffering: Tinatanggal ang offering sa Subject flow.
+    // @useIn destroyOffering: routes/web.php:331 (subjects.offerings.destroy)
     public function destroyOffering(SubjectOffering $subjectOffering)
     {
         $subjectOffering->loadMissing(['academicYear', 'subject']);
@@ -249,6 +262,8 @@ class SubjectController
         return back()->with('success', 'Subject offering deleted.');
     }
 
+    // @function removeOfferingInstructor: Tinatanggal ang offering instructor sa Subject flow.
+    // @useIn removeOfferingInstructor: routes/web.php:330 (subjects.offerings.instructor.remove)
     public function removeOfferingInstructor(SubjectOffering $subjectOffering)
     {
         $subjectOffering->loadMissing(['academicYear', 'subject']);
@@ -262,6 +277,8 @@ class SubjectController
         return back()->with('success', 'Instructor removed from the subject offering.');
     }
 
+    // @function syncOfferingFromLegacyFields: Sini-sync ang offering from legacy fields sa Subject flow.
+    // @useIn syncOfferingFromLegacyFields: SubjectController::store (app/Http/Controllers/SubjectController.php)
     private function syncOfferingFromLegacyFields(Subject $subject, array $validated): void
     {
         if (empty($validated['section_id'])) {
@@ -301,6 +318,8 @@ class SubjectController
         );
     }
 
+    // @function instructorIdForUser: Kinukuha ang instructor id for user result para sa Subject.
+    // @useIn instructorIdForUser: SubjectController::storeOffering (app/Http/Controllers/SubjectController.php)
     private function instructorIdForUser(int|string|null $userId): ?int
     {
         if (! $userId) {
@@ -310,6 +329,8 @@ class SubjectController
         return Instructor::query()->where('user_id', $userId)->value('instructor_id');
     }
 
+    // @function writableOfferingAcademicYearIds: Kinukuha ang writable offering academic year ids result para sa Subject.
+    // @useIn writableOfferingAcademicYearIds: SubjectController::indexAdmin (app/Http/Controllers/SubjectController.php)
     private function writableOfferingAcademicYearIds()
     {
         return AcademicYear::query()
@@ -320,6 +341,8 @@ class SubjectController
             ->values();
     }
 
+    // @function log: Nilolog ang subject sa Subject flow.
+    // @useIn log: SubjectController::store (app/Http/Controllers/SubjectController.php)
     private function log(string $action, string $tableName, string $description): void
     {
         ActivityLog::create([

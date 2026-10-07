@@ -1,3 +1,4 @@
+<!-- FEATURE:academic-scheduling - konektadong model, service, route, o UI para sa feature na ito. -->
 <template>
     <div class="w-full">
         <div class="mx-auto max-w-[1400px] px-4 py-6">
@@ -323,6 +324,8 @@ const filteredStrands = computed<Strand[]>(() => {
     });
 });
 
+// @function onFilterChange: Hinahandle ang filter change sa Strands flow.
+// @useIn onFilterChange: resources/js/pages/Auth/Admin/Strands.vue template @input
 const onFilterChange = () => {
     const query = {
         search: search.value,
@@ -336,12 +339,16 @@ const onFilterChange = () => {
     );
 };
 
+// @function resetFilters: Nire-reset ang filters sa Strands flow.
+// @useIn resetFilters: resources/js/pages/Auth/Admin/Strands.vue template @click
 const resetFilters = () => {
     search.value = '';
     selectedStatus.value = '';
     window.location.href = window.location.pathname;
 };
 
+// @function openAddModal: Binubuksan ang add modal sa Strands flow.
+// @useIn openAddModal: resources/js/pages/Auth/Admin/Strands.vue template @click
 const openAddModal = () => {
     isEditing.value = false;
     selectedStrand.value = null;
@@ -350,6 +357,8 @@ const openAddModal = () => {
     showModal.value = true;
 };
 
+// @function openEditModal: Binubuksan ang edit modal sa Strands flow.
+// @useIn openEditModal: resources/js/pages/Auth/Admin/Strands.vue template @click
 const openEditModal = (strand: Strand) => {
     isEditing.value = true;
     selectedStrand.value = strand;
@@ -362,6 +371,8 @@ const openEditModal = (strand: Strand) => {
     showModal.value = true;
 };
 
+// @function closeModal: Isinasara ang modal sa Strands flow.
+// @useIn closeModal: resources/js/pages/Auth/Admin/Strands.vue template @click
 const closeModal = () => {
     showModal.value = false;
     isEditing.value = false;
@@ -369,6 +380,8 @@ const closeModal = () => {
     form.reset();
 };
 
+// @function submitForm: Isinusumite ang form sa Strands flow.
+// @useIn submitForm: resources/js/pages/Auth/Admin/Strands.vue template
 const submitForm = () => {
     if (!form.strand_code || !form.strand_name || !form.department) {
         showAlertModal(
@@ -403,6 +416,8 @@ const submitForm = () => {
     }
 };
 
+// @function deleteStrand: Tinatanggal ang strand sa Strands flow.
+// @useIn deleteStrand: resources/js/pages/Auth/Admin/Strands.vue template @click
 const deleteStrand = async (strand: Strand) => {
     const confirmed = await confirmActionModal({
         title: 'Delete strand?',
@@ -423,6 +438,8 @@ const deleteStrand = async (strand: Strand) => {
     );
 };
 
+// @function capitalizeFirst: Kinukuha ang capitalize first result para sa Strands.
+// @useIn capitalizeFirst: resources/js/pages/Auth/Admin/Strands.vue template
 const capitalizeFirst = (str: string) => {
     if (!str) return '';
     return str.charAt(0).toUpperCase() + str.slice(1);

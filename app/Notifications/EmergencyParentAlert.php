@@ -12,16 +12,22 @@ class EmergencyParentAlert extends Notification
 {
     use Queueable;
 
+    // @function __construct: Tinatanggap ang dependencies ng Emergency Parent Alert sa pagbuo ng object.
+    // @useIn __construct: Laravel dependency injection kapag ginagamit ang EmergencyParentAlert
     public function __construct(
         private readonly EmergencyAlert $alert,
         private readonly Students $student,
     ) {}
 
+    // @function via: Kinukuha ang via result para sa Emergency Parent Alert.
+    // @useIn via: Laravel notification delivery
     public function via(object $notifiable): array
     {
         return ['mail'];
     }
 
+    // @function toMail: Kinukuha ang to mail result para sa Emergency Parent Alert.
+    // @useIn toMail: Laravel notification delivery
     public function toMail(object $notifiable): MailMessage
     {
         $studentName = trim($this->student->first_name.' '.$this->student->last_name);

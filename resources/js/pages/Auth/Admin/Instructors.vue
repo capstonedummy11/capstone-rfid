@@ -1,3 +1,4 @@
+<!-- FEATURE:instructor-management - UI para sa instructor management. -->
 <template>
     <div class="w-full">
         <div class="mx-auto max-w-[1400px] px-4 py-6">
@@ -792,6 +793,8 @@ const resetConfirmationInstructorName = computed(() => {
         : '';
 });
 
+// @function defaultInstructorPassword: Binubuo ang default instructor password string para sa Instructors.
+// @useIn defaultInstructorPassword: resources/js/pages/Auth/Admin/Instructors.vue:803
 const defaultInstructorPassword = (instructor: Instructor): string =>
     `${instructor.first_name ?? ''}${instructor.last_name ?? ''}`
         .replace(/\s+/g, '')
@@ -837,6 +840,8 @@ const filteredInstructors = computed<Instructor[]>(() => {
     });
 });
 
+// @function onFilterChange: Hinahandle ang filter change sa Instructors flow.
+// @useIn onFilterChange: resources/js/pages/Auth/Admin/Instructors.vue template @input
 const onFilterChange = () => {
     const query = {
         search: search.value,
@@ -851,6 +856,8 @@ const onFilterChange = () => {
     );
 };
 
+// @function resetFilters: Nire-reset ang filters sa Instructors flow.
+// @useIn resetFilters: resources/js/pages/Auth/Admin/Instructors.vue template @click
 const resetFilters = () => {
     search.value = '';
     selectedStrand.value = '';
@@ -858,6 +865,8 @@ const resetFilters = () => {
     window.location.href = window.location.pathname;
 };
 
+// @function openAddModal: Binubuksan ang add modal sa Instructors flow.
+// @useIn openAddModal: resources/js/pages/Auth/Admin/Instructors.vue template @click
 const openAddModal = () => {
     isEditing.value = false;
     selectedInstructor.value = null;
@@ -866,6 +875,8 @@ const openAddModal = () => {
     showModal.value = true;
 };
 
+// @function openEditModal: Binubuksan ang edit modal sa Instructors flow.
+// @useIn openEditModal: resources/js/pages/Auth/Admin/Instructors.vue template @click
 const openEditModal = (instructor: Instructor) => {
     isEditing.value = true;
     selectedInstructor.value = instructor;
@@ -884,6 +895,8 @@ const openEditModal = (instructor: Instructor) => {
     showModal.value = true;
 };
 
+// @function closeModal: Isinasara ang modal sa Instructors flow.
+// @useIn closeModal: resources/js/pages/Auth/Admin/Instructors.vue template @click
 const closeModal = () => {
     showModal.value = false;
     isEditing.value = false;
@@ -891,6 +904,8 @@ const closeModal = () => {
     form.reset();
 };
 
+// @function submitForm: Isinusumite ang form sa Instructors flow.
+// @useIn submitForm: resources/js/pages/Auth/Admin/Instructors.vue template
 const submitForm = () => {
     if (
         !form.first_name ||
@@ -949,6 +964,8 @@ const submitForm = () => {
     }
 };
 
+// @function deleteInstructor: Tinatanggal ang instructor sa Instructors flow.
+// @useIn deleteInstructor: resources/js/pages/Auth/Admin/Instructors.vue template @click
 const deleteInstructor = async (instructor: Instructor) => {
     const confirmed = await confirmActionModal({
         title: 'Delete instructor?',
@@ -966,16 +983,22 @@ const deleteInstructor = async (instructor: Instructor) => {
     );
 };
 
+// @function resetInstructorPassword: Nire-reset ang instructor password sa Instructors flow.
+// @useIn resetInstructorPassword: resources/js/pages/Auth/Admin/Instructors.vue template @click
 const resetInstructorPassword = (instructor: Instructor) => {
     resetForm.clearErrors();
     resetConfirmationInstructor.value = instructor;
 };
 
+// @function closeResetConfirmation: Isinasara ang reset confirmation sa Instructors flow.
+// @useIn closeResetConfirmation: resources/js/pages/Auth/Admin/Instructors.vue template @click
 const closeResetConfirmation = () => {
     if (resetForm.processing) return;
     resetConfirmationInstructor.value = null;
 };
 
+// @function confirmResetInstructorPassword: Kinukuha ang confirm reset instructor password result para sa Instructors.
+// @useIn confirmResetInstructorPassword: resources/js/pages/Auth/Admin/Instructors.vue template @click
 const confirmResetInstructorPassword = () => {
     const instructor = resetConfirmationInstructor.value;
     if (!instructor || resetForm.processing) return;
@@ -1005,21 +1028,29 @@ const confirmResetInstructorPassword = () => {
     );
 };
 
+// @function closeResetSuccess: Isinasara ang reset success sa Instructors flow.
+// @useIn closeResetSuccess: resources/js/pages/Auth/Admin/Instructors.vue template @click
 const closeResetSuccess = () => {
     resetSuccessInstructorName.value = '';
     resetSuccessPassword.value = '';
 };
 
+// @function resetInstructorSecurityQuestions: Nire-reset ang instructor security questions sa Instructors flow.
+// @useIn resetInstructorSecurityQuestions: resources/js/pages/Auth/Admin/Instructors.vue template @click
 const resetInstructorSecurityQuestions = (instructor: Instructor) => {
     securityQuestionResetForm.clearErrors();
     securityQuestionResetInstructor.value = instructor;
 };
 
+// @function closeSecurityQuestionResetConfirmation: Isinasara ang security question reset confirmation sa Instructors flow.
+// @useIn closeSecurityQuestionResetConfirmation: resources/js/pages/Auth/Admin/Instructors.vue template @click
 const closeSecurityQuestionResetConfirmation = () => {
     if (securityQuestionResetForm.processing) return;
     securityQuestionResetInstructor.value = null;
 };
 
+// @function confirmResetInstructorSecurityQuestions: Kinukuha ang confirm reset instructor security questions result para sa Instructors.
+// @useIn confirmResetInstructorSecurityQuestions: resources/js/pages/Auth/Admin/Instructors.vue template @click
 const confirmResetInstructorSecurityQuestions = () => {
     const instructor = securityQuestionResetInstructor.value;
     if (!instructor || securityQuestionResetForm.processing) return;
@@ -1047,6 +1078,8 @@ const confirmResetInstructorSecurityQuestions = () => {
     );
 };
 
+// @function capitalizeFirst: Kinukuha ang capitalize first result para sa Instructors.
+// @useIn capitalizeFirst: resources/js/pages/Auth/Admin/Instructors.vue template
 const capitalizeFirst = (str: string) => {
     if (!str) return '';
     return str.charAt(0).toUpperCase() + str.slice(1).replace('_', ' ');

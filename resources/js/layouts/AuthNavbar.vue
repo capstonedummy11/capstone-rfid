@@ -1,3 +1,16 @@
+<!-- FEATURE:user-management - konektadong model, service, route, o UI para sa feature na ito. -->
+<!-- FEATURE:academic-scheduling - konektadong model, service, route, o UI para sa feature na ito. -->
+<!-- FEATURE:device-management - konektadong model, service, route, o UI para sa feature na ito. -->
+<!-- FEATURE:system-settings - konektadong model, service, route, o UI para sa feature na ito. -->
+<!-- FEATURE:inventory-management - konektadong model, service, route, o UI para sa feature na ito. -->
+<!-- FEATURE:borrowing-management - konektadong model, service, route, o UI para sa feature na ito. -->
+<!-- FEATURE:admin-logs - konektadong model, service, route, o UI para sa feature na ito. -->
+<!-- FEATURE:clinic-records - konektadong model, service, route, o UI para sa feature na ito. -->
+<!-- FEATURE:clinic-reports - konektadong model, service, route, o UI para sa feature na ito. -->
+<!-- FEATURE:online-class-management - konektadong model, service, route, o UI para sa feature na ito. -->
+<!-- FEATURE:attendance-review - konektadong model, service, route, o UI para sa feature na ito. -->
+<!-- FEATURE:messenger - konektadong model, service, route, o UI para sa feature na ito. -->
+<!-- FEATURE:reports - konektadong model, service, route, o UI para sa feature na ito. -->
 <script setup>
 import { router, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
@@ -37,7 +50,11 @@ const currentRole = computed(() =>
     String(page.props.auth?.user?.role ?? '').toLowerCase(),
 );
 const featureSettings = computed(() => page.props.featureSettings ?? {});
+// @function canSee: Sinusuri kung see para sa Auth Navbar.
+// @useIn canSee: resources/js/layouts/AuthNavbar.vue:307
 const canSee = (roles) => roles.includes(currentRole.value);
+// @function isFeatureVisible: Sinusuri kung feature visible para sa Auth Navbar.
+// @useIn isFeatureVisible: resources/js/layouts/AuthNavbar.vue:307
 const isFeatureVisible = (featureKey) =>
     !featureKey || Boolean(featureSettings.value?.[featureKey]);
 
@@ -297,6 +314,8 @@ const visibleSections = computed(() =>
         .filter((section) => section.links.length > 0),
 );
 
+// @function confirmLogout: Kinukuha ang confirm logout result para sa Auth Navbar.
+// @useIn confirmLogout: resources/js/layouts/AuthNavbar.vue template @click
 const confirmLogout = async () => {
     const result = await Swal.fire({
         title: 'Log out?',

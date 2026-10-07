@@ -7,11 +7,15 @@ use Illuminate\Validation\Rule;
 
 class StoreRootOverrideRequest extends FormRequest
 {
+    // @function authorize: Sinusuri ang authorize condition para sa Store Root Override Request.
+    // @useIn authorize: Laravel FormRequest validation lifecycle
     public function authorize(): bool
     {
         return $this->user()?->can('request-root-override') ?? false;
     }
 
+    // @function rules: Kinukuha ang rules result para sa Store Root Override Request.
+    // @useIn rules: Laravel FormRequest validation lifecycle
     public function rules(): array
     {
         return [

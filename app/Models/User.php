@@ -1,4 +1,7 @@
 <?php
+// FEATURE:authentication - konektadong model, service, route, o UI para sa feature na ito.
+// FEATURE:user-management - konektadong model, service, route, o UI para sa feature na ito.
+// FEATURE:parent-student-view - konektadong model, service, route, o UI para sa feature na ito.
 
 namespace App\Models;
 
@@ -29,6 +32,8 @@ class User extends Authenticatable
         'profile_photo_url',
     ];
 
+    // @function getIdAttribute: Kinukuha ang id attribute sa User flow.
+    // @useIn getIdAttribute: Eloquent attribute read/write lifecycle
     public function getIdAttribute(): ?int
     {
         return $this->getKey();
@@ -69,6 +74,8 @@ class User extends Authenticatable
         'profile_photo_path',
     ];
 
+    // @function casts: Ibinabalik ang field casts ng User model.
+    // @useIn casts: Eloquent attribute casting lifecycle
     /**
      * Get the attributes that should be cast.
      *
@@ -87,6 +94,8 @@ class User extends Authenticatable
         ];
     }
 
+    // @function getProfilePhotoUrlAttribute: Kinukuha ang profile photo url attribute sa User flow.
+    // @useIn getProfilePhotoUrlAttribute: Eloquent attribute read/write lifecycle
     public function getProfilePhotoUrlAttribute(): ?string
     {
         return $this->profile_photo_path
@@ -94,6 +103,8 @@ class User extends Authenticatable
             : null;
     }
 
+    // @function instructor: Ibinabalik ang instructor Eloquent hasOne relationship.
+    // @useIn instructor: Eloquent relationship property at eager loading
     /**
      * Get the instructor associated with the user
      */
@@ -102,16 +113,22 @@ class User extends Authenticatable
         return $this->hasOne(Instructor::class, 'user_id', 'user_id');
     }
 
+    // @function subjects: Ibinabalik ang subjects Eloquent hasMany relationship.
+    // @useIn subjects: Eloquent relationship property at eager loading
     public function subjects(): HasMany
     {
         return $this->hasMany(Subject::class, 'user_id', 'user_id');
     }
 
+    // @function activityLogs: Ibinabalik ang activity logs Eloquent hasMany relationship.
+    // @useIn activityLogs: Eloquent relationship property at eager loading
     public function activityLogs(): HasMany
     {
         return $this->hasMany(ActivityLog::class, 'user_id', 'user_id');
     }
 
+    // @function linkedStudents: Ibinabalik ang linked students Eloquent belongsToMany relationship.
+    // @useIn linkedStudents: Eloquent relationship property at eager loading
     public function linkedStudents(): BelongsToMany
     {
         return $this->belongsToMany(Students::class, 'parent_student_links', 'parent_user_id', 'student_id')

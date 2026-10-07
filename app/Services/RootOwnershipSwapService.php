@@ -8,8 +8,12 @@ use Illuminate\Support\Facades\DB;
 
 class RootOwnershipSwapService
 {
+    // @function __construct: Tinatanggap ang dependencies ng Root Ownership Swap sa pagbuo ng object.
+    // @useIn __construct: Laravel dependency injection kapag ginagamit ang RootOwnershipSwapService
     public function __construct(private readonly AccessRevocationService $accessRevocation) {}
 
+    // @function swap: Pinoproseso ang swap sa database transaction.
+    // @useIn swap: app/Services/RootTransferService.php
     public function swap(User $oldOwner, User $newOwner): array
     {
         return DB::transaction(function () use ($oldOwner, $newOwner): array {

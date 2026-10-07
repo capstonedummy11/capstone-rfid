@@ -10,6 +10,8 @@ class ProfileDeleteRequest extends FormRequest
 {
     use PasswordValidationRules;
 
+    // @function rules: Kinukuha ang rules result para sa Profile Delete Request.
+    // @useIn rules: Laravel FormRequest validation lifecycle
     /**
      * Get the validation rules that apply to the request.
      *

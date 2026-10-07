@@ -40,6 +40,8 @@ const form = useForm({
     description: '',
 });
 
+// @function onAddItem: Hinahandle ang add item sa Inventory Table flow.
+// @useIn onAddItem: resources/js/components/Cards/Admin/InventoryTable.vue template @click
 const onAddItem = () => {
     if (!form.barcode || !form.name) {
         Swal.fire({
@@ -74,6 +76,8 @@ const onAddItem = () => {
     });
 };
 
+// @function formatDate: Fino-format ang date sa Inventory Table flow.
+// @useIn formatDate: resources/js/components/Cards/Admin/InventoryTable.vue template
 const formatDate = (date) => {
     if (!date) return '—';
     return new Intl.DateTimeFormat('en-US', {
@@ -86,11 +90,15 @@ const formatDate = (date) => {
 const selectedItem = ref(null);
 const showEditModal = ref(false);
 
+// @function openEdit: Binubuksan ang edit sa Inventory Table flow.
+// @useIn openEdit: resources/js/components/Cards/Admin/InventoryTable.vue template @click
 const openEdit = (row) => {
     selectedItem.value = row;
     showEditModal.value = true;
 };
 
+// @function onDelete: Hinahandle ang delete sa Inventory Table flow.
+// @useIn onDelete: resources/js/components/Cards/Admin/InventoryTable.vue template @click
 const onDelete = (row) => {
     Swal.fire({
         title: 'Are you sure?',

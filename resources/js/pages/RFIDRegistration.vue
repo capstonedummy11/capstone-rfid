@@ -198,11 +198,15 @@ const form = ref({
   schedule: ''
 })
 
+// @function simulateRFIDDetection: Pinoproseso ang simulate rfiddetection para sa RFIDRegistration.
+// @useIn simulateRFIDDetection: resources/js/pages/RFIDRegistration.vue template @click
 const simulateRFIDDetection = () => {
   // Simulate RFID detection
   detectedRFID.value = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
 }
 
+// @function registerRFID: Pinoproseso ang register rfid para sa RFIDRegistration.
+// @useIn registerRFID: resources/js/pages/RFIDRegistration.vue template
 const registerRFID = () => {
   // Simulate registration process
   console.log('Registering RFID:', {
@@ -223,12 +227,16 @@ const registerRFID = () => {
   }
 }
 
+// @function cancelRegistration: Kina-cancel ang registration sa RFIDRegistration flow.
+// @useIn cancelRegistration: resources/js/pages/RFIDRegistration.vue template @click
 const cancelRegistration = () => {
   resetForm()
   detectedRFID.value = ''
   registrationMessage.value = ''
 }
 
+// @function resetForm: Nire-reset ang form sa RFIDRegistration flow.
+// @useIn resetForm: resources/js/pages/RFIDRegistration.vue:219
 const resetForm = () => {
   form.value = {
     name: '',

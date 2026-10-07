@@ -479,6 +479,8 @@ const classForm = ref({
     room: '',
 });
 
+// @function editClass: Pinoproseso ang edit class para sa Classes.
+// @useIn editClass: resources/js/pages/Classes.vue template @click
 const editClass = (classItem) => {
     editingClass.value = classItem;
     classForm.value = {
@@ -491,6 +493,8 @@ const editClass = (classItem) => {
     showEditClassModal.value = true;
 };
 
+// @function deleteClass: Tinatanggal ang class sa Classes flow.
+// @useIn deleteClass: resources/js/pages/Classes.vue template @click
 const deleteClass = async (classItem) => {
     const confirmed = await confirmActionModal({
         title: 'Delete class?',
@@ -504,11 +508,15 @@ const deleteClass = async (classItem) => {
     }
 };
 
+// @function viewClassDetails: Pinoproseso ang view class details para sa Classes.
+// @useIn viewClassDetails: resources/js/pages/Classes.vue template @click
 const viewClassDetails = (classItem) => {
     selectedClass.value = classItem;
     showClassDetailsModal.value = true;
 };
 
+// @function saveClass: Sine-save ang class sa Classes flow.
+// @useIn saveClass: resources/js/pages/Classes.vue template
 const saveClass = () => {
     if (showEditClassModal.value) {
         // Update existing class
@@ -526,6 +534,8 @@ const saveClass = () => {
     closeModals();
 };
 
+// @function closeModals: Isinasara ang modals sa Classes flow.
+// @useIn closeModals: resources/js/pages/Classes.vue template @click
 const closeModals = () => {
     showAddClassModal.value = false;
     showEditClassModal.value = false;
@@ -541,6 +551,8 @@ const closeModals = () => {
     };
 };
 
+// @function getPresentTodayCount: Kinukuha ang present today count sa Classes flow.
+// @useIn getPresentTodayCount: resources/js/pages/Classes.vue template
 const getPresentTodayCount = () => {
     if (!selectedClass.value?.enrolledStudents) return 0;
     return selectedClass.value.enrolledStudents.filter(
@@ -548,6 +560,8 @@ const getPresentTodayCount = () => {
     ).length;
 };
 
+// @function getAttendanceRate: Kinukuha ang attendance rate sa Classes flow.
+// @useIn getAttendanceRate: resources/js/pages/Classes.vue template
 const getAttendanceRate = () => {
     if (
         !selectedClass.value?.enrolledStudents ||

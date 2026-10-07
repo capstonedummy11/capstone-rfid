@@ -1,3 +1,4 @@
+<!-- FEATURE:reports - UI para sa reports and exports. -->
 <script setup>
 import { router } from '@inertiajs/vue3';
 import { BarChart3, Download, RefreshCcw } from 'lucide-vue-next';
@@ -45,11 +46,17 @@ const pageDescription = computed(() => {
     );
 });
 
+// @function totalFor: Pinoproseso ang total for para sa Index.
+// @useIn totalFor: resources/js/pages/Reports/Index.vue template
 const totalFor = (chart) =>
     chart.data.reduce((sum, datum) => sum + Number(datum.value || 0), 0);
 
+// @function chartType: Pinoproseso ang chart type para sa Index.
+// @useIn chartType: resources/js/pages/Reports/Index.vue template
 const chartType = (chart) => chart.type || 'bar';
 
+// @function widthFor: Kinukuha ang width for result para sa Index.
+// @useIn widthFor: resources/js/pages/Reports/Index.vue template
 const widthFor = (datum, chart) => {
     const max = Math.max(
         ...chart.data.map((item) => Number(item.value || 0)),
@@ -61,6 +68,8 @@ const widthFor = (datum, chart) => {
     return `${Math.max(6, Math.round((Number(datum.value || 0) / max) * 100))}%`;
 };
 
+// @function percentFor: Kinukuha ang percent for result para sa Index.
+// @useIn percentFor: resources/js/pages/Reports/Index.vue template
 const percentFor = (datum, chart) => {
     const total = totalFor(chart);
     if (!total) return 0;
@@ -79,6 +88,8 @@ const chartColors = [
     '#475569',
 ];
 
+// @function donutStyle: Kinukuha ang donut style result para sa Index.
+// @useIn donutStyle: resources/js/pages/Reports/Index.vue template
 const donutStyle = (chart) => {
     const total = totalFor(chart);
     if (!total) {
@@ -98,6 +109,8 @@ const donutStyle = (chart) => {
     return { background: `conic-gradient(${slices.join(', ')})` };
 };
 
+// @function trendHeight: Kinukuha ang trend height result para sa Index.
+// @useIn trendHeight: resources/js/pages/Reports/Index.vue template
 const trendHeight = (datum, chart) => {
     const max = Math.max(
         ...chart.data.map((item) => Number(item.value || 0)),
@@ -108,6 +121,8 @@ const trendHeight = (datum, chart) => {
     return `${Math.max(8, Math.round((Number(datum.value || 0) / max) * 100))}%`;
 };
 
+// @function applyFilters: Inilalapat ang filters sa Index flow.
+// @useIn applyFilters: resources/js/pages/Reports/Index.vue template @click
 const applyFilters = () => {
     router.get(route('reports.index'), form, {
         preserveState: true,
@@ -115,6 +130,8 @@ const applyFilters = () => {
     });
 };
 
+// @function resetFilters: Nire-reset ang filters sa Index flow.
+// @useIn resetFilters: resources/js/pages/Reports/Index.vue template @click
 const resetFilters = () => {
     form.academic_year_id = props.academicYears.find((year) => year.status === 'active')?.academic_year_id || (props.allowAllYears ? 'all' : '');
     form.date_from = '';

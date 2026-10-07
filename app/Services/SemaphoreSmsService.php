@@ -1,4 +1,5 @@
 <?php
+// FEATURE:emergency-alerts - konektadong model, service, route, o UI para sa feature na ito.
 
 namespace App\Services;
 
@@ -12,6 +13,8 @@ use Illuminate\Support\Facades\Log;
 
 class SemaphoreSmsService implements SmsProvider
 {
+    // @function send: Ipinapadala ang semaphore sms sa Semaphore Sms flow.
+    // @useIn send: SemaphoreSmsService::sendEmergencyAlert (app/Services/SemaphoreSmsService.php)
     public function send(string $recipient, string $message): array
     {
         if (! config('services.semaphore.enabled', true)) {
@@ -56,6 +59,8 @@ class SemaphoreSmsService implements SmsProvider
         }
     }
 
+    // @function check: Sini-check ang semaphore sms sa Semaphore Sms flow.
+    // @useIn check: TODO(verify): walang direct caller na nakita sa static search
     public function check(): array
     {
         if (! config('services.semaphore.enabled', true)) {
@@ -94,6 +99,8 @@ class SemaphoreSmsService implements SmsProvider
         }
     }
 
+    // @function sendEmergencyAlert: Ipinapadala ang emergency alert sa Semaphore Sms flow.
+    // @useIn sendEmergencyAlert: TODO(verify): walang direct caller na nakita sa static search
     public function sendEmergencyAlert(EmergencyHotline $hotline, EmergencyAlert $alert): array
     {
         if (! config('services.semaphore.enabled', true)) {
@@ -107,6 +114,8 @@ class SemaphoreSmsService implements SmsProvider
         return $this->send($hotline->phone_number, $this->message($hotline, $alert));
     }
 
+    // @function sendParentAlert: Ipinapadala ang parent alert sa Semaphore Sms flow.
+    // @useIn sendParentAlert: TODO(verify): walang direct caller na nakita sa static search
     public function sendParentAlert(User $parent, Students $student, EmergencyAlert $alert): array
     {
         if (! config('services.semaphore.enabled', true)) {
@@ -123,11 +132,15 @@ class SemaphoreSmsService implements SmsProvider
         ]));
     }
 
+    // @function normalizeNumber: Nino-normalize ang number sa Semaphore Sms flow.
+    // @useIn normalizeNumber: SemaphoreSmsService::send (app/Services/SemaphoreSmsService.php)
     private function normalizeNumber(?string $number): string
     {
         return preg_replace('/[^\d+]/', '', (string) $number) ?? '';
     }
 
+    // @function message: Binubuo ang message string para sa Semaphore Sms.
+    // @useIn message: SemaphoreSmsService::sendEmergencyAlert (app/Services/SemaphoreSmsService.php)
     private function message(EmergencyHotline $hotline, EmergencyAlert $alert): string
     {
         $parts = [

@@ -1,3 +1,4 @@
+<!-- FEATURE:emergency-configuration - UI para sa emergency types and hotlines. -->
 <template>
     <div class="mx-auto max-w-7xl px-4 py-6">
         <section
@@ -354,6 +355,8 @@ const form = useForm({
     notes: '',
 });
 
+// @function openCreate: Binubuksan ang create sa Emergency Hotlines flow.
+// @useIn openCreate: resources/js/pages/Clinic/EmergencyHotlines.vue template @click
 const openCreate = () => {
     selectedHotline.value = null;
     form.reset();
@@ -365,12 +368,16 @@ const openCreate = () => {
     showModal.value = true;
 };
 
+// @function continueCreate: Kinukuha ang continue create result para sa Emergency Hotlines.
+// @useIn continueCreate: resources/js/pages/Clinic/EmergencyHotlines.vue template @click
 const continueCreate = () => {
     form.category = form.category.trim().toLowerCase();
     if (!form.category) return;
     creationStep.value = 'details';
 };
 
+// @function openEdit: Binubuksan ang edit sa Emergency Hotlines flow.
+// @useIn openEdit: resources/js/pages/Clinic/EmergencyHotlines.vue template @click
 const openEdit = (hotline) => {
     selectedHotline.value = hotline;
     creationStep.value = 'details';
@@ -386,12 +393,16 @@ const openEdit = (hotline) => {
     showModal.value = true;
 };
 
+// @function closeModal: Isinasara ang modal sa Emergency Hotlines flow.
+// @useIn closeModal: resources/js/pages/Clinic/EmergencyHotlines.vue template @click
 const closeModal = () => {
     showModal.value = false;
     selectedHotline.value = null;
     form.clearErrors();
 };
 
+// @function submit: Isinusumite ang emergency hotlines sa Emergency Hotlines flow.
+// @useIn submit: resources/js/pages/Clinic/EmergencyHotlines.vue template
 const submit = () => {
     if (!selectedHotline.value && creationStep.value === 'type') {
         continueCreate();
@@ -417,6 +428,8 @@ const submit = () => {
     });
 };
 
+// @function deleteHotline: Tinatanggal ang hotline sa Emergency Hotlines flow.
+// @useIn deleteHotline: resources/js/pages/Clinic/EmergencyHotlines.vue template @click
 const deleteHotline = async (hotline) => {
     const confirmed = await confirmActionModal({
         title: 'Delete emergency hotline?',

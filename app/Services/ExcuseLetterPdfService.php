@@ -1,4 +1,6 @@
 <?php
+// FEATURE:excuse-letter-submission - konektadong model, service, route, o UI para sa feature na ito.
+// FEATURE:excuse-letter-approval - konektadong model, service, route, o UI para sa feature na ito.
 
 namespace App\Services;
 
@@ -7,6 +9,8 @@ use App\Models\SystemSetting;
 
 class ExcuseLetterPdfService
 {
+    // @function render: Nire-render ang excuse letter pdf sa Excuse Letter Pdf flow.
+    // @useIn render: app/Http/Controllers/StudentsController.php
     public function render(StudentExcuseLetter $letter, string $studentName, string $section, string $submittedBy): string
     {
         $lines = [
@@ -47,6 +51,8 @@ class ExcuseLetterPdfService
         return $this->pdf($lines);
     }
 
+    // @function wrap: Kinukuha ang wrap result para sa Excuse Letter Pdf.
+    // @useIn wrap: ExcuseLetterPdfService::render (app/Services/ExcuseLetterPdfService.php)
     private function wrap(string $text, int $limit = 86): array
     {
         $rows = [];
@@ -77,6 +83,8 @@ class ExcuseLetterPdfService
         return $rows;
     }
 
+    // @function pdf: Binubuo ang pdf string para sa Excuse Letter Pdf.
+    // @useIn pdf: ExcuseLetterPdfService::render (app/Services/ExcuseLetterPdfService.php)
     private function pdf(array $lines): string
     {
         $content = "BT\n";
@@ -121,11 +129,15 @@ class ExcuseLetterPdfService
         return $pdf."trailer\n<< /Size ".(count($objects) + 1)." /Root 1 0 R >>\nstartxref\n{$xref}\n%%EOF";
     }
 
+    // @function escape: Binubuo ang escape string para sa Excuse Letter Pdf.
+    // @useIn escape: ExcuseLetterPdfService::pdf (app/Services/ExcuseLetterPdfService.php)
     private function escape(string $text): string
     {
         return str_replace(['\\', '(', ')'], ['\\\\', '\\(', '\\)'], $text);
     }
 
+    // @function statusLabel: Binubuo ang status label string para sa Excuse Letter Pdf.
+    // @useIn statusLabel: ExcuseLetterPdfService::render (app/Services/ExcuseLetterPdfService.php)
     private function statusLabel(string $status): string
     {
         return ucwords(str_replace('_', ' ', $status));

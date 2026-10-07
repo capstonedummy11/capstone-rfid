@@ -39,6 +39,8 @@ createInertiaApp({
 
         return page;
     },
+    // @function setup: Pinoproseso ang setup para sa app.
+    // @useIn setup: resources/js/app.js:42
     setup({ el, App, props, plugin }) {
         createApp({
             render: () =>

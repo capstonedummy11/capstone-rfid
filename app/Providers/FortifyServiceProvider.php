@@ -18,6 +18,8 @@ use Laravel\Fortify\Fortify;
 
 class FortifyServiceProvider extends ServiceProvider
 {
+    // @function register: Nirerehistro ang dependencies ng Fortify Service.
+    // @useIn register: Laravel service provider lifecycle
     /**
      * Register any application services.
      */
@@ -26,6 +28,8 @@ class FortifyServiceProvider extends ServiceProvider
         //
     }
 
+    // @function boot: Nirerehistro ang startup behavior ng Fortify Service.
+    // @useIn boot: Laravel service provider lifecycle
     /**
      * Bootstrap any application services.
      */
@@ -66,6 +70,8 @@ class FortifyServiceProvider extends ServiceProvider
         $this->configureRateLimiting();
     }
 
+    // @function configureActions: Pinoproseso ang configure actions para sa Fortify Service.
+    // @useIn configureActions: FortifyServiceProvider::boot (app/Providers/FortifyServiceProvider.php)
     /**
      * Configure Fortify actions.
      */
@@ -75,6 +81,8 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::createUsersUsing(CreateNewUser::class);
     }
 
+    // @function configureViews: Ibinabalik ang Auth/StaffLogin page at data para sa request.
+    // @useIn configureViews: FortifyServiceProvider::boot (app/Providers/FortifyServiceProvider.php)
     /**
      * Configure Fortify views.
      */
@@ -110,6 +118,8 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::confirmPasswordView(fn () => Inertia::render('auth/ConfirmPassword'));
     }
 
+    // @function configureAuthentication: Kinukuha ang configure authentication result para sa Fortify Service.
+    // @useIn configureAuthentication: FortifyServiceProvider::boot (app/Providers/FortifyServiceProvider.php)
     private function configureAuthentication(): void
     {
         Fortify::authenticateUsing(function (Request $request) {
@@ -141,6 +151,8 @@ class FortifyServiceProvider extends ServiceProvider
         });
     }
 
+    // @function configureRateLimiting: Kinukuha ang configure rate limiting result para sa Fortify Service.
+    // @useIn configureRateLimiting: FortifyServiceProvider::boot (app/Providers/FortifyServiceProvider.php)
     /**
      * Configure rate limiting.
      */

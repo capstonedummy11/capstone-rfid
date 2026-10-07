@@ -1,3 +1,4 @@
+<!-- FEATURE:authentication - UI para sa role-based login and session protection. -->
 <script setup>
 import featureImage from '@/assets/images/Container.png';
 import featureImage2 from '@/assets/images/Container 2.png';
@@ -72,6 +73,8 @@ const helperText = computed(() =>
         : `Welcome back, ${selectedProfile.value.name}. Enter your password to continue.`,
 );
 
+// @function selectProfile: Pinipili ang profile sa Staff Login flow.
+// @useIn selectProfile: resources/js/pages/Auth/StaffLogin.vue template @click
 const selectProfile = (index) => {
     selectedIndex.value = index;
     useDifferentAccount.value = false;
@@ -80,6 +83,8 @@ const selectProfile = (index) => {
     form.clearErrors();
 };
 
+// @function showDifferentAccount: Ipinapakita ang different account sa Staff Login flow.
+// @useIn showDifferentAccount: resources/js/pages/Auth/StaffLogin.vue template @click
 const showDifferentAccount = () => {
     useDifferentAccount.value = true;
     form.email = '';
@@ -88,10 +93,14 @@ const showDifferentAccount = () => {
     form.clearErrors();
 };
 
+// @function goToSlide: Pinoproseso ang go to slide para sa Staff Login.
+// @useIn goToSlide: resources/js/pages/Auth/StaffLogin.vue template @click
 const goToSlide = (index) => {
     activeSlideIndex.value = index;
 };
 
+// @function removeProfile: Tinatanggal ang profile sa Staff Login flow.
+// @useIn removeProfile: resources/js/pages/Auth/StaffLogin.vue template
 const removeProfile = (index) => {
     const profile = profiles.value[index];
 
@@ -111,6 +120,8 @@ const removeProfile = (index) => {
     selectProfile(selectedIndex.value);
 };
 
+// @function submit: Isinusumite ang staff login sa Staff Login flow.
+// @useIn submit: resources/js/pages/Auth/StaffLogin.vue template @click
 const submit = () => {
     const shouldSave = !useDifferentAccount.value ? true : saveOnDevice.value;
 

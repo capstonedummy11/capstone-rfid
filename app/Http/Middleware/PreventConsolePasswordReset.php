@@ -10,6 +10,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 class PreventConsolePasswordReset
 {
+    // @function handle: Pinoproseso ang request o event para sa Prevent Console Password Reset.
+    // @useIn handle: Laravel web middleware pipeline
     public function handle(Request $request, Closure $next): Response
     {
         if ($request->routeIs('password.email')) {

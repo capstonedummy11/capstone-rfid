@@ -14,8 +14,12 @@ use Illuminate\Validation\ValidationException;
 
 class RootTransferService
 {
+    // @function __construct: Tinatanggap ang dependencies ng Root Transfer sa pagbuo ng object.
+    // @useIn __construct: Laravel dependency injection kapag ginagamit ang RootTransferService
     public function __construct(private readonly RootOwnershipSwapService $swap, private readonly RootAuditService $audit) {}
 
+    // @function request: Pinoproseso ang request sa database transaction.
+    // @useIn request: app/Http/Controllers/RootOwnershipController.php
     public function request(User $actor, User $target, Request $httpRequest): RootTransferRequest
     {
         $token = Str::random(64);
@@ -51,6 +55,8 @@ class RootTransferService
         return $transfer;
     }
 
+    // @function accept: Pinoproseso ang accept sa database transaction.
+    // @useIn accept: app/Http/Controllers/RootOwnershipController.php
     public function accept(RootTransferRequest $transfer, User $actor, ?Request $request = null): void
     {
         DB::transaction(function () use ($transfer, $actor, $request) {
@@ -62,6 +68,8 @@ class RootTransferService
         });
     }
 
+    // @function cancel: Kina-cancel ang root transfer sa Root Transfer flow.
+    // @useIn cancel: app/Http/Controllers/RootOwnershipController.php
     public function cancel(RootTransferRequest $transfer, ?User $actor, ?string $token, ?Request $request = null): void
     {
         DB::transaction(function () use ($transfer, $actor, $token, $request) {
@@ -76,6 +84,8 @@ class RootTransferService
         });
     }
 
+    // @function processDue: Pinoproseso ang due sa Root Transfer flow.
+    // @useIn processDue: routes/console.php
     public function processDue(): void
     {
         RootTransferRequest::query()->whereIn('status', ['pending', 'accepted'])->get()->each(function (RootTransferRequest $transfer) {
@@ -111,6 +121,8 @@ class RootTransferService
         });
     }
 
+    // @function notifyRequest: Nagnonotify ang request sa Root Transfer flow.
+    // @useIn notifyRequest: RootTransferService::request (app/Services/RootTransferService.php)
     private function notifyRequest(RootTransferRequest $transfer, string $token): void
     {
         $base = $this->details($transfer);
@@ -121,6 +133,8 @@ class RootTransferService
         $transfer->toUser->notify(new RootOwnershipNotification('requested', $new));
     }
 
+    // @function sendReminder: Ipinapadala ang reminder sa Root Transfer flow.
+    // @useIn sendReminder: RootTransferService::processDue (app/Services/RootTransferService.php)
     private function sendReminder(RootTransferRequest $transfer, int $days): void
     {
         $column = $days === 7 ? 'reminder_7_sent_at' : 'reminder_1_sent_at';
@@ -129,11 +143,15 @@ class RootTransferService
         $this->notifyBoth($transfer, 'reminder_sent', "Root Admin transfer reminder: {$days} day(s)", 'The pending Root Admin transfer is approaching its effective date.');
     }
 
+    // @function notifyBoth: Nagnonotify ang both sa Root Transfer flow.
+    // @useIn notifyBoth: RootTransferService::cancel (app/Services/RootTransferService.php)
     private function notifyBoth(RootTransferRequest $transfer, string $event, string $subject, string $message): void
     {
         Notification::send([$transfer->fromUser, $transfer->toUser], new RootOwnershipNotification($event, $this->details($transfer) + compact('subject', 'message')));
     }
 
+    // @function details: Kinukuha ang details result para sa Root Transfer.
+    // @useIn details: RootTransferService::notifyRequest (app/Services/RootTransferService.php)
     private function details(RootTransferRequest $transfer): array
     {
         return ['requested_by' => $transfer->requester->email, 'requested_at' => $transfer->created_at?->toIso8601String(), 'ip' => $transfer->request_ip, 'user_agent' => $transfer->request_user_agent, 'effective_at' => $transfer->effective_at->toIso8601String()];

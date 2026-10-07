@@ -12,16 +12,22 @@ class MessengerMessageReceived extends Notification
 {
     use Queueable;
 
+    // @function __construct: Tinatanggap ang dependencies ng Messenger Message Received sa pagbuo ng object.
+    // @useIn __construct: Laravel dependency injection kapag ginagamit ang MessengerMessageReceived
     public function __construct(
         private readonly User $sender,
         private readonly StudentPortalMessage $message,
     ) {}
 
+    // @function via: Kinukuha ang via result para sa Messenger Message Received.
+    // @useIn via: Laravel notification delivery
     public function via(object $notifiable): array
     {
         return ['mail'];
     }
 
+    // @function toMail: Kinukuha ang to mail result para sa Messenger Message Received.
+    // @useIn toMail: Laravel notification delivery
     public function toMail(object $notifiable): MailMessage
     {
         $preview = str($this->message->body ?: $this->message->attachment_name ?: 'Attachment')

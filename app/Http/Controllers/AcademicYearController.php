@@ -14,8 +14,23 @@ use Inertia\Inertia;
 
 class AcademicYearController
 {
+    // @function __construct: Tinatanggap ang dependencies ng Academic Year sa pagbuo ng object.
+    // @useIn __construct: Laravel dependency injection kapag ginagamit ang AcademicYearController
+    // Ibinibigay ang lifecycle at rollover services sa controller.
     public function __construct(private readonly AcademicYearService $service, private readonly AcademicYearRolloverService $rolloverService) {}
 
+    // @function index: Ibinabalik ang Auth/Admin/AcademicYears page at data para sa request.
+    // @useIn index: routes/web.php:295 (academic-years.index)
+    /**
+     * @feature   Academic Year Lifecycle and Rollover
+     * @actor     Admin
+     * @flow      Dito ina-activate, kino-close, at niro-rollover ang academic year.
+     * @uses      resources/js/pages/Auth/Admin/AcademicYears.vue; routes/web.php: AcademicYearController::index, AcademicYearController::store, AcademicYearController::update, AcademicYearController::activate, AcademicYearController::close, AcademicYearController::archive, AcademicYearController::reopen, AcademicYearController::rolloverPreview, AcademicYearController::rolloverExecute
+     * @related   Admin workspace
+     * @disable   1) I-comment out ang routes/web.php: AcademicYearController::index, AcademicYearController::store, AcademicYearController::update, AcademicYearController::activate, AcademicYearController::close, AcademicYearController::archive, AcademicYearController::reopen, AcademicYearController::rolloverPreview, AcademicYearController::rolloverExecute.
+     * @disable   2) Itago ang action sa resources/js/pages/Auth/Admin/AcademicYears.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/AcademicYearController.php: AcademicYearController::index matapos alisin ang routes. Side effect: mawawala ang academic year lifecycle and rollover.
+     */
     public function index()
     {
         return Inertia::render('Auth/Admin/AcademicYears', [
@@ -50,6 +65,9 @@ class AcademicYearController
         ]);
     }
 
+    // @function store: Pinoproseso ang bagong Academic Year record.
+    // @useIn store: routes/web.php:297 (academic-years.store)
+    // Nagsa-save ng draft year matapos i-check ang year label at date range.
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -73,6 +91,9 @@ class AcademicYearController
         return back()->with('success', 'Academic year created as draft.');
     }
 
+    // @function update: Pinoproseso ang pagbabago sa Academic Year record.
+    // @useIn update: routes/web.php:299 (academic-years.update)
+    // Writable draft year lang ang puwedeng baguhin pagkatapos ng validation.
     public function update(Request $request, AcademicYear $academicYear)
     {
         abort_unless($academicYear->isWritable(), 422, 'Closed or archived academic years cannot be edited.');
@@ -98,6 +119,9 @@ class AcademicYearController
         return back()->with('success', 'Academic year updated.');
     }
 
+    // @function activate: Ina-activate ang academic year sa Academic Year flow.
+    // @useIn activate: routes/web.php:301 (academic-years.activate)
+    // Ginagawang active ang year sa service at nilolog ang action.
     public function activate(Request $request, AcademicYear $academicYear)
     {
         $year = $this->service->activate($academicYear, $request->user());
@@ -106,6 +130,9 @@ class AcademicYearController
         return back()->with('success', "{$year->name} is now the active academic year.");
     }
 
+    // @function close: Isinasara ang academic year sa Academic Year flow.
+    // @useIn close: routes/web.php:303 (academic-years.close)
+    // Kino-close ang year sa service at nilolog ang action.
     public function close(Request $request, AcademicYear $academicYear)
     {
         $year = $this->service->close($academicYear, $request->user());
@@ -114,6 +141,9 @@ class AcademicYearController
         return back()->with('success', 'Academic year closed.');
     }
 
+    // @function archive: Ina-archive ang academic year sa Academic Year flow.
+    // @useIn archive: routes/web.php:305 (academic-years.archive)
+    // Ina-archive ang year at nilolog ang pagbabago.
     public function archive(Request $request, AcademicYear $academicYear)
     {
         $year = $this->service->archive($academicYear);
@@ -122,6 +152,9 @@ class AcademicYearController
         return back()->with('success', 'Academic year archived.');
     }
 
+    // @function reopen: Binubuksan muli ang academic year sa Academic Year flow.
+    // @useIn reopen: routes/web.php:307 (academic-years.reopen)
+    // Nangangailangan ng dahilan bago ibalik ang closed year sa draft state.
     public function reopen(Request $request, AcademicYear $academicYear)
     {
         $validated = $request->validate(['reason' => ['required', 'string', 'min:10', 'max:1000']]);
@@ -131,6 +164,9 @@ class AcademicYearController
         return back()->with('success', 'Academic year reopened as a draft.');
     }
 
+    // @function rolloverPreview: Pinoproseso ang rollover preview at nagbabalik ng JSON response.
+    // @useIn rolloverPreview: routes/web.php:309 (academic-years.rollover-preview)
+    // Nagbabalik ng preview para mareview ang destination bago magsulat ng data.
     public function rolloverPreview(Request $request, AcademicYear $academicYear)
     {
         $validated = $request->validate([
@@ -147,6 +183,9 @@ class AcademicYearController
         ));
     }
 
+    // @function rolloverExecute: Kinukuha ang rollover execute result para sa Academic Year.
+    // @useIn rolloverExecute: routes/web.php:311 (academic-years.rollover)
+    // Ipinapasa ang validated mappings at decisions sa rollover service.
     public function rolloverExecute(Request $request, AcademicYear $academicYear)
     {
         $validated = $request->validate([
@@ -180,6 +219,9 @@ class AcademicYearController
         return back()->with('success', "Rollover completed safely. {$rollover->items->where('status', 'completed')->count()} student decisions were applied.");
     }
 
+    // @function log: Nilolog ang academic year sa Academic Year flow.
+    // @useIn log: AcademicYearController::store (app/Http/Controllers/AcademicYearController.php)
+    // Nagtatala ng actor, action, at year sa general activity log.
     private function log(Request $request, string $action, AcademicYear $year, string $description): void
     {
         ActivityLog::create([
