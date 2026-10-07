@@ -1,1 +1,0 @@
-import{K as e,c as t,a as o,o as a}from"./app-BWHKRzyg.js";const c={},r={class:"mx-auto w-full max-w-3xl p-6"};function n(l,s){return a(),t("section",r,[...s[0]||(s[0]=[o("h1",{class:"text-xl font-semibold text-slate-900"},"Password",-1)])])}const d=e(c,[["render",n]]);export{d as default};
