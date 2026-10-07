@@ -79,7 +79,7 @@ class StaffLoginController
 
             return $sent
                 ? $response->with('success', 'A verification code was sent to your Admin email address.')
-                : $response->withErrors(['otp' => 'The verification email could not be sent. Use resend to try again.']);
+                : $response->withErrors(['otp' => AdminLoginOtpService::DELIVERY_ERROR]);
         }
 
         return $this->redirectForRole($role);

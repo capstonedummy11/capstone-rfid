@@ -126,7 +126,7 @@ class InstructorVerificationController
 
             $request->session()->forget(['instructor_login_otp', 'instructor_login_otp_expires_at']);
 
-            return back()->withErrors(['otp' => 'The OTP email could not be sent. Please try again or use another verification method.']);
+            return back()->withErrors(['otp' => 'The verification code could not be emailed right now. Please try again shortly or use face or security-question verification.']);
         }
 
         return back()->with('success', 'OTP sent to '.$user->email.'. It expires in 10 minutes.');

@@ -120,9 +120,16 @@ onBeforeUnmount(() => window.clearInterval(timer));
                     Enter your login code
                 </h2>
                 <p class="mt-3 text-sm leading-6 text-slate-600">
-                    We sent a six-digit code to <strong>{{ email }}</strong
-                    >. The code is bound to this login and expires in 10
-                    minutes.
+                    <template v-if="expiresAt">
+                        We sent a six-digit code to <strong>{{ email }}</strong
+                        >. The code is bound to this login and expires in 10
+                        minutes.
+                    </template>
+                    <template v-else>
+                        No verification code is available yet for
+                        <strong>{{ email }}</strong
+                        >. Select Resend code to try again.
+                    </template>
                 </p>
 
                 <div
@@ -169,7 +176,18 @@ onBeforeUnmount(() => window.clearInterval(timer));
                     >
                         {{ resendForm.errors.otp }}
                     </p>
-                    <p class="mt-3 text-xs text-slate-500">
+                    <p
+                        v-if="
+                            page.props.errors?.otp &&
+                            !verifyForm.errors.otp &&
+                            !resendForm.errors.otp
+                        "
+                        class="mt-2 text-sm font-semibold text-rose-700"
+                        role="alert"
+                    >
+                        {{ page.props.errors.otp }}
+                    </p>
+                    <p v-if="expiresAt" class="mt-3 text-xs text-slate-500">
                         Code expires in {{ expiryLabel }}
                     </p>
                     <button

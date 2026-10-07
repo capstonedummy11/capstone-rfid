@@ -177,10 +177,13 @@ Use HTTPS outside `localhost`, configure AWS billing alarms, review the default 
 | `SEMAPHORE_API_KEY`, `SEMAPHORE_SENDER_NAME`, `SEMAPHORE_ENDPOINT` | Semaphore SMS configuration. |
 | `IPROG_SMS_ENABLED`, `IPROG_SMS_API_TOKEN`, `IPROG_SMS_ENDPOINT` | IPROG SMS configuration. |
 | `MAIL_MAILER`, `MAIL_SCHEME`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME` | Laravel mail transport for reset, OTP, messages, class notices, dispatch, and letters. |
+| `MAIL_BACKUP_SCHEME`, `MAIL_BACKUP_HOST`, `MAIL_BACKUP_PORT`, `MAIL_BACKUP_USERNAME`, `MAIL_BACKUP_PASSWORD` | Second SMTP account used after a primary SMTP transport failure when `MAIL_MAILER=failover`. |
 | `MESSENGER_EMAIL_NOTIFICATION_COOLDOWN_MINUTES` | Minimum interval for repeated sender-to-recipient Messenger email alerts; default 5. |
 | `ADMIN_LOGIN_OTP_EXPIRES_MINUTES`, `ADMIN_LOGIN_OTP_RESEND_SECONDS`, `ADMIN_LOGIN_OTP_MAX_ATTEMPTS` | Admin per-login email-code lifetime, resend cooldown, and incorrect-attempt limit; defaults are 10 minutes, 60 seconds, and 5 attempts. |
 
 Use `MAIL_MAILER=log` during local development if no SMTP server is available. Live Admin/Instructor OTP and password-reset workflows require real mail delivery; an Admin cannot open protected pages while their per-login code is undelivered or unverified.
+
+For two sending accounts, configure the existing `MAIL_*` SMTP settings for the primary account, the `MAIL_BACKUP_*` settings for the second, and set `MAIL_MAILER=failover`. Laravel tries `smtp` first and then `smtp_backup` when transport delivery raises an error. Both accounts must be permitted by their SMTP providers to send using `MAIL_FROM_ADDRESS`; use a sender address or verified alias accepted by both. The failover chain has no `log` transport, so a failed delivery is not reported as sent merely because it was written to a log. Keep the actual usernames and passwords only in the server `.env`, then rebuild Laravel's configuration cache after deployment.
 
 ## Run locally
 

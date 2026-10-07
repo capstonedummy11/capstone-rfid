@@ -56,7 +56,7 @@ class AdminLoginVerificationController extends Controller
         }
 
         if (! $otp->issue($request, $request->user())) {
-            throw ValidationException::withMessages(['otp' => 'The verification email could not be sent. Please try again.']);
+            throw ValidationException::withMessages(['otp' => AdminLoginOtpService::DELIVERY_ERROR]);
         }
 
         return back()->with('success', 'A new verification code was sent. The previous code no longer works.');

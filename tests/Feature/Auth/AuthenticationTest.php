@@ -112,6 +112,28 @@ test('resending an admin login otp invalidates the previous code', function () {
         ->assertRedirect(route('admin.dashboard'));
 });
 
+test('admin sees a delivery failure and receives no usable code when email fails', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    Mail::shouldReceive('to')->once()->andThrow(new RuntimeException('SMTP unavailable'));
+
+    $this->post(route('staff.login.store'), [
+        'email' => $admin->email,
+        'password' => 'password',
+    ])->assertRedirect(route('admin.login-verification.show'))
+        ->assertSessionHasErrors(['otp' => AdminLoginOtpService::DELIVERY_ERROR])
+        ->assertSessionMissing(AdminLoginOtpService::HASH);
+
+    $this->get(route('admin.login-verification.show'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Auth/AdminLoginVerification')
+            ->where('expiresAt', null)
+            ->where('errors.otp', AdminLoginOtpService::DELIVERY_ERROR)
+        );
+
+    $this->get(route('admin.dashboard'))->assertRedirect(route('admin.login-verification.show'));
+});
+
 test('expired admin login otp is rejected and protected access remains blocked', function () {
     Mail::fake();
     $admin = User::factory()->create(['role' => 'admin']);
@@ -301,6 +323,18 @@ test('instructor can request an email otp', function () {
         ->assertSessionHas('instructor_login_otp')
         ->assertSessionHas('instructor_login_otp_expires_at');
 
+});
+
+test('instructor sees a recovery message and receives no usable code when email fails', function () {
+    $instructor = User::factory()->create(['role' => 'instructor']);
+    Mail::shouldReceive('raw')->once()->andThrow(new RuntimeException('SMTP unavailable'));
+
+    $this->actingAs($instructor)
+        ->post(route('instructor.verify.otp.send'))
+        ->assertRedirect()
+        ->assertSessionHasErrors(['otp' => 'The verification code could not be emailed right now. Please try again shortly or use face or security-question verification.'])
+        ->assertSessionMissing('instructor_login_otp')
+        ->assertSessionMissing('instructor_login_otp_expires_at');
 });
 
 test('users can not authenticate with invalid password', function () {

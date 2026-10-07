@@ -179,7 +179,7 @@ The unused private `copyOfferingsAndSchedules` helper remains in the service, bu
 | --- | --- | --- |
 | AWS Rekognition | Attendance/online/instructor face comparison plus optional Face Liveness video challenge. Laravel creates and binds each session, Amplify streams with a start-only Cognito role, Laravel evaluates the result, and the returned reference frame still must match an enrolled image. | Disabled liveness preserves the documented still-capture flow; enabled liveness fails closed on missing/expired/replayed tokens or a low confidence score. Existing documented Instructor fallbacks remain separate explicit paths. |
 | CompreFace | Legacy/alternative face service code path. | Service catches/logs failures; not the primary settings availability provider. |
-| SMTP/Laravel Mail | OTP, password reset, messages, class notices, dispatch, letters. | Most user operation remains stored; email error is caught/recorded where implemented. OTP send itself returns an error on mail failure. |
+| SMTP/Laravel Mail | OTP, password reset, messages, class notices, dispatch, letters. | With `MAIL_MAILER=failover`, Laravel tries the primary SMTP account, then `smtp_backup` on a transport error. Both must allow the configured From address. Most user operation remains stored; email error is caught/recorded where implemented. OTP send itself returns an error if both transports fail. |
 | Semaphore | Emergency hotline SMS. | Alert remains stored and JSON/metadata reports failed/disabled result. |
 | Public filesystem | Faces, evidence, class/message/letter files, sounds. | Missing file returns 404; writes must have runtime permissions and public link where URL access is used. |
 

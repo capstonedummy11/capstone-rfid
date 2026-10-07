@@ -14,6 +14,8 @@ use Illuminate\Validation\ValidationException;
 
 class AdminLoginOtpService
 {
+    public const DELIVERY_ERROR = 'The verification code could not be emailed right now. Select Resend code to try again. If it still fails, contact your system administrator.';
+
     public const REQUIRED_LOGIN_ID = 'admin_login_otp.required_login_id';
 
     public const VERIFIED_LOGIN_ID = 'admin_login_otp.verified_login_id';

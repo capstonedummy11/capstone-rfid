@@ -32,6 +32,8 @@ Each successful login regenerates the Laravel session ID and issues a unique log
 
 After successful staff authentication, an Instructor is sent to the Instructor Verification screen. The Instructor can request a six-digit OTP through the registered email address. The OTP expires after 10 minutes and is stored only as a hash in the session. Face verification and configured security questions remain alternative Instructor verification methods.
 
+If email delivery fails, no usable Instructor OTP remains in the session. The page asks the Instructor to retry or use face or security-question verification. If an Admin login code cannot be emailed, the Admin verification page says no code is available, offers Resend code, and advises contacting the system administrator if delivery continues to fail. Admin access remains blocked until a valid emailed code is verified.
+
 ## Forgot Password
 
 Forgot Password is available to Admin, Instructor, Registrar, Clinic, Student, and Parent accounts.
