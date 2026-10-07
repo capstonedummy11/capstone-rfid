@@ -11,6 +11,7 @@ uses(RefreshDatabase::class);
 
 test('non console accounts can request a password reset link', function () {
     Notification::fake();
+    $resetUrl = null;
     $user = User::factory()->create([
         'role' => 'instructor',
         'email' => 'instructor-reset@example.test',
@@ -19,7 +20,24 @@ test('non console accounts can request a password reset link', function () {
     $this->post(route('password.email'), ['email' => $user->email])
         ->assertSessionHas('status');
 
-    Notification::assertSentTo($user, ResetPassword::class);
+    Notification::assertSentTo($user, ResetPassword::class, function (ResetPassword $notification) use ($user, &$resetUrl) {
+        $resetUrl = $notification->toMail($user)->actionUrl;
+
+        return str_starts_with($resetUrl, rtrim((string) config('app.url'), '/').'/reset-password/')
+            && str_contains($resetUrl, 'email='.urlencode($user->email));
+    });
+
+    expect($resetUrl)->not->toBeNull();
+    $this->get($resetUrl)->assertOk();
+});
+
+test('password reset and application website links use the configured app url', function () {
+    $appUrl = rtrim((string) config('app.url'), '/');
+
+    expect(route('messages.index'))->toStartWith($appUrl.'/')
+        ->and(route('clinic.case-logs'))->toStartWith($appUrl.'/')
+        ->and(route('student-parent.excuse-letters.index', ['student_id' => 123]))
+        ->toStartWith($appUrl.'/');
 });
 
 test('console accounts do not receive password reset links', function () {
@@ -55,14 +73,65 @@ test('user can replace a temporary password and continue', function () {
 
     $this->actingAs($user)
         ->put(route('password.first-login.update'), [
-            'password' => 'PrivatePassword123!',
-            'password_confirmation' => 'PrivatePassword123!',
+            'password' => 'TwelveChars!',
+            'password_confirmation' => 'TwelveChars!',
         ])
         ->assertRedirect(route('dashboard'));
 
     $user->refresh();
     expect($user->must_change_password)->toBeFalse()
-        ->and(Hash::check('PrivatePassword123!', $user->password))->toBeTrue();
+        ->and(Hash::check('TwelveChars!', $user->password))->toBeTrue();
+});
+
+test('first login password rejects fewer than twelve characters with the specific message', function () {
+    $user = User::factory()->create([
+        'role' => 'student',
+        'must_change_password' => true,
+    ]);
+
+    $this->actingAs($user)
+        ->put(route('password.first-login.update'), [
+            'password' => 'ElevenChar!',
+            'password_confirmation' => 'ElevenChar!',
+        ])
+        ->assertSessionHasErrors([
+            'password' => 'Password must be at least 12 characters long.',
+        ]);
+});
+
+test('first login password page is not throttled while password updates keep a dedicated limiter', function () {
+    $user = User::factory()->create([
+        'role' => 'student',
+        'must_change_password' => true,
+    ]);
+
+    $this->actingAs($user);
+
+    foreach (range(1, 16) as $_) {
+        $this->get(route('password.first-login'))->assertOk();
+    }
+
+    $pageRoute = app('router')->getRoutes()->getByName('password.first-login');
+    $updateRoute = app('router')->getRoutes()->getByName('password.first-login.update');
+
+    expect($pageRoute->gatherMiddleware())
+        ->toContain('auth')
+        ->not->toContain('throttle:10,1')
+        ->and($updateRoute->gatherMiddleware())
+        ->toContain('throttle:first-login-password')
+        ->not->toContain('throttle:6,1');
+
+    foreach (range(1, 15) as $_) {
+        $this->put(route('password.first-login.update'), [
+            'password' => 'short',
+            'password_confirmation' => 'short',
+        ])->assertSessionHasErrors('password');
+    }
+
+    $this->put(route('password.first-login.update'), [
+        'password' => 'short',
+        'password_confirmation' => 'short',
+    ])->assertTooManyRequests();
 });
 
 test('console accounts are excluded from first login password change', function () {
@@ -94,4 +163,21 @@ test('staff password reset returns to staff login and clears first login flag', 
     $user->refresh();
     expect($user->must_change_password)->toBeFalse()
         ->and(Hash::check('RecoveredPassword123!', $user->password))->toBeTrue();
+});
+
+test('forgotten password reset rejects fewer than twelve characters with the specific message', function () {
+    $user = User::factory()->create([
+        'role' => 'clinic',
+        'email' => 'clinic-short-password@example.test',
+    ]);
+    $token = Password::broker()->createToken($user);
+
+    $this->post(route('password.update'), [
+        'token' => $token,
+        'email' => $user->email,
+        'password' => 'ElevenChar!',
+        'password_confirmation' => 'ElevenChar!',
+    ])->assertSessionHasErrors([
+        'password' => 'Password must be at least 12 characters long.',
+    ]);
 });

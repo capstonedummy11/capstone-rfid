@@ -25,6 +25,8 @@ class EmergencyType extends Model
         'is_active' => 'boolean',
     ];
 
+    // @function alerts: Ibinabalik ang alerts Eloquent hasMany relationship.
+    // @useIn alerts: Eloquent relationship property at eager loading
     public function alerts(): HasMany
     {
         return $this->hasMany(EmergencyAlert::class, 'emergency_type_id', 'emergency_type_id');

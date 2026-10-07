@@ -8,6 +8,7 @@ use App\Models\Attendance;
 use App\Models\Instructor;
 use App\Models\OnlineClass;
 use App\Models\OnlineClassAttendance;
+use App\Models\Schedule;
 use App\Models\Students;
 use App\Models\Subject;
 use App\Models\SystemSetting;
@@ -40,8 +41,22 @@ class AttendanceManagementController extends Controller
         'Online Class',
     ];
 
+    // @function __construct: Tinatanggap ang dependencies ng Attendance Management sa pagbuo ng object.
+    // @useIn __construct: Laravel dependency injection kapag ginagamit ang AttendanceManagementController
     public function __construct(private readonly OnlineClassAttendanceFinalizer $attendanceFinalizer) {}
 
+    // @function index: Ibinabalik ang Attendance/SubjectSelection page at data para sa request.
+    // @useIn index: routes/web.php:256 (attendance.logs)
+    /**
+     * @feature   Assigned Attendance and Corrections
+     * @actor     Instructor
+     * @flow      Dito nire-review ang assigned attendance at nilolog ang allowed manual corrections.
+     * @uses      resources/js/pages/Attendance/SessionDetails.vue; routes/web.php: AttendanceManagementController::index, AttendanceManagementController::dashboard, AttendanceManagementController::summary, AttendanceManagementController::student, AttendanceManagementController::session, AttendanceManagementController::updateOnlineAttendanceStatus, AttendanceManagementController::exportSummary, AttendanceManagementController::exportSession
+     * @related   Instructor workspace
+     * @disable   1) I-comment out ang routes/web.php: AttendanceManagementController::index, AttendanceManagementController::dashboard, AttendanceManagementController::summary, AttendanceManagementController::student, AttendanceManagementController::session, AttendanceManagementController::updateOnlineAttendanceStatus, AttendanceManagementController::exportSummary, AttendanceManagementController::exportSession.
+     * @disable   2) Itago ang action sa resources/js/pages/Attendance/SessionDetails.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/AttendanceManagementController.php: AttendanceManagementController::index matapos alisin ang routes. Side effect: mawawala ang assigned attendance and corrections.
+     */
     public function index(Request $request): Response|SymfonyResponse
     {
         $defaultYear = AcademicYear::currentOrLatest();
@@ -61,6 +76,7 @@ class AttendanceManagementController extends Controller
         }
 
         return Inertia::render('Attendance/SubjectSelection', [
+            'title' => 'Attendance Subjects',
             'subjects' => $subjects->map(fn (Subject $subject) => $this->subjectCard($subject))->values(),
             'filters' => $request->only(['school_year', 'semester', 'department', 'course', 'section', 'instructor']),
             'filterOptions' => $role === 'admin' ? $this->adminFilterOptions() : null,
@@ -68,21 +84,30 @@ class AttendanceManagementController extends Controller
         ]);
     }
 
+    // @function dashboard: Ibinabalik ang Attendance/Dashboard page at data para sa request.
+    // @useIn dashboard: routes/web.php:258 (attendance.subject)
     public function dashboard(Request $request, Subject $subject): Response
     {
         $context = $this->authorizeSubject($request, $subject);
         $sessions = $this->sessionsFor($subject, $context['instructor_id'])->get();
         $onlineClasses = $this->onlineClassesFor($subject, $context['instructor_id'])->get();
-        $students = $this->studentsFor($subject)->get();
+        $students = $this->studentsFor($subject, $context['instructor_id'])->get();
         $summary = $this->summaryRows($subject, $sessions, $onlineClasses, $students);
         $statusTotals = $this->statusTotals($summary);
         $sessionCards = $sessions
-            ->map(fn ($session) => $this->sessionCard($session, $students->count()))
-            ->merge($onlineClasses->map(fn (OnlineClass $onlineClass) => $this->onlineSessionCard($onlineClass, $students->count())))
+            ->map(fn ($session) => $this->sessionCard(
+                $session,
+                $students->filter(fn (Students $student) => $this->studentBelongsToContext($student, $session))->count(),
+            ))
+            ->merge($onlineClasses->map(fn (OnlineClass $onlineClass) => $this->onlineSessionCard(
+                $onlineClass,
+                $students->filter(fn (Students $student) => $this->studentBelongsToContext($student, $onlineClass))->count(),
+            )))
             ->sortByDesc('sort_at')
             ->values();
 
         return Inertia::render('Attendance/Dashboard', [
+            'title' => 'Attendance Dashboard',
             'subject' => $this->subjectMeta($subject, $context['instructor_id']),
             'overview' => [
                 'total_students' => $students->count(),
@@ -94,14 +119,17 @@ class AttendanceManagementController extends Controller
         ]);
     }
 
+    // @function summary: Ibinabalik ang Attendance/Summary page at data para sa request.
+    // @useIn summary: routes/web.php:260 (attendance.summary)
     public function summary(Request $request, Subject $subject): Response
     {
         $context = $this->authorizeSubject($request, $subject);
         $sessions = $this->sessionsFor($subject, $context['instructor_id'])->get();
         $onlineClasses = $this->onlineClassesFor($subject, $context['instructor_id'])->get();
-        $rows = $this->summaryRows($subject, $sessions, $onlineClasses, $this->studentsFor($subject)->get());
+        $rows = $this->summaryRows($subject, $sessions, $onlineClasses, $this->studentsFor($subject, $context['instructor_id'])->get());
 
         return Inertia::render('Attendance/Summary', [
+            'title' => 'Attendance Summary',
             'subject' => $this->subjectMeta($subject, $context['instructor_id']),
             'statuses' => $this->statusNames($rows),
             'rows' => $rows->values(),
@@ -109,11 +137,15 @@ class AttendanceManagementController extends Controller
         ]);
     }
 
+    // @function student: Ibinabalik ang Attendance/StudentHistory page at data para sa request.
+    // @useIn student: routes/web.php:262 (attendance.student)
     public function student(Request $request, Subject $subject, Students $student): Response
     {
         $context = $this->authorizeSubject($request, $subject);
-        abort_unless((int) $student->section_id === (int) $subject->section_id, 404);
-        $sessions = $this->sessionsFor($subject, $context['instructor_id'])->get();
+        abort_unless($this->studentsFor($subject, $context['instructor_id'])->whereKey($student->student_id)->exists(), 404);
+        $sessions = $this->sessionsFor($subject, $context['instructor_id'])
+            ->get()
+            ->filter(fn ($session) => $this->studentBelongsToContext($student, $session));
         $history = $sessions->map(function ($session) use ($student) {
             $attendance = Attendance::query()
                 ->where('schedule_id', $session->schedule_id)
@@ -137,6 +169,7 @@ class AttendanceManagementController extends Controller
             $this->onlineClassesFor($subject, $context['instructor_id'])
                 ->with(['attendances' => fn ($query) => $query->where('student_id', $student->student_id)])
                 ->get()
+                ->filter(fn (OnlineClass $onlineClass) => $this->studentBelongsToContext($student, $onlineClass))
                 ->map(function (OnlineClass $onlineClass) {
                     $attendance = $onlineClass->attendances->first();
 
@@ -158,6 +191,7 @@ class AttendanceManagementController extends Controller
         )->sortByDesc('date')->values();
 
         return Inertia::render('Attendance/StudentHistory', [
+            'title' => 'Student Attendance',
             'subject' => $this->subjectMeta($subject, $context['instructor_id']),
             'student' => [
                 'id' => $student->student_id,
@@ -168,6 +202,8 @@ class AttendanceManagementController extends Controller
         ]);
     }
 
+    // @function session: Ibinabalik ang Attendance/SessionDetails page at data para sa request.
+    // @useIn session: routes/web.php:264 (attendance.session)
     public function session(Request $request, Subject $subject, string $session): Response
     {
         $context = $this->authorizeSubject($request, $subject);
@@ -176,6 +212,7 @@ class AttendanceManagementController extends Controller
             $rows = $this->onlineSessionRows($subject, $onlineClass);
 
             return Inertia::render('Attendance/SessionDetails', [
+                'title' => 'Attendance Session',
                 'subject' => $this->subjectMeta($subject, $context['instructor_id']),
                 'session' => $this->onlineSessionMeta($onlineClass),
                 'statuses' => $rows->pluck('status')->unique()->sort()->values(),
@@ -191,6 +228,7 @@ class AttendanceManagementController extends Controller
         $rows = $this->sessionRows($subject, $attendanceSession);
 
         return Inertia::render('Attendance/SessionDetails', [
+            'title' => 'Attendance Session',
             'subject' => $this->subjectMeta($subject, $context['instructor_id']),
             'session' => $this->sessionMeta($attendanceSession),
             'statuses' => $rows->pluck('status')->unique()->sort()->values(),
@@ -202,12 +240,14 @@ class AttendanceManagementController extends Controller
         ]);
     }
 
+    // @function exportSummary: Ine-export ang summary sa Attendance Management flow.
+    // @useIn exportSummary: routes/web.php:266 (attendance.summary.export)
     public function exportSummary(Request $request, Subject $subject, string $format): SymfonyResponse
     {
         $context = $this->authorizeSubject($request, $subject);
         $sessions = $this->sessionsFor($subject, $context['instructor_id'])->get();
         $onlineClasses = $this->onlineClassesFor($subject, $context['instructor_id'])->get();
-        $rows = $this->summaryRows($subject, $sessions, $onlineClasses, $this->studentsFor($subject)->get());
+        $rows = $this->summaryRows($subject, $sessions, $onlineClasses, $this->studentsFor($subject, $context['instructor_id'])->get());
         $statuses = $this->statusNames($rows);
         $meta = $this->reportMeta($request, $subject, $context['instructor_id'], 'Student Attendance Summary', [
             'Total Students' => $rows->count(),
@@ -224,6 +264,8 @@ class AttendanceManagementController extends Controller
         return $this->export($format, 'student-attendance-summary', $meta, $headings, $data, $this->statusTotals($rows));
     }
 
+    // @function updateOnlineAttendanceStatus: Ina-update ang online attendance status sa Attendance Management flow.
+    // @useIn updateOnlineAttendanceStatus: routes/web.php:272 (attendance.online.status)
     public function updateOnlineAttendanceStatus(Request $request): SymfonyResponse
     {
         $validated = $request->validate([
@@ -244,7 +286,7 @@ class AttendanceManagementController extends Controller
             abort_unless((int) $onlineClass->instructor_id === (int) $context['instructor_id'], 403);
         }
 
-        $student = $this->studentsFor($subject)->whereKey($validated['student_id'])->firstOrFail();
+        $student = $this->studentsFor($subject, $context['instructor_id'], $onlineClass)->whereKey($validated['student_id'])->firstOrFail();
         $editDays = max(1, min(365, SystemSetting::integer(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 15)));
         $classDate = $onlineClass->scheduled_date->copy()->startOfDay();
         abort_if(
@@ -299,6 +341,8 @@ class AttendanceManagementController extends Controller
         return back()->with('success', 'Online attendance status updated and logged.');
     }
 
+    // @function exportSession: Ine-export ang session sa Attendance Management flow.
+    // @useIn exportSession: routes/web.php:268 (attendance.session.export)
     public function exportSession(Request $request, Subject $subject, string $session, string $format): SymfonyResponse
     {
         $context = $this->authorizeSubject($request, $subject);
@@ -354,6 +398,8 @@ class AttendanceManagementController extends Controller
         );
     }
 
+    // @function actor: Kinukuha ang actor result para sa Attendance Management.
+    // @useIn actor: AttendanceManagementController::index (app/Http/Controllers/AttendanceManagementController.php)
     private function actor(Request $request): array
     {
         $role = strtolower((string) $request->user()?->role);
@@ -366,6 +412,8 @@ class AttendanceManagementController extends Controller
         return [$role, $instructorId ? (int) $instructorId : null];
     }
 
+    // @function authorizeSubject: Sini-check ang access sa ang subject sa Attendance Management flow.
+    // @useIn authorizeSubject: AttendanceManagementController::dashboard (app/Http/Controllers/AttendanceManagementController.php)
     private function authorizeSubject(Request $request, Subject $subject): array
     {
         [$role, $instructorId] = $this->actor($request);
@@ -377,24 +425,23 @@ class AttendanceManagementController extends Controller
         return compact('role', 'instructorId') + ['instructor_id' => $instructorId];
     }
 
+    // @function subjectAssignedTo: Sinusuri ang subject assigned to condition para sa Attendance Management.
+    // @useIn subjectAssignedTo: AttendanceManagementController::authorizeSubject (app/Http/Controllers/AttendanceManagementController.php)
     private function subjectAssignedTo(Subject $subject, int $instructorId): bool
     {
         return DB::table('schedules')
             ->where('instructor_id', $instructorId)
-            ->where('section_id', $subject->section_id)
             ->where('subject_code', $subject->subject_code)
             ->exists();
     }
 
+    // @function subjectsFor: Kinukuha ang subjects for result para sa Attendance Management.
+    // @useIn subjectsFor: AttendanceManagementController::index (app/Http/Controllers/AttendanceManagementController.php)
     private function subjectsFor(string $role, ?int $instructorId, Request $request): Builder
     {
-        $academicYearId = $request->filled('school_year') && $request->input('school_year') !== 'all'
-            ? AcademicYear::query()->where('name', $request->input('school_year'))->value('academic_year_id')
-            : null;
         return Subject::query()
             ->with(['section.strand'])
             ->whereHas('schedules', function (Builder $query) use ($role, $instructorId, $request) {
-                $query->whereColumn('schedules.section_id', 'subjects.section_id');
                 if ($role === 'instructor') {
                     $query->where('schedules.instructor_id', $instructorId);
                 } elseif ($request->filled('instructor')) {
@@ -406,36 +453,37 @@ class AttendanceManagementController extends Controller
                 if ($request->filled('semester')) {
                     $query->where('schedules.semester', $request->input('semester'));
                 }
+                if ($request->filled('course')) {
+                    $query->whereHas('section', fn (Builder $section) => $section->where('strand_id', $request->integer('course')));
+                }
+                if ($request->filled('section')) {
+                    $query->where('schedules.section_id', $request->integer('section'));
+                }
             })
-            ->when($request->filled('school_year') && $request->input('school_year') !== 'all', fn ($q) => $q->whereHas('section', fn ($s) => $s->where('school_year', $request->input('school_year'))))
-            ->when($request->filled('semester'), fn ($q) => $q->where(function ($s) use ($request) {
-                $s->where('semester', $request->input('semester'))
-                    ->orWhereHas('section', fn ($section) => $section->where('semester', $request->input('semester')));
-            }))
             ->when($request->filled('department'), fn ($q) => $q->where('department', $request->input('department')))
-            ->when($request->filled('course'), fn ($q) => $q->whereHas('section', fn ($section) => $section->where('strand_id', $request->integer('course'))))
-            ->when($request->filled('section'), fn ($q) => $q->where('section_id', $request->integer('section')))
             ->orderBy('subject_name');
     }
 
+    // @function sessionsFor: Kinukuha ang sessions for result para sa Attendance Management.
+    // @useIn sessionsFor: AttendanceManagementController::dashboard (app/Http/Controllers/AttendanceManagementController.php)
     private function sessionsFor(Subject $subject, ?int $instructorId)
     {
         return DB::table('attendance_sessions')
             ->join('schedules', 'schedules.scheduled_id', '=', 'attendance_sessions.schedule_id')
-            ->where('schedules.section_id', $subject->section_id)
             ->where('schedules.subject_code', $subject->subject_code)
             ->when($instructorId, fn ($query) => $query->where('schedules.instructor_id', $instructorId))
-            ->select('attendance_sessions.*', 'schedules.instructor_id', 'schedules.section_id')
+            ->select('attendance_sessions.*', 'schedules.instructor_id', 'schedules.section_id', 'schedules.semester')
             ->orderByDesc('attendance_sessions.date')
             ->orderByDesc('attendance_sessions.time_start');
     }
 
+    // @function onlineClassesFor: Kinukuha ang online classes for result para sa Attendance Management.
+    // @useIn onlineClassesFor: AttendanceManagementController::dashboard (app/Http/Controllers/AttendanceManagementController.php)
     private function onlineClassesFor(Subject $subject, ?int $instructorId): Builder
     {
         $this->attendanceFinalizer->finalizeEnded();
 
         return OnlineClass::query()
-            ->where('section_id', $subject->section_id)
             ->where('subject_code', $subject->subject_code)
             ->where('status', '!=', 'cancelled')
             ->when($instructorId, fn ($query) => $query->where('instructor_id', $instructorId))
@@ -443,18 +491,50 @@ class AttendanceManagementController extends Controller
             ->orderByDesc('start_time');
     }
 
-    private function studentsFor(Subject $subject): Builder
+    // @function studentsFor: Kinukuha ang students for result para sa Attendance Management.
+    // @useIn studentsFor: AttendanceManagementController::dashboard (app/Http/Controllers/AttendanceManagementController.php)
+    private function studentsFor(Subject $subject, ?int $instructorId = null, ?object $context = null): Builder
     {
-        $subject->loadMissing('section');
+        $contexts = $context
+            ? collect([$context])
+            : Schedule::query()
+                ->where('subject_code', $subject->subject_code)
+                ->when($instructorId, fn (Builder $query) => $query->where('instructor_id', $instructorId))
+                ->get(['academic_year_id', 'section_id', 'semester']);
+
+        if ($contexts->isEmpty() && $subject->section_id) {
+            $contexts = collect([(object) [
+                'academic_year_id' => $subject->section?->academic_year_id,
+                'section_id' => $subject->section_id,
+                'semester' => $subject->semester ?? $subject->section?->semester,
+            ]]);
+        }
 
         return Students::query()
-            ->when($subject->section?->academic_year_id, function (Builder $query, int $academicYearId) use ($subject) {
-                $query->whereHas('enrollments', fn (Builder $enrollment) => $enrollment
-                    ->where('academic_year_id', $academicYearId)
-                    ->where('section_id', $subject->section_id)
-                    ->when($subject->semester, fn (Builder $term) => $term->where('semester', $subject->semester))
-                );
-            }, fn (Builder $query) => $query->where('section_id', $subject->section_id))
+            ->with('enrollments')
+            ->where(function (Builder $studentQuery) use ($contexts) {
+                if ($contexts->isEmpty()) {
+                    $studentQuery->whereRaw('1 = 0');
+
+                    return;
+                }
+
+                foreach ($contexts as $context) {
+                    $academicYearId = $context->academic_year_id ?? null;
+                    $sectionId = $context->section_id ?? null;
+                    $semester = $context->semester ?? null;
+
+                    if ($academicYearId && $sectionId) {
+                        $studentQuery->orWhereHas('enrollments', fn (Builder $enrollment) => $enrollment
+                            ->where('academic_year_id', $academicYearId)
+                            ->where('section_id', $sectionId)
+                            ->when($semester, fn (Builder $term) => $term->where('semester', $semester))
+                        );
+                    } elseif ($sectionId) {
+                        $studentQuery->orWhere('section_id', $sectionId);
+                    }
+                }
+            })
             ->where(function ($query) {
                 $query->whereNull('status')->orWhereRaw('LOWER(status) = ?', ['active']);
             })
@@ -462,6 +542,28 @@ class AttendanceManagementController extends Controller
             ->orderBy('first_name');
     }
 
+    // @function studentBelongsToContext: Sinusuri ang student belongs to context condition para sa Attendance Management.
+    // @useIn studentBelongsToContext: AttendanceManagementController::dashboard (app/Http/Controllers/AttendanceManagementController.php)
+    private function studentBelongsToContext(Students $student, object $context): bool
+    {
+        $academicYearId = $context->academic_year_id ?? null;
+        $sectionId = $context->section_id ?? null;
+        $semester = $context->semester ?? null;
+
+        if ($academicYearId && $sectionId) {
+            $student->loadMissing('enrollments');
+
+            return $student->enrollments->contains(fn ($enrollment) => (int) $enrollment->academic_year_id === (int) $academicYearId
+                && (int) $enrollment->section_id === (int) $sectionId
+                && (! $semester || $enrollment->semester === $semester)
+            );
+        }
+
+        return $sectionId && (int) $student->section_id === (int) $sectionId;
+    }
+
+    // @function summaryRows: Binubuo ang summary rows value.
+    // @useIn summaryRows: AttendanceManagementController::dashboard (app/Http/Controllers/AttendanceManagementController.php)
     private function summaryRows(Subject $subject, Collection $sessions, Collection $onlineClasses, Collection $students): Collection
     {
         $physical = Attendance::query()
@@ -478,13 +580,22 @@ class AttendanceManagementController extends Controller
 
         return $students->map(function (Students $student) use ($sessions, $onlineClasses, $physical, $onlineAttendances) {
             $counts = collect();
+            $eligibleSessionCount = 0;
             foreach ($sessions as $session) {
+                if (! $this->studentBelongsToContext($student, $session)) {
+                    continue;
+                }
+                $eligibleSessionCount++;
                 $key = $student->student_id.'|'.$session->schedule_id.'|'.Carbon::parse($session->date)->toDateString();
                 $attendance = $physical->get($key);
                 $status = $attendance ? $this->displayStatus($attendance, $session) : $this->missingStatus($session);
                 $counts[$status] = ($counts[$status] ?? 0) + 1;
             }
             foreach ($onlineClasses as $onlineClass) {
+                if (! $this->studentBelongsToContext($student, $onlineClass)) {
+                    continue;
+                }
+                $eligibleSessionCount++;
                 $attendance = $onlineAttendances->get($student->student_id.'|'.$onlineClass->online_class_id);
                 $status = $this->onlineStudentStatus($onlineClass, $attendance);
                 $counts[$status] = ($counts[$status] ?? 0) + 1;
@@ -493,7 +604,7 @@ class AttendanceManagementController extends Controller
                 }
             }
             $completed = (int) ($counts['Present'] ?? 0) + (int) ($counts['Late'] ?? 0) + (int) ($counts['Excused'] ?? 0);
-            $rateBase = max(1, $sessions->count() + $onlineClasses->count());
+            $rateBase = max(1, $eligibleSessionCount);
 
             return [
                 'student_id' => $student->student_id,
@@ -505,6 +616,8 @@ class AttendanceManagementController extends Controller
         });
     }
 
+    // @function sessionRows: Binubuo ang session rows value.
+    // @useIn sessionRows: AttendanceManagementController::session (app/Http/Controllers/AttendanceManagementController.php)
     private function sessionRows(Subject $subject, object $session): Collection
     {
         $attendances = Attendance::query()
@@ -513,7 +626,41 @@ class AttendanceManagementController extends Controller
             ->get()
             ->keyBy('student_id');
 
-        return $this->studentsFor($subject)->get()->map(function (Students $student) use ($attendances, $session) {
+        $tapEvents = DB::table('attendance_logs')
+            ->where('attendance_id', $session->attendance_id)
+            ->orderBy('tap_sequence_number')
+            ->orderBy('id')
+            ->get()
+            ->groupBy('student_id')
+            ->map(fn (Collection $events) => $events->map(function (object $event) {
+                $tapType = (string) ($event->tap_type ?? 'Tap');
+
+                return [
+                    'id' => $event->id,
+                    'tap_type' => $tapType,
+                    'tap_sequence_number' => $event->tap_sequence_number,
+                    'time' => $event->tap_datetime
+                        ? Carbon::parse($event->tap_datetime)->format('g:i A')
+                        : ($this->formatTime($event->time_in ?? $event->time_out) ?? 'N/A'),
+                    'room_status' => match ($tapType) {
+                        'Check-in', 'Temporary Return' => 'Inside',
+                        'Temporary Exit', 'Check-out' => 'Outside',
+                        default => null,
+                    },
+                    'location' => $event->location,
+                    'validation_result' => ucfirst((string) ($event->validation_result ?? 'valid')),
+                    'verification_method' => $event->verification_method,
+                    'remarks' => $event->remarks,
+                    'time_in_image_url' => $event->time_in_face_path
+                        ? route('attendance.evidence', ['attendanceLog' => $event->id, 'moment' => 'time-in'])
+                        : null,
+                    'time_out_image_url' => $event->time_out_face_path
+                        ? route('attendance.evidence', ['attendanceLog' => $event->id, 'moment' => 'time-out'])
+                        : null,
+                ];
+            })->values());
+
+        return $this->studentsFor($subject, $session->instructor_id ?? null, $session)->get()->map(function (Students $student) use ($attendances, $session, $tapEvents) {
             $attendance = $attendances->get($student->student_id);
 
             return [
@@ -524,6 +671,7 @@ class AttendanceManagementController extends Controller
                 'time_in' => $this->formatTime($attendance?->time_in),
                 'time_out' => $this->formatTime($attendance?->time_out),
                 'remarks' => $attendance?->remarks,
+                'tap_events' => $tapEvents->get($student->student_id, collect())->all(),
                 'editable' => Carbon::parse($session->date)->betweenIncluded(
                     now()->subDays(max(1, \App\Models\SystemSetting::integer(\App\Models\SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 15)) - 1)->startOfDay(),
                     now()->endOfDay()
@@ -532,6 +680,8 @@ class AttendanceManagementController extends Controller
         });
     }
 
+    // @function onlineSessionRows: Binubuo ang online session rows value.
+    // @useIn onlineSessionRows: AttendanceManagementController::session (app/Http/Controllers/AttendanceManagementController.php)
     private function onlineSessionRows(Subject $subject, OnlineClass $onlineClass): Collection
     {
         $attendances = OnlineClassAttendance::query()
@@ -539,7 +689,7 @@ class AttendanceManagementController extends Controller
             ->get()
             ->keyBy('student_id');
 
-        return $this->studentsFor($subject)->get()->map(function (Students $student) use ($attendances, $onlineClass) {
+        return $this->studentsFor($subject, $onlineClass->instructor_id, $onlineClass)->get()->map(function (Students $student) use ($attendances, $onlineClass) {
             $attendance = $attendances->get($student->student_id);
 
             return [
@@ -560,6 +710,8 @@ class AttendanceManagementController extends Controller
         });
     }
 
+    // @function sessionForSubject: Kinukuha ang session for subject result para sa Attendance Management.
+    // @useIn sessionForSubject: AttendanceManagementController::session (app/Http/Controllers/AttendanceManagementController.php)
     private function sessionForSubject(Subject $subject, int $session, ?int $instructorId): object
     {
         $record = $this->sessionsFor($subject, $instructorId)
@@ -570,6 +722,8 @@ class AttendanceManagementController extends Controller
         return $record;
     }
 
+    // @function onlineClassForSubject: Kinukuha ang online class for subject result para sa Attendance Management.
+    // @useIn onlineClassForSubject: AttendanceManagementController::session (app/Http/Controllers/AttendanceManagementController.php)
     private function onlineClassForSubject(Subject $subject, int $onlineClassId, ?int $instructorId): OnlineClass
     {
         $onlineClass = $this->onlineClassesFor($subject, $instructorId)
@@ -580,6 +734,8 @@ class AttendanceManagementController extends Controller
         return $onlineClass;
     }
 
+    // @function displayStatus: Binubuo ang display status string para sa Attendance Management.
+    // @useIn displayStatus: AttendanceManagementController::student (app/Http/Controllers/AttendanceManagementController.php)
     private function displayStatus(Attendance $attendance, object $session): string
     {
         $status = trim((string) $attendance->status);
@@ -590,11 +746,15 @@ class AttendanceManagementController extends Controller
         return $status === '' ? 'Pending' : ucwords(str_replace('_', ' ', strtolower($status)));
     }
 
+    // @function missingStatus: Binubuo ang missing status string para sa Attendance Management.
+    // @useIn missingStatus: AttendanceManagementController::student (app/Http/Controllers/AttendanceManagementController.php)
     private function missingStatus(object $session): string
     {
         return $this->sessionEnded($session) ? 'Absent' : 'Pending';
     }
 
+    // @function onlineStudentStatus: Binubuo ang online student status string para sa Attendance Management.
+    // @useIn onlineStudentStatus: AttendanceManagementController::student (app/Http/Controllers/AttendanceManagementController.php)
     private function onlineStudentStatus(OnlineClass $onlineClass, ?OnlineClassAttendance $attendance): string
     {
         $savedStatus = strtolower((string) $attendance?->status);
@@ -608,17 +768,23 @@ class AttendanceManagementController extends Controller
         return $this->onlineClassEnded($onlineClass) ? 'Absent' : 'Pending';
     }
 
+    // @function onlineClassEnded: Sinusuri ang online class ended condition para sa Attendance Management.
+    // @useIn onlineClassEnded: AttendanceManagementController::student (app/Http/Controllers/AttendanceManagementController.php)
     private function onlineClassEnded(OnlineClass $onlineClass): bool
     {
         return Carbon::parse($onlineClass->scheduled_date->format('Y-m-d').' '.$onlineClass->end_time)->isPast();
     }
 
+    // @function sessionEnded: Sinusuri ang session ended condition para sa Attendance Management.
+    // @useIn sessionEnded: AttendanceManagementController::displayStatus (app/Http/Controllers/AttendanceManagementController.php)
     private function sessionEnded(object $session): bool
     {
         return Carbon::parse($session->date.' '.$session->time_end)->isPast()
             || in_array(strtolower((string) ($session->status ?? '')), ['completed', 'ended', 'closed'], true);
     }
 
+    // @function statusNames: Kinukuha ang status names result para sa Attendance Management.
+    // @useIn statusNames: AttendanceManagementController::summary (app/Http/Controllers/AttendanceManagementController.php)
     private function statusNames(Collection $rows): Collection
     {
         $dynamicStatuses = $rows
@@ -631,6 +797,8 @@ class AttendanceManagementController extends Controller
         return collect(self::CORE_STATUSES)->merge($dynamicStatuses);
     }
 
+    // @function statusTotals: Kinukuha ang status totals result para sa Attendance Management.
+    // @useIn statusTotals: AttendanceManagementController::dashboard (app/Http/Controllers/AttendanceManagementController.php)
     private function statusTotals(Collection $rows): array
     {
         $totals = collect(self::CORE_STATUSES)->mapWithKeys(fn ($status) => [$status => 0]);
@@ -643,10 +811,11 @@ class AttendanceManagementController extends Controller
         return $totals->sortKeys()->all();
     }
 
+    // @function subjectCard: Kinukuha ang subject card result para sa Attendance Management.
+    // @useIn subjectCard: AttendanceManagementController::index (app/Http/Controllers/AttendanceManagementController.php)
     private function subjectCard(Subject $subject): array
     {
         $instructors = $subject->schedules()
-            ->where('section_id', $subject->section_id)
             ->with('instructor.user')
             ->get()
             ->pluck('instructor.user.name')
@@ -657,34 +826,46 @@ class AttendanceManagementController extends Controller
         return $this->subjectMeta($subject, null) + ['instructors' => $instructors];
     }
 
+    // @function subjectMeta: Kinukuha ang subject meta result para sa Attendance Management.
+    // @useIn subjectMeta: AttendanceManagementController::dashboard (app/Http/Controllers/AttendanceManagementController.php)
     private function subjectMeta(Subject $subject, ?int $instructorId): array
     {
         $subject->loadMissing('section.strand');
-        $instructorNames = $subject->schedules()
-            ->where('section_id', $subject->section_id)
+        $schedules = $subject->schedules()
             ->when($instructorId, fn ($query) => $query->where('instructor_id', $instructorId))
-            ->with('instructor.user')
+            ->with(['academicYear', 'section.strand', 'instructor.user'])
+            ->orderByDesc('scheduled_id')
             ->get()
+            ->values();
+        $instructorNames = $schedules
             ->pluck('instructor.user.name')
             ->filter()
             ->unique()
             ->implode(', ');
+        $scheduleSections = $schedules->pluck('section')->filter()->unique('section_id')->values();
+        $representativeSchedule = $schedules->first();
+        $representativeSection = $subject->section ?? $representativeSchedule?->section;
+        $sectionName = $scheduleSections->count() > 1
+            ? 'Multiple sections'
+            : $representativeSection?->section_name;
 
         return [
             'id' => $subject->subject_id,
             'code' => $subject->subject_code,
             'name' => $subject->subject_name,
             'department' => $subject->department,
-            'semester' => $subject->semester ?: $subject->section?->semester,
-            'section_id' => $subject->section_id,
-            'section' => $subject->section?->section_name,
-            'school_year' => $subject->section?->school_year,
-            'strand' => $subject->section?->strand?->strand_code,
+            'semester' => $subject->semester ?: $representativeSchedule?->semester ?: $representativeSection?->semester,
+            'section_id' => $subject->section_id ?? $representativeSchedule?->section_id,
+            'section' => $sectionName,
+            'school_year' => $representativeSchedule?->academicYear?->name ?? $representativeSection?->school_year,
+            'strand' => $representativeSection?->strand?->strand_code,
             'instructor' => $instructorNames ?: 'Unassigned Instructor',
             'color_theme' => $this->subjectColorTheme($subject),
         ];
     }
 
+    // @function subjectColorTheme: Binubuo ang subject color theme string para sa Attendance Management.
+    // @useIn subjectColorTheme: AttendanceManagementController::subjectMeta (app/Http/Controllers/AttendanceManagementController.php)
     private function subjectColorTheme(Subject $subject): string
     {
         $themes = ['emerald', 'blue', 'amber', 'rose', 'violet', 'cyan'];
@@ -693,6 +874,8 @@ class AttendanceManagementController extends Controller
         return $themes[abs(crc32($stableKey)) % count($themes)];
     }
 
+    // @function sessionCard: Kinukuha ang session card result para sa Attendance Management.
+    // @useIn sessionCard: AttendanceManagementController::dashboard (app/Http/Controllers/AttendanceManagementController.php)
     private function sessionCard(object $session, int $studentCount): array
     {
         $completed = Attendance::query()
@@ -707,6 +890,8 @@ class AttendanceManagementController extends Controller
         ];
     }
 
+    // @function onlineSessionCard: Kinukuha ang online session card result para sa Attendance Management.
+    // @useIn onlineSessionCard: AttendanceManagementController::dashboard (app/Http/Controllers/AttendanceManagementController.php)
     private function onlineSessionCard(OnlineClass $onlineClass, int $studentCount): array
     {
         $joined = OnlineClassAttendance::query()
@@ -723,6 +908,8 @@ class AttendanceManagementController extends Controller
         ];
     }
 
+    // @function sessionMeta: Kinukuha ang session meta result para sa Attendance Management.
+    // @useIn sessionMeta: AttendanceManagementController::session (app/Http/Controllers/AttendanceManagementController.php)
     private function sessionMeta(object $session): array
     {
         return [
@@ -738,6 +925,8 @@ class AttendanceManagementController extends Controller
         ];
     }
 
+    // @function onlineSessionMeta: Kinukuha ang online session meta result para sa Attendance Management.
+    // @useIn onlineSessionMeta: AttendanceManagementController::session (app/Http/Controllers/AttendanceManagementController.php)
     private function onlineSessionMeta(OnlineClass $onlineClass): array
     {
         return [
@@ -753,24 +942,29 @@ class AttendanceManagementController extends Controller
         ];
     }
 
+    // @function adminFilterOptions: Binubuo ang admin filter options value.
+    // @useIn adminFilterOptions: AttendanceManagementController::index (app/Http/Controllers/AttendanceManagementController.php)
     private function adminFilterOptions(): array
     {
         return [
-            'schoolYears' => DB::table('sections')->whereNotNull('school_year')->distinct()->orderByDesc('school_year')->pluck('school_year'),
-            'semesters' => DB::table('sections')->whereNotNull('semester')->distinct()->orderBy('semester')->pluck('semester'),
-            'departments' => DB::table('subjects')->whereNotNull('department')->where('department', '!=', '')->distinct()->orderBy('department')->pluck('department'),
+            'schoolYears' => DB::table('sections')->whereNull('sections.deleted_at')->whereNotNull('school_year')->distinct()->orderByDesc('school_year')->pluck('school_year'),
+            'semesters' => DB::table('sections')->whereNull('sections.deleted_at')->whereNotNull('semester')->distinct()->orderBy('semester')->pluck('semester'),
+            'departments' => DB::table('subjects')->whereNull('subjects.deleted_at')->whereNotNull('department')->where('department', '!=', '')->distinct()->orderBy('department')->pluck('department'),
             'courses' => DB::table('strands')
+                ->whereNull('strands.deleted_at')
                 ->orderBy('strand_name')
                 ->get(['strand_id as value', 'strand_code', 'strand_name'])
                 ->map(fn ($strand) => [
                     'value' => $strand->value,
                     'label' => trim(implode(' - ', array_filter([$strand->strand_code, $strand->strand_name]))),
                 ]),
-            'sections' => DB::table('sections')->orderBy('section_name')->get(['section_id as value', 'section_name as label']),
-            'instructors' => DB::table('instructors')->join('users', 'users.user_id', '=', 'instructors.user_id')->orderBy('users.name')->get(['instructors.instructor_id as value', 'users.name as label']),
+            'sections' => DB::table('sections')->whereNull('sections.deleted_at')->orderBy('section_name')->get(['section_id as value', 'section_name as label']),
+            'instructors' => DB::table('instructors')->whereNull('instructors.deleted_at')->join('users', 'users.user_id', '=', 'instructors.user_id')->whereNull('users.deleted_at')->orderBy('users.name')->get(['instructors.instructor_id as value', 'users.name as label']),
         ];
     }
 
+    // @function reportMeta: Kinukuha ang report meta result para sa Attendance Management.
+    // @useIn reportMeta: AttendanceManagementController::exportSummary (app/Http/Controllers/AttendanceManagementController.php)
     private function reportMeta(Request $request, Subject $subject, ?int $instructorId, string $title, array $extra): array
     {
         $meta = $this->subjectMeta($subject, $instructorId);
@@ -790,14 +984,24 @@ class AttendanceManagementController extends Controller
         ];
     }
 
+    // @function export: Ine-export ang attendance management sa Attendance Management flow.
+    // @useIn export: AttendanceManagementController::exportSummary (app/Http/Controllers/AttendanceManagementController.php)
     private function export(string $format, string $filename, array $meta, array $headings, Collection $rows, array|Collection $totals): SymfonyResponse
     {
         abort_unless(in_array($format, ['pdf', 'xlsx'], true), 404);
         $totals = collect($totals)->all();
         if ($format === 'pdf') {
+            if (! class_exists(Pdf::class)) {
+                return $this->minimalPdfDownload($filename, $meta, $headings, $rows, $totals);
+            }
+
             return Pdf::loadView('reports.attendance', compact('meta', 'headings', 'rows', 'totals'))
                 ->setPaper('a4', count($headings) > 7 ? 'landscape' : 'portrait')
                 ->download($filename.'.pdf');
+        }
+
+        if (! class_exists(Spreadsheet::class)) {
+            return $this->minimalXlsxDownload($filename, $meta, $headings, $rows, $totals);
         }
 
         $spreadsheet = new Spreadsheet;
@@ -852,11 +1056,212 @@ class AttendanceManagementController extends Controller
         return response()->download($path, $filename.'.xlsx')->deleteFileAfterSend(true);
     }
 
+    // @function minimalPdfDownload: Kinukuha ang minimal pdf download result para sa Attendance Management.
+    // @useIn minimalPdfDownload: AttendanceManagementController::export (app/Http/Controllers/AttendanceManagementController.php)
+    private function minimalPdfDownload(string $filename, array $meta, array $headings, Collection $rows, array $totals): SymfonyResponse
+    {
+        $lines = [];
+        foreach ($meta as $label => $value) {
+            if ($label !== '__logo') {
+                $lines[] = "{$label}: {$value}";
+            }
+        }
+
+        $lines[] = '';
+        $lines[] = implode(' | ', $headings);
+        foreach ($rows->take(45) as $row) {
+            $lines[] = implode(' | ', array_map(
+                fn ($value) => Str::limit((string) $value, 30, ''),
+                array_values($row),
+            ));
+        }
+
+        $lines[] = '';
+        $lines[] = 'Status Totals';
+        foreach ($totals as $status => $count) {
+            $lines[] = "{$status}: {$count}";
+        }
+
+        $path = tempnam(sys_get_temp_dir(), 'attendance-').'.pdf';
+        file_put_contents($path, $this->minimalPdfContent($lines));
+
+        return response()->download($path, $filename.'.pdf', ['Content-Type' => 'application/pdf'])->deleteFileAfterSend(true);
+    }
+
+    // @function minimalPdfContent: Binubuo ang minimal pdf content string para sa Attendance Management.
+    // @useIn minimalPdfContent: AttendanceManagementController::minimalPdfDownload (app/Http/Controllers/AttendanceManagementController.php)
+    private function minimalPdfContent(array $lines): string
+    {
+        $content = "BT\n/F1 10 Tf\n12 TL\n50 780 Td\n";
+        foreach ($lines as $line) {
+            $content .= '('.$this->pdfText($line).") Tj\nT*\n";
+        }
+        $content .= "ET\n";
+
+        $objects = [
+            '1 0 obj'."\n".'<< /Type /Catalog /Pages 2 0 R >>'."\n".'endobj'."\n",
+            '2 0 obj'."\n".'<< /Type /Pages /Kids [3 0 R] /Count 1 >>'."\n".'endobj'."\n",
+            '3 0 obj'."\n".'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>'."\n".'endobj'."\n",
+            '4 0 obj'."\n".'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'."\n".'endobj'."\n",
+            '5 0 obj'."\n".'<< /Length '.strlen($content).' >>'."\n".'stream'."\n".$content.'endstream'."\n".'endobj'."\n",
+        ];
+
+        $pdf = "%PDF-1.4\n";
+        $offsets = [0];
+        foreach ($objects as $object) {
+            $offsets[] = strlen($pdf);
+            $pdf .= $object;
+        }
+
+        $xrefOffset = strlen($pdf);
+        $pdf .= 'xref'."\n".'0 '.(count($objects) + 1)."\n";
+        $pdf .= "0000000000 65535 f \n";
+        foreach (array_slice($offsets, 1) as $offset) {
+            $pdf .= str_pad((string) $offset, 10, '0', STR_PAD_LEFT)." 00000 n \n";
+        }
+        $pdf .= 'trailer'."\n".'<< /Size '.(count($objects) + 1).' /Root 1 0 R >>'."\n";
+        $pdf .= 'startxref'."\n".$xrefOffset."\n".'%%EOF';
+
+        return $pdf;
+    }
+
+    // @function pdfText: Binubuo ang pdf text string para sa Attendance Management.
+    // @useIn pdfText: AttendanceManagementController::minimalPdfContent (app/Http/Controllers/AttendanceManagementController.php)
+    private function pdfText(string $value): string
+    {
+        return str_replace(["\\", '(', ')', "\r", "\n"], ['\\\\', '\(', '\)', ' ', ' '], $value);
+    }
+
+    // @function minimalXlsxDownload: Kinukuha ang minimal xlsx download result para sa Attendance Management.
+    // @useIn minimalXlsxDownload: AttendanceManagementController::export (app/Http/Controllers/AttendanceManagementController.php)
+    private function minimalXlsxDownload(string $filename, array $meta, array $headings, Collection $rows, array $totals): SymfonyResponse
+    {
+        $xlsxRows = [];
+
+        foreach ($meta as $label => $value) {
+            if ($label !== '__logo') {
+                $xlsxRows[] = [$label, $value];
+            }
+        }
+
+        $xlsxRows[] = [];
+        $xlsxRows[] = $headings;
+        foreach ($rows as $row) {
+            $xlsxRows[] = array_values($row);
+        }
+
+        $xlsxRows[] = [];
+        $xlsxRows[] = ['Status Totals'];
+        foreach ($totals as $status => $count) {
+            $xlsxRows[] = [$status, $count];
+        }
+
+        $path = tempnam(sys_get_temp_dir(), 'attendance-').'.xlsx';
+        $zip = new \ZipArchive;
+        $zip->open($path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+        $zip->addFromString('[Content_Types].xml', $this->xlsxContentTypes());
+        $zip->addFromString('_rels/.rels', $this->xlsxRootRels());
+        $zip->addFromString('xl/workbook.xml', $this->xlsxWorkbook());
+        $zip->addFromString('xl/_rels/workbook.xml.rels', $this->xlsxWorkbookRels());
+        $zip->addFromString('xl/worksheets/sheet1.xml', $this->xlsxWorksheet($xlsxRows));
+        $zip->close();
+
+        return response()->download($path, $filename.'.xlsx')->deleteFileAfterSend(true);
+    }
+
+    // @function xlsxWorksheet: Binubuo ang xlsx worksheet string para sa Attendance Management.
+    // @useIn xlsxWorksheet: AttendanceManagementController::minimalXlsxDownload (app/Http/Controllers/AttendanceManagementController.php)
+    private function xlsxWorksheet(array $rows): string
+    {
+        $xmlRows = [];
+        foreach ($rows as $rowIndex => $row) {
+            $cells = [];
+            foreach (array_values($row) as $columnIndex => $value) {
+                $coordinate = $this->xlsxColumnName($columnIndex + 1).($rowIndex + 1);
+                $cells[] = '<c r="'.$coordinate.'" t="inlineStr"><is><t>'.$this->xmlValue($value).'</t></is></c>';
+            }
+            $xmlRows[] = '<row r="'.($rowIndex + 1).'">'.implode('', $cells).'</row>';
+        }
+
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            .'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            .'<sheetData>'.implode('', $xmlRows).'</sheetData>'
+            .'</worksheet>';
+    }
+
+    // @function xlsxContentTypes: Binubuo ang xlsx content types string para sa Attendance Management.
+    // @useIn xlsxContentTypes: AttendanceManagementController::minimalXlsxDownload (app/Http/Controllers/AttendanceManagementController.php)
+    private function xlsxContentTypes(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            .'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+            .'<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+            .'<Default Extension="xml" ContentType="application/xml"/>'
+            .'<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+            .'<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+            .'</Types>';
+    }
+
+    // @function xlsxRootRels: Binubuo ang xlsx root rels string para sa Attendance Management.
+    // @useIn xlsxRootRels: AttendanceManagementController::minimalXlsxDownload (app/Http/Controllers/AttendanceManagementController.php)
+    private function xlsxRootRels(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            .'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            .'<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+            .'</Relationships>';
+    }
+
+    // @function xlsxWorkbook: Binubuo ang xlsx workbook string para sa Attendance Management.
+    // @useIn xlsxWorkbook: AttendanceManagementController::minimalXlsxDownload (app/Http/Controllers/AttendanceManagementController.php)
+    private function xlsxWorkbook(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            .'<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            .'<sheets><sheet name="Attendance Report" sheetId="1" r:id="rId1"/></sheets>'
+            .'</workbook>';
+    }
+
+    // @function xlsxWorkbookRels: Binubuo ang xlsx workbook rels string para sa Attendance Management.
+    // @useIn xlsxWorkbookRels: AttendanceManagementController::minimalXlsxDownload (app/Http/Controllers/AttendanceManagementController.php)
+    private function xlsxWorkbookRels(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            .'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            .'<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+            .'</Relationships>';
+    }
+
+    // @function xmlValue: Binubuo ang xml value string para sa Attendance Management.
+    // @useIn xmlValue: AttendanceManagementController::xlsxWorksheet (app/Http/Controllers/AttendanceManagementController.php)
+    private function xmlValue(mixed $value): string
+    {
+        return htmlspecialchars((string) $value, ENT_XML1 | ENT_COMPAT, 'UTF-8');
+    }
+
+    // @function xlsxColumnName: Binubuo ang xlsx column name string para sa Attendance Management.
+    // @useIn xlsxColumnName: AttendanceManagementController::xlsxWorksheet (app/Http/Controllers/AttendanceManagementController.php)
+    private function xlsxColumnName(int $column): string
+    {
+        $name = '';
+        while ($column > 0) {
+            $column--;
+            $name = chr(65 + ($column % 26)).$name;
+            $column = intdiv($column, 26);
+        }
+
+        return $name;
+    }
+
+    // @function timeRange: Binubuo ang time range string para sa Attendance Management.
+    // @useIn timeRange: AttendanceManagementController::student (app/Http/Controllers/AttendanceManagementController.php)
     private function timeRange(?string $start, ?string $end): string
     {
         return ($this->formatTime($start) ?: 'N/A').' - '.($this->formatTime($end) ?: 'N/A');
     }
 
+    // @function formatTime: Fino-format ang time sa Attendance Management flow.
+    // @useIn formatTime: AttendanceManagementController::student (app/Http/Controllers/AttendanceManagementController.php)
     private function formatTime(?string $value): ?string
     {
         return $value ? Carbon::parse($value)->format('g:i A') : null;

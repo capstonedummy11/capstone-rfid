@@ -1,13 +1,16 @@
 <script setup>
 import logo from '@/assets/images/logo.png';
-import philsca from '@/assets/images/philsca.png';
-import featureImage from '@/assets/images/Container.png';
-import featureImage2 from '@/assets/images/Container 2.png';
-import featureImage3 from '@/assets/images/Container 3.png';
-import container4 from '@/assets/images/Container 4.png';
-import item1 from '@/assets/images/Item 1.png';
-import item2 from '@/assets/images/Item 2.png';
-import item3 from '@/assets/images/Item 3.png';
+import heroImage from '@/assets/images/pasayCitysouth.png';
+import attendanceImage from '@/assets/images/Home/2.jpg';
+import onlineClassesImage from '@/assets/images/Home/4.jpeg';
+import messagesImage from '@/assets/images/Home/3.png';
+import aboutSystemImage from '@/assets/images/Home/1.jpg';
+import galleryImage1 from '@/assets/images/Container.png';
+import galleryImage2 from '@/assets/images/Container 2.png';
+import galleryImage3 from '@/assets/images/Container 3.png';
+import galleryImage4 from '@/assets/images/Container 4.png';
+import galleryItem5 from '@/assets/images/Item 5.png';
+import Footer from '@/components/LandingPage/Footer.vue';
 import {
     getSavedStudentParentProfiles,
     removeSavedStudentParentProfile,
@@ -15,7 +18,7 @@ import {
 } from '@/composables/useSavedStudentParentProfiles';
 import { Link, useForm, usePage } from '@inertiajs/vue3';
 import { ArrowRight, Eye, EyeOff, Trash2 } from 'lucide-vue-next';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
 const isMenuOpen = ref(false);
 const showLoginPanel = ref(false);
@@ -36,7 +39,6 @@ const selectedProfile = computed(
 const form = useForm({
     email: '',
     password: '',
-    remember: true,
 });
 
 const helperText = computed(() =>
@@ -49,17 +51,17 @@ const helperText = computed(() =>
 
 const featureCards = [
     {
-        image: featureImage,
+        image: attendanceImage,
         title: 'ATTENDANCE TRACKING',
         sub: 'View attendance records, time logs, class participation, and portal updates from one student-centered dashboard.',
     },
     {
-        image: featureImage2,
+        image: onlineClassesImage,
         title: 'ONLINE CLASSES',
         sub: 'Access class sessions, meeting links, notifications, and join records through the student and parent portal.',
     },
     {
-        image: featureImage3,
+        image: messagesImage,
         title: 'MESSAGES',
         sub: 'Send portal messages, manage conversations, and keep school communication organized in one place.',
     },
@@ -69,35 +71,247 @@ const showcaseItems = [
     {
         number: '01',
         title: 'Student Dashboard',
-        text: 'Students can review attendance summaries, online class activity, profile details, and portal notifications.',
+        text: 'Review attendance totals, recent records, upcoming online classes, messages, and excuse-letter summaries.',
     },
     {
         number: '02',
-        title: 'Parent Access',
-        text: 'Linked parents can view student records and switch between linked students when more than one child is assigned.',
+        title: 'Attendance Records',
+        text: 'Filter physical and online attendance by school year and inspect detailed time logs and available evidence.',
     },
     {
         number: '03',
-        title: 'Portal Records',
-        text: 'Messages, excuse letters, attendance history, and online class joins stay connected to the student account.',
+        title: 'Online Classes',
+        text: 'View eligible meetings, schedules, attachments, attendance status, and join active class sessions.',
+    },
+    {
+        number: '04',
+        title: 'Excuse Letters',
+        text: 'Create absence letters, select assigned instructors, attach supporting files, and download completed PDFs.',
+    },
+    {
+        number: '05',
+        title: 'Messages',
+        text: 'Send private messages, read conversations, and exchange permitted attachments with school staff.',
+    },
+    {
+        number: '06',
+        title: 'Notifications',
+        text: 'Review class creation, update, reschedule, and cancellation notices and keep track of unread updates.',
+    },
+    {
+        number: '07',
+        title: 'Profile & Security',
+        text: 'Update account details and profile picture, review the student record, and securely change the password.',
     },
 ];
+
+const showcaseTrack = ref(null);
+const activeShowcaseIndex = ref(0);
+const galleryTrack = ref(null);
+const galleryControls = ref(null);
+const activeGalleryIndex = ref(0);
+const visibleGalleryCount = ref(1);
+let galleryAutoplayTimer = null;
+
+// @function scrollToShowcase: Ini-scroll ang to showcase sa Student Parent Login flow.
+// @useIn scrollToShowcase: resources/js/pages/Auth/StudentParentLogin.vue template @click
+// Iniikot ang showcase index at ini-scroll ang napiling card sa viewport.
+const scrollToShowcase = (index) => {
+    const track = showcaseTrack.value;
+    if (!track || showcaseItems.length === 0) return;
+
+    const normalizedIndex =
+        (index + showcaseItems.length) % showcaseItems.length;
+    const card = track.children[normalizedIndex];
+    if (!card) return;
+
+    const trackLeft = track.getBoundingClientRect().left;
+    const cardLeft = card.getBoundingClientRect().left;
+
+    track.scrollTo({
+        left: track.scrollLeft + cardLeft - trackLeft,
+        behavior: 'smooth',
+    });
+    activeShowcaseIndex.value = normalizedIndex;
+};
+
+// @function moveShowcase: Inililipat ang showcase sa Student Parent Login flow.
+// @useIn moveShowcase: resources/js/pages/Auth/StudentParentLogin.vue template @click
+// Ginagamit ng arrows ang kasalukuyang showcase index bilang starting point.
+const moveShowcase = (direction) => {
+    scrollToShowcase(activeShowcaseIndex.value + direction);
+};
+
+// @function syncShowcaseIndex: Sini-sync ang showcase index sa Student Parent Login flow.
+// @useIn syncShowcaseIndex: resources/js/pages/Auth/StudentParentLogin.vue template
+// Hinahanap ang card na pinakamalapit sa kaliwang edge pagkatapos mag-scroll.
+const syncShowcaseIndex = () => {
+    const track = showcaseTrack.value;
+    if (!track) return;
+
+    const trackLeft = track.getBoundingClientRect().left;
+    const cards = Array.from(track.children);
+    let closestIndex = 0;
+    let closestDistance = Number.POSITIVE_INFINITY;
+
+    cards.forEach((card, index) => {
+        const distance = Math.abs(
+            card.getBoundingClientRect().left - trackLeft,
+        );
+        if (distance < closestDistance) {
+            closestDistance = distance;
+            closestIndex = index;
+        }
+    });
+
+    activeShowcaseIndex.value = closestIndex;
+};
+
+// @function scrollToGallery: Ini-scroll ang to gallery sa Student Parent Login flow.
+// @useIn scrollToGallery: resources/js/pages/Auth/StudentParentLogin.vue template @click
+// Nililimitahan ang gallery scroll sa valid positions para walang blank slide.
+const scrollToGallery = (index) => {
+    const track = galleryTrack.value;
+    if (!track || galleryImages.length === 0) return;
+
+    const normalizedIndex =
+        (index + galleryPositions.value.length) % galleryPositions.value.length;
+    const slide = track.children[normalizedIndex];
+    if (!slide) return;
+
+    track.scrollTo({
+        left: Math.min(
+            slide.offsetLeft - track.children[0].offsetLeft,
+            track.scrollWidth - track.clientWidth,
+        ),
+        behavior: 'smooth',
+    });
+    activeGalleryIndex.value = normalizedIndex;
+};
+
+// @function moveGallery: Inililipat ang gallery sa Student Parent Login flow.
+// @useIn moveGallery: resources/js/pages/Auth/StudentParentLogin.vue template @click
+// Inililipat ang gallery ng isang position mula sa kasalukuyang slide.
+const moveGallery = (direction) => {
+    scrollToGallery(activeGalleryIndex.value + direction);
+};
+
+// @function syncGalleryIndex: Sini-sync ang gallery index sa Student Parent Login flow.
+// @useIn syncGalleryIndex: resources/js/pages/Auth/StudentParentLogin.vue template
+// Ina-update ang active slide base sa nakikitang gallery position.
+const syncGalleryIndex = () => {
+    const track = galleryTrack.value;
+    if (!track) return;
+
+    const trackLeft = track.getBoundingClientRect().left;
+    let closestIndex = 0;
+    let closestDistance = Number.POSITIVE_INFINITY;
+
+    Array.from(track.children)
+        .slice(0, galleryPositions.value.length)
+        .forEach((slide, index) => {
+            const distance = Math.abs(
+                slide.getBoundingClientRect().left - trackLeft,
+            );
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestIndex = index;
+            }
+        });
+
+    activeGalleryIndex.value = closestIndex;
+};
+
+const galleryPositions = computed(() =>
+    Array.from(
+        {
+            length: Math.max(
+                1,
+                galleryImages.length - visibleGalleryCount.value + 1,
+            ),
+        },
+        (_, index) => index,
+    ),
+);
+
+// @function updateGallerySize: Ina-update ang gallery size sa Student Parent Login flow.
+// @useIn updateGallerySize: resources/js/pages/Auth/StudentParentLogin.vue:360
+// Ina-adjust ang dami ng visible slides ayon sa screen width.
+const updateGallerySize = () => {
+    visibleGalleryCount.value = window.matchMedia('(min-width: 1024px)').matches
+        ? 3
+        : window.matchMedia('(min-width: 640px)').matches
+          ? 2
+          : 1;
+    activeGalleryIndex.value = Math.min(
+        activeGalleryIndex.value,
+        galleryPositions.value.length - 1,
+    );
+    scrollToGallery(activeGalleryIndex.value);
+};
+
+// @function startGalleryAutoplay: Sinisimulan ang gallery autoplay sa Student Parent Login flow.
+// @useIn startGalleryAutoplay: resources/js/pages/Auth/StudentParentLogin.vue template @mouseleave
+// Nagsisimula ng timer maliban kung naka-reduced motion ang browser.
+const startGalleryAutoplay = () => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        return;
+    }
+
+    if (galleryAutoplayTimer) {
+        window.clearInterval(galleryAutoplayTimer);
+    }
+
+    galleryAutoplayTimer = window.setInterval(() => {
+        if (!document.hidden) moveGallery(1);
+    }, 5000);
+};
+
+// @function stopGalleryAutoplay: Itinitigil ang gallery autoplay sa Student Parent Login flow.
+// @useIn stopGalleryAutoplay: resources/js/pages/Auth/StudentParentLogin.vue template @mouseenter
+// Inaalis ang active timer para hindi magpatuloy ang gallery autoplay.
+const stopGalleryAutoplay = () => {
+    if (galleryAutoplayTimer) {
+        window.clearInterval(galleryAutoplayTimer);
+        galleryAutoplayTimer = null;
+    }
+};
+
+// @function resumeGalleryAutoplay: Ipinagpapatuloy ang gallery autoplay sa Student Parent Login flow.
+// @useIn resumeGalleryAutoplay: resources/js/pages/Auth/StudentParentLogin.vue template @focusout
+// Ibinabalik ang autoplay kapag lumabas ang focus sa gallery controls.
+const resumeGalleryAutoplay = (event) => {
+    if (!galleryControls.value?.contains(event.relatedTarget)) {
+        startGalleryAutoplay();
+    }
+};
 
 const galleryImages = [
     {
-        src: item1,
-        alt: 'Student portal preview one',
+        src: galleryImage1,
+        alt: 'Computer laboratory overview',
     },
     {
-        src: item2,
-        alt: 'Student portal preview two',
+        src: galleryImage2,
+        alt: 'Computer laboratory workstation',
     },
     {
-        src: item3,
-        alt: 'Student portal preview three',
+        src: galleryImage3,
+        alt: 'Computer laboratory equipment',
+    },
+    {
+        src: galleryImage4,
+        alt: 'RFID automation overview',
+    },
+    {
+        src: galleryItem5,
+        alt: 'RFID item and equipment',
     },
 ];
 
+// @function selectProfile: Pinipili ang profile sa Student Parent Login flow.
+// @useIn selectProfile: resources/js/pages/Auth/StudentParentLogin.vue template @click
+// Pinipili ang saved account at hinihingi ulit ang password bago mag-login.
 const selectProfile = (index) => {
     selectedIndex.value = index;
     useDifferentAccount.value = false;
@@ -106,6 +320,9 @@ const selectProfile = (index) => {
     form.clearErrors();
 };
 
+// @function showDifferentAccount: Ipinapakita ang different account sa Student Parent Login flow.
+// @useIn showDifferentAccount: resources/js/pages/Auth/StudentParentLogin.vue template @click
+// Nire-reset ang form para makagamit ng ibang account.
 const showDifferentAccount = () => {
     useDifferentAccount.value = true;
     form.email = '';
@@ -114,6 +331,9 @@ const showDifferentAccount = () => {
     form.clearErrors();
 };
 
+// @function removeProfile: Tinatanggal ang profile sa Student Parent Login flow.
+// @useIn removeProfile: resources/js/pages/Auth/StudentParentLogin.vue template
+// Tinatanggal ang browser-saved profile at pinipili ang susunod na available.
 const removeProfile = (index) => {
     const profile = profiles.value[index];
 
@@ -133,6 +353,9 @@ const removeProfile = (index) => {
     selectProfile(selectedIndex.value);
 };
 
+// @function login: Pinoproseso ang login para sa Student Parent Login.
+// @useIn login: resources/js/pages/Auth/StudentParentLogin.vue template @click
+// Sine-save ang account preference at ipinapadala ang login form sa server.
 const login = () => {
     const shouldSave = !useDifferentAccount.value ? true : saveOnDevice.value;
 
@@ -144,6 +367,9 @@ const login = () => {
     form.post(route('student-parent.login.store'));
 };
 
+// @function revealLoginPanel: Ipinapakita ang login panel sa Student Parent Login flow.
+// @useIn revealLoginPanel: resources/js/pages/Auth/StudentParentLogin.vue template @click
+// Binubuksan ang login panel at isinasara ang mobile menu.
 const revealLoginPanel = () => {
     showLoginPanel.value = true;
     isMenuOpen.value = false;
@@ -159,6 +385,15 @@ onMounted(() => {
     if (profiles.value.length > 0) {
         selectProfile(0);
     }
+
+    startGalleryAutoplay();
+    updateGallerySize();
+    window.addEventListener('resize', updateGallerySize);
+});
+
+onBeforeUnmount(() => {
+    stopGalleryAutoplay();
+    window.removeEventListener('resize', updateGallerySize);
 });
 </script>
 
@@ -182,7 +417,7 @@ onMounted(() => {
                     class="hidden items-center gap-7 text-sm font-semibold text-default md:flex"
                 >
                     <a href="/" class="transition hover:text-brand">Home</a>
-                    <a href="#about_us" class="transition hover:text-brand">
+                    <a href="/about" class="transition hover:text-brand">
                         About Us
                     </a>
                     <button
@@ -214,9 +449,7 @@ onMounted(() => {
                     class="flex flex-col gap-4 text-sm font-semibold text-default"
                 >
                     <a href="/" @click="isMenuOpen = false">Home</a>
-                    <a href="#about_us" @click="isMenuOpen = false">
-                        About Us
-                    </a>
+                    <a href="/about" @click="isMenuOpen = false"> About Us </a>
                     <button
                         type="button"
                         class="bg-brand px-5 py-2 text-center text-white"
@@ -231,8 +464,8 @@ onMounted(() => {
         <main>
             <section class="relative min-h-[calc(100vh-74px)] overflow-hidden">
                 <img
-                    :src="philsca"
-                    alt="Philsca campus"
+                    :src="heroImage"
+                    alt="Pasay City South campus RFID attendance system"
                     class="absolute inset-0 h-full w-full object-cover"
                 />
                 <div class="absolute inset-0 bg-[#193153]/60" />
@@ -246,19 +479,10 @@ onMounted(() => {
                     "
                 >
                     <div>
-                        <p
-                            class="text-sm font-bold tracking-[0.25em] text-white/70 uppercase"
-                        >
-                            Student and Parent Portal
-                        </p>
                         <h1
-                            class="mt-5 text-[34px] leading-tight font-semibold md:text-[54px]"
+                            class="text-[34px] leading-tight font-semibold md:text-[54px]"
                         >
-                            RFID-Based Attendance
-                            <br />
-                            Monitoring, Borrowing, and
-                            <br />
-                            Inventory Management System
+                            RFID AND FACIAL RECOGNITION ATTENDANCE SYSTEM
                         </h1>
                         <p
                             class="mt-6 max-w-2xl text-base leading-7 text-white/90 md:text-lg"
@@ -459,14 +683,25 @@ onMounted(() => {
                                     </span>
                                 </label>
                                 <label
-                                    class="flex items-center gap-2 text-sm font-semibold text-slate-600"
+                                    class="flex items-start gap-2 text-slate-600"
                                 >
                                     <input
                                         v-model="saveOnDevice"
                                         type="checkbox"
-                                        class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                        class="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                                     />
-                                    Save this account on this device
+                                    <span>
+                                        <span
+                                            class="block text-sm font-semibold"
+                                        >
+                                            Remember my email
+                                        </span>
+                                        <span
+                                            class="block text-xs text-slate-500"
+                                        >
+                                            Your password is never saved.
+                                        </span>
+                                    </span>
                                 </label>
                             </form>
 
@@ -571,7 +806,7 @@ onMounted(() => {
                     class="mx-auto grid max-w-[1400px] items-center gap-12 px-7 md:px-12 lg:grid-cols-2"
                 >
                     <img
-                        :src="container4"
+                        :src="aboutSystemImage"
                         alt="RFID automation"
                         class="w-full rounded-lg object-cover shadow-lg"
                     />
@@ -641,22 +876,58 @@ onMounted(() => {
 
             <section id="portal_showcase" class="bg-white py-20">
                 <div class="mx-auto max-w-[1400px] px-7 md:px-12">
-                    <div class="max-w-3xl">
-                        <p
-                            class="text-sm font-bold tracking-[0.25em] text-brand uppercase"
-                        >
-                            Portal Showcase
-                        </p>
-                        <h2 class="mt-4 text-3xl font-bold text-default">
-                            Built for student and parent access
-                        </h2>
+                    <div
+                        class="flex flex-col gap-6 md:flex-row md:items-end md:justify-between"
+                    >
+                        <div class="max-w-3xl">
+                            <p
+                                class="text-sm font-bold tracking-[0.25em] text-brand uppercase"
+                            >
+                                Portal Showcase
+                            </p>
+                            <h2 class="mt-4 text-3xl font-bold text-default">
+                                Built for student access
+                            </h2>
+                        </div>
+
+                        <div class="flex gap-3" aria-label="Carousel controls">
+                            <button
+                                type="button"
+                                class="flex h-11 w-11 items-center justify-center rounded-full border border-slate-300 text-xl text-default transition hover:border-brand hover:bg-brand hover:text-white focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:outline-none"
+                                aria-label="Show previous portal feature"
+                                @click="moveShowcase(-1)"
+                            >
+                                ←
+                            </button>
+                            <button
+                                type="button"
+                                class="flex h-11 w-11 items-center justify-center rounded-full border border-slate-300 text-xl text-default transition hover:border-brand hover:bg-brand hover:text-white focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:outline-none"
+                                aria-label="Show next portal feature"
+                                @click="moveShowcase(1)"
+                            >
+                                →
+                            </button>
+                        </div>
                     </div>
 
-                    <div class="mt-10 grid gap-7 md:grid-cols-3">
+                    <div
+                        ref="showcaseTrack"
+                        class="mt-10 flex snap-x snap-mandatory gap-7 overflow-x-auto scroll-smooth pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                        role="region"
+                        aria-roledescription="carousel"
+                        aria-label="Student portal features"
+                        tabindex="0"
+                        @scroll.passive="syncShowcaseIndex"
+                        @keydown.left.prevent="moveShowcase(-1)"
+                        @keydown.right.prevent="moveShowcase(1)"
+                    >
                         <article
-                            v-for="item in showcaseItems"
+                            v-for="(item, index) in showcaseItems"
                             :key="item.title"
-                            class="border border-slate-200 bg-white p-6 shadow-sm"
+                            class="min-w-0 shrink-0 basis-full snap-start border border-slate-200 bg-white p-6 shadow-sm md:basis-[calc((100%-1.75rem)/2)] lg:basis-[calc((100%-3.5rem)/3)]"
+                            role="group"
+                            aria-roledescription="slide"
+                            :aria-label="`${index + 1} of ${showcaseItems.length}: ${item.title}`"
                         >
                             <div class="text-4xl font-bold text-brand">
                                 {{ item.number }}
@@ -668,6 +939,30 @@ onMounted(() => {
                                 {{ item.text }}
                             </p>
                         </article>
+                    </div>
+
+                    <div
+                        class="mt-5 flex justify-center gap-2"
+                        aria-label="Choose a portal feature"
+                    >
+                        <button
+                            v-for="(item, index) in showcaseItems"
+                            :key="`${item.title}-indicator`"
+                            type="button"
+                            class="h-2.5 rounded-full transition-all focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:outline-none"
+                            :class="
+                                activeShowcaseIndex === index
+                                    ? 'w-8 bg-brand'
+                                    : 'w-2.5 bg-slate-300 hover:bg-slate-400'
+                            "
+                            :aria-label="`Show ${item.title}`"
+                            :aria-current="
+                                activeShowcaseIndex === index
+                                    ? 'true'
+                                    : undefined
+                            "
+                            @click="scrollToShowcase(index)"
+                        ></button>
                     </div>
                 </div>
             </section>
@@ -689,61 +984,90 @@ onMounted(() => {
                         </div>
                     </div>
 
-                    <div class="mt-10 grid gap-5 md:grid-cols-3">
-                        <img
-                            v-for="image in galleryImages"
-                            :key="image.alt"
-                            :src="image.src"
-                            :alt="image.alt"
-                            class="h-72 w-full rounded-lg object-cover shadow-md"
-                        />
+                    <div
+                        ref="galleryControls"
+                        class="mt-10 flex items-center justify-between gap-3"
+                        aria-label="Gallery controls"
+                        @mouseenter="stopGalleryAutoplay"
+                        @mouseleave="startGalleryAutoplay"
+                        @focusin="stopGalleryAutoplay"
+                        @focusout="resumeGalleryAutoplay"
+                    >
+                        <button
+                            type="button"
+                            class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-300 text-xl text-default transition hover:border-brand hover:bg-brand hover:text-white focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:outline-none"
+                            aria-label="Show previous gallery image"
+                            @click="moveGallery(-1)"
+                        >
+                            &#8592;
+                        </button>
+
+                        <div
+                            ref="galleryTrack"
+                            class="flex min-w-0 snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                            role="region"
+                            aria-roledescription="carousel"
+                            aria-label="RFID modules and assets gallery"
+                            tabindex="0"
+                            @scroll.passive="syncGalleryIndex"
+                            @keydown.left.prevent="moveGallery(-1)"
+                            @keydown.right.prevent="moveGallery(1)"
+                        >
+                            <div
+                                v-for="(image, index) in galleryImages"
+                                :key="image.alt"
+                                class="min-w-0 shrink-0 basis-full snap-start sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)]"
+                                role="group"
+                                aria-roledescription="slide"
+                                :aria-label="`${index + 1} of ${galleryImages.length}: ${image.alt}`"
+                            >
+                                <img
+                                    :src="image.src"
+                                    :alt="image.alt"
+                                    class="h-72 w-full rounded-lg object-cover shadow-md md:h-96"
+                                />
+                            </div>
+                        </div>
+
+                        <button
+                            type="button"
+                            class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-300 text-xl text-default transition hover:border-brand hover:bg-brand hover:text-white focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:outline-none"
+                            aria-label="Show next gallery image"
+                            @click="moveGallery(1)"
+                        >
+                            &#8594;
+                        </button>
+                    </div>
+
+                    <div class="mt-5 flex justify-center">
+                        <div
+                            class="flex gap-2"
+                            aria-label="Choose a gallery image"
+                        >
+                            <button
+                                v-for="index in galleryPositions"
+                                :key="`${index}-indicator`"
+                                type="button"
+                                class="h-2.5 rounded-full transition-all focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:outline-none"
+                                :class="
+                                    activeGalleryIndex === index
+                                        ? 'w-8 bg-brand'
+                                        : 'w-2.5 bg-slate-300 hover:bg-slate-400'
+                                "
+                                :aria-label="`Show gallery images starting with ${galleryImages[index].alt}`"
+                                :aria-current="
+                                    activeGalleryIndex === index
+                                        ? 'true'
+                                        : undefined
+                                "
+                                @click="scrollToGallery(index)"
+                            ></button>
+                        </div>
                     </div>
                 </div>
             </section>
         </main>
 
-        <footer class="bg-azure-gradient p-7 text-white md:py-16">
-            <div
-                class="mx-auto flex max-w-[1400px] flex-col gap-10 md:flex-row md:items-start md:justify-center md:gap-20"
-            >
-                <div>
-                    <h2 class="text-2xl font-bold">GET IN TOUCH</h2>
-                    <ul class="mt-4 list-inside list-disc leading-8">
-                        <li>Phone: +63-912-345-6789</li>
-                        <li>Fax: +1 496 457 654</li>
-                        <li>Email: our-mail@example.com</li>
-                        <li>Address: samplestreet123</li>
-                    </ul>
-                </div>
-
-                <div class="w-full max-w-[520px]">
-                    <h2 class="text-2xl font-bold">NEWS LETTER</h2>
-                    <p class="mt-4">Sign up your newsletter</p>
-                    <form class="mt-4 flex flex-col gap-3 sm:flex-row">
-                        <input
-                            type="email"
-                            class="h-[50px] w-full border-2 border-white bg-transparent p-3 text-white placeholder:text-white/70"
-                            placeholder="Email Address"
-                        />
-                        <button
-                            type="button"
-                            class="h-[50px] bg-[#F17A20] px-10 font-bold text-white"
-                        >
-                            GO
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </footer>
-
-        <footer
-            class="flex min-h-[100px] flex-col items-center justify-center bg-[#002F5B] p-5 text-white"
-        >
-            <p>Blog | Contact Us</p>
-            <p class="mt-3 text-center text-custom-gray">
-                Copyright 2026 RFID - Attendance Monitoring/Borrowing and
-                Inventory System
-            </p>
-        </footer>
+        <Footer />
     </div>
 </template>

@@ -12,6 +12,8 @@ const form = useForm({
     role: null,
 });
 
+// @function submit: Isinusumite ang registration form sa Registration Form flow.
+// @useIn submit: resources/js/components/Auth/RegistrationForm.vue template
 const submit = () => {
     form.post(route('register'), {
         onError: () => form.reset('password', 'password_confirmation'),

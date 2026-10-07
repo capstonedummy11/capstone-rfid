@@ -1,3 +1,4 @@
+<!-- FEATURE:parent-student-view - UI para sa linked student dashboard and attendance. -->
 <script setup>
 import { Link } from '@inertiajs/vue3';
 import StatCard from '@/components/StudentPortal/StatCard.vue';
@@ -69,12 +70,16 @@ watch([search, statusFilter], () => {
     currentPage.value = 1;
 });
 
+// @function resetFilters: Nire-reset ang filters sa Dashboard flow.
+// @useIn resetFilters: resources/js/pages/StudentParent/Dashboard.vue template @click
 const resetFilters = () => {
     search.value = '';
     statusFilter.value = '';
     currentPage.value = 1;
 };
 
+// @function statusClass: Kinukuha ang status class result para sa Dashboard.
+// @useIn statusClass: resources/js/pages/StudentParent/Dashboard.vue template
 const statusClass = (status) => {
     const value = String(status || '').toLowerCase();
     if (value.includes('present')) return 'bg-emerald-100 text-emerald-700';

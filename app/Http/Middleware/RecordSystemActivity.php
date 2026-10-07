@@ -14,6 +14,18 @@ class RecordSystemActivity
 {
     private const MUTATING_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'];
 
+    // @function handle: Pinoproseso ang request o event para sa Record System Activity.
+    // @useIn handle: Laravel web middleware pipeline
+    /**
+     * @feature   Audit Logging
+     * @actor     Shared / Core
+     * @flow      Dito nilolog ang mutating requests at selected exports kahit may audit storage error.
+     * @uses      resources/js/pages/Auth/Admin/ActivityLogs.vue; app/Http/Middleware/RecordSystemActivity.php: RecordSystemActivity::handle
+     * @related   Authentication, Attendance, Reports
+     * @disable   1) Alisin ang RecordSystemActivity::class registration sa bootstrap/app.php.
+     * @disable   2) Itago ang activity-log link sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Middleware/RecordSystemActivity.php: handle. Side effect: mawawala ang automatic system activity trail; may module-specific logs pa rin.
+     */
     public function handle(Request $request, Closure $next): Response
     {
         if (! $this->shouldAudit($request)) {
@@ -35,6 +47,8 @@ class RecordSystemActivity
         }
     }
 
+    // @function shouldAudit: Sinusuri kung audit para sa Record System Activity.
+    // @useIn shouldAudit: RecordSystemActivity::handle (app/Http/Middleware/RecordSystemActivity.php)
     private function shouldAudit(Request $request): bool
     {
         if (in_array($request->method(), self::MUTATING_METHODS, true)) {
@@ -47,6 +61,8 @@ class RecordSystemActivity
             && ($routeName === 'admin.activity-logs.index' || Str::endsWith($routeName, '.export'));
     }
 
+    // @function record: Nagtatala ng ang record system activity sa Record System Activity flow.
+    // @useIn record: RecordSystemActivity::handle (app/Http/Middleware/RecordSystemActivity.php)
     private function record(Request $request, int $status, mixed $user): void
     {
         try {
@@ -81,6 +97,8 @@ class RecordSystemActivity
         }
     }
 
+    // @function module: Binubuo ang module string para sa Record System Activity.
+    // @useIn module: RecordSystemActivity::record (app/Http/Middleware/RecordSystemActivity.php)
     private function module(?string $routeName, string $path): string
     {
         $parts = explode('.', (string) $routeName);
@@ -95,6 +113,8 @@ class RecordSystemActivity
         return Str::of(explode('/', $path)[0] ?: 'system')->replace('-', '_')->singular()->toString();
     }
 
+    // @function action: Binubuo ang action string para sa Record System Activity.
+    // @useIn action: RecordSystemActivity::record (app/Http/Middleware/RecordSystemActivity.php)
     private function action(string $method, ?string $routeName): string
     {
         $routeAction = Str::afterLast((string) $routeName, '.');
@@ -110,6 +130,8 @@ class RecordSystemActivity
         };
     }
 
+    // @function subject: Kinukuha ang subject result para sa Record System Activity.
+    // @useIn subject: RecordSystemActivity::record (app/Http/Middleware/RecordSystemActivity.php)
     private function subject(array $parameters): array
     {
         foreach (array_reverse($parameters, true) as $name => $value) {

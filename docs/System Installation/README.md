@@ -56,6 +56,7 @@ Never commit the real `.env`. Generate a unique `APP_KEY`, use production-only s
 | Variable | Purpose | Notes |
 | --- | --- | --- |
 | `APP_NAME` | Display name. | Used by Inertia/mail. |
+| `APP_VERSION` | Displayed release version. | Shown as a bottom-right footer badge after each Inertia page. |
 | `APP_ENV` | `local`, `staging`, or `production`. | Production changes password strength and destructive-command protection. |
 | `APP_KEY` | Encryption key. | Required; changing it makes encrypted data unreadable, including encrypted message values. |
 | `APP_DEBUG` | Detailed errors. | `false` in production. |
@@ -72,19 +73,101 @@ Never commit the real `.env`. Generate a unique `APP_KEY`, use production-only s
 | `SESSION_LIFETIME`, `SESSION_SECURE_COOKIE`, `SESSION_DOMAIN` | Session duration/cookie scope. | Secure cookies on HTTPS; set domain only when required. |
 | `CACHE_STORE` | Cache and Messenger cooldown storage. | `database` or Redis; atomic store preferred on multiple servers. |
 | `QUEUE_CONNECTION` | Async queue backend. | Use `sync` unless queue tables/backend are installed. Current migrations do not include `jobs`, `job_batches`, or `failed_jobs`. |
+| `LOG_CHANNEL`, `LOG_SERVER_CHANNELS`, `LOG_LEVEL`, `LOG_DAILY_DAYS` | Laravel application and server error logging. | Use `LOG_CHANNEL=server`, `LOG_SERVER_CHANNELS=daily,errorlog`, `LOG_LEVEL=error`, and an appropriate retention period such as 14 days. |
 
 If database queues are required, generate and commit the appropriate Laravel queue migrations before setting `QUEUE_CONNECTION=database`, migrate them, and run supervised workers.
+
+### Production error logging
+
+The `server` log channel writes reportable Laravel errors to both rotating files under `storage/logs` and the PHP/web-server error log. Configure the production `.env` with:
+
+```dotenv
+APP_ENV=production
+APP_DEBUG=false
+LOG_CHANNEL=server
+LOG_SERVER_CHANNELS=daily,errorlog
+LOG_LEVEL=error
+LOG_DAILY_DAYS=14
+```
+
+After changing server environment values, run `php artisan config:clear` or rebuild the production configuration cache. Ensure the web-server account can write to `storage/logs` and `bootstrap/cache`. Laravel automatically reports unexpected exceptions; expected form validation is returned to the page as field errors and is intentionally not treated as a server failure. The server stack ignores failures from an individual log destination so an unwritable daily file cannot prevent the PHP/web-server error-log destination from receiving the original exception.
+
+If the site returns HTTP 500 immediately after a code update, complete the deployment lifecycle before changing application code:
+
+```bash
+composer install --no-dev --optimize-autoloader
+npm ci
+npm run build
+php artisan optimize:clear
+php artisan migrate --force
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+```
+
+The deployed web-server account must have write access to `storage` and `bootstrap/cache`. Inspect the newest `storage/logs/laravel-YYYY-MM-DD.log` entry and the hosting control panel/PHP/web-server error log for the original exception. Common update-time causes are a migration that was not run, a missing/stale Vite build, stale Laravel caches, incomplete Composer dependencies, or incorrect writable-directory ownership. Do not enable `APP_DEBUG` on a public production server.
+
+The Instructor excuse-letter review migration uses short explicit foreign-key names because MySQL limits identifiers to 64 characters. It also detects existing columns and keys, so rerunning `php artisan migrate --force` safely resumes an earlier attempt that stopped at the foreign-key creation step. Do not manually remove the partially added columns before retrying.
 
 ### Attendance panel and face services
 
 | Variable | Purpose |
 | --- | --- |
 | `PANEL_PIN` | Configuration fallback; normal runtime global/device hashes are stored in System Settings/Panel Devices. |
-| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION` | AWS Rekognition credentials/region. Define each once; `.env.example` currently contains duplicate AWS placeholders and should be cleaned when next edited. |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, `AWS_DEFAULT_REGION` | Backend-only AWS credentials and the region used for still-image comparison. Use a role or short-lived credentials outside local development; never expose these values to Vite/browser code. |
 | `AWS_REKOGNITION_SIMILARITY_THRESHOLD` | Match threshold; example is 90. |
+| `AWS_REKOGNITION_LIVENESS_ENABLED`, `AWS_REKOGNITION_LIVENESS_REGION`, `AWS_REKOGNITION_LIVENESS_CONFIDENCE_THRESHOLD` | Enables the video-selfie liveness gate, selects a Face Liveness-supported region, and sets the server-side pass threshold. Enable only after the IAM and Cognito setup below is complete. |
+| `VITE_AWS_COGNITO_IDENTITY_POOL_ID` | Public Cognito Identity Pool identifier used only to obtain short-lived browser credentials for `StartFaceLivenessSession`. Its unauthenticated role must have no other application/AWS access. |
 | `COMPREFACE_URL`, `COMPREFACE_API_KEY` | Alternative/legacy CompreFace service configuration. `COMPREFACE_URL` has a code default but is not shown in the example file. |
 
 Use an IAM principal restricted to the required Rekognition actions. Do not expose cloud keys to frontend code.
+
+### AWS Face Liveness account setup
+
+Face Liveness is a separate Rekognition workflow. The Laravel backend creates a single-use session and retrieves its result; the official Amplify detector streams the short video from the browser; Laravel then compares AWS's liveness reference frame with the enrolled face. A liveness pass by itself never authenticates a person.
+
+1. Choose a [Face Liveness-supported region](https://docs.aws.amazon.com/general/latest/gr/rekognition.html), such as `us-east-1`, `us-west-2`, or `ap-northeast-1`. The existing `ap-southeast-1` Singapore region can still be used for `CompareFaces`, but it does not currently support Face Liveness. Set the selected liveness region separately.
+2. Give the backend IAM user/role only the calls it performs (retain `rekognition:CompareFaces` for the existing match):
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Action": [
+      "rekognition:CompareFaces",
+      "rekognition:CreateFaceLivenessSession",
+      "rekognition:GetFaceLivenessSessionResults"
+    ],
+    "Resource": "*"
+  }]
+}
+```
+
+3. Create an Amazon Cognito **Identity Pool** in the liveness region and allow unauthenticated identities. This pool signs the browser's liveness video stream; it does not replace Laravel accounts.
+4. Attach this one-action inline policy to that pool's unauthenticated role:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Action": "rekognition:StartFaceLivenessSession",
+    "Resource": "*"
+  }]
+}
+```
+
+5. Set the liveness variables in `.env`, run `php artisan config:clear`, rebuild with `npm run build`, and restart Vite/Laravel:
+
+```dotenv
+AWS_REKOGNITION_LIVENESS_ENABLED=true
+AWS_REKOGNITION_LIVENESS_REGION=us-east-1
+AWS_REKOGNITION_LIVENESS_CONFIDENCE_THRESHOLD=90
+VITE_AWS_COGNITO_IDENTITY_POOL_ID=us-east-1:replace-with-your-pool-uuid
+```
+
+Use HTTPS outside `localhost`, configure AWS billing alarms, review the default Rekognition quotas, and test false accepts/rejects before choosing production thresholds. Session IDs are single-use and expire quickly; the application binds them to the Laravel user/session, purpose, and subject, then consumes the resulting token once.
 
 ### SMS and mail
 
@@ -92,10 +175,15 @@ Use an IAM principal restricted to the required Rekognition actions. Do not expo
 | --- | --- |
 | `SEMAPHORE_ENABLED` | Enables/disables live SMS attempt. |
 | `SEMAPHORE_API_KEY`, `SEMAPHORE_SENDER_NAME`, `SEMAPHORE_ENDPOINT` | Semaphore SMS configuration. |
+| `IPROG_SMS_ENABLED`, `IPROG_SMS_API_TOKEN`, `IPROG_SMS_ENDPOINT` | IPROG SMS configuration. |
 | `MAIL_MAILER`, `MAIL_SCHEME`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME` | Laravel mail transport for reset, OTP, messages, class notices, dispatch, and letters. |
+| `MAIL_BACKUP_SCHEME`, `MAIL_BACKUP_HOST`, `MAIL_BACKUP_PORT`, `MAIL_BACKUP_USERNAME`, `MAIL_BACKUP_PASSWORD` | Second SMTP account used after a primary SMTP transport failure when `MAIL_MAILER=failover`. |
 | `MESSENGER_EMAIL_NOTIFICATION_COOLDOWN_MINUTES` | Minimum interval for repeated sender-to-recipient Messenger email alerts; default 5. |
+| `ADMIN_LOGIN_OTP_EXPIRES_MINUTES`, `ADMIN_LOGIN_OTP_RESEND_SECONDS`, `ADMIN_LOGIN_OTP_MAX_ATTEMPTS` | Admin per-login email-code lifetime, resend cooldown, and incorrect-attempt limit; defaults are 10 minutes, 60 seconds, and 5 attempts. |
 
-Use `MAIL_MAILER=log` during local development if no SMTP server is available. Live OTP/password-reset workflows require real mail delivery.
+Use `MAIL_MAILER=log` during local development if no SMTP server is available. Live Admin/Instructor OTP and password-reset workflows require real mail delivery; an Admin cannot open protected pages while their per-login code is undelivered or unverified.
+
+For two sending accounts, configure the existing `MAIL_*` SMTP settings for the primary account, the `MAIL_BACKUP_*` settings for the second, and set `MAIL_MAILER=failover`. Laravel tries `smtp` first and then `smtp_backup` when transport delivery raises an error. Both accounts must be permitted by their SMTP providers to send using `MAIL_FROM_ADDRESS`; use a sender address or verified alias accepted by both. The failover chain has no `log` transport, so a failed delivery is not reported as sent merely because it was written to a log. Keep the actual usernames and passwords only in the server `.env`, then rebuild Laravel's configuration cache after deployment.
 
 ## Run locally
 
@@ -118,7 +206,7 @@ If the project adds real queued jobs and an installed queue backend, start anoth
 php artisan queue:work --tries=3
 ```
 
-The Composer shortcut `composer dev` starts the Laravel server, a queue listener, and Vite, but it does **not** start `schedule:work`. With the repository's default `QUEUE_CONNECTION=database` and no queue tables, the queue listener may fail; configure `sync` or add queue tables first.
+The Composer shortcut `composer dev` starts the Laravel server, a queue listener, and Vite, but it does **not** start `schedule:work`. Database queue tables are included; keep the queue worker running so Root Admin ownership notifications and other queued mail are delivered.
 
 ## Build and verify
 
@@ -173,7 +261,7 @@ On Windows Server, create a Task Scheduler job that runs the project PHP executa
 
 ### Queue worker
 
-No current service implements `ShouldQueue`, so most mail/notifications execute during the request. If queued jobs are introduced, install a supported backend/tables and use Supervisor/systemd/Windows service management for `php artisan queue:work`; do not depend on an interactive terminal.
+Root Admin ownership notifications implement `ShouldQueue`. Keep `php artisan queue:work --tries=3` managed by Supervisor/systemd/a Windows service in production; do not depend on an interactive terminal. Keep the scheduler active as well, because ownership reminders, expiry, and completion run through `root-ownership:process`.
 
 ### Permissions and files
 
@@ -204,11 +292,10 @@ Seeded credentials documented in [Default Account Passwords](../System%20Explana
 | Assets/Wayfinder fail | Run `npm install`, ensure compatible PHP, clear stale caches with `php artisan optimize:clear`, then rebuild. |
 | Uploaded images/files return 404 | Run `php artisan storage:link`, verify file exists and permissions/`APP_URL`, and confirm the requesting account owns/is allowed to access it. |
 | Scheduler does not create online absences | Run `php artisan schedule:list`; start `schedule:work` locally or cron/Task Scheduler in production; inspect logs. Also verify enrollment status compatibility (`active` versus `enrolled`). |
-| Face recognition unavailable | Verify feature flag, AWS credentials/region/network/IAM and stored image; System Settings reports provider availability and keeps invalid combinations off. |
+| Face recognition unavailable | Verify feature flag, AWS credentials/region/network/IAM and stored image; System Settings reports provider availability and keeps invalid combinations off. For liveness also verify its supported region, Cognito Identity Pool ID, backend create/get permissions, browser-role start permission, HTTPS/camera access, and cleared config cache. |
 | OTP/reset/message mail absent | Check mail transport, queue choice, logs, recipient email, and cooldown. With `MAIL_MAILER=log`, inspect Laravel logs rather than inbox. |
-| Emergency SMS absent | Check switch, active hotline with SMS enabled, number format, API key/sender/endpoint, network, and alert metadata/result. Alert storage does not prove SMS delivery. |
+| Emergency SMS absent | Check the provider availability and primary selection in Admin System Settings, active hotline with SMS enabled, number format, API key/sender/endpoint, network, and alert metadata/result. Alert storage does not prove SMS delivery. |
 | Parent cannot sign in | Confirm Parent Portal is on, account role is Parent, and the Parent is linked to a Student. Parent Excuse Letters is a separate switch. |
 | Page hidden but URL works | Some switches are menu-visibility controls only (notably Online Classes). Use documented middleware/controller behavior and fix route enforcement if a hard shutdown is required. |
 
 For a shorter Windows-first walkthrough, see [Running the System](RUNNING_THE_SYSTEM.md). Download sources are listed in [Installation Links](INSTALLATION_LINKS.md).
-

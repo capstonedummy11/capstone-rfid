@@ -91,6 +91,8 @@ const form = useForm({
     remember: false,
 });
 
+// @function submit: Isinusumite ang login sa Login flow.
+// @useIn submit: resources/js/components/Auth/Login.vue template
 const submit = () => {
     form.post(route('student-parent.login.store'));
 };

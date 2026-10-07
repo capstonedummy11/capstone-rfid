@@ -1,3 +1,5 @@
+<!-- FEATURE:audit-logging - UI para sa audit logging. -->
+<!-- FEATURE:admin-logs - UI para sa activity and online class logs. -->
 <script setup>
 import { Head, router } from '@inertiajs/vue3';
 import { computed, reactive } from 'vue';
@@ -29,21 +31,29 @@ const activeFilterCount = computed(
     () => Object.values(form).filter(Boolean).length,
 );
 
+// @function applyFilters: Inilalapat ang filters sa Activity Logs flow.
+// @useIn applyFilters: resources/js/pages/Auth/Admin/ActivityLogs.vue template
 const applyFilters = () =>
     router.get(route('admin.activity-logs.index'), form, {
         preserveState: true,
         preserveScroll: true,
     });
+// @function resetFilters: Nire-reset ang filters sa Activity Logs flow.
+// @useIn resetFilters: resources/js/pages/Auth/Admin/ActivityLogs.vue template @click
 const resetFilters = () => {
     Object.assign(form, emptyFilters);
     applyFilters();
 };
+// @function exportCsv: Ine-export ang csv sa Activity Logs flow.
+// @useIn exportCsv: resources/js/pages/Auth/Admin/ActivityLogs.vue template @click
 const exportCsv = () => {
     const query = new URLSearchParams(
         Object.entries(form).filter(([, value]) => value !== ''),
     ).toString();
     window.location.href = `${route('admin.activity-logs.export')}?${query}`;
 };
+// @function titleCase: Pinoproseso ang title case para sa Activity Logs.
+// @useIn titleCase: resources/js/pages/Auth/Admin/ActivityLogs.vue template
 const titleCase = (value) =>
     String(value || '-')
         .replaceAll('_', ' ')

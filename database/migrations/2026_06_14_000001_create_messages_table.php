@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    // @function up: Ginagawa o binabago ang database schema para sa migration na ito.
+    // @useIn up: Laravel migration runner
     public function up(): void
     {
         Schema::create('messages', function (Blueprint $table) {
@@ -16,7 +18,9 @@ return new class extends Migration
             $table->string('sender_email')->nullable();
             $table->string('student_number')->nullable();
             $table->string('subject')->nullable();
+            $table->text('subject_ciphertext')->nullable();
             $table->text('body');
+            $table->longText('body_ciphertext')->nullable();
             $table->string('attachment_path')->nullable();
             $table->string('attachment_name')->nullable();
             $table->string('attachment_mime')->nullable();
@@ -28,6 +32,8 @@ return new class extends Migration
         });
     }
 
+    // @function down: Ibinabalik ang schema changes ng migration na ito.
+    // @useIn down: Laravel migration runner
     public function down(): void
     {
         Schema::dropIfExists('messages');

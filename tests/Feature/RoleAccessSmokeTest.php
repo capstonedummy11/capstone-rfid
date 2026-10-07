@@ -1,11 +1,16 @@
 <?php
 
+use App\Models\SystemSetting;
 use App\Models\User;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
 test('each role is sent to the correct landing destination', function (string $role, string $routeName) {
     $user = User::factory()->create(['role' => $role]);
+
+    if ($role === 'parent') {
+        SystemSetting::setBoolean(SystemSetting::PARENT_PORTAL_ENABLED, true);
+    }
 
     $this->actingAs($user)
         ->get(route('landingPage'))
@@ -26,6 +31,10 @@ test('each role is sent to the correct landing destination', function (string $r
 
 test('each role can open its primary page', function (string $role, string $routeName, array $session = []) {
     $user = User::factory()->create(['role' => $role]);
+
+    if ($role === 'parent') {
+        SystemSetting::setBoolean(SystemSetting::PARENT_PORTAL_ENABLED, true);
+    }
 
     $this->actingAs($user)
         ->withSession($session)

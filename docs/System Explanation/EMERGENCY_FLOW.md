@@ -29,11 +29,12 @@ This is the canonical reference for emergency alerts sent from the Attendance Co
 6. The instructor reviews the emergency information and advances to final confirmation.
 7. The final confirmation modal starts a five-second countdown.
 8. Unless cancelled, the system saves the in-app alert and attempts hotline SMS when configured.
-9. Clinic receives the Open alert on `/clinic/dashboard`.
-10. Clinic selects an available Clinic responder and selects **Dispatch**.
-11. Dispatch acknowledges the alert, records response metrics, creates the necessary Clinic Case records, assigns the responder, and attempts the responder notification.
-12. Clinic continues documentation in **Clinic Case Logs** and **Patient History**.
-13. Clinic resolves or cancels the emergency when appropriate.
+9. For a **Specific person(s)** alert, the system loads the linked parent accounts for each identified student and attempts both parent email and parent SMS notification. Delivery results are recorded with the alert; a missing contact method or provider failure does not discard the emergency alert.
+10. Clinic receives the Open alert on `/clinic/dashboard`.
+11. Clinic selects an available Clinic responder and selects **Dispatch**.
+12. Dispatch acknowledges the alert, records response metrics, creates the necessary Clinic Case records, assigns the responder, and attempts the responder notification.
+13. Clinic continues documentation in **Clinic Case Logs** and **Patient History**.
+14. Clinic resolves or cancels the emergency when appropriate.
 
 ## 3. Hotline Routing
 
@@ -184,7 +185,25 @@ flowchart TD
 - No dispatch timestamp or dispatch-response duration is written.
 - Clinic can continue monitoring the alert until a responder is available.
 
-## 7. Clinic Case Creation Rules
+## 7. Parent Notification
+
+Parent notification is sent only when the instructor selected **Specific person(s)** and the submitted student ID resolves to a current student record. The system uses the student's `parent_student_links` records and not the student or parent details supplied by the browser.
+
+For each linked account with the `parent` role:
+
+- A Laravel email notification includes the student, emergency type, room, and emergency details.
+- SMS is attempted through the Admin-selected provider when the parent has a phone number and that provider is configured and available.
+- Email and SMS are independent: when one contact method is missing, the system still attempts the other.
+- The attendance-panel result prompt warns when a linked parent has no valid email address or no phone number.
+- Email and SMS failures are logged and reported in the emergency response without preventing the alert from being saved.
+
+Area-wide alerts do not notify every parent because they do not identify a specific student. They continue to notify the configured emergency hotline and Clinic workflow.
+
+### Future queue improvement
+
+Parent emergency email currently runs synchronously so the response can report immediate delivery-attempt totals. If production emergency requests become slow, move email delivery to a durable Laravel queue and record queued/failed delivery status separately. This change should be made only after a production queue backend, failed-job storage, monitoring, and a supervised worker are configured; otherwise queued emergency email could remain undelivered.
+
+## 8. Clinic Case Creation Rules
 
 | Alert scope                | Clinic Case result                           |
 | -------------------------- | -------------------------------------------- |
@@ -203,7 +222,7 @@ Location: emergency-alert room/laboratory
 Symptoms/details: submitted incident details or default emergency message
 ```
 
-## 8. Status and Timestamp Rules
+## 9. Status and Timestamp Rules
 
 | State or field     | Meaning                                                  |
 | ------------------ | -------------------------------------------------------- |
@@ -229,7 +248,7 @@ stateDiagram-v2
     Cancelled --> [*]
 ```
 
-## 9. Stored Alert Information
+## 10. Stored Alert Information
 
 An emergency alert can retain:
 
@@ -242,12 +261,14 @@ An emergency alert can retain:
 - Symptoms or incident details
 - Selected hotline metadata
 - SMS delivery result returned to the panel
+- Parent notification delivery summary for specifically identified students
 - Creation, acknowledgement, dispatch, and resolution timestamps
 
-## 10. Operational Limitations
+## 11. Operational Limitations
 
 - In-app alert saving does not prove that external emergency services were contacted.
 - SMS requires an active matching hotline, SMS-enabled configuration, a valid number, and a working Semaphore provider.
+- SMS can use the configured provider: `semaphore` (the default) or `iprog`. IPROG requires an API token, prepaid credits, and a valid recipient number.
 - Browser emergency audio requires the Clinic user to interact with the page once.
 - Physical RFID behavior must be verified with the deployed reader.
 - A separate Clinic acknowledgement action before responder dispatch is not currently implemented.

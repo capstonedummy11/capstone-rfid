@@ -8,19 +8,38 @@ use Illuminate\Support\Facades\Hash;
 
 class UserSeeder extends Seeder
 {
+    private const ROOT_ADMIN_EMAIL = 'pcshslaboratories@gmail.com';
+
+    private const LEGACY_ROOT_ADMIN_EMAIL = 'root.admin@sample.com';
+
+    // @function run: Pinapatakbo ang User Seeder task.
+    // @useIn run: php artisan db:seed
     /**
      * Run the database seeds.
      */
     public function run(): void
     {
+        $legacyRootAdmin = User::withTrashed()
+            ->where('email', self::LEGACY_ROOT_ADMIN_EMAIL)
+            ->first();
+        $rootAdmin = User::withTrashed()
+            ->where('email', self::ROOT_ADMIN_EMAIL)
+            ->first() ?? $legacyRootAdmin ?? new User;
+
+        $rootAdmin->forceFill([
+            'name' => 'Root Admin',
+            'email' => self::ROOT_ADMIN_EMAIL,
+            'password' => Hash::make('sample'),
+            'role' => 'admin',
+            'is_root_admin' => true,
+            'deleted_at' => null,
+        ])->save();
+
+        if ($legacyRootAdmin && ! $legacyRootAdmin->is($rootAdmin)) {
+            $legacyRootAdmin->forceFill(['is_root_admin' => false])->save();
+        }
+
         $users = [
-            [
-                'name' => 'Root Admin',
-                'email' => 'root.admin@sample.com',
-                'password' => Hash::make('sample'),
-                'role' => 'admin',
-                'is_root_admin' => true,
-            ],
             [
                 'name' => 'Test User',
                 'email' => 'test@example.com',

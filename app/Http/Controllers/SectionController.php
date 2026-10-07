@@ -1,4 +1,5 @@
 <?php
+// FEATURE:academic-scheduling - konektadong model, service, route, o UI para sa feature na ito.
 
 namespace App\Http\Controllers;
 
@@ -14,13 +15,19 @@ use Inertia\Inertia;
 
 class SectionController
 {
+    // @function __construct: Tinatanggap ang dependencies ng Section sa pagbuo ng object.
+    // @useIn __construct: Laravel dependency injection kapag ginagamit ang SectionController
     public function __construct(private readonly StudentEnrollmentService $studentEnrollmentService) {}
 
+    // @function index: Wala pang implementasyon ang legacy index placeholder.
+    // @useIn index: TODO(verify): walang direct caller na nakita sa static search
     public function index()
     {
         //
     }
 
+    // @function indexAdmin: Ibinabalik ang Auth/Admin/Sections page at data para sa request.
+    // @useIn indexAdmin: routes/web.php:321 (sections.index)
     public function indexAdmin(Request $request)
     {
         $filters = [
@@ -84,6 +91,7 @@ class SectionController
             ->values();
 
         return Inertia::render('Auth/Admin/Sections', [
+            'title' => 'Sections',
             'sections' => $sections,
             'filters' => $filters,
             'strandOptions' => Strand::query()
@@ -103,11 +111,15 @@ class SectionController
         ]);
     }
 
+    // @function create: Inihahanda ang create form o page.
+    // @useIn create: SectionController::store (app/Http/Controllers/SectionController.php)
     public function create()
     {
         //
     }
 
+    // @function store: Pinoproseso ang bagong Section record.
+    // @useIn store: routes/web.php:322 (sections.store)
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -127,7 +139,8 @@ class SectionController
         $request->validate([
             'section_name' => Rule::unique('sections', 'section_name')->where(fn ($query) => $query
                 ->where('academic_year_id', $academicYear->academic_year_id)
-                ->where('semester', $validated['semester'])),
+                ->where('semester', $validated['semester'])
+                ->whereNull('deleted_at')),
         ]);
 
         $section = Section::create($validated + ['academic_year_id' => $academicYear->academic_year_id]);
@@ -136,16 +149,22 @@ class SectionController
         return back()->with('success', 'Section added successfully.');
     }
 
+    // @function show: Ibinabalik ang detalye ng napiling record.
+    // @useIn show: TODO(verify): walang direct caller na nakita sa static search
     public function show(Section $section)
     {
         //
     }
 
+    // @function edit: Inihahanda ang edit form o page.
+    // @useIn edit: TODO(verify): walang direct caller na nakita sa static search
     public function edit(Section $section)
     {
         //
     }
 
+    // @function update: Pinoproseso ang pagbabago sa Section record.
+    // @useIn update: routes/web.php:323 (sections.update)
     public function update(Request $request, $id)
     {
         $section = Section::findOrFail($id);
@@ -173,7 +192,8 @@ class SectionController
                 ->ignore($section->section_id, 'section_id')
                 ->where(fn ($query) => $query
                     ->where('academic_year_id', $academicYear->academic_year_id)
-                    ->where('semester', $validated['semester'])),
+                    ->where('semester', $validated['semester'])
+                    ->whereNull('deleted_at')),
         ]);
 
         $section->update($validated + ['academic_year_id' => $academicYear->academic_year_id]);
@@ -182,6 +202,8 @@ class SectionController
         return back()->with('success', 'Section updated successfully.');
     }
 
+    // @function destroy: Pinoproseso ang pagtanggal ng Section record.
+    // @useIn destroy: routes/web.php:324 (sections.destroy)
     public function destroy($id)
     {
         $section = Section::findOrFail($id);
@@ -199,6 +221,8 @@ class SectionController
         return back()->with('success', 'Section deleted successfully.');
     }
 
+    // @function logActivity: Nilolog ang activity sa Section flow.
+    // @useIn logActivity: SectionController::store (app/Http/Controllers/SectionController.php)
     private function logActivity(string $action, string $tableName, string $description): void
     {
         ActivityLog::create([

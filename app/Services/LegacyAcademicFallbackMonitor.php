@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Schema;
 
 class LegacyAcademicFallbackMonitor
 {
+    // @function record: Nagtatala ng ang legacy academic fallback monitor sa Legacy Academic Fallback Monitor flow.
+    // @useIn record: app/Http/Controllers/StudentsController.php
     public static function record(string $context, array $payload = []): void
     {
         if (! Schema::hasTable('legacy_academic_fallback_events')) return;

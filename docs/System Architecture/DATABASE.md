@@ -19,7 +19,7 @@ php artisan migrate
 php artisan db:seed --class=MinimalSeeder
 ```
 
-`MinimalSeeder` creates one root administrator, the automatically calculated current academic year, and baseline system settings. It does not create demo accounts, students, instructors, rooms, schedules, messages, inventory, emergency records, or attendance data. The root administrator uses `root.admin@sample.com` with the temporary password `change-me-now` unless overridden by environment variables. The account is required to change its password on first login. The academic year follows the June-to-March cycle and can be overridden with `MINIMAL_ACADEMIC_YEAR`, `MINIMAL_ACADEMIC_YEAR_START`, and `MINIMAL_ACADEMIC_YEAR_END`.
+`MinimalSeeder` creates one root administrator, the automatically calculated current academic year, and baseline system settings. It does not create demo accounts, students, instructors, rooms, schedules, messages, inventory, emergency records, or attendance data. The root administrator uses `pcshslaboratories@gmail.com` with the temporary password `change-me-now` unless overridden by environment variables. The account is required to change its password on first login. The academic year follows the June-to-March cycle and can be overridden with `MINIMAL_ACADEMIC_YEAR`, `MINIMAL_ACADEMIC_YEAR_START`, and `MINIMAL_ACADEMIC_YEAR_END`.
 
 Reset and rebuild the local database:
 
@@ -127,7 +127,7 @@ Rollover audit model:
 - `academic_year_rollovers` records the source/destination years, operator, mode, status, preview/execution counts, errors, and completion timestamps.
 - `academic_year_rollover_items` records each student decision and any resulting destination enrollment/section.
 - the source/destination pair and per-rollover student are unique, making successful execution safe to retry.
-- rollover copies only explicitly mapped sections, offerings, unassigned schedules, and approved enrollments; attendance, online classes, messages, letters, clinic data, borrowing, evidence, and audit history are excluded.
+- rollover copies only explicitly mapped Sections, selected Subject Offerings, and approved enrollments; Instructor assignments, Schedules, attendance, online classes, messages, letters, Clinic data, borrowing, evidence, and audit history are excluded.
 
 Legacy academic compatibility:
 
@@ -339,7 +339,7 @@ Other available seeders not called by default:
 
 | Role             | Email                         | Password   | Notes                         |
 | ---------------- | ----------------------------- | ---------- | ----------------------------- |
-| Root admin       | `root.admin@sample.com`       | `sample`   | `is_root_admin = true`        |
+| Root admin       | `pcshslaboratories@gmail.com` | `sample`   | `is_root_admin = true`        |
 | Admin            | `test@example.com`            | `password` | Test admin                    |
 | Admin            | `jeromebernante@gmail.com`    | `1234`     | Dev admin                     |
 | Admin            | `vallecera@gmail.com`         | `sample`   | Dev admin                     |

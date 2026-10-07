@@ -1,8 +1,11 @@
+<!-- FEATURE:messenger - UI para sa messenger and attachments. -->
+<!-- FEATURE:excuse-letter-review - UI para sa excuse letter review. -->
 <script setup>
 import LinkedStudentSelector from '@/components/StudentPortal/LinkedStudentSelector.vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import {
+    CheckCircle2,
     FileText,
     Forward,
     Image,
@@ -10,6 +13,7 @@ import {
     Search,
     Send,
     X,
+    XCircle,
 } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -67,6 +71,8 @@ const filteredRecipients = computed(() => {
     );
 });
 
+// @function partnerFor: Kinukuha ang partner for result para sa Index.
+// @useIn partnerFor: resources/js/pages/Messages/Index.vue:89
 const partnerFor = (message) => {
     const senderIsMe = Number(message.sender_user_id) === currentUserId.value;
 
@@ -145,6 +151,8 @@ watch(
     { immediate: true },
 );
 
+// @function conversationForUser: Pinoproseso ang conversation for user para sa Index.
+// @useIn conversationForUser: resources/js/pages/Messages/Index.vue:184
 const conversationForUser = (userId) =>
     conversations.value.find(
         (conversation) => Number(conversation.partner.id) === Number(userId),
@@ -175,6 +183,8 @@ watch(
     { immediate: true },
 );
 
+// @function selectRecipient: Pinipili ang recipient sa Index flow.
+// @useIn selectRecipient: resources/js/pages/Messages/Index.vue template @click
 const selectRecipient = (recipient) => {
     search.value = '';
     const existingConversation = conversationForUser(recipient.user_id);
@@ -190,6 +200,8 @@ const selectRecipient = (recipient) => {
     clearAttachment();
 };
 
+// @function selectConversation: Pinipili ang conversation sa Index flow.
+// @useIn selectConversation: resources/js/pages/Messages/Index.vue template @click
 const selectConversation = (conversation) => {
     selectedConversationKey.value = conversation.key;
     selectedRecipient.value = null;
@@ -197,6 +209,8 @@ const selectConversation = (conversation) => {
     clearAttachment();
 };
 
+// @function sendMessage: Ipinapadala ang message sa Index flow.
+// @useIn sendMessage: resources/js/pages/Messages/Index.vue template
 const sendMessage = () => {
     const recipientId = form.recipient_user_id;
 
@@ -223,12 +237,16 @@ const sendMessage = () => {
     });
 };
 
+// @function roleLabel: Pinoproseso ang role label para sa Index.
+// @useIn roleLabel: resources/js/pages/Messages/Index.vue template
 const roleLabel = (role) =>
     String(role || '')
         .split('_')
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
         .join(' ');
 
+// @function formatBytes: Fino-format ang bytes sa Index flow.
+// @useIn formatBytes: resources/js/pages/Messages/Index.vue template
 const formatBytes = (bytes) => {
     const size = Number(bytes || 0);
     if (!size) return '';
@@ -237,6 +255,8 @@ const formatBytes = (bytes) => {
     return `${(size / 1024 / 1024).toFixed(1)} MB`;
 };
 
+// @function clearAttachment: Nililinis ang attachment sa Index flow.
+// @useIn clearAttachment: resources/js/pages/Messages/Index.vue template @click
 const clearAttachment = () => {
     form.attachment = null;
     if (fileInput.value) fileInput.value.value = '';
@@ -248,6 +268,8 @@ const forwardForm = useForm({
     body: '',
 });
 
+// @function canForwardToParent: Sinusuri kung forward to parent para sa Index.
+// @useIn canForwardToParent: resources/js/pages/Messages/Index.vue template
 const canForwardToParent = (message) =>
     ['admin', 'instructor'].includes(currentRole.value) &&
     Number(message.sender_user_id) !== currentUserId.value &&
@@ -270,18 +292,24 @@ const forwardSubject = computed(
     () => `Excuse Letter - ${forwardStudentName.value} - ${forwardDate.value}`,
 );
 
+// @function openForwardModal: Binubuksan ang forward modal sa Index flow.
+// @useIn openForwardModal: resources/js/pages/Messages/Index.vue template
 const openForwardModal = (message) => {
     forwardMessage.value = message;
     forwardForm.parent_user_id = message.parents?.[0]?.user_id || '';
     forwardForm.body = `Please find attached the excuse letter for your child.\n\nKindly review the attached document.\n\nRegards,\n${page.props.auth?.user?.name || 'School Staff'}`;
 };
 
+// @function closeForwardModal: Isinasara ang forward modal sa Index flow.
+// @useIn closeForwardModal: resources/js/pages/Messages/Index.vue template @click
 const closeForwardModal = () => {
     if (forwardForm.processing) return;
     forwardMessage.value = null;
     forwardForm.reset();
 };
 
+// @function sendForwardEmail: Ipinapadala ang forward email sa Index flow.
+// @useIn sendForwardEmail: resources/js/pages/Messages/Index.vue template
 const sendForwardEmail = () => {
     if (!forwardMessage.value) return;
 
@@ -295,11 +323,84 @@ const sendForwardEmail = () => {
         },
     );
 };
+
+const reviewMessage = ref(null);
+const reviewForm = useForm({
+    decision: 'approved',
+    recipients: [],
+    email_subject: '',
+    email_body: '',
+});
+
+const reviewDecisionLabel = computed(() =>
+    reviewForm.decision === 'approved' ? 'Approve' : 'Deny',
+);
+
+// @function openReviewModal: Binubuksan ang review modal sa Index flow.
+// @useIn openReviewModal: resources/js/pages/Messages/Index.vue template
+const openReviewModal = (message, decision) => {
+    const student = message.excuse_letter_review?.student;
+    const parents = message.excuse_letter_review?.parents ?? [];
+    const studentName = student?.name || message.student_name || 'Student';
+    const result = decision === 'approved' ? 'approved' : 'denied';
+    const recipients = [];
+
+    if (student?.available) recipients.push('student');
+    if (parents.length > 0) recipients.push('parent');
+
+    reviewMessage.value = message;
+    reviewForm.clearErrors();
+    reviewForm.decision = decision;
+    reviewForm.recipients = recipients;
+    reviewForm.email_subject = `Excuse Letter ${result === 'approved' ? 'Approved' : 'Denied'} - ${studentName}`;
+    reviewForm.email_body = `Dear Student/Parent,\n\nThe excuse letter for ${studentName} has been ${result} by the instructor.\n\nSubject: ${message.subject}\n\nRegards,\n${page.props.auth?.user?.name || 'Instructor'}`;
+};
+
+// @function closeReviewModal: Isinasara ang review modal sa Index flow.
+// @useIn closeReviewModal: resources/js/pages/Messages/Index.vue template @click
+const closeReviewModal = () => {
+    if (reviewForm.processing) return;
+    reviewMessage.value = null;
+    reviewForm.reset();
+    reviewForm.clearErrors();
+};
+
+// @function submitReview: Isinusumite ang review sa Index flow.
+// @useIn submitReview: resources/js/pages/Messages/Index.vue template
+const submitReview = () => {
+    if (!reviewMessage.value || reviewForm.recipients.length === 0) {
+        reviewForm.setError(
+            'recipients',
+            'Select at least one available email recipient.',
+        );
+        return;
+    }
+
+    reviewForm.put(
+        route('messages.excuse-letters.review', {
+            message: reviewMessage.value.id,
+        }),
+        {
+            preserveScroll: true,
+            onSuccess: closeReviewModal,
+        },
+    );
+};
+
+// @function reviewedStatusLabel: Kinukuha ang reviewed status label result para sa Index.
+// @useIn reviewedStatusLabel: resources/js/pages/Messages/Index.vue template
+const reviewedStatusLabel = (status) => {
+    if (status === 'instructor_approved') return 'Instructor approved';
+    if (status === 'instructor_denied') return 'Instructor denied';
+    return '';
+};
 </script>
 
 <template>
-    <div class="h-full bg-slate-50 p-4">
-        <div class="grid h-full min-h-[680px] gap-4 lg:grid-cols-[340px_1fr]">
+    <div class="min-h-0 bg-slate-50">
+        <div
+            class="grid h-[calc(100vh-7rem)] min-h-0 gap-4 lg:grid-cols-[340px_1fr]"
+        >
             <aside
                 class="flex min-h-0 flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm"
             >
@@ -512,6 +613,43 @@ const sendForwardEmail = () => {
                             <Forward class="h-3.5 w-3.5" />
                             Email parent
                         </button>
+                        <div
+                            v-if="message.can_review_excuse_letter"
+                            class="mt-3 flex flex-wrap gap-2"
+                        >
+                            <button
+                                type="button"
+                                class="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700"
+                                @click.stop="
+                                    openReviewModal(message, 'approved')
+                                "
+                            >
+                                <CheckCircle2 class="h-3.5 w-3.5" />
+                                Approve
+                            </button>
+                            <button
+                                type="button"
+                                class="inline-flex items-center gap-1 rounded-md bg-rose-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-700"
+                                @click.stop="openReviewModal(message, 'denied')"
+                            >
+                                <XCircle class="h-3.5 w-3.5" />
+                                Deny
+                            </button>
+                        </div>
+                        <p
+                            v-else-if="
+                                reviewedStatusLabel(
+                                    message.excuse_letter_status,
+                                )
+                            "
+                            class="mt-2 inline-flex rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-700"
+                        >
+                            {{
+                                reviewedStatusLabel(
+                                    message.excuse_letter_status,
+                                )
+                            }}
+                        </p>
                         <p class="mt-2 text-[11px] opacity-70">
                             {{ message.created_label }}
                         </p>
@@ -620,7 +758,8 @@ const sendForwardEmail = () => {
 
                 <form class="space-y-4 p-5" @submit.prevent="sendForwardEmail">
                     <div>
-                        <label class="text-xs font-bold text-slate-500 uppercase"
+                        <label
+                            class="text-xs font-bold text-slate-500 uppercase"
                             >Send to parent</label
                         >
                         <select
@@ -639,7 +778,8 @@ const sendForwardEmail = () => {
                     </div>
 
                     <div>
-                        <label class="text-xs font-bold text-slate-500 uppercase"
+                        <label
+                            class="text-xs font-bold text-slate-500 uppercase"
                             >Subject</label
                         >
                         <input
@@ -650,7 +790,8 @@ const sendForwardEmail = () => {
                     </div>
 
                     <div>
-                        <label class="text-xs font-bold text-slate-500 uppercase"
+                        <label
+                            class="text-xs font-bold text-slate-500 uppercase"
                             >Message template</label
                         >
                         <textarea
@@ -660,14 +801,18 @@ const sendForwardEmail = () => {
                         />
                     </div>
 
-                    <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                        <p class="text-xs font-bold tracking-wide text-slate-500 uppercase">
+                    <div
+                        class="rounded-lg border border-slate-200 bg-slate-50 p-4"
+                    >
+                        <p
+                            class="text-xs font-bold tracking-wide text-slate-500 uppercase"
+                        >
                             Email preview
                         </p>
-                        <p class="mt-3 text-sm text-slate-700">
-                            Dear Parent,
-                        </p>
-                        <p class="mt-3 whitespace-pre-line text-sm text-slate-700">
+                        <p class="mt-3 text-sm text-slate-700">Dear Parent,</p>
+                        <p
+                            class="mt-3 text-sm whitespace-pre-line text-slate-700"
+                        >
                             {{ forwardForm.body }}
                         </p>
                         <p class="mt-3 text-sm text-slate-700">
@@ -678,7 +823,9 @@ const sendForwardEmail = () => {
                         </p>
                         <p class="mt-3 text-sm text-slate-700">
                             Attachment:
-                            <strong>{{ forwardMessage.attachment_name }}</strong>
+                            <strong>{{
+                                forwardMessage.attachment_name
+                            }}</strong>
                         </p>
                     </div>
 
@@ -696,7 +843,199 @@ const sendForwardEmail = () => {
                             :disabled="forwardForm.processing"
                         >
                             <Send class="h-4 w-4" />
-                            {{ forwardForm.processing ? 'Sending...' : 'Send email' }}
+                            {{
+                                forwardForm.processing
+                                    ? 'Sending...'
+                                    : 'Send email'
+                            }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div
+            v-if="reviewMessage"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
+            @click.self="closeReviewModal"
+        >
+            <div
+                class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white shadow-2xl"
+            >
+                <div
+                    class="flex items-start justify-between border-b border-slate-200 px-5 py-4"
+                >
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900">
+                            {{ reviewDecisionLabel }} excuse letter
+                        </h3>
+                        <p class="text-sm text-slate-500">
+                            Select who receives the result, then review the
+                            email before sending.
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        class="rounded-md p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                        @click="closeReviewModal"
+                    >
+                        <X class="h-5 w-5" />
+                    </button>
+                </div>
+
+                <form class="space-y-4 p-5" @submit.prevent="submitReview">
+                    <fieldset>
+                        <legend
+                            class="text-xs font-bold text-slate-500 uppercase"
+                        >
+                            Send email to
+                        </legend>
+                        <div class="mt-2 grid gap-2 sm:grid-cols-2">
+                            <label
+                                class="flex items-start gap-3 rounded-lg border border-slate-200 p-3"
+                                :class="
+                                    reviewMessage.excuse_letter_review?.student
+                                        ?.available
+                                        ? 'cursor-pointer hover:bg-slate-50'
+                                        : 'cursor-not-allowed bg-slate-50 opacity-60'
+                                "
+                            >
+                                <input
+                                    v-model="reviewForm.recipients"
+                                    type="checkbox"
+                                    value="student"
+                                    class="mt-1 h-4 w-4 rounded border-slate-300"
+                                    :disabled="
+                                        !reviewMessage.excuse_letter_review
+                                            ?.student?.available
+                                    "
+                                />
+                                <span class="min-w-0 text-sm">
+                                    <strong class="block text-slate-800"
+                                        >Student</strong
+                                    >
+                                    <span class="block truncate text-slate-500">
+                                        {{
+                                            reviewMessage.excuse_letter_review
+                                                ?.student?.email ||
+                                            'No valid email'
+                                        }}
+                                    </span>
+                                </span>
+                            </label>
+                            <label
+                                class="flex items-start gap-3 rounded-lg border border-slate-200 p-3"
+                                :class="
+                                    reviewMessage.excuse_letter_review?.parents
+                                        ?.length
+                                        ? 'cursor-pointer hover:bg-slate-50'
+                                        : 'cursor-not-allowed bg-slate-50 opacity-60'
+                                "
+                            >
+                                <input
+                                    v-model="reviewForm.recipients"
+                                    type="checkbox"
+                                    value="parent"
+                                    class="mt-1 h-4 w-4 rounded border-slate-300"
+                                    :disabled="
+                                        !reviewMessage.excuse_letter_review
+                                            ?.parents?.length
+                                    "
+                                />
+                                <span class="min-w-0 text-sm">
+                                    <strong class="block text-slate-800"
+                                        >Parent</strong
+                                    >
+                                    <span
+                                        v-if="
+                                            reviewMessage.excuse_letter_review
+                                                ?.parents?.length
+                                        "
+                                        class="block text-slate-500"
+                                    >
+                                        {{
+                                            reviewMessage.excuse_letter_review.parents
+                                                .map((parent) => parent.email)
+                                                .join(', ')
+                                        }}
+                                    </span>
+                                    <span v-else class="block text-slate-500"
+                                        >No linked parent email</span
+                                    >
+                                </span>
+                            </label>
+                        </div>
+                        <p
+                            v-if="reviewForm.errors.recipients"
+                            class="mt-1 text-sm font-semibold text-rose-600"
+                        >
+                            {{ reviewForm.errors.recipients }}
+                        </p>
+                    </fieldset>
+
+                    <div>
+                        <label
+                            class="text-xs font-bold text-slate-500 uppercase"
+                            >Subject</label
+                        >
+                        <input
+                            v-model="reviewForm.email_subject"
+                            type="text"
+                            maxlength="255"
+                            required
+                            class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                        />
+                        <p
+                            v-if="reviewForm.errors.email_subject"
+                            class="mt-1 text-sm font-semibold text-rose-600"
+                        >
+                            {{ reviewForm.errors.email_subject }}
+                        </p>
+                    </div>
+
+                    <div>
+                        <label
+                            class="text-xs font-bold text-slate-500 uppercase"
+                            >Email template</label
+                        >
+                        <textarea
+                            v-model="reviewForm.email_body"
+                            maxlength="5000"
+                            required
+                            class="mt-1 min-h-48 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                        />
+                        <p
+                            v-if="reviewForm.errors.email_body"
+                            class="mt-1 text-sm font-semibold text-rose-600"
+                        >
+                            {{ reviewForm.errors.email_body }}
+                        </p>
+                    </div>
+
+                    <div class="flex justify-end gap-2">
+                        <button
+                            type="button"
+                            class="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+                            @click="closeReviewModal"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            class="inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
+                            :class="
+                                reviewForm.decision === 'approved'
+                                    ? 'bg-emerald-600 hover:bg-emerald-700'
+                                    : 'bg-rose-600 hover:bg-rose-700'
+                            "
+                            :disabled="reviewForm.processing"
+                        >
+                            <Send class="h-4 w-4" />
+                            {{
+                                reviewForm.processing
+                                    ? 'Sending...'
+                                    : `${reviewDecisionLabel} and send email`
+                            }}
                         </button>
                     </div>
                 </form>

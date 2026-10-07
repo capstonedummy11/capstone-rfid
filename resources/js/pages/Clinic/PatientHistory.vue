@@ -1,7 +1,9 @@
+<!-- FEATURE:clinic-records - konektadong model, service, route, o UI para sa feature na ito. -->
 <script setup>
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import { Edit3, FilePlus2, Trash2 } from 'lucide-vue-next';
+import { confirmActionModal } from '@/lib/feedbackModal';
 
 const props = defineProps({
     histories: { type: Array, default: () => [] },
@@ -22,12 +24,16 @@ const form = useForm({
     user_id: '',
 });
 
+// @function resetForm: Nire-reset ang form sa Patient History flow.
+// @useIn resetForm: resources/js/pages/Clinic/PatientHistory.vue template @click
 const resetForm = () => {
     editingId.value = null;
     form.reset();
     form.patient_type = 'student';
 };
 
+// @function editHistory: Pinoproseso ang edit history para sa Patient History.
+// @useIn editHistory: resources/js/pages/Clinic/PatientHistory.vue template @click
 const editHistory = (history) => {
     editingId.value = history.id;
     form.patient_name = history.patient_name || '';
@@ -39,6 +45,8 @@ const editHistory = (history) => {
     form.user_id = history.user_id || '';
 };
 
+// @function useCase: Pinoproseso ang use case para sa Patient History.
+// @useIn useCase: resources/js/pages/Clinic/PatientHistory.vue template @click
 const useCase = (clinicCase) => {
     editingId.value = null;
     form.patient_name = clinicCase.patient_name || '';
@@ -50,6 +58,8 @@ const useCase = (clinicCase) => {
     form.user_id = '';
 };
 
+// @function submitHistory: Isinusumite ang history sa Patient History flow.
+// @useIn submitHistory: resources/js/pages/Clinic/PatientHistory.vue template
 const submitHistory = () => {
     if (editingId.value) {
         form.put(route('clinic.patient-history.update', editingId.value), {
@@ -65,8 +75,14 @@ const submitHistory = () => {
     });
 };
 
-const deleteHistory = (history) => {
-    if (!confirm(`Delete patient history for ${history.patient_name}?`)) return;
+// @function deleteHistory: Tinatanggal ang history sa Patient History flow.
+// @useIn deleteHistory: resources/js/pages/Clinic/PatientHistory.vue template @click
+const deleteHistory = async (history) => {
+    const confirmed = await confirmActionModal({
+        title: 'Delete patient history?',
+        text: `Delete patient history for ${history.patient_name}?`,
+    });
+    if (!confirmed) return;
 
     router.delete(route('clinic.patient-history.destroy', history.id), {
         preserveScroll: true,

@@ -1,14 +1,14 @@
 <?php
 
-use App\Models\Attendance;
 use App\Models\AcademicYear;
+use App\Models\Attendance;
 use App\Models\Instructor;
 use App\Models\Message;
 use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\Strand;
-use App\Models\StudentExcuseLetter;
 use App\Models\StudentEnrollment;
+use App\Models\StudentExcuseLetter;
 use App\Models\StudentPortalMessage;
 use App\Models\Students;
 use App\Models\SystemSetting;
@@ -17,7 +17,9 @@ use App\Notifications\MessengerMessageReceived;
 use App\Services\MessengerEmailNotificationService;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
@@ -28,6 +30,7 @@ uses(RefreshDatabase::class);
 function portalFixture(): array
 {
     SystemSetting::setBoolean(SystemSetting::PARENT_PORTAL_ENABLED, true);
+    SystemSetting::setBoolean(SystemSetting::PARENT_EXCUSE_LETTERS_ENABLED, true);
 
     $strand = Strand::query()->create([
         'strand_code' => 'ICT',
@@ -392,6 +395,32 @@ test('instructor inbox replies create student portal replies', function () {
     ]);
 });
 
+test('student portal password uses the twelve character rule and specific message', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    $fixture = portalFixture();
+
+    $this->actingAs($fixture['studentUser'])
+        ->put(route('student-parent.password.update'), [
+            'current_password' => 'password',
+            'password' => 'ElevenChar!',
+            'password_confirmation' => 'ElevenChar!',
+        ])
+        ->assertSessionHasErrors([
+            'password' => 'Password must be at least 12 characters long.',
+        ]);
+
+    $this->actingAs($fixture['studentUser'])
+        ->put(route('student-parent.password.update'), [
+            'current_password' => 'password',
+            'password' => 'TwelveChars!',
+            'password_confirmation' => 'TwelveChars!',
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('success', 'Password updated.');
+
+    expect(Hash::check('TwelveChars!', $fixture['studentUser']->fresh()->password))->toBeTrue();
+});
+
 test('parent profile update does not change linked student phone or gender', function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
     $fixture = portalFixture();
@@ -414,6 +443,30 @@ test('parent profile update does not change linked student phone or gender', fun
         'action' => 'update',
         'table_name' => 'users',
     ]);
+});
+
+test('student can upload an account profile picture without changing biometric faces', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    Storage::fake('public');
+    $fixture = portalFixture();
+
+    $this->actingAs($fixture['studentUser'])
+        ->post(route('student-parent.profile.update'), [
+            '_method' => 'put',
+            'name' => $fixture['studentUser']->name,
+            'phone' => $fixture['studentUser']->phone,
+            'gender' => $fixture['studentUser']->gender,
+            'profile_photo' => UploadedFile::fake()->image('student-profile.jpg', 300, 300)->size(500),
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('success', 'Profile updated.');
+
+    $fixture['studentUser']->refresh();
+
+    expect($fixture['studentUser']->profile_photo_path)->toStartWith('profile-photos/')
+        ->and($fixture['student']->fresh()->face_images)->toBe($fixture['student']->face_images);
+    Storage::disk('public')->assertExists($fixture['studentUser']->profile_photo_path);
 });
 
 test('student-created excuse letter requires parent approval before pdf download', function () {
@@ -496,6 +549,19 @@ test('new excuse letter keeps the active academic year enrollment context', func
 test('parent-created excuse letter is signed and downloads as pdf', function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
     $fixture = portalFixture();
+
+    $this->actingAs($fixture['parentUser'])
+        ->post(route('student-parent.excuse-letters.store', ['student_id' => $fixture['student']->student_id]), [
+            'subject' => 'Programming I',
+            'from_date' => '2026-07-01',
+            'to_date' => '2026-07-02',
+            'reason' => 'Medical appointment.',
+            'parent_signature' => '',
+        ])
+        ->assertRedirect()
+        ->assertSessionHasErrors('parent_signature');
+
+    $this->assertDatabaseCount('student_excuse_letters', 0);
 
     $this->actingAs($fixture['parentUser'])
         ->post(route('student-parent.excuse-letters.store', ['student_id' => $fixture['student']->student_id]), [

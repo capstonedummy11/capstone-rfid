@@ -1,14 +1,17 @@
 <?php
 
+use App\Models\AcademicYear;
 use App\Models\Instructor;
 use App\Models\RfidPanelSession;
 use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\Strand;
+use App\Models\StudentEnrollment;
 use App\Models\Students;
 use App\Models\Subject;
 use App\Models\SystemSetting;
 use App\Models\User;
+use App\Services\AwsFaceRecognitionService;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -20,6 +23,13 @@ uses(RefreshDatabase::class);
 
 function attendanceVerificationFixture(bool $withFace = false): array
 {
+    $academicYear = AcademicYear::query()->create([
+        'name' => '2026-2027',
+        'starts_on' => '2026-06-01',
+        'ends_on' => '2027-03-31',
+        'status' => AcademicYear::STATUS_ACTIVE,
+        'active_semester' => '1st Semester',
+    ]);
     $strand = Strand::query()->create([
         'strand_code' => 'ICT-ATT',
         'strand_name' => 'ICT Attendance',
@@ -27,6 +37,7 @@ function attendanceVerificationFixture(bool $withFace = false): array
         'status' => 'active',
     ]);
     $section = Section::query()->create([
+        'academic_year_id' => $academicYear->academic_year_id,
         'strand_id' => $strand->strand_id,
         'section_name' => 'ICT ATT 11-A',
         'year_level' => 11,
@@ -54,9 +65,11 @@ function attendanceVerificationFixture(bool $withFace = false): array
         'semester' => '1st Semester',
     ]);
     $schedule = Schedule::query()->create([
+        'academic_year_id' => $academicYear->academic_year_id,
         'instructor_id' => $instructor->instructor_id,
         'section_id' => $section->section_id,
         'subject_code' => 'ATT-SEC-101',
+        'semester' => '1st Semester',
         'weekdays' => now()->format('l'),
         'time_start' => '08:00:00',
         'time_end' => '17:00:00',
@@ -77,10 +90,21 @@ function attendanceVerificationFixture(bool $withFace = false): array
         'status' => 'active',
         'face_images' => $withFace ? ['student_faces/missing-reference.jpg'] : [],
     ]);
+    StudentEnrollment::query()->create([
+        'student_id' => $student->student_id,
+        'academic_year_id' => $academicYear->academic_year_id,
+        'section_id' => $section->section_id,
+        'strand_id' => $strand->strand_id,
+        'year_level' => 11,
+        'semester' => '1st Semester',
+        'status' => 'enrolled',
+        'enrolled_at' => '2026-06-01',
+    ]);
     $console = User::factory()->create(['role' => 'console']);
     $attendanceSessionId = DB::table('attendance_sessions')->insertGetId([
         'subject_code' => 'ATT-SEC-101',
         'schedule_id' => $schedule->scheduled_id,
+        'academic_year_id' => $academicYear->academic_year_id,
         'date' => now()->toDateString(),
         'time_start' => now()->format('H:i:s'),
         'status' => 'attendance',
@@ -89,7 +113,7 @@ function attendanceVerificationFixture(bool $withFace = false): array
         'updated_at' => now(),
     ]);
 
-    return compact('student', 'instructorUser', 'schedule', 'console', 'attendanceSessionId');
+    return compact('academicYear', 'student', 'instructorUser', 'schedule', 'console', 'attendanceSessionId');
 }
 
 test('direct student tap cannot record attendance without server-side verification', function () {
@@ -228,7 +252,18 @@ test('online class participation is counted as online class and present attendan
         'school_year' => '2026-2027',
         'status' => 'active',
     ]);
+    StudentEnrollment::query()->create([
+        'student_id' => $absentStudent->student_id,
+        'academic_year_id' => $fixture['academicYear']->academic_year_id,
+        'section_id' => $fixture['student']->section_id,
+        'strand_id' => $fixture['student']->strand_id,
+        'year_level' => 11,
+        'semester' => '1st Semester',
+        'status' => 'enrolled',
+        'enrolled_at' => '2026-06-01',
+    ]);
     $onlineClassId = DB::table('online_classes')->insertGetId([
+        'academic_year_id' => $fixture['academicYear']->academic_year_id,
         'schedule_id' => $fixture['schedule']->scheduled_id,
         'instructor_id' => $fixture['schedule']->instructor_id,
         'section_id' => $fixture['student']->section_id,
@@ -612,8 +647,89 @@ test('student without a face requires the active instructor rfid before attendan
     $this->assertDatabaseCount('attendance_logs', 1);
 });
 
+test('fallback verification keeps temporary exit and return rules before the checkout window', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    Carbon::setTestNow('2026-09-25 12:00:00');
+    $fixture = attendanceVerificationFixture();
+    $payload = [
+        'rfid' => $fixture['student']->rfid_tag,
+        'room' => 'COMLAB-ATT',
+        'subject_code' => 'ATT-SEC-101',
+        'schedule_id' => $fixture['schedule']->scheduled_id,
+    ];
+    $verificationPayload = [
+        ...$payload,
+        'instructor_rfid' => $fixture['instructorUser']->rfid_tag,
+    ];
+
+    $this->actingAs($fixture['console'])
+        ->postJson(route('attendanceControlPanel.studentFaceCheck'), $verificationPayload)
+        ->assertOk();
+    $this->postJson(route('attendanceControlPanel.studentTap'), $payload)
+        ->assertOk()
+        ->assertJsonPath('action', 'time_in');
+
+    $this->postJson(route('attendanceControlPanel.studentFaceCheck'), $verificationPayload)
+        ->assertOk();
+    $this->postJson(route('attendanceControlPanel.studentTap'), $payload)
+        ->assertStatus(428)
+        ->assertJsonPath('requires_temporary_movement_instructor', true);
+    $this->postJson(route('attendanceControlPanel.studentTap'), [
+        ...$payload,
+        'temporary_movement_instructor_rfid' => $fixture['instructorUser']->rfid_tag,
+    ])
+        ->assertOk()
+        ->assertJsonPath('action', 'temporary_exit')
+        ->assertJsonPath('record.room_status', 'Outside');
+
+    $this->postJson(route('attendanceControlPanel.studentFaceCheck'), $verificationPayload)
+        ->assertOk();
+    $this->postJson(route('attendanceControlPanel.studentTap'), [
+        ...$payload,
+        'temporary_movement_instructor_rfid' => $fixture['instructorUser']->rfid_tag,
+    ])
+        ->assertOk()
+        ->assertJsonPath('action', 'temporary_return')
+        ->assertJsonPath('record.room_status', 'Inside');
+
+    $this->assertDatabaseHas('attendances', [
+        'student_id' => $fixture['student']->student_id,
+        'status' => 'pending',
+        'time_out' => null,
+        'room_status' => 'inside',
+    ]);
+    $this->assertDatabaseHas('attendance_logs', [
+        'student_id' => $fixture['student']->student_id,
+        'tap_type' => 'Temporary Exit',
+        'tap_sequence_number' => 2,
+    ]);
+    $this->assertDatabaseHas('attendance_logs', [
+        'student_id' => $fixture['student']->student_id,
+        'tap_type' => 'Temporary Return',
+        'tap_sequence_number' => 3,
+    ]);
+
+    $admin = User::factory()->create(['role' => 'admin']);
+    $subject = Subject::query()->where('subject_code', 'ATT-SEC-101')->firstOrFail();
+    $this->actingAs($admin)
+        ->get(route('admin.attendance.session', [$subject, $fixture['attendanceSessionId']]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Attendance/SessionDetails')
+            ->where('rows.0.time_out', null)
+            ->has('rows.0.tap_events', 3)
+            ->where('rows.0.tap_events.0.tap_type', 'Check-in')
+            ->where('rows.0.tap_events.1.tap_type', 'Temporary Exit')
+            ->where('rows.0.tap_events.1.room_status', 'Outside')
+            ->where('rows.0.tap_events.2.tap_type', 'Temporary Return')
+            ->where('rows.0.tap_events.2.room_status', 'Inside'));
+
+    Carbon::setTestNow();
+});
+
 test('aws unavailability stores evidence for both login and logout', function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
+    Carbon::setTestNow('2026-09-25 16:50:00');
     Storage::fake('public');
     $fixture = attendanceVerificationFixture(true);
     $payload = [
@@ -628,7 +744,8 @@ test('aws unavailability stores evidence for both login and logout', function ()
         ->postJson(route('attendanceControlPanel.studentFaceCheck'), $payload)
         ->assertOk()
         ->assertJsonPath('provider_unavailable', true)
-        ->assertJsonPath('capture_recorded', true);
+        ->assertJsonPath('capture_recorded', true)
+        ->assertJsonPath('message', 'AWS face recognition is not working.');
 
     $this->postJson(route('attendanceControlPanel.studentTap'), $payload)
         ->assertOk()
@@ -642,6 +759,18 @@ test('aws unavailability stores evidence for both login and logout', function ()
         ->assertOk()
         ->assertJsonPath('action', 'time_out');
 
+    $this->postJson(route('attendanceControlPanel.attendanceLogs'), [
+        'room' => 'COMLAB-ATT',
+        'subject_code' => 'ATT-SEC-101',
+        'schedule_id' => $fixture['schedule']->scheduled_id,
+    ])
+        ->assertOk()
+        ->assertJsonPath('total_students', 1)
+        ->assertJsonCount(1, 'records')
+        ->assertJsonCount(2, 'records.0.events')
+        ->assertJsonPath('records.0.student_id', $fixture['student']->student_id)
+        ->assertJsonPath('records.0.tap_count', 2);
+
     $log = DB::table('attendance_logs')->first();
     expect($log->time_in_face_path)->not->toBeNull()
         ->and($log->time_out_face_path)->not->toBeNull();
@@ -649,10 +778,43 @@ test('aws unavailability stores evidence for both login and logout', function ()
     Storage::disk('public')->assertExists($log->time_out_face_path);
 
     $this->assertDatabaseCount('attendances', 1);
+    Carbon::setTestNow();
+});
+
+test('face comparison mismatch has a distinct message from aws unavailability', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    $fixture = attendanceVerificationFixture(true);
+
+    $faceService = Mockery::mock(AwsFaceRecognitionService::class);
+    $faceService->shouldReceive('compareBase64WithStoredImage')
+        ->once()
+        ->andReturn([
+            'verified' => false,
+            'similarity' => 42.5,
+            'threshold' => 90.0,
+            'provider' => 'aws_rekognition',
+        ]);
+    $this->app->instance(AwsFaceRecognitionService::class, $faceService);
+
+    $this->actingAs($fixture['console'])
+        ->postJson(route('attendanceControlPanel.studentFaceCheck'), [
+            'rfid' => $fixture['student']->rfid_tag,
+            'room' => 'COMLAB-ATT',
+            'subject_code' => 'ATT-SEC-101',
+            'schedule_id' => $fixture['schedule']->scheduled_id,
+            'image' => 'data:image/jpeg;base64,'.base64_encode('camera-image'),
+        ])
+        ->assertStatus(422)
+        ->assertJsonPath('verified', false)
+        ->assertJsonPath('provider', 'aws_rekognition')
+        ->assertJsonPath('message', 'Face recognition failed to match.');
+
+    $this->assertDatabaseCount('attendances', 0);
 });
 
 test('camera failure needs instructor rfid only once for the active class session', function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
+    Carbon::setTestNow('2026-09-25 16:50:00');
     $fixture = attendanceVerificationFixture(true);
     $payload = [
         'rfid' => $fixture['student']->rfid_tag,
@@ -681,6 +843,8 @@ test('camera failure needs instructor rfid only once for the active class sessio
     $this->postJson(route('attendanceControlPanel.studentTap'), $payload)
         ->assertOk()
         ->assertJsonPath('action', 'time_out');
+
+    Carbon::setTestNow();
 });
 
 test('ending a class marks students without time out as cutting and absent', function () {

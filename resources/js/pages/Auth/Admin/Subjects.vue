@@ -1,3 +1,4 @@
+<!-- FEATURE:academic-scheduling - konektadong model, service, route, o UI para sa feature na ito. -->
 <template>
     <div class="w-full">
         <div class="mx-auto max-w-[1400px] px-4 py-6">
@@ -228,6 +229,7 @@
                                             Add Offering
                                         </button>
                                         <button
+                                            data-testid="delete-subject"
                                             @click="deleteSubject(subject)"
                                             class="rounded-md bg-rose-500 px-3 py-1 text-sm text-white hover:bg-rose-600"
                                         >
@@ -603,6 +605,7 @@ import { router, useForm } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import Swal from 'sweetalert2';
 import SearchableSelect from '@/components/SearchableSelect.vue';
+import { confirmActionModal, showAlertModal } from '@/lib/feedbackModal';
 
 interface Subject {
     subject_id: string | number;
@@ -698,6 +701,8 @@ const instructors = computed(() => {
     );
 });
 
+// @function buildSectionSearchOptions: Binubuo ang section search options sa Subjects flow.
+// @useIn buildSectionSearchOptions: resources/js/pages/Auth/Admin/Subjects.vue:785
 const buildSectionSearchOptions = (sections: SectionOption[]) =>
     sections.map((section) => ({
         value: String(section.section_id),
@@ -717,6 +722,8 @@ const sectionAcademicYears = computed(() => {
     );
 });
 
+// @function defaultSectionAcademicYearId: Kinukuha ang default section academic year id result para sa Subjects.
+// @useIn defaultSectionAcademicYearId: resources/js/pages/Auth/Admin/Subjects.vue:887
 const defaultSectionAcademicYearId = () => {
     if (
         selectedAcademicYear.value &&
@@ -738,6 +745,8 @@ const defaultSectionAcademicYearId = () => {
     );
 };
 
+// @function sectionsForFilter: Kinukuha ang sections for filter result para sa Subjects.
+// @useIn sectionsForFilter: resources/js/pages/Auth/Admin/Subjects.vue:779
 const sectionsForFilter = (
     academicYearId: string | number | '',
     yearLevel: string | number | '',
@@ -756,6 +765,8 @@ const sectionsForFilter = (
         return true;
     });
 
+// @function yearLevelsForAcademicYear: Pinoproseso ang year levels for academic year para sa Subjects.
+// @useIn yearLevelsForAcademicYear: resources/js/pages/Auth/Admin/Subjects.vue:791
 const yearLevelsForAcademicYear = (academicYearId: string | number | '') =>
     Array.from(
         new Set(
@@ -811,6 +822,8 @@ const selectedFormSection = computed(
 const selectedOfferingSection = computed(
     () => sectionById.value[String(offeringForm.section_id)] ?? null,
 );
+// @function academicYearWarningForSection: Kinukuha ang academic year warning for section result para sa Subjects.
+// @useIn academicYearWarningForSection: resources/js/pages/Auth/Admin/Subjects.vue:831
 const academicYearWarningForSection = (section: SectionOption | null) => {
     if (!section) return '';
     if (section.academic_year_status === 'draft') {
@@ -849,6 +862,8 @@ const offeringForm = useForm({
     status: 'active',
 });
 
+// @function onFilterChange: Hinahandle ang filter change sa Subjects flow.
+// @useIn onFilterChange: resources/js/pages/Auth/Admin/Subjects.vue template @input
 const onFilterChange = () => {
     router.get(
         route('admin.subjects.index'),
@@ -865,6 +880,8 @@ const onFilterChange = () => {
     );
 };
 
+// @function resetFilters: Nire-reset ang filters sa Subjects flow.
+// @useIn resetFilters: resources/js/pages/Auth/Admin/Subjects.vue template @click
 const resetFilters = () => {
     search.value = '';
     selectedSemester.value = '';
@@ -876,6 +893,8 @@ const resetFilters = () => {
     onFilterChange();
 };
 
+// @function openAddModal: Binubuksan ang add modal sa Subjects flow.
+// @useIn openAddModal: resources/js/pages/Auth/Admin/Subjects.vue template @click
 const openAddModal = () => {
     isEditing.value = false;
     selectedSubject.value = null;
@@ -886,6 +905,8 @@ const openAddModal = () => {
     showModal.value = true;
 };
 
+// @function openEditModal: Binubuksan ang edit modal sa Subjects flow.
+// @useIn openEditModal: resources/js/pages/Auth/Admin/Subjects.vue template @click
 const openEditModal = (subject: Subject) => {
     isEditing.value = true;
     selectedSubject.value = subject;
@@ -898,6 +919,8 @@ const openEditModal = (subject: Subject) => {
     showModal.value = true;
 };
 
+// @function closeModal: Isinasara ang modal sa Subjects flow.
+// @useIn closeModal: resources/js/pages/Auth/Admin/Subjects.vue template @click
 const closeModal = () => {
     showModal.value = false;
     isEditing.value = false;
@@ -907,6 +930,8 @@ const closeModal = () => {
     formYearLevel.value = '';
 };
 
+// @function openOfferingModal: Binubuksan ang offering modal sa Subjects flow.
+// @useIn openOfferingModal: resources/js/pages/Auth/Admin/Subjects.vue template @click
 const openOfferingModal = (subject: Subject) => {
     selectedSubject.value = subject;
     offeringForm.reset();
@@ -915,6 +940,8 @@ const openOfferingModal = (subject: Subject) => {
     showOfferingModal.value = true;
 };
 
+// @function closeOfferingModal: Isinasara ang offering modal sa Subjects flow.
+// @useIn closeOfferingModal: resources/js/pages/Auth/Admin/Subjects.vue template @click
 const closeOfferingModal = () => {
     showOfferingModal.value = false;
     selectedSubject.value = null;
@@ -923,6 +950,8 @@ const closeOfferingModal = () => {
     offeringYearLevel.value = '';
 };
 
+// @function submitOffering: Isinusumite ang offering sa Subjects flow.
+// @useIn submitOffering: resources/js/pages/Auth/Admin/Subjects.vue template
 const submitOffering = () => {
     if (!selectedSubject.value || !offeringForm.section_id) return;
     offeringForm
@@ -942,6 +971,8 @@ const submitOffering = () => {
         );
 };
 
+// @function removeInstructor: Tinatanggal ang instructor sa Subjects flow.
+// @useIn removeInstructor: resources/js/pages/Auth/Admin/Subjects.vue template @click
 const removeInstructor = async (offering: SubjectOffering) => {
     const result = await Swal.fire({
         icon: 'warning',
@@ -963,6 +994,8 @@ const removeInstructor = async (offering: SubjectOffering) => {
     );
 };
 
+// @function submitForm: Isinusumite ang form sa Subjects flow.
+// @useIn submitForm: resources/js/pages/Auth/Admin/Subjects.vue template
 const submitForm = () => {
     if (
         !form.subject_name ||
@@ -971,14 +1004,18 @@ const submitForm = () => {
         form.unit === undefined ||
         Number(form.unit) < 0
     ) {
-        alert(
+        showAlertModal(
+            'Invalid subject details',
             'Please fill in all required fields and provide a valid unit value.',
+            'warning',
         );
         return;
     }
     if (!isEditing.value && (!form.section_id || !form.semester)) {
-        alert(
+        showAlertModal(
+            'Missing class assignment',
             'Please select the academic section and semester for this subject.',
+            'warning',
         );
         return;
     }
@@ -1016,8 +1053,15 @@ const submitForm = () => {
     });
 };
 
-const deleteSubject = (subject: Subject) => {
-    if (!confirm(`Are you sure you want to delete ${subject.subject_code}?`)) {
+// @function deleteSubject: Tinatanggal ang subject sa Subjects flow.
+// @useIn deleteSubject: resources/js/pages/Auth/Admin/Subjects.vue template @click
+const deleteSubject = async (subject: Subject) => {
+    const confirmed = await confirmActionModal({
+        title: 'Delete subject?',
+        text: `Are you sure you want to delete ${subject.subject_code}?`,
+    });
+
+    if (!confirmed) {
         return;
     }
 
@@ -1027,6 +1071,13 @@ const deleteSubject = (subject: Subject) => {
         {
             preserveState: true,
             onSuccess: () => router.reload({ only: ['subjects'] }),
+            onError: (errors) =>
+                showAlertModal(
+                    'Subject not deleted',
+                    Object.values(errors).join(' ') ||
+                        'The subject could not be deleted.',
+                    'error',
+                ),
         },
     );
 };

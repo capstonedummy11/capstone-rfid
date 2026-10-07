@@ -12,6 +12,8 @@ class CreateNewUser implements CreatesNewUsers
 {
     use PasswordValidationRules, ProfileValidationRules;
 
+    // @function create: Inihahanda ang create form o page.
+    // @useIn create: Laravel Fortify authentication action
     /**
      * Validate and create a newly registered user.
      *

@@ -1,4 +1,5 @@
 <?php
+// File purpose: Borrow at return actions para sa Console at Admin.
 
 namespace App\Http\Controllers;
 
@@ -20,6 +21,18 @@ class BorrowController
   /**
    * Display a listing of the resource.
    */
+  // @function index: Ibinabalik ang Borrow page at data para sa request.
+  // @useIn index: routes/web.php:317 (borrow)
+  /**
+   * @feature   Borrowing Oversight and Returns
+   * @actor     Admin
+   * @flow      Dito tinitingnan ang borrowing history at pinoproseso ang returns.
+   * @uses      resources/js/pages/Borrow.vue; routes/web.php: BorrowController::index, BorrowController::returnItems
+   * @related   Admin workspace
+   * @disable   1) I-comment out ang routes/web.php: BorrowController::index, BorrowController::returnItems.
+   * @disable   2) Itago ang action sa resources/js/pages/Borrow.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+   * @disable   3) Ihinto ang app/Http/Controllers/BorrowController.php: BorrowController::index matapos alisin ang routes. Side effect: mawawala ang borrowing oversight and returns.
+   */
   public function index(Request $request)
   {
     if (!SystemSetting::boolean(SystemSetting::BORROWING_ENABLED, false)) {
@@ -37,6 +50,7 @@ class BorrowController
     }
 
     return Inertia::render('Borrow', [
+      'title' => 'Borrowing',
       'borrowRows' => $this->buildBorrowRows($filters),
       'borrowerProfiles' => $this->buildBorrowerProfiles(),
       'borrowItemsCatalog' => $this->buildBorrowItemsCatalog(),
@@ -47,6 +61,8 @@ class BorrowController
     ]);
   }
 
+// @function returnItems: Pinoproseso ang return items sa database transaction.
+// @useIn returnItems: routes/web.php:435 (borrow.returnItems)
 public function returnItems(Request $request): JsonResponse
 {
     if (!SystemSetting::boolean(SystemSetting::BORROWING_ENABLED, false)) {
@@ -298,6 +314,18 @@ public function returnItems(Request $request): JsonResponse
       'unavailable_barcodes' => $unavailableUnique,
     ]);
 }
+  // @function borrowItemsOnly: Pinoproseso ang borrow items only sa database transaction.
+  // @useIn borrowItemsOnly: routes/web.php:178 (attendanceControlPanel.borrowItemsOnly)
+  /**
+   * @feature   Console Borrowing
+   * @actor     Shared / Core
+   * @flow      Kinukuha ng reader ang borrower RFID at item barcode sa panel. Sine-save ang borrowing at borrowing_items at ina-update ang item status kapag valid ang borrower at item.
+   * @uses      resources/js/pages/AttendanceControlPanel.vue; routes/web.php: BorrowController::borrowItemsOnly
+   * @related   Authentication, Attendance, Reports
+   * @disable   1) I-comment out ang routes/web.php: BorrowController::borrowItemsOnly.
+   * @disable   2) Itago ang action sa resources/js/pages/AttendanceControlPanel.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+   * @disable   3) Ihinto ang app/Http/Controllers/BorrowController.php: BorrowController::borrowItemsOnly matapos alisin ang routes. Side effect: mawawala ang console borrowing.
+   */
   public function borrowItemsOnly(Request $request): JsonResponse
   {
     if (!SystemSetting::boolean(SystemSetting::BORROWING_ENABLED, false)) {
@@ -435,6 +463,8 @@ public function returnItems(Request $request): JsonResponse
     ]);
   }
 
+  // @function buildBorrowRows: Binubuo ang borrow rows sa Borrow flow.
+  // @useIn buildBorrowRows: BorrowController::index (app/Http/Controllers/BorrowController.php)
   private function buildBorrowRows(array $filters)
   {
     $statusMap = $this->statusMap();
@@ -540,11 +570,15 @@ public function returnItems(Request $request): JsonResponse
     return $query;
   }
 
+  // @function buildBorrowerProfiles: Binubuo ang borrower profiles sa Borrow flow.
+  // @useIn buildBorrowerProfiles: BorrowController::index (app/Http/Controllers/BorrowController.php)
   private function buildBorrowerProfiles()
   {
     $studentBorrowers = Students::query()
       ->leftJoin('strands', 'students.strand_id', '=', 'strands.strand_id')
       ->leftJoin('sections', 'students.section_id', '=', 'sections.section_id')
+      ->whereNull('strands.deleted_at')
+      ->whereNull('sections.deleted_at')
       ->whereNotNull('students.rfid_tag')
       ->select([
         'students.rfid_tag as rfid',
@@ -589,6 +623,8 @@ public function returnItems(Request $request): JsonResponse
       ->values();
   }
 
+  // @function buildBorrowItemsCatalog: Binubuo ang borrow items catalog sa Borrow flow.
+  // @useIn buildBorrowItemsCatalog: BorrowController::index (app/Http/Controllers/BorrowController.php)
   private function buildBorrowItemsCatalog()
   {
     return Item::query()
@@ -610,6 +646,8 @@ public function returnItems(Request $request): JsonResponse
       ->values();
   }
 
+  // @function buildBorrowItemsByRfid: Binubuo ang borrow items by rfid sa Borrow flow.
+  // @useIn buildBorrowItemsByRfid: BorrowController::index (app/Http/Controllers/BorrowController.php)
   private function buildBorrowItemsByRfid(): array
   {
     $map = [];
@@ -708,6 +746,8 @@ public function returnItems(Request $request): JsonResponse
     return $map;
   }
 
+  // @function countDashboardBorrowing: Binibilang ang dashboard borrowing sa Borrow flow.
+  // @useIn countDashboardBorrowing: BorrowController::index (app/Http/Controllers/BorrowController.php)
   private function countDashboardBorrowing(): array
   {
     // count dashboard borrowing
@@ -753,6 +793,8 @@ public function returnItems(Request $request): JsonResponse
     ];
   }
 
+  // @function statusMap: Kinukuha ang status map result para sa Borrow.
+  // @useIn statusMap: BorrowController::buildBorrowRows (app/Http/Controllers/BorrowController.php)
   private function statusMap(): array
   {
     return [
@@ -764,6 +806,8 @@ public function returnItems(Request $request): JsonResponse
     ];
   }
 
+  // @function formatYearLabel: Fino-format ang year label sa Borrow flow.
+  // @useIn formatYearLabel: BorrowController::buildBorrowRows (app/Http/Controllers/BorrowController.php)
   private function formatYearLabel(int $yearLevel): string
   {
     if ($yearLevel <= 0) {
@@ -783,6 +827,8 @@ public function returnItems(Request $request): JsonResponse
     return $yearLevel . $suffix . ' Year';
   }
 
+  // @function create: Inihahanda ang create form o page.
+  // @useIn create: BorrowController::returnItems (app/Http/Controllers/BorrowController.php)
   /**
    * Show the form for creating a new resource.
    */
@@ -791,6 +837,8 @@ public function returnItems(Request $request): JsonResponse
 
   }
 
+  // @function store: Pinoproseso ang bagong Borrow record.
+  // @useIn store: TODO(verify): walang direct caller na nakita sa static search
   /**
    * Store a newly created resource in storage.
    */
@@ -799,6 +847,8 @@ public function returnItems(Request $request): JsonResponse
 
   }
 
+  // @function show: Ibinabalik ang detalye ng napiling record.
+  // @useIn show: TODO(verify): walang direct caller na nakita sa static search
   /**
    * Display the specified resource.
    */
@@ -807,6 +857,8 @@ public function returnItems(Request $request): JsonResponse
 
   }
 
+  // @function edit: Inihahanda ang edit form o page.
+  // @useIn edit: TODO(verify): walang direct caller na nakita sa static search
   /**
    * Show the form for editing the specified resource.
    */
@@ -815,6 +867,8 @@ public function returnItems(Request $request): JsonResponse
 
   }
 
+  // @function update: Pinoproseso ang pagbabago sa Borrow record.
+  // @useIn update: BorrowController::returnItems (app/Http/Controllers/BorrowController.php)
   /**
    * Update the specified resource in storage.
    */
@@ -823,6 +877,8 @@ public function returnItems(Request $request): JsonResponse
 
   }
 
+  // @function destroy: Pinoproseso ang pagtanggal ng Borrow record.
+  // @useIn destroy: TODO(verify): walang direct caller na nakita sa static search
   /**
    * Remove the specified resource from storage.
    */

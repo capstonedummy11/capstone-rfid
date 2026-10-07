@@ -1,5 +1,7 @@
 <?php
 
+// FEATURE:student-management - Dito nakatali ang historical student enrollment sa academic year.
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Carbon;
@@ -8,6 +10,8 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    // @function up: Ginagawa o binabago ang database schema para sa migration na ito.
+    // @useIn up: Laravel migration runner
     public function up(): void
     {
         Schema::create('student_enrollments', function (Blueprint $table) {
@@ -86,6 +90,8 @@ return new class extends Migration
             });
     }
 
+    // @function down: Ibinabalik ang schema changes ng migration na ito.
+    // @useIn down: Laravel migration runner
     public function down(): void
     {
         Schema::dropIfExists('student_enrollments');

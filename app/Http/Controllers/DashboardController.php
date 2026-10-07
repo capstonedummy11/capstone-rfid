@@ -18,6 +18,8 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
+    // @function admin: Ibinabalik ang Auth/Admin/Dashboard page at data para sa request.
+    // @useIn admin: routes/web.php:253 (dashboard)
     public function admin(Request $request): Response
     {
         $user = $request->user();
@@ -155,6 +157,8 @@ class DashboardController extends Controller
         ]);
     }
 
+    // @function scheduleQuery: Binubuo ang schedule query database query.
+    // @useIn scheduleQuery: DashboardController::admin (app/Http/Controllers/DashboardController.php)
     private function scheduleQuery(bool $isInstructor, ?int $instructorId, ?int $academicYearId = null, string $semester = ''): Builder
     {
         return Schedule::query()

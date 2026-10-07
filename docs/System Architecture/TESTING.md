@@ -2,20 +2,12 @@
 
 This is the canonical guide for running automated tests and verifying the application after a feature update.
 
-## Current Verification Snapshot (2026-09-17)
+## Current Verification Snapshot (2026-09-21)
 
-- `npm run build`: passed; Vite compiled all 2,480 modules and Wayfinder generated route/action types.
+- `npm run build`: passed; Vite compiled all 2,481 modules and Wayfinder generated route/action types.
 - Full migration chain: passed against a clean temporary SQLite database through all migrations, including the 2026-09-08 Parent settings migrations.
 - `php artisan route:list --except-vendor --json`: passed with the compatible PHP 8.5.8 executable.
-- `php artisan test --compact`: **153 passed, 7 failed, 1,503 assertions**. The failures are current code/test-contract drift, not documentation failures:
-  - Academic Year Student creation fixture has no active year.
-  - Attendance session-ending fixture receives the current-year context rejection.
-  - Admin report academic-year attendance count expected one but returned zero.
-  - Parent role smoke test is blocked while Parent Portal defaults off.
-  - Two Parent excuse-letter tests are blocked while Parent Portal/Parent Excuse Letters default off.
-  - System Settings test omits the now-required `online_classes_enabled` field.
-
-Do not describe the current branch as having a fully passing backend suite until these seven expectations/fixtures or the corresponding implementation contracts are reconciled.
+- `php artisan test --compact`: passed with **200 tests and 2,701 assertions**. The suite includes independent browser session cookies, same-browser account blocking, session-identity mismatch handling, null-session-safe Laboratories/Devices pages, editable rollover Section/Subject Offering selection through the HTTP preview/execute routes, academic-year Student placement, attendance session completion, report filtering, Parent Portal, Parent excuse-letter, System Settings, and add/delete modal controller contracts.
 
 ## Requirements
 
@@ -50,18 +42,28 @@ The command is defined in `composer.json` and explicitly runs the relevant featu
 | Feature                                                                                                                       | Primary automated coverage                                                                   |
 | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | Instructor email OTP                                                                                                          | `tests/Feature/Auth/AuthenticationTest.php`                                                  |
+| Per-login Admin email OTP, protected-route gate, resend rotation, expiry, and attempt lockout                                 | `tests/Feature/Auth/AuthenticationTest.php`, `tests/Feature/RequestedFeatureUiWiringTest.php` |
+| Independent browser/device sessions, same-browser account blocking, and session identity mismatch handling                    | `tests/Feature/Auth/AuthenticationTest.php`                                                  |
 | Parent and Instructor excuse-letter notifications                                                                             | `tests/Feature/StudentParentPortalTest.php`                                                  |
+| Instructor excuse-letter approve/deny authorization, recipient validation, audit state, and result email delivery             | `tests/Feature/ExcuseLetterAttendanceWorkflowTest.php`                                      |
+| Excuse-letter required fields, academic-year dates, Parent signature, attachment validation, and rejected-upload cleanup      | `tests/Feature/ExcuseLetterAttendanceWorkflowTest.php`, `tests/Feature/StudentParentPortalTest.php` |
+| Production server daily-file and PHP error-log channel configuration                                                          | `tests/Feature/ServerLoggingConfigurationTest.php`                                          |
+| MySQL-safe Instructor review foreign-key names and partial-migration retry guards                                              | `tests/Feature/MigrationCompatibilityTest.php`                                              |
 | Instructor Messenger text and generated PDF attachment                                                                        | `tests/Feature/StudentParentPortalTest.php`                                                  |
 | Five-minute Messenger email cooldown per sender–recipient pair                                                                | `tests/Feature/StudentParentPortalTest.php`                                                  |
 | Standalone RFID navigation hidden and Forgot Password back-button context                                                     | `tests/Feature/RequestedFeatureUiWiringTest.php`, `tests/Feature/Auth/PasswordResetTest.php` |
 | Student Biometric Enrollment naming and separation                                                                            | `tests/Feature/RequestedFeatureUiWiringTest.php`, `tests/Feature/RegistrarPortalTest.php`    |
 | Instructor attendance status editing and configured date window                                                               | `tests/Feature/AttendancePanelVerificationTest.php`, `tests/Feature/SystemSettingsTest.php`  |
+| AWS Face Liveness disabled behavior, role/purpose authorization, and backend session delegation                               | `tests/Feature/FaceLivenessTest.php`                                                         |
 | Attendance subject selection, role scope, administrator browsing/editing, summaries, session drill-down, and PDF/XLSX exports | `tests/Feature/AttendancePanelVerificationTest.php`                                          |
 | First-login password replacement                                                                                              | `tests/Feature/PasswordLifecycleTest.php`                                                    |
 | Admin student creation through student login and dashboard access                                                             | `tests/Feature/StudentAccountProvisioningTest.php`                                           |
 | Forgot Password and password reset, with Console exclusion                                                                    | `tests/Feature/PasswordLifecycleTest.php`, `tests/Feature/Auth/AuthenticationTest.php`       |
 | Searchable autosuggestions in large Admin relationship fields                                                                 | `tests/Feature/RequestedFeatureUiWiringTest.php`                                             |
 | Clinic responder assignment, notification, history, and case ownership                                                        | `tests/Feature/ClinicFlowTest.php`                                                           |
+| Add/create and delete modal routes across Admin, Clinic, Registrar, messaging, and portal workflows                           | `tests/Feature/ControllerEntityWorkflowTest.php` plus the module-specific feature tests      |
+| Section, Subject, and Student soft-delete visibility plus update/delete 404 behavior after deletion                          | `tests/Feature/ControllerEntityWorkflowTest.php`                                              |
+| Reuse of soft-deleted email, RFID, Student/Instructor number, Subject code, Strand code, and inventory barcode values         | `tests/Feature/SoftDeleteUniqueReuseTest.php`                                                |
 
 ## Full Backend Suite
 
@@ -93,7 +95,15 @@ php artisan test --compact --filter="clinic dispatch"
 
 ## Frontend Verification
 
-Compile all Vue, TypeScript, Tailwind, Inertia, and generated route assets:
+Run the Vue component tests:
+
+```bash
+npm run test
+```
+
+The delete-action suite uses Vitest, Vue Test Utils, and jsdom to verify confirmation, route IDs, successful list reloads, and visible server errors for Sections, Subjects, and Students.
+
+Then compile all Vue, TypeScript, Tailwind, Inertia, and generated route assets:
 
 ```bash
 npm run build
@@ -131,7 +141,9 @@ composer test:lint
 For workflows where one page creates data that another page consumes, follow [Cross-Page Workflow Testing](CROSS_PAGE_WORKFLOW_TESTING.md).
 
 1. Add or update a behavioral feature test near the affected module.
+   For add/delete modals, assert validation failure, the successful database change, and delete/soft-delete behavior where a delete action exists.
 2. Add the test file to `test:requested-features` in `composer.json` if it protects this checklist.
 3. Update the coverage map in this document.
 4. Run the focused suite, full suite, and frontend build.
 5. Update the relevant canonical business documentation.
+| Root ownership transfer, emergency override, cooldown, expiry, and access revocation | `tests/Feature/RootOwnershipTransferTest.php`, `tests/Feature/AccessRevocationServiceTest.php` |

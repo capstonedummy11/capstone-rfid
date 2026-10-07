@@ -1,4 +1,5 @@
 <?php
+// File purpose: RFID at face enrollment para sa Registrar.
 
 namespace App\Http\Controllers;
 
@@ -9,11 +10,15 @@ use App\Models\Students;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class RegistrarController
 {
+    // @function dashboard: Ibinabalik ang Registrar/Dashboard page at data para sa request.
+    // @useIn dashboard: routes/web.php:230 (dashboard)
+    // Pinagsasama ang student at Instructor enrollment metrics at mga recent log.
     public function dashboard()
     {
         $people = $this->enrollmentPeople();
@@ -40,6 +45,9 @@ class RegistrarController
         ]);
     }
 
+    // @function biometricEnrollment: Ibinabalik ang Registrar/BiometricEnrollment page at data para sa request.
+    // @useIn biometricEnrollment: routes/web.php:231 (biometric-enrollment)
+    // Ibinabalik ang searchable student list kasama ang RFID at face completion stats.
     public function biometricEnrollment()
     {
         $people = $this->studentEnrollmentPeople();
@@ -51,6 +59,9 @@ class RegistrarController
         ]);
     }
 
+    // @function instructorFaceEnrollment: Ibinabalik ang Registrar/InstructorFaceEnrollment page at data para sa request.
+    // @useIn instructorFaceEnrollment: routes/web.php:232 (instructor-face-enrollment)
+    // Ibinabalik ang Instructor list at bilang ng kulang na RFID o face records.
     public function instructorFaceEnrollment()
     {
         $people = $this->facultyPeople();
@@ -67,6 +78,9 @@ class RegistrarController
         ]);
     }
 
+    // @function enrollmentPeople: Kinukuha ang enrollment people result para sa Registrar.
+    // @useIn enrollmentPeople: RegistrarController::dashboard (app/Http/Controllers/RegistrarController.php)
+    // Pinagsasama ang student at faculty records bago kalkulahin ang dashboard totals.
     private function enrollmentPeople()
     {
         return $this->studentEnrollmentPeople()
@@ -75,6 +89,9 @@ class RegistrarController
             ->values();
     }
 
+    // @function studentEnrollmentPeople: Kinukuha ang student enrollment people result para sa Registrar.
+    // @useIn studentEnrollmentPeople: RegistrarController::biometricEnrollment (app/Http/Controllers/RegistrarController.php)
+    // Ginagawang enrollment cards ang student identity at face-image data.
     private function studentEnrollmentPeople()
     {
         return Students::query()
@@ -98,6 +115,9 @@ class RegistrarController
             ->values();
     }
 
+    // @function facultyPeople: Kinukuha ang faculty people result para sa Registrar.
+    // @useIn facultyPeople: RegistrarController::instructorFaceEnrollment (app/Http/Controllers/RegistrarController.php)
+    // Kinukuha ang Instructor accounts na may profile para sa faculty enrollment page.
     private function facultyPeople()
     {
         return Instructor::query()
@@ -126,6 +146,9 @@ class RegistrarController
             ->values();
     }
 
+    // @function enrollmentStats: Kinukuha ang enrollment stats result para sa Registrar.
+    // @useIn enrollmentStats: RegistrarController::dashboard (app/Http/Controllers/RegistrarController.php)
+    // Binibilang ang complete at incomplete RFID/face records sa ibinigay na list.
     private function enrollmentStats($people): array
     {
         return [
@@ -138,10 +161,28 @@ class RegistrarController
         ];
     }
 
+    // @function updateStudentRfid: Ina-update ang student rfid sa Registrar flow.
+    // @useIn updateStudentRfid: routes/web.php:234 (students.rfid)
+    /**
+     * @feature   Student RFID Enrollment
+     * @actor     Registrar
+     * @flow      Dito nililink ang scanned RFID tag sa student record.
+     * @uses      resources/js/pages/Registrar/BiometricEnrollment.vue; routes/web.php: RegistrarController::updateStudentRfid
+     * @related   Registrar workspace
+     * @disable   1) I-comment out ang routes/web.php: RegistrarController::updateStudentRfid.
+     * @disable   2) Itago ang action sa resources/js/pages/Registrar/BiometricEnrollment.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/RegistrarController.php: RegistrarController::updateStudentRfid matapos alisin ang routes. Side effect: mawawala ang student rfid enrollment.
+     */
     public function updateStudentRfid(Request $request, Students $student)
     {
         $validated = $request->validate([
-            'rfid_tag' => ['required', 'string', 'max:255', 'unique:students,rfid_tag,'.$student->student_id.',student_id', 'unique:users,rfid_tag'],
+            'rfid_tag' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('students', 'rfid_tag')->whereNull('deleted_at')->ignore($student->student_id, 'student_id'),
+                Rule::unique('users', 'rfid_tag')->whereNull('deleted_at'),
+            ],
         ]);
 
         $student->update(['rfid_tag' => $validated['rfid_tag']]);
@@ -150,12 +191,30 @@ class RegistrarController
         return back()->with('success', 'Student RFID card assigned.');
     }
 
+    // @function updateFacultyRfid: Ina-update ang faculty rfid sa Registrar flow.
+    // @useIn updateFacultyRfid: routes/web.php:240 (faculty.rfid)
+    /**
+     * @feature   Instructor RFID and Face Enrollment
+     * @actor     Registrar
+     * @flow      Dito nililink ang Instructor RFID at face images sa account.
+     * @uses      resources/js/pages/Registrar/InstructorFaceEnrollment.vue; routes/web.php: RegistrarController::updateFacultyRfid, RegistrarController::uploadFacultyFace, RegistrarController::deleteFacultyFace
+     * @related   Registrar workspace
+     * @disable   1) I-comment out ang routes/web.php: RegistrarController::updateFacultyRfid, RegistrarController::uploadFacultyFace, RegistrarController::deleteFacultyFace.
+     * @disable   2) Itago ang action sa resources/js/pages/Registrar/InstructorFaceEnrollment.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/RegistrarController.php: RegistrarController::updateFacultyRfid matapos alisin ang routes. Side effect: mawawala ang instructor rfid and face enrollment.
+     */
     public function updateFacultyRfid(Request $request, User $user)
     {
         abort_unless(strtolower((string) $user->role) === 'instructor', 404);
 
         $validated = $request->validate([
-            'rfid_tag' => ['required', 'string', 'max:255', 'unique:users,rfid_tag,'.$user->user_id.',user_id', 'unique:students,rfid_tag'],
+            'rfid_tag' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('users', 'rfid_tag')->whereNull('deleted_at')->ignore($user->user_id, 'user_id'),
+                Rule::unique('students', 'rfid_tag')->whereNull('deleted_at'),
+            ],
         ]);
 
         $user->update(['rfid_tag' => $validated['rfid_tag']]);
@@ -164,6 +223,18 @@ class RegistrarController
         return back()->with('success', 'Faculty RFID card assigned.');
     }
 
+    // @function uploadStudentFace: Ina-upload ang student face sa Registrar flow.
+    // @useIn uploadStudentFace: routes/web.php:236 (students.face)
+    /**
+     * @feature   Student Face Enrollment
+     * @actor     Registrar
+     * @flow      Dito sine-save at tinatanggal ang enrolled student face images.
+     * @uses      resources/js/pages/Registrar/BiometricEnrollment.vue; routes/web.php: RegistrarController::uploadStudentFace, RegistrarController::deleteStudentFace
+     * @related   Registrar workspace
+     * @disable   1) I-comment out ang routes/web.php: RegistrarController::uploadStudentFace, RegistrarController::deleteStudentFace.
+     * @disable   2) Itago ang action sa resources/js/pages/Registrar/BiometricEnrollment.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/RegistrarController.php: RegistrarController::uploadStudentFace matapos alisin ang routes. Side effect: mawawala ang student face enrollment.
+     */
     public function uploadStudentFace(Request $request, Students $student)
     {
         $request->validate([
@@ -184,6 +255,9 @@ class RegistrarController
         return back()->with('success', 'Student face image submitted.');
     }
 
+    // @function deleteStudentFace: Tinatanggal ang student face sa Registrar flow.
+    // @useIn deleteStudentFace: routes/web.php:238 (students.face.delete)
+    // Binubura ang napiling stored image at ina-update ang student face list.
     public function deleteStudentFace(Request $request, Students $student, int $index)
     {
         $images = array_values($student->face_images ?? []);
@@ -202,6 +276,9 @@ class RegistrarController
         return back()->with('success', 'Student face image removed.');
     }
 
+    // @function uploadFacultyFace: Ina-upload ang faculty face sa Registrar flow.
+    // @useIn uploadFacultyFace: routes/web.php:242 (faculty.face)
+    // Instructor account lang ang puwedeng magdagdag ng hanggang limang face images.
     public function uploadFacultyFace(Request $request, User $user)
     {
         abort_unless(strtolower((string) $user->role) === 'instructor', 404);
@@ -224,6 +301,9 @@ class RegistrarController
         return back()->with('success', 'Faculty face image submitted.');
     }
 
+    // @function deleteFacultyFace: Tinatanggal ang faculty face sa Registrar flow.
+    // @useIn deleteFacultyFace: routes/web.php:244 (faculty.face.delete)
+    // Binubura ang napiling Instructor face image at nilolog ang removal.
     public function deleteFacultyFace(Request $request, User $user, int $index)
     {
         abort_unless(strtolower((string) $user->role) === 'instructor', 404);
@@ -244,6 +324,9 @@ class RegistrarController
         return back()->with('success', 'Faculty face image removed.');
     }
 
+    // @function dailyEnrollmentChart: Kinukuha ang daily enrollment chart result para sa Registrar.
+    // @useIn dailyEnrollmentChart: RegistrarController::dashboard (app/Http/Controllers/RegistrarController.php)
+    // Binubuo ang 14-araw na RFID at face action counts para sa dashboard chart.
     private function dailyEnrollmentChart(): array
     {
         $start = now()->subDays(13)->startOfDay();
@@ -268,6 +351,9 @@ class RegistrarController
             ->all();
     }
 
+    // @function logEnrollment: Nilolog ang enrollment sa Registrar flow.
+    // @useIn logEnrollment: RegistrarController::updateStudentRfid (app/Http/Controllers/RegistrarController.php)
+    // Nagtatala ng Registrar-specific log at general activity log sa bawat pagbabago.
     private function logEnrollment(Request $request, string $action, string $personType, int $personId, string $personName, ?string $identifier): void
     {
         RegistrarEnrollmentLog::query()->create([

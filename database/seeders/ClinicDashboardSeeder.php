@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Hash;
 
 class ClinicDashboardSeeder extends Seeder
 {
+    // @function run: Pinapatakbo ang Clinic Dashboard Seeder task.
+    // @useIn run: php artisan db:seed
     public function run(): void
     {
         $clinicUser = User::updateOrCreate(

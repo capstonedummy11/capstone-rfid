@@ -1,3 +1,5 @@
+<!-- FEATURE:parent-student-view - konektadong model, service, route, o UI para sa feature na ito. -->
+<!-- FEATURE:student-attendance-history - UI para sa attendance history. -->
 <script setup>
 import LinkedStudentSelector from '@/components/StudentPortal/LinkedStudentSelector.vue';
 import { router } from '@inertiajs/vue3';
@@ -58,12 +60,16 @@ watch([search, statusFilter], () => {
     currentPage.value = 1;
 });
 
+// @function resetFilters: Nire-reset ang filters sa Attendance flow.
+// @useIn resetFilters: resources/js/pages/StudentParent/Attendance.vue template @click
 const resetFilters = () => {
     search.value = '';
     statusFilter.value = '';
     currentPage.value = 1;
 };
 
+// @function changeAcademicYear: Pinoproseso ang change academic year para sa Attendance.
+// @useIn changeAcademicYear: resources/js/pages/StudentParent/Attendance.vue template @change
 const changeAcademicYear = (event) => {
     router.get(
         window.location.pathname,
@@ -75,22 +81,34 @@ const changeAcademicYear = (event) => {
     );
 };
 
+// @function openEvidence: Binubuksan ang evidence sa Attendance flow.
+// @useIn openEvidence: resources/js/pages/StudentParent/Attendance.vue template @click
 const openEvidence = (url, title) => {
     evidencePreview.value = { url, title };
 };
 
+// @function closeEvidence: Isinasara ang evidence sa Attendance flow.
+// @useIn closeEvidence: resources/js/pages/StudentParent/Attendance.vue template @click
 const closeEvidence = () => {
     evidencePreview.value = null;
 };
 
+// @function rowKey: Binubuo ang row key value.
+// @useIn rowKey: resources/js/pages/StudentParent/Attendance.vue:94
 const rowKey = (record) => String(record.attendance_id ?? '');
 
+// @function hasEvidenceEvents: Sinusuri kung evidence events para sa Attendance.
+// @useIn hasEvidenceEvents: resources/js/pages/StudentParent/Attendance.vue template
 const hasEvidenceEvents = (record) =>
     Array.isArray(record.evidence_events) && record.evidence_events.length > 0;
 
+// @function isEvidenceExpanded: Sinusuri kung evidence expanded para sa Attendance.
+// @useIn isEvidenceExpanded: resources/js/pages/StudentParent/Attendance.vue template
 const isEvidenceExpanded = (record) =>
     expandedEvidenceRows.value[rowKey(record)] === true;
 
+// @function toggleEvidenceEvents: Tina-toggle ang evidence events sa Attendance flow.
+// @useIn toggleEvidenceEvents: resources/js/pages/StudentParent/Attendance.vue template @click
 const toggleEvidenceEvents = (record) => {
     const key = rowKey(record);
     expandedEvidenceRows.value = {

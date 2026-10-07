@@ -10,6 +10,12 @@ use Illuminate\Support\Facades\Hash;
 
 class MinimalSeeder extends Seeder
 {
+    private const ROOT_ADMIN_EMAIL = 'pcshslaboratories@gmail.com';
+
+    private const LEGACY_ROOT_ADMIN_EMAIL = 'root.admin@sample.com';
+
+    // @function run: Pinapatakbo ang Minimal Seeder task.
+    // @useIn run: php artisan db:seed
     /**
      * Seed only the records required to start a clean installation.
      *
@@ -19,9 +25,13 @@ class MinimalSeeder extends Seeder
      */
     public function run(): void
     {
-        $rootAdmin = User::query()->firstOrNew([
-            'email' => env('MINIMAL_ROOT_ADMIN_EMAIL', 'root.admin@sample.com'),
-        ]);
+        $rootAdminEmail = env('MINIMAL_ROOT_ADMIN_EMAIL', self::ROOT_ADMIN_EMAIL);
+        $legacyRootAdmin = User::withTrashed()
+            ->where('email', self::LEGACY_ROOT_ADMIN_EMAIL)
+            ->first();
+        $rootAdmin = User::withTrashed()
+            ->where('email', $rootAdminEmail)
+            ->first() ?? $legacyRootAdmin ?? new User;
 
         if (! $rootAdmin->exists) {
             $rootAdmin->password = env('MINIMAL_ROOT_ADMIN_PASSWORD', 'change-me-now');
@@ -30,10 +40,16 @@ class MinimalSeeder extends Seeder
 
         $rootAdmin->fill([
             'name' => env('MINIMAL_ROOT_ADMIN_NAME', 'Root Admin'),
+            'email' => $rootAdminEmail,
             'role' => 'admin',
             'is_root_admin' => true,
+            'deleted_at' => null,
         ]);
         $rootAdmin->save();
+
+        if ($legacyRootAdmin && ! $legacyRootAdmin->is($rootAdmin)) {
+            $legacyRootAdmin->forceFill(['is_root_admin' => false])->save();
+        }
 
         $this->seedCurrentAcademicYear($rootAdmin);
 
@@ -76,6 +92,8 @@ class MinimalSeeder extends Seeder
         );
     }
 
+    // @function createSetting: Gumagawa ng ang setting sa Minimal Seeder flow.
+    // @useIn createSetting: MinimalSeeder::run (database/seeders/MinimalSeeder.php)
     private function createSetting(string $key, mixed $value, string $type): void
     {
         SystemSetting::query()->firstOrCreate(
@@ -87,6 +105,8 @@ class MinimalSeeder extends Seeder
         );
     }
 
+    // @function seedCurrentAcademicYear: Pinoproseso ang seed current academic year para sa Minimal Seeder.
+    // @useIn seedCurrentAcademicYear: MinimalSeeder::run (database/seeders/MinimalSeeder.php)
     private function seedCurrentAcademicYear(User $rootAdmin): void
     {
         $today = now();

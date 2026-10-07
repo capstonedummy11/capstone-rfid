@@ -22,6 +22,7 @@ Admin controls the switches on **System Settings**. The application shares their
 - The public root page is the Student/Parent sign-in screen for visitors. Signed-in users are redirected to the correct workspace by role.
 - Staff use an environment-configured private login path. `/secure-login` is only a compatibility redirect; documentation must not expose a real production path.
 - Five failed login attempts per email/IP combination are allowed per minute before throttling.
+- Every successful Admin or Root Admin password login creates and emails a new six-digit challenge. Protected routes redirect that login to `/admin/login-verification` until the session-bound code succeeds. The code expires after 10 minutes, resend rotates the previous code after a 60-second cooldown, and five incorrect attempts invalidate the challenge by default.
 - New non-Console accounts marked for first-login replacement are forced to the password-change page before other work.
 - Console password-reset requests deliberately return the normal neutral response but do not start a Console email reset.
 - Every Instructor staff login clears the previous verification session. The Instructor must use face match, a 10-minute email code, or a saved security question before opening the shared Admin/Instructor workspace.
@@ -82,7 +83,8 @@ Admin controls the switches on **System Settings**. The application shares their
 ## Emergency and clinic automation
 
 - The panel suppresses rapid duplicate alert submissions and stores the selected scope, people, location, notes, and hotline/SMS result in alert metadata.
-- An enabled matching hotline can trigger a Semaphore SMS attempt. Success or failure is returned and recorded; the alert itself remains saved even if SMS fails.
+- An enabled matching hotline can trigger SMS through the admin-selected primary provider, with the other available provider as fallback. Success or failure is returned and recorded; the alert itself remains saved even if SMS fails. Both providers default unavailable until an Admin enables them in System Settings.
+- A specific-student emergency also resolves the student's linked parent accounts and independently attempts parent email and SMS through the selected provider. If either contact method is missing, the other is still attempted and the panel result prompt identifies the missing email address or phone number. Parent delivery is best-effort, and missing contact details or provider failures do not prevent the alert from being saved. Area-wide alerts do not broadcast to every parent.
 - Clinic Dashboard plays the selected sound only after browser audio is enabled and a newly received open alert appears.
 - Acknowledge records the first acknowledgement time. Dispatch records dispatch time and response seconds.
 - Dispatch requires an active Clinic responder, creates or updates one Clinic Case per identified student (or a general incident case), assigns the responder, emails available context, and shows the assignment in **My Dispatch Assignments**.
@@ -93,8 +95,9 @@ Admin controls the switches on **System Settings**. The application shares their
 - Only one academic year can be active. Activating one closes the previously active year.
 - Closed and archived years are read-only for normal section, offering, schedule, online-class, and attendance changes. Reopening requires a reason and is audited.
 - Semester rollover keeps students in the same academic year and grade, moving from First to Second Semester.
-- Full rollover maps students into a different draft year: Grade 11 normally becomes Grade 12; Grade 12 normally becomes graduated; dropped/transferred/inactive records are skipped; operators may review decisions.
-- Rollover creates/matches destination sections and enrollment records, updates the current student placement, and records a detailed audit. It intentionally does not copy offerings or schedules; those are configured fresh.
+- Full rollover maps students into a different draft year while preserving the selected source semester: Grade 11 normally becomes Grade 12; Grade 12 normally becomes graduated; dropped/transferred/inactive records are skipped; operators may review decisions.
+- Rollover creates/matches reviewed destination Sections, copies only the Subject Offerings selected in preview, creates enrollment records, updates current Student placement, and records a detailed audit. Instructor assignments and Schedules are intentionally not copied.
+- Rollover never changes an academic year's active semester. The administrator changes the active semester explicitly through the Academic Years lifecycle controls.
 - Attendance, messages, letters, clinic data, borrowing, files, and audit history are never copied during rollover.
 
 ## General auditing
@@ -102,4 +105,3 @@ Admin controls the switches on **System Settings**. The application shares their
 - Mutating web requests and selected exports/log views are automatically written to `activity_logs` when possible.
 - The audit middleware records user, role, route, HTTP method, subject, IP address, user agent, outcome, severity, and status code. Audit failure is deliberately prevented from breaking the user's operation.
 - Attendance, online classes, registrar enrollment, rollover, and some emergency/message operations also write specialized records.
-

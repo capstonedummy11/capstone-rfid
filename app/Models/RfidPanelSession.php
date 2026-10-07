@@ -36,16 +36,22 @@ class RfidPanelSession extends Model
     'meta' => 'array',
   ];
 
+  // @function schedule: Ibinabalik ang schedule Eloquent belongsTo relationship.
+  // @useIn schedule: Eloquent relationship property at eager loading
   public function schedule()
   {
     return $this->belongsTo(Schedule::class, 'schedule_id', 'scheduled_id');
   }
 
+  // @function openedBy: Ibinabalik ang opened by Eloquent belongsTo relationship.
+  // @useIn openedBy: Eloquent relationship property at eager loading
   public function openedBy()
   {
     return $this->belongsTo(User::class, 'opened_by_user_id', 'user_id');
   }
 
+  // @function booted: Nirerehistro ang model event hooks para sa Rfid Panel Session.
+  // @useIn booted: Eloquent model boot lifecycle
   protected static function booted(): void
   {
     static::saving(function (RfidPanelSession $session) {

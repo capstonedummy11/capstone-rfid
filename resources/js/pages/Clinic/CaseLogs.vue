@@ -1,3 +1,4 @@
+<!-- FEATURE:clinic-records - UI para sa case logs and patient history. -->
 <script setup>
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
@@ -26,6 +27,8 @@ const form = useForm({
     user_id: '',
 });
 
+// @function resetForm: Nire-reset ang form sa Case Logs flow.
+// @useIn resetForm: resources/js/pages/Clinic/CaseLogs.vue template @click
 const resetForm = () => {
     editingId.value = null;
     form.reset();
@@ -33,6 +36,8 @@ const resetForm = () => {
     form.status = 'open';
 };
 
+// @function editCase: Pinoproseso ang edit case para sa Case Logs.
+// @useIn editCase: resources/js/pages/Clinic/CaseLogs.vue template @click
 const editCase = (clinicCase) => {
     editingId.value = clinicCase.id;
     form.emergency_alert_id = clinicCase.emergency_alert_id || '';
@@ -48,6 +53,8 @@ const editCase = (clinicCase) => {
     form.user_id = clinicCase.user_id || '';
 };
 
+// @function submitCase: Isinusumite ang case sa Case Logs flow.
+// @useIn submitCase: resources/js/pages/Clinic/CaseLogs.vue template
 const submitCase = () => {
     if (editingId.value) {
         form.put(route('clinic.case-logs.update', editingId.value), {
@@ -63,6 +70,8 @@ const submitCase = () => {
     });
 };
 
+// @function createHistory: Gumagawa ng ang history sa Case Logs flow.
+// @useIn createHistory: resources/js/pages/Clinic/CaseLogs.vue template @click
 const createHistory = (clinicCase) => {
     router.post(
         route('clinic.case-logs.history', clinicCase.id),
@@ -71,6 +80,8 @@ const createHistory = (clinicCase) => {
     );
 };
 
+// @function statusClass: Kinukuha ang status class result para sa Case Logs.
+// @useIn statusClass: resources/js/pages/Clinic/CaseLogs.vue template
 const statusClass = (status) => {
     if (status === 'resolved') return 'bg-emerald-50 text-emerald-700';
     if (status === 'monitoring') return 'bg-sky-50 text-sky-700';

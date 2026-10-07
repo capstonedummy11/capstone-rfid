@@ -8,8 +8,10 @@ use App\Models\PatientHistory;
 use App\Models\Section;
 use App\Models\Strand;
 use App\Models\Students;
+use App\Models\SystemSetting;
 use App\Models\User;
 use App\Notifications\ClinicDispatchAssigned;
+use App\Notifications\EmergencyParentAlert;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -292,6 +294,7 @@ test('attendance panel sends semaphore sms for sms enabled hotline', function ()
         'services.semaphore.sender_name' => 'CAPSTONE',
         'services.semaphore.endpoint' => 'https://api.semaphore.co/api/v4/messages',
     ]);
+    SystemSetting::setBoolean(SystemSetting::SMS_SEMAPHORE_AVAILABLE, true);
     Http::fake([
         'api.semaphore.co/*' => Http::response([['status' => 'Queued']], 200),
     ]);
@@ -322,6 +325,223 @@ test('attendance panel sends semaphore sms for sms enabled hotline', function ()
         && $request['number'] === '09171234567'
         && $request['sendername'] === 'CAPSTONE'
         && str_contains($request['message'], 'Clinic emergency: student/person fainted.'));
+});
+
+test('attendance panel does not call an SMS provider when none is available', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    Http::fake();
+
+    $fixture = clinicFixture();
+    $fixture['hotline']->update(['phone_number' => '09171234567']);
+
+    $this->actingAs($fixture['console'])
+        ->postJson(route('attendanceControlPanel.emergencyAlert'), [
+            'emergency_type_id' => $fixture['type']->emergency_type_id,
+            'room' => 'B202',
+            'message' => 'No provider test.',
+            'metadata' => ['emergency_hotline_id' => $fixture['hotline']->emergency_hotline_id],
+        ])
+        ->assertOk()
+        ->assertJsonPath('sms.sent', false)
+        ->assertJsonPath('sms.reason', 'no_provider_available');
+
+    Http::assertNothingSent();
+});
+
+test('sms service uses the primary provider first and falls back to the other available provider', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    config([
+        'services.semaphore.enabled' => true,
+        'services.semaphore.key' => 'test-semaphore-key',
+        'services.semaphore.endpoint' => 'https://api.semaphore.co/api/v4/messages',
+        'services.iprog.enabled' => true,
+        'services.iprog.token' => 'test-iprog-token',
+        'services.iprog.endpoint' => 'https://www.iprogsms.com/api/v1/sms_messages',
+    ]);
+    SystemSetting::setBoolean(SystemSetting::SMS_SEMAPHORE_AVAILABLE, true);
+    SystemSetting::setBoolean(SystemSetting::SMS_IPROG_AVAILABLE, true);
+    SystemSetting::setString(SystemSetting::SMS_PRIMARY_PROVIDER, 'iprog');
+    Http::fake([
+        'www.iprogsms.com/*' => Http::response(['status' => 500], 500),
+        'api.semaphore.co/*' => Http::response([['status' => 'Queued']], 200),
+    ]);
+
+    $fixture = clinicFixture();
+    $fixture['hotline']->update(['phone_number' => '09171234567']);
+
+    $this->actingAs($fixture['console'])
+        ->postJson(route('attendanceControlPanel.emergencyAlert'), [
+            'emergency_type_id' => $fixture['type']->emergency_type_id,
+            'room' => 'B202',
+            'message' => 'Fallback provider test.',
+            'metadata' => ['emergency_hotline_id' => $fixture['hotline']->emergency_hotline_id],
+        ])
+        ->assertOk()
+        ->assertJsonPath('sms.sent', true)
+        ->assertJsonPath('sms.provider', 'semaphore')
+        ->assertJsonPath('sms.attempts.0.provider', 'iprog')
+        ->assertJsonPath('sms.attempts.1.provider', 'semaphore');
+});
+
+test('attendance panel can send sms through iprog', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    config([
+        'services.iprog.enabled' => true,
+        'services.iprog.token' => 'test-iprog-token',
+        'services.iprog.endpoint' => 'https://www.iprogsms.com/api/v1/sms_messages',
+    ]);
+    SystemSetting::setBoolean(SystemSetting::SMS_SEMAPHORE_AVAILABLE, false);
+    SystemSetting::setBoolean(SystemSetting::SMS_IPROG_AVAILABLE, true);
+    SystemSetting::setString(SystemSetting::SMS_PRIMARY_PROVIDER, 'iprog');
+    Http::fake([
+        'www.iprogsms.com/*' => Http::response([
+            'status' => 200,
+            'message' => 'Your SMS message has been successfully added to the queue.',
+            'message_id' => 'iSms-test',
+        ], 200),
+    ]);
+
+    $fixture = clinicFixture();
+    $fixture['hotline']->update(['phone_number' => '09171234567']);
+
+    $this->actingAs($fixture['console'])
+        ->postJson(route('attendanceControlPanel.emergencyAlert'), [
+            'emergency_type_id' => $fixture['type']->emergency_type_id,
+            'room' => 'B202',
+            'triggered_by_name' => 'Sample Instructor',
+            'message' => 'Clinic emergency through IPROG.',
+            'metadata' => [
+                'emergency_hotline_id' => $fixture['hotline']->emergency_hotline_id,
+            ],
+        ])
+        ->assertOk()
+        ->assertJsonPath('sms.sent', true)
+        ->assertJsonPath('sms.message_id', 'iSms-test');
+
+    Http::assertSent(fn ($request) => $request->url() === 'https://www.iprogsms.com/api/v1/sms_messages'
+        && $request['api_token'] === 'test-iprog-token'
+        && $request['phone_number'] === '639171234567'
+        && str_contains($request['message'], 'Clinic emergency through IPROG.'));
+});
+
+test('attendance panel notifies linked parents by email and sms for identified students', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    Notification::fake();
+    config([
+        'services.semaphore.enabled' => true,
+        'services.semaphore.key' => 'test-semaphore-key',
+        'services.semaphore.sender_name' => 'CAPSTONE',
+        'services.semaphore.endpoint' => 'https://api.semaphore.co/api/v4/messages',
+    ]);
+    SystemSetting::setBoolean(SystemSetting::SMS_SEMAPHORE_AVAILABLE, true);
+    Http::fake([
+        'api.semaphore.co/*' => Http::response([['status' => 'Queued']], 200),
+    ]);
+
+    $fixture = clinicFixture();
+    $student = Students::query()->create([
+        'first_name' => 'Fainting',
+        'last_name' => 'Student',
+        'student_number' => 'FAINT-001',
+        'email' => 'fainting.student@example.test',
+        'phone' => null,
+        'gender' => 'female',
+        'status' => 'active',
+    ]);
+    $parent = User::factory()->create([
+        'name' => 'Student Parent',
+        'email' => 'fainting.parent@example.test',
+        'role' => 'parent',
+        'phone' => '09171234567',
+    ]);
+    $student->parentUsers()->attach($parent->user_id, ['relationship' => 'Mother']);
+
+    $this->actingAs($fixture['console'])
+        ->postJson(route('attendanceControlPanel.emergencyAlert'), [
+            'emergency_type_id' => $fixture['type']->emergency_type_id,
+            'room' => 'B202',
+            'triggered_by_name' => 'Sample Instructor',
+            'message' => 'The student passed out.',
+            'metadata' => [
+                'emergency_scope' => 'specific',
+                'students' => [['student_id' => $student->student_id]],
+            ],
+        ])
+        ->assertOk()
+        ->assertJsonPath('parent_notifications.parents_found', 1)
+        ->assertJsonPath('parent_notifications.email_sent', 1)
+        ->assertJsonPath('parent_notifications.sms_sent', 1);
+
+    Notification::assertSentTo($parent, EmergencyParentAlert::class);
+    Http::assertSent(fn ($request) => $request->url() === 'https://api.semaphore.co/api/v4/messages'
+        && $request['number'] === '09171234567'
+        && str_contains($request['message'], 'Fainting Student'));
+});
+
+test('attendance panel warns about each missing parent contact method and still uses the other method', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    Notification::fake();
+    config([
+        'services.semaphore.enabled' => true,
+        'services.semaphore.key' => 'test-semaphore-key',
+        'services.semaphore.endpoint' => 'https://api.semaphore.co/api/v4/messages',
+    ]);
+    SystemSetting::setBoolean(SystemSetting::SMS_SEMAPHORE_AVAILABLE, true);
+    Http::fake([
+        'api.semaphore.co/*' => Http::response([['status' => 'Queued']], 200),
+    ]);
+
+    $fixture = clinicFixture();
+    $student = Students::query()->create([
+        'first_name' => 'Contact',
+        'last_name' => 'Warning',
+        'student_number' => 'CONTACT-001',
+        'email' => 'contact.warning@example.test',
+        'phone' => null,
+        'gender' => 'female',
+        'status' => 'active',
+    ]);
+    $parentWithoutEmail = User::factory()->create([
+        'name' => 'Parent Without Email',
+        'email' => '',
+        'role' => 'parent',
+        'phone' => '09171234567',
+    ]);
+    $parentWithoutPhone = User::factory()->create([
+        'name' => 'Parent Without Phone',
+        'email' => 'parent.without.phone@example.test',
+        'role' => 'parent',
+        'phone' => null,
+    ]);
+    $student->parentUsers()->attach([
+        $parentWithoutEmail->user_id => ['relationship' => 'Mother'],
+        $parentWithoutPhone->user_id => ['relationship' => 'Father'],
+    ]);
+
+    $response = $this->actingAs($fixture['console'])
+        ->postJson(route('attendanceControlPanel.emergencyAlert'), [
+            'emergency_type_id' => $fixture['type']->emergency_type_id,
+            'room' => 'B202',
+            'message' => 'Check both contact warnings.',
+            'metadata' => [
+                'emergency_scope' => 'specific',
+                'students' => [['student_id' => $student->student_id]],
+            ],
+        ])
+        ->assertOk()
+        ->assertJsonPath('parent_notifications.parents_found', 2)
+        ->assertJsonPath('parent_notifications.email_sent', 1)
+        ->assertJsonPath('parent_notifications.sms_sent', 1)
+        ->assertJsonCount(2, 'parent_notifications.warnings');
+
+    expect($response->json('parent_notifications.warnings'))
+        ->toContain('Parent Without Email has no valid email address for Contact Warning. Email was not sent.')
+        ->toContain('Parent Without Phone has no phone number for Contact Warning. SMS was not sent.');
+
+    Notification::assertNotSentTo($parentWithoutEmail, EmergencyParentAlert::class);
+    Notification::assertSentTo($parentWithoutPhone, EmergencyParentAlert::class);
+    Http::assertSentCount(1);
+    Http::assertSent(fn ($request) => $request['number'] === '09171234567');
 });
 
 test('clinic dispatch creates case record and writes activity log', function () {

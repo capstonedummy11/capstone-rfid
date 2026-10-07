@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\SystemSetting;
 use App\Services\AwsFaceRecognitionService;
+use App\Services\AwsFaceLivenessService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -13,6 +14,18 @@ use Inertia\Inertia;
 
 class InstructorVerificationController
 {
+    // @function show: Ibinabalik ang Auth/InstructorVerify page at data para sa request.
+    // @useIn show: routes/web.php:213 (verify)
+    /**
+     * @feature   Login Verification
+     * @actor     Instructor
+     * @flow      Pagkatapos ng login, dito kinukumpleto ang face, email OTP, o security-question check.
+     * @uses      resources/js/pages/Auth/InstructorVerify.vue; routes/web.php: InstructorVerificationController::show, InstructorVerificationController::verifyFace, InstructorVerificationController::sendOtp, InstructorVerificationController::verifyOtp, InstructorVerificationController::setupSecurity, InstructorVerificationController::verifySecurity
+     * @related   Instructor workspace
+     * @disable   1) I-comment out ang routes/web.php: InstructorVerificationController::show, InstructorVerificationController::verifyFace, InstructorVerificationController::sendOtp, InstructorVerificationController::verifyOtp, InstructorVerificationController::setupSecurity, InstructorVerificationController::verifySecurity.
+     * @disable   2) Itago ang action sa resources/js/pages/Auth/InstructorVerify.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/InstructorVerificationController.php: InstructorVerificationController::show matapos alisin ang routes. Side effect: mawawala ang login verification.
+     */
     public function show(Request $request)
     {
         $user = $request->user();
@@ -42,10 +55,13 @@ class InstructorVerificationController
         ]);
     }
 
-    public function verifyFace(Request $request)
+    // @function verifyFace: Vini-verify ang face sa Instructor Verification flow.
+    // @useIn verifyFace: routes/web.php:215 (verify.face)
+    public function verifyFace(Request $request, AwsFaceLivenessService $livenessService)
     {
         $validated = $request->validate([
-            'image' => ['required', 'string'],
+            'image' => ['nullable', 'string'],
+            'liveness_token' => ['nullable', 'string', 'size:64'],
         ]);
 
         $user = $request->user();
@@ -55,7 +71,21 @@ class InstructorVerificationController
             return back()->withErrors(['face' => 'No enrolled face image is available for this instructor.']);
         }
 
-        $result = (new AwsFaceRecognitionService)->compareBase64WithStoredImage($validated['image'], $faceImages[0]);
+        $capturedImage = (string) ($validated['image'] ?? '');
+        if (config('services.aws_rekognition.liveness.enabled', false)) {
+            $capturedImage = $livenessService->consumeReferenceImage(
+                $request,
+                (string) ($validated['liveness_token'] ?? ''),
+                'instructor_login',
+                (string) $user->user_id,
+            ) ?? '';
+        }
+
+        if ($capturedImage === '') {
+            return back()->withErrors(['face' => 'A valid live-face verification is required.']);
+        }
+
+        $result = (new AwsFaceRecognitionService)->compareBase64WithStoredImage($capturedImage, $faceImages[0]);
 
         if ($result === null) {
             return back()->withErrors(['face' => 'Face recognition is not available. Use OTP or security question.']);
@@ -70,6 +100,8 @@ class InstructorVerificationController
         return redirect()->route('admin.dashboard');
     }
 
+    // @function sendOtp: Ipinapadala ang otp sa Instructor Verification flow.
+    // @useIn sendOtp: routes/web.php:217 (verify.otp.send)
     public function sendOtp(Request $request)
     {
         $user = $request->user();
@@ -94,12 +126,14 @@ class InstructorVerificationController
 
             $request->session()->forget(['instructor_login_otp', 'instructor_login_otp_expires_at']);
 
-            return back()->withErrors(['otp' => 'The OTP email could not be sent. Please try again or use another verification method.']);
+            return back()->withErrors(['otp' => 'The verification code could not be emailed right now. Please try again shortly or use face or security-question verification.']);
         }
 
         return back()->with('success', 'OTP sent to '.$user->email.'. It expires in 10 minutes.');
     }
 
+    // @function verifyOtp: Vini-verify ang otp sa Instructor Verification flow.
+    // @useIn verifyOtp: routes/web.php:219 (verify.otp)
     public function verifyOtp(Request $request)
     {
         $validated = $request->validate([
@@ -119,6 +153,8 @@ class InstructorVerificationController
         return redirect()->route('admin.dashboard');
     }
 
+    // @function setupSecurity: Kinukuha ang setup security result para sa Instructor Verification.
+    // @useIn setupSecurity: routes/web.php:221 (verify.security.setup)
     public function setupSecurity(Request $request)
     {
         $availableSecurityQuestions = SystemSetting::securityQuestions();
@@ -157,6 +193,8 @@ class InstructorVerificationController
         return back()->with('success', 'Security questions saved.');
     }
 
+    // @function verifySecurity: Vini-verify ang security sa Instructor Verification flow.
+    // @useIn verifySecurity: routes/web.php:223 (verify.security)
     public function verifySecurity(Request $request)
     {
         $validated = $request->validate([
@@ -181,11 +219,15 @@ class InstructorVerificationController
         return redirect()->route('admin.dashboard');
     }
 
+    // @function normalizeAnswer: Nino-normalize ang answer sa Instructor Verification flow.
+    // @useIn normalizeAnswer: InstructorVerificationController::setupSecurity (app/Http/Controllers/InstructorVerificationController.php)
     private function normalizeAnswer(string $answer): string
     {
         return strtolower(trim(preg_replace('/\s+/', ' ', $answer)));
     }
 
+    // @function storedSecurityQuestions: Kinukuha ang stored security questions result para sa Instructor Verification.
+    // @useIn storedSecurityQuestions: InstructorVerificationController::show (app/Http/Controllers/InstructorVerificationController.php)
     private function storedSecurityQuestions($user): array
     {
         $questions = collect($user->security_questions ?? [])

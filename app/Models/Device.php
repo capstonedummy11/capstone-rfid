@@ -27,16 +27,22 @@ class Device extends Model
     'status',
   ];
 
+  // @function inventory: Ibinabalik ang inventory Eloquent hasOne relationship.
+  // @useIn inventory: Eloquent relationship property at eager loading
   public function inventory(): HasOne
   {
     return $this->hasOne(Inventory::class, 'item_id', 'item_id');
   }
 
+  // @function transactions: Ibinabalik ang transactions Eloquent hasMany relationship.
+  // @useIn transactions: Eloquent relationship property at eager loading
   public function transactions(): HasMany
   {
     return $this->hasMany(Transaction::class, 'item_id', 'item_id');
   }
 
+  // @function borrowingItems: Ibinabalik ang borrowing items Eloquent hasMany relationship.
+  // @useIn borrowingItems: Eloquent relationship property at eager loading
   public function borrowingItems()
   {
     return $this->hasMany(BorrowingItem::class, 'item_id', 'item_id');

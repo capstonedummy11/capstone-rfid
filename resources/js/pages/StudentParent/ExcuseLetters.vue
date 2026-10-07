@@ -1,8 +1,11 @@
-<script setup>
+<!-- FEATURE:excuse-letter-approval - UI para sa excuse letter approval. -->
+<!-- FEATURE:excuse-letter-submission - UI para sa excuse letter submission. -->
+<script setup lang="ts">
 import { useForm, usePage } from '@inertiajs/vue3';
-import SuccessModal from '@/components/StudentPortal/SuccessModal.vue';
+import { Paperclip, X } from 'lucide-vue-next';
+import { computed, reactive, ref, watch } from 'vue';
 import LinkedStudentSelector from '@/components/StudentPortal/LinkedStudentSelector.vue';
-import { computed, reactive, ref } from 'vue';
+import SuccessModal from '@/components/StudentPortal/SuccessModal.vue';
 
 const props = defineProps({
     student: { type: Object, default: null },
@@ -13,6 +16,7 @@ const props = defineProps({
     recipientSuggestions: { type: Array, default: () => [] },
     parentPortalEnabled: { type: Boolean, default: false },
     parentExcuseLettersEnabled: { type: Boolean, default: false },
+    activeAcademicYear: { type: Object, default: null },
 });
 
 const page = usePage();
@@ -23,8 +27,17 @@ const canSubmitLetter = computed(
     () => !isParent.value || props.parentExcuseLettersEnabled,
 );
 const recipientSearch = ref('');
+const attachmentInput = ref<HTMLInputElement | null>(null);
 
-const form = useForm({
+const form = useForm<{
+    subject: string;
+    from_date: string;
+    to_date: string;
+    reason: string;
+    parent_signature: string;
+    recipient_user_ids: number[];
+    attachment: File | null;
+}>({
     subject: '',
     from_date: '',
     to_date: '',
@@ -34,7 +47,159 @@ const form = useForm({
     attachment: null,
 });
 
+watch(
+    () => form.from_date,
+    (startDate) => {
+        if (startDate && !form.to_date) {
+            form.to_date = startDate;
+            form.clearErrors('to_date');
+        }
+    },
+);
+
+// @function selectAttachment: Pinipili ang attachment sa Excuse Letters flow.
+// @useIn selectAttachment: resources/js/pages/StudentParent/ExcuseLetters.vue template @change
+const selectAttachment = (event: Event) => {
+    const input = event.target as HTMLInputElement;
+    form.attachment = input.files?.[0] ?? null;
+    form.clearErrors('attachment');
+};
+
+// @function clearAttachment: Nililinis ang attachment sa Excuse Letters flow.
+// @useIn clearAttachment: resources/js/pages/StudentParent/ExcuseLetters.vue template @click
+const clearAttachment = () => {
+    form.attachment = null;
+    form.clearErrors('attachment');
+
+    if (attachmentInput.value) {
+        attachmentInput.value.value = '';
+    }
+};
+
+const allowedAttachmentExtensions = [
+    'pdf',
+    'doc',
+    'docx',
+    'jpg',
+    'jpeg',
+    'png',
+];
+const maximumAttachmentBytes = 5 * 1024 * 1024;
+type LetterFormField =
+    | 'subject'
+    | 'from_date'
+    | 'to_date'
+    | 'reason'
+    | 'parent_signature'
+    | 'recipient_user_ids'
+    | 'attachment';
+
+// @function validateLetterForm: Vinavalidate ang letter form sa Excuse Letters flow.
+// @useIn validateLetterForm: resources/js/pages/StudentParent/ExcuseLetters.vue:189
+const validateLetterForm = () => {
+    let isValid = true;
+    // @function setError: Sine-set ang error sa Excuse Letters flow.
+    // @useIn setError: resources/js/pages/StudentParent/ExcuseLetters.vue:96
+    const setError = (field: LetterFormField, message: string) => {
+        form.setError(field, message);
+        isValid = false;
+    };
+
+    if (!form.subject.trim()) {
+        setError('subject', 'Enter the excuse-letter subject.');
+    } else if (form.subject.trim().length > 255) {
+        setError('subject', 'The subject must not exceed 255 characters.');
+    }
+
+    if (!form.from_date) {
+        setError('from_date', 'Select the start date.');
+    } else if (
+        props.activeAcademicYear?.starts_on &&
+        form.from_date < props.activeAcademicYear.starts_on
+    ) {
+        setError(
+            'from_date',
+            `The start date must be on or after ${props.activeAcademicYear.starts_on}.`,
+        );
+    } else if (
+        props.activeAcademicYear?.ends_on &&
+        form.from_date > props.activeAcademicYear.ends_on
+    ) {
+        setError(
+            'from_date',
+            `The start date must be on or before ${props.activeAcademicYear.ends_on}.`,
+        );
+    }
+
+    if (!form.to_date) {
+        setError('to_date', 'Select the end date.');
+    } else if (form.from_date && form.to_date < form.from_date) {
+        setError('to_date', 'The end date must be on or after the start date.');
+    } else if (
+        props.activeAcademicYear?.starts_on &&
+        form.to_date < props.activeAcademicYear.starts_on
+    ) {
+        setError(
+            'to_date',
+            `The end date must be on or after ${props.activeAcademicYear.starts_on}.`,
+        );
+    } else if (
+        props.activeAcademicYear?.ends_on &&
+        form.to_date > props.activeAcademicYear.ends_on
+    ) {
+        setError(
+            'to_date',
+            `The end date must be on or before ${props.activeAcademicYear.ends_on}.`,
+        );
+    }
+
+    if (!form.reason.trim()) {
+        setError('reason', 'Enter the reason for the excuse letter.');
+    } else if (form.reason.trim().length > 5000) {
+        setError('reason', 'The reason must not exceed 5,000 characters.');
+    }
+
+    if (isParent.value && !form.parent_signature.trim()) {
+        setError('parent_signature', 'Enter the Parent signature.');
+    } else if (form.parent_signature.trim().length > 255) {
+        setError(
+            'parent_signature',
+            'The Parent signature must not exceed 255 characters.',
+        );
+    }
+
+    if (recipientSearch.value.trim() !== '') {
+        setError(
+            'recipient_user_ids',
+            'Select the instructor from the search results, or clear the search to send to all assigned instructors.',
+        );
+    }
+
+    if (form.attachment) {
+        const extension = form.attachment.name.split('.').pop()?.toLowerCase();
+
+        if (!extension || !allowedAttachmentExtensions.includes(extension)) {
+            setError(
+                'attachment',
+                'Use a PDF, Word document, JPG, or PNG attachment.',
+            );
+        } else if (form.attachment.size > maximumAttachmentBytes) {
+            setError('attachment', 'The attachment must not exceed 5 MB.');
+        }
+    }
+
+    return isValid;
+};
+
+// @function submitLetter: Isinusumite ang letter sa Excuse Letters flow.
+// @useIn submitLetter: resources/js/pages/StudentParent/ExcuseLetters.vue template
 const submitLetter = () => {
+    form.clearErrors();
+
+    if (!validateLetterForm()) {
+        return;
+    }
+
     form.post(
         route(
             'student-parent.excuse-letters.store',
@@ -45,6 +210,7 @@ const submitLetter = () => {
             preserveScroll: true,
             onSuccess: () => {
                 form.reset();
+                clearAttachment();
                 recipientSearch.value = '';
             },
         },
@@ -57,6 +223,8 @@ const selectedStudentQuery = computed(() =>
 
 const approvalForms = reactive({});
 
+// @function approvalFormFor: Kinukuha ang approval form for result para sa Excuse Letters.
+// @useIn approvalFormFor: resources/js/pages/StudentParent/ExcuseLetters.vue template
 const approvalFormFor = (letter) => {
     if (!approvalForms[letter.id]) {
         approvalForms[letter.id] = useForm({
@@ -68,6 +236,8 @@ const approvalFormFor = (letter) => {
     return approvalForms[letter.id];
 };
 
+// @function approveLetter: Pinoproseso ang approve letter para sa Excuse Letters.
+// @useIn approveLetter: resources/js/pages/StudentParent/ExcuseLetters.vue template
 const approveLetter = (letter) => {
     const approveForm = approvalFormFor(letter);
     approveForm.put(
@@ -82,6 +252,8 @@ const approveLetter = (letter) => {
     );
 };
 
+// @function statusLabel: Pinoproseso ang status label para sa Excuse Letters.
+// @useIn statusLabel: resources/js/pages/StudentParent/ExcuseLetters.vue template
 const statusLabel = (status) =>
     String(status || '')
         .split('_')
@@ -100,37 +272,78 @@ const availableRecipientSuggestions = computed(() =>
     ),
 );
 
-const addRecipient = () => {
+const matchingRecipientSuggestions = computed(() => {
     const search = recipientSearch.value.trim().toLowerCase();
-    const recipient = availableRecipientSuggestions.value.find((suggestion) =>
-        [suggestion.name, suggestion.email, suggestion.label].some(
-            (value) => String(value || '').toLowerCase() === search,
+    if (search === '') {
+        return [];
+    }
+
+    return availableRecipientSuggestions.value.filter((suggestion) =>
+        [suggestion.name, suggestion.email, suggestion.label].some((value) =>
+            String(value || '')
+                .toLowerCase()
+                .includes(search),
         ),
     );
+});
+
+const formErrorMessages = computed(() => [
+    ...new Set(Object.values(form.errors)),
+]);
+
+// @function addRecipient: Nagdadagdag ng ang recipient sa Excuse Letters flow.
+// @useIn addRecipient: resources/js/pages/StudentParent/ExcuseLetters.vue template @click
+const addRecipient = () => {
+    const search = recipientSearch.value.trim().toLowerCase();
+    const exactRecipient = availableRecipientSuggestions.value.find(
+        (suggestion) =>
+            [suggestion.name, suggestion.email, suggestion.label].some(
+                (value) => String(value || '').toLowerCase() === search,
+            ),
+    );
+    const recipient =
+        exactRecipient ||
+        (matchingRecipientSuggestions.value.length === 1
+            ? matchingRecipientSuggestions.value[0]
+            : null);
 
     if (!recipient) {
+        form.setError(
+            'recipient_user_ids',
+            matchingRecipientSuggestions.value.length === 0
+                ? 'No assigned instructor matches that search.'
+                : 'Select an instructor from the matching results.',
+        );
         return;
     }
 
+    form.clearErrors('recipient_user_ids');
     form.recipient_user_ids = [...form.recipient_user_ids, recipient.user_id];
     recipientSearch.value = '';
 };
 
+// @function addRecipientById: Nagdadagdag ng ang recipient by id sa Excuse Letters flow.
+// @useIn addRecipientById: resources/js/pages/StudentParent/ExcuseLetters.vue template @click
 const addRecipientById = (userId) => {
     if (form.recipient_user_ids.includes(userId)) {
         return;
     }
 
+    form.clearErrors('recipient_user_ids');
     form.recipient_user_ids = [...form.recipient_user_ids, userId];
     recipientSearch.value = '';
 };
 
+// @function removeRecipient: Tinatanggal ang recipient sa Excuse Letters flow.
+// @useIn removeRecipient: resources/js/pages/StudentParent/ExcuseLetters.vue template @click
 const removeRecipient = (userId) => {
     form.recipient_user_ids = form.recipient_user_ids.filter(
         (selectedId) => selectedId !== userId,
     );
 };
 
+// @function letterRecipients: Kinukuha ang letter recipients result para sa Excuse Letters.
+// @useIn letterRecipients: resources/js/pages/StudentParent/ExcuseLetters.vue template
 const letterRecipients = (letter) => {
     const selectedIds = letter.recipient_user_ids || [];
 
@@ -163,33 +376,84 @@ const letterRecipients = (letter) => {
                 <form
                     v-if="canSubmitLetter"
                     class="mt-4 flex flex-col gap-3"
+                    novalidate
                     @submit.prevent="submitLetter"
                 >
+                    <div
+                        v-if="formErrorMessages.length"
+                        class="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700"
+                        role="alert"
+                        aria-live="polite"
+                    >
+                        <p v-for="message in formErrorMessages" :key="message">
+                            {{ message }}
+                        </p>
+                    </div>
                     <label class="text-xs font-bold text-slate-500 uppercase">
                         Recipient
-                        <div class="mt-1 flex gap-2">
-                            <input
-                                v-model="recipientSearch"
-                                list="excuse-letter-recipient-suggestions"
-                                class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm normal-case"
-                                placeholder="Search assigned teacher"
-                                @keydown.enter.prevent="addRecipient"
-                            />
-                            <button
-                                type="button"
-                                class="rounded-md border border-slate-300 px-3 py-2 text-sm font-bold text-slate-600"
-                                @click="addRecipient"
+                        <div class="relative mt-1 normal-case">
+                            <div class="flex gap-2">
+                                <input
+                                    v-model="recipientSearch"
+                                    class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm font-normal"
+                                    :class="{
+                                        'border-rose-400':
+                                            form.errors.recipient_user_ids,
+                                    }"
+                                    placeholder="Search assigned teacher by name or email"
+                                    autocomplete="off"
+                                    :aria-invalid="
+                                        Boolean(form.errors.recipient_user_ids)
+                                    "
+                                    @input="
+                                        form.clearErrors('recipient_user_ids')
+                                    "
+                                    @keydown.enter.prevent="addRecipient"
+                                />
+                                <button
+                                    type="button"
+                                    class="rounded-md border border-slate-300 px-3 py-2 text-sm font-bold text-slate-600"
+                                    @click="addRecipient"
+                                >
+                                    Add
+                                </button>
+                            </div>
+                            <p
+                                v-if="form.errors.recipient_user_ids"
+                                class="mt-1 text-xs font-medium text-rose-600"
                             >
-                                Add
-                            </button>
+                                {{ form.errors.recipient_user_ids }}
+                            </p>
+                            <div
+                                v-if="recipientSearch.trim()"
+                                class="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-slate-200 bg-white p-1 shadow-lg"
+                            >
+                                <button
+                                    v-for="recipient in matchingRecipientSuggestions"
+                                    :key="recipient.user_id"
+                                    type="button"
+                                    class="block w-full rounded px-3 py-2 text-left text-sm font-normal text-slate-700 hover:bg-sky-50"
+                                    @click="addRecipientById(recipient.user_id)"
+                                >
+                                    <span class="block font-semibold">{{
+                                        recipient.name
+                                    }}</span>
+                                    <span
+                                        class="block text-xs text-slate-500"
+                                        >{{ recipient.email }}</span
+                                    >
+                                </button>
+                                <p
+                                    v-if="
+                                        matchingRecipientSuggestions.length ===
+                                        0
+                                    "
+                                    class="px-3 py-2 text-sm font-normal text-slate-500"
+                                >
+                                    No assigned instructor found.
+                                </p>
+                            </div>
                         </div>
-                        <datalist id="excuse-letter-recipient-suggestions">
-                            <option
-                                v-for="recipient in availableRecipientSuggestions"
-                                :key="recipient.user_id"
-                                :value="recipient.label"
-                            />
-                        </datalist>
                     </label>
                     <div
                         v-if="selectedRecipients.length"
@@ -215,7 +479,11 @@ const letterRecipients = (letter) => {
                         class="rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-500"
                     >
                         Leave blank to send to all assigned teachers after
-                        {{ parentPortalEnabled ? 'parent approval.' : 'submission.' }}
+                        {{
+                            parentPortalEnabled
+                                ? 'parent approval.'
+                                : 'submission.'
+                        }}
                     </div>
                     <div
                         v-if="availableRecipientSuggestions.length"
@@ -236,8 +504,19 @@ const letterRecipients = (letter) => {
                         <input
                             v-model="form.subject"
                             class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm normal-case"
-                            required
+                            :class="{
+                                'border-rose-400': form.errors.subject,
+                            }"
+                            maxlength="255"
+                            :aria-invalid="Boolean(form.errors.subject)"
+                            @input="form.clearErrors('subject')"
                         />
+                        <span
+                            v-if="form.errors.subject"
+                            class="mt-1 block text-xs font-medium text-rose-600 normal-case"
+                        >
+                            {{ form.errors.subject }}
+                        </span>
                     </label>
                     <div class="grid grid-cols-2 gap-2">
                         <label
@@ -247,9 +526,21 @@ const letterRecipients = (letter) => {
                             <input
                                 v-model="form.from_date"
                                 type="date"
+                                :min="activeAcademicYear?.starts_on"
+                                :max="activeAcademicYear?.ends_on"
                                 class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                                required
+                                :class="{
+                                    'border-rose-400': form.errors.from_date,
+                                }"
+                                :aria-invalid="Boolean(form.errors.from_date)"
+                                @change="form.clearErrors('from_date')"
                             />
+                            <span
+                                v-if="form.errors.from_date"
+                                class="mt-1 block text-xs font-medium text-rose-600 normal-case"
+                            >
+                                {{ form.errors.from_date }}
+                            </span>
                         </label>
                         <label
                             class="text-xs font-bold text-slate-500 uppercase"
@@ -258,18 +549,52 @@ const letterRecipients = (letter) => {
                             <input
                                 v-model="form.to_date"
                                 type="date"
+                                :min="
+                                    form.from_date ||
+                                    activeAcademicYear?.starts_on
+                                "
+                                :max="activeAcademicYear?.ends_on"
                                 class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                                required
+                                :class="{
+                                    'border-rose-400': form.errors.to_date,
+                                }"
+                                :aria-invalid="Boolean(form.errors.to_date)"
+                                @change="form.clearErrors('to_date')"
                             />
+                            <span
+                                v-if="form.errors.to_date"
+                                class="mt-1 block text-xs font-medium text-rose-600 normal-case"
+                            >
+                                {{ form.errors.to_date }}
+                            </span>
                         </label>
                     </div>
+                    <p
+                        v-if="activeAcademicYear"
+                        class="-mt-1 text-xs text-slate-500"
+                    >
+                        Dates must be within {{ activeAcademicYear.name }}:
+                        {{ activeAcademicYear.starts_on }} to
+                        {{ activeAcademicYear.ends_on }}.
+                    </p>
                     <label class="text-xs font-bold text-slate-500 uppercase">
                         Reason
                         <textarea
                             v-model="form.reason"
                             class="mt-1 h-36 w-full rounded-md border border-slate-300 px-3 py-2 text-sm normal-case"
-                            required
+                            :class="{
+                                'border-rose-400': form.errors.reason,
+                            }"
+                            maxlength="5000"
+                            :aria-invalid="Boolean(form.errors.reason)"
+                            @input="form.clearErrors('reason')"
                         />
+                        <span
+                            v-if="form.errors.reason"
+                            class="mt-1 block text-xs font-medium text-rose-600 normal-case"
+                        >
+                            {{ form.errors.reason }}
+                        </span>
                     </label>
                     <label
                         v-if="isParent"
@@ -279,21 +604,75 @@ const letterRecipients = (letter) => {
                         <input
                             v-model="form.parent_signature"
                             class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm normal-case"
+                            :class="{
+                                'border-rose-400': form.errors.parent_signature,
+                            }"
                             placeholder="Type your full name"
-                            required
-                        />
-                    </label>
-                    <label class="text-xs font-bold text-slate-500 uppercase">
-                        Attachment
-                        <input
-                            type="file"
-                            class="mt-1 w-full text-sm normal-case"
-                            @change="
-                                form.attachment =
-                                    $event.target.files?.[0] || null
+                            maxlength="255"
+                            :aria-invalid="
+                                Boolean(form.errors.parent_signature)
                             "
+                            @input="form.clearErrors('parent_signature')"
                         />
+                        <span
+                            v-if="form.errors.parent_signature"
+                            class="mt-1 block text-xs font-medium text-rose-600 normal-case"
+                        >
+                            {{ form.errors.parent_signature }}
+                        </span>
                     </label>
+                    <div>
+                        <p class="text-xs font-bold text-slate-500 uppercase">
+                            Attachment
+                        </p>
+                        <input
+                            ref="attachmentInput"
+                            type="file"
+                            class="sr-only"
+                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                            @change="selectAttachment"
+                        />
+                        <div class="mt-1 flex items-center gap-2">
+                            <button
+                                type="button"
+                                class="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                :disabled="form.processing"
+                                @click="attachmentInput?.click()"
+                            >
+                                <Paperclip class="h-4 w-4" aria-hidden="true" />
+                                {{
+                                    form.attachment
+                                        ? 'Replace attachment'
+                                        : 'Add attachment'
+                                }}
+                            </button>
+                            <div
+                                v-if="form.attachment"
+                                class="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-700"
+                            >
+                                <span class="truncate">{{
+                                    form.attachment.name
+                                }}</span>
+                                <button
+                                    type="button"
+                                    class="shrink-0 rounded p-0.5 text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+                                    aria-label="Remove attachment"
+                                    @click="clearAttachment"
+                                >
+                                    <X class="h-4 w-4" aria-hidden="true" />
+                                </button>
+                            </div>
+                        </div>
+                        <p class="mt-1 text-xs text-slate-400">
+                            PDF, Word document, JPG, or PNG up to 5 MB.
+                        </p>
+                        <p
+                            v-if="form.errors.attachment"
+                            class="mt-1 text-xs font-medium text-rose-600"
+                        >
+                            {{ form.errors.attachment }}
+                        </p>
+                    </div>
                     <button
                         class="rounded-md bg-brand px-4 py-2 text-sm font-bold text-white"
                         :disabled="form.processing"
@@ -364,7 +743,11 @@ const letterRecipients = (letter) => {
                                 class="mt-2 text-xs font-semibold text-slate-400"
                             >
                                 PDF available
-                                {{ parentPortalEnabled ? 'after parent approval.' : 'after submission.' }}
+                                {{
+                                    parentPortalEnabled
+                                        ? 'after parent approval.'
+                                        : 'after submission.'
+                                }}
                             </p>
                             <form
                                 v-if="letter.can_parent_approve"

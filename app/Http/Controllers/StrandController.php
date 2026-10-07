@@ -1,13 +1,17 @@
 <?php
+// FEATURE:academic-scheduling - konektadong model, service, route, o UI para sa feature na ito.
 
 namespace App\Http\Controllers;
 
 use App\Models\Strand;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class StrandController
 {
+    // @function index: Wala pang implementasyon ang legacy index placeholder.
+    // @useIn index: TODO(verify): walang direct caller na nakita sa static search
     /**
      * Display a listing of the resource.
      */
@@ -16,6 +20,8 @@ class StrandController
         //
     }
 
+    // @function indexAdmin: Ibinabalik ang Auth/Admin/Strands page at data para sa request.
+    // @useIn indexAdmin: routes/web.php:401 (strands.index)
     /**
      * Display admin listing of the resource.
      */
@@ -29,9 +35,9 @@ class StrandController
         // Apply search filter
         if ($search) {
             $query->where(function ($q) use ($search) {
-                $q->whereRaw('LOWER(strand_code) LIKE ?', ['%' . strtolower($search) . '%'])
-                    ->orWhereRaw('LOWER(strand_name) LIKE ?', ['%' . strtolower($search) . '%'])
-                    ->orWhereRaw('LOWER(department) LIKE ?', ['%' . strtolower($search) . '%']);
+                $q->whereRaw('LOWER(strand_code) LIKE ?', ['%'.strtolower($search).'%'])
+                    ->orWhereRaw('LOWER(strand_name) LIKE ?', ['%'.strtolower($search).'%'])
+                    ->orWhereRaw('LOWER(department) LIKE ?', ['%'.strtolower($search).'%']);
             });
         }
 
@@ -51,6 +57,7 @@ class StrandController
         });
 
         return Inertia::render('Auth/Admin/Strands', [
+            'title' => 'Strands',
             'strands' => $strands,
             'filters' => [
                 'search' => $search,
@@ -59,6 +66,8 @@ class StrandController
         ]);
     }
 
+    // @function create: Inihahanda ang create form o page.
+    // @useIn create: StrandController::store (app/Http/Controllers/StrandController.php)
     /**
      * Show the form for creating a new resource.
      */
@@ -67,13 +76,15 @@ class StrandController
         //
     }
 
+    // @function store: Pinoproseso ang bagong Strand record.
+    // @useIn store: routes/web.php:402 (strands.store)
     /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'strand_code' => 'required|unique:strands,strand_code',
+            'strand_code' => ['required', Rule::unique('strands', 'strand_code')->whereNull('deleted_at')],
             'strand_name' => 'required|string|max:255',
             'department' => 'required|string|max:255',
             'status' => 'required|in:active,inactive',
@@ -84,6 +95,8 @@ class StrandController
         return back()->with('success', 'Strand added successfully.');
     }
 
+    // @function show: Ibinabalik ang detalye ng napiling record.
+    // @useIn show: TODO(verify): walang direct caller na nakita sa static search
     /**
      * Display the specified resource.
      */
@@ -92,6 +105,8 @@ class StrandController
         //
     }
 
+    // @function edit: Inihahanda ang edit form o page.
+    // @useIn edit: TODO(verify): walang direct caller na nakita sa static search
     /**
      * Show the form for editing the specified resource.
      */
@@ -100,6 +115,8 @@ class StrandController
         //
     }
 
+    // @function update: Pinoproseso ang pagbabago sa Strand record.
+    // @useIn update: routes/web.php:403 (strands.update)
     /**
      * Update the specified resource in storage.
      */
@@ -108,7 +125,7 @@ class StrandController
         $strand = Strand::findOrFail($id);
 
         $validated = $request->validate([
-            'strand_code' => 'required|unique:strands,strand_code,' . $id . ',strand_id',
+            'strand_code' => ['required', Rule::unique('strands', 'strand_code')->whereNull('deleted_at')->ignore($id, 'strand_id')],
             'strand_name' => 'required|string|max:255',
             'department' => 'required|string|max:255',
             'status' => 'required|in:active,inactive',
@@ -119,6 +136,8 @@ class StrandController
         return back()->with('success', 'Strand updated successfully.');
     }
 
+    // @function destroy: Pinoproseso ang pagtanggal ng Strand record.
+    // @useIn destroy: routes/web.php:404 (strands.destroy)
     /**
      * Remove the specified resource from storage.
      */

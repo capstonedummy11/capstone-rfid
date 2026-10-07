@@ -1,4 +1,6 @@
 <?php
+// FEATURE:inventory-management - konektadong model, service, route, o UI para sa feature na ito.
+// FEATURE:console-borrowing - konektadong model, service, route, o UI para sa feature na ito.
 
 namespace App\Models;
 

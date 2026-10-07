@@ -1,3 +1,4 @@
+<!-- FEATURE:academic-scheduling - konektadong model, service, route, o UI para sa feature na ito. -->
 <template>
     <div class="w-full">
         <div class="mx-auto max-w-[1400px] px-4 py-6">
@@ -267,6 +268,7 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
+import { confirmActionModal, showAlertModal } from '@/lib/feedbackModal';
 
 interface Strand {
     strand_id: string | number;
@@ -322,6 +324,8 @@ const filteredStrands = computed<Strand[]>(() => {
     });
 });
 
+// @function onFilterChange: Hinahandle ang filter change sa Strands flow.
+// @useIn onFilterChange: resources/js/pages/Auth/Admin/Strands.vue template @input
 const onFilterChange = () => {
     const query = {
         search: search.value,
@@ -335,12 +339,16 @@ const onFilterChange = () => {
     );
 };
 
+// @function resetFilters: Nire-reset ang filters sa Strands flow.
+// @useIn resetFilters: resources/js/pages/Auth/Admin/Strands.vue template @click
 const resetFilters = () => {
     search.value = '';
     selectedStatus.value = '';
     window.location.href = window.location.pathname;
 };
 
+// @function openAddModal: Binubuksan ang add modal sa Strands flow.
+// @useIn openAddModal: resources/js/pages/Auth/Admin/Strands.vue template @click
 const openAddModal = () => {
     isEditing.value = false;
     selectedStrand.value = null;
@@ -349,6 +357,8 @@ const openAddModal = () => {
     showModal.value = true;
 };
 
+// @function openEditModal: Binubuksan ang edit modal sa Strands flow.
+// @useIn openEditModal: resources/js/pages/Auth/Admin/Strands.vue template @click
 const openEditModal = (strand: Strand) => {
     isEditing.value = true;
     selectedStrand.value = strand;
@@ -361,6 +371,8 @@ const openEditModal = (strand: Strand) => {
     showModal.value = true;
 };
 
+// @function closeModal: Isinasara ang modal sa Strands flow.
+// @useIn closeModal: resources/js/pages/Auth/Admin/Strands.vue template @click
 const closeModal = () => {
     showModal.value = false;
     isEditing.value = false;
@@ -368,9 +380,15 @@ const closeModal = () => {
     form.reset();
 };
 
+// @function submitForm: Isinusumite ang form sa Strands flow.
+// @useIn submitForm: resources/js/pages/Auth/Admin/Strands.vue template
 const submitForm = () => {
     if (!form.strand_code || !form.strand_name || !form.department) {
-        alert('Please fill in all required fields.');
+        showAlertModal(
+            'Missing required fields',
+            'Please fill in all required fields.',
+            'warning',
+        );
         return;
     }
 
@@ -398,12 +416,15 @@ const submitForm = () => {
     }
 };
 
-const deleteStrand = (strand: Strand) => {
-    if (
-        !confirm(
-            `Are you sure you want to delete ${strand.strand_code} - ${strand.strand_name}?`,
-        )
-    ) {
+// @function deleteStrand: Tinatanggal ang strand sa Strands flow.
+// @useIn deleteStrand: resources/js/pages/Auth/Admin/Strands.vue template @click
+const deleteStrand = async (strand: Strand) => {
+    const confirmed = await confirmActionModal({
+        title: 'Delete strand?',
+        text: `Are you sure you want to delete ${strand.strand_code} - ${strand.strand_name}?`,
+    });
+
+    if (!confirmed) {
         return;
     }
 
@@ -417,6 +438,8 @@ const deleteStrand = (strand: Strand) => {
     );
 };
 
+// @function capitalizeFirst: Kinukuha ang capitalize first result para sa Strands.
+// @useIn capitalizeFirst: resources/js/pages/Auth/Admin/Strands.vue template
 const capitalizeFirst = (str: string) => {
     if (!str) return '';
     return str.charAt(0).toUpperCase() + str.slice(1);

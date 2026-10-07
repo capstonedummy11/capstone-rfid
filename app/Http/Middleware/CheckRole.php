@@ -1,4 +1,5 @@
 <?php
+// FEATURE:authentication - konektadong model, service, route, o UI para sa feature na ito.
 
 namespace App\Http\Middleware;
 
@@ -8,6 +9,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CheckRole
 {
+  // @function handle: Pinoproseso ang request o event para sa Check Role.
+  // @useIn handle: Laravel web middleware pipeline
   public function handle(Request $request, Closure $next, string ...$roles): Response
   {
     $userRole = strtolower(trim((string) $request->user()?->role));

@@ -52,7 +52,7 @@ test('student created by an admin can sign in with the submitted email and gener
         'rfid_tag' => 'RFID-E2E-0001',
         'status' => 'active',
     ];
-    $temporaryPassword = 'AnaMariaDelaCruz';
+    $temporaryPassword = 'anamariadelacruz';
 
     $this->actingAs($admin)
         ->post(route('admin.students.store'), $studentData)

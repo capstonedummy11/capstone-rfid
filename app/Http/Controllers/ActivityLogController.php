@@ -22,9 +22,22 @@ class ActivityLogController
         'outcome', 'severity', 'subject_type', 'subject_id', 'ip_address', 'academic_year_id', 'semester',
     ];
 
+    // @function indexAdmin: Ibinabalik ang Auth/Admin/ActivityLogs page at data para sa request.
+    // @useIn indexAdmin: routes/web.php:347 (activity-logs.index)
+    /**
+     * @feature   Activity and Online Class Logs
+     * @actor     Admin
+     * @flow      Dito nire-review at ine-export ang system activity; may hiwalay ding online-class logs.
+     * @uses      resources/js/pages/Auth/Admin/ActivityLogs.vue; routes/web.php: ActivityLogController::indexAdmin, ActivityLogController::export
+     * @related   Admin workspace
+     * @disable   1) I-comment out ang routes/web.php: ActivityLogController::indexAdmin/export at OnlineClassController::logs/exportLogs.
+     * @disable   2) Itago ang action sa resources/js/pages/Auth/Admin/ActivityLogs.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Itago rin ang resources/js/pages/Auth/Admin/OnlineClassLogs.vue; ihinto ang app/Http/Controllers/ActivityLogController.php: indexAdmin at app/Http/Controllers/OnlineClassController.php: logs matapos alisin ang routes. Side effect: hindi na makikita ang dalawang log views; tuloy pa rin ang audit writes.
+     */
     public function indexAdmin(Request $request)
     {
         return Inertia::render('Auth/Admin/ActivityLogs', [
+            'title' => 'System Activity Logs',
             'logs' => $this->filteredQuery($request)->paginate(25)->withQueryString(),
             'filters' => $request->only(self::FILTERS),
             'options' => [
@@ -39,6 +52,8 @@ class ActivityLogController
         ]);
     }
 
+    // @function export: Ine-export ang activity log sa Activity Log flow.
+    // @useIn export: routes/web.php:349 (activity-logs.export)
     public function export(Request $request)
     {
         $filename = 'system-activity-logs-'.now()->format('Y-m-d-His').'.csv';
@@ -60,6 +75,8 @@ class ActivityLogController
         }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
+    // @function filteredQuery: Binubuo ang filtered query database query.
+    // @useIn filteredQuery: ActivityLogController::indexAdmin (app/Http/Controllers/ActivityLogController.php)
     private function filteredQuery(Request $request): Builder
     {
         return ActivityLog::query()
@@ -111,6 +128,8 @@ class ActivityLogController
             ->latest('created_at')->latest('logs_id');
     }
 
+    // @function distinctOptions: Binubuo ang distinct options value.
+    // @useIn distinctOptions: ActivityLogController::indexAdmin (app/Http/Controllers/ActivityLogController.php)
     private function distinctOptions(string $column, ?string $fallback = null)
     {
         $primary = ActivityLog::query()->whereNotNull($column)->where($column, '<>', '')->pluck($column);

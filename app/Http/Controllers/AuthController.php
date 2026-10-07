@@ -3,16 +3,20 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Support\AuthenticatedSession;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class AuthController
 {
+    // @function register: Nirerehistro ang dependencies ng Auth.
+    // @useIn register: routes/web.php:541 (register.store)
     public function register(Request $request)
     {
         $register = $request->validate([
             'name' => ['required', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users'],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->whereNull('deleted_at')],
             'password' => ['required', 'confirmed', 'min:6'],
         ]);
 
@@ -22,6 +26,8 @@ class AuthController
         $user = User::create($register);
 
         Auth::login($user);
+        $request->session()->regenerate();
+        AuthenticatedSession::issue($request, $user);
 
         return redirect()->route('dashboard')->with('success', 'Registered successfully!');
     }

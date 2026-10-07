@@ -8,7 +8,7 @@ Use this document when you need to understand what **Academic Rollover** does, w
 
 Academic Rollover moves student placement forward without copying historical teaching or attendance records.
 
-- **Full academic rollover** moves completed 2nd Semester records into 1st Semester of the next academic year.
+- **Full academic rollover** recreates selected Sections and Subject Offerings in the next academic year while preserving their semester.
 - **Semester-only rollover** moves 1st Semester records into 2nd Semester inside the same academic year.
 - Grade 11 students move to Grade 12 during full academic rollover.
 - Grade 12 students are archived as graduated by default during full academic rollover.
@@ -35,7 +35,7 @@ Only one academic year should be active for normal daily operations.
 
 Each academic year can have an active semester.
 
-The active semester helps pages default to the correct current context. On the Academic Years page, the admin can change the active semester for the active academic year.
+The active semester helps pages default to the correct current context. On the Academic Years page, the admin can change the active semester for the active academic year. Rollover never changes this field automatically.
 
 Active semester is not the same as rollover:
 
@@ -56,7 +56,7 @@ Use full academic rollover when the school year is finished and students need to
 
 Current behavior:
 
-- Source 2nd Semester moves to destination 1st Semester.
+- The selected source semester remains the same in the destination academic year.
 - Grade 11 students move to Grade 12 unless retained.
 - Grade 12 students are archived as graduated by default.
 - Grade 12 students do not need a destination section unless the admin changes the decision to retain or review.
@@ -66,7 +66,7 @@ Example:
 
 | Source                            | Destination                       |
 | --------------------------------- | --------------------------------- |
-| 2026-2027, Grade 11, 2nd Semester | 2027-2028, Grade 12, 1st Semester |
+| 2026-2027, Grade 11, 2nd Semester | 2027-2028, Grade 12, 2nd Semester |
 | 2026-2027, Grade 12, 2nd Semester | Archived as graduated             |
 
 ### Semester-Only Rollover
@@ -95,7 +95,7 @@ Only enrollments from the source current semester are processed. Dropped, transf
 | Rollover type     | Destination semester                 | Student level                              | Grade 12                                                |
 | ----------------- | ------------------------------------ | ------------------------------------------ | ------------------------------------------------------- |
 | Semester-only     | 2nd Semester                         | Remains in the same grade                  | Remains enrolled for 2nd Semester                       |
-| Academic rollover | 1st Semester of the destination year | Grade 11 becomes Grade 12, unless retained | Graduated by default; may be retained or sent to review |
+| Academic rollover | Same semester in the destination year | Grade 11 becomes Grade 12, unless retained | Graduated by default; may be retained or sent to review |
 
 ## How the Admin Uses Rollover
 
@@ -105,10 +105,11 @@ Only enrollments from the source current semester are processed. Dropped, transf
 4. Select the source academic year.
 5. Select the destination academic year for full academic rollover.
 6. Click **Preview**.
-7. Review the student preview by grade and section.
-8. Map each source section to a destination section, or enter a destination section name.
-9. Confirm Grade 12 students that should be archived.
-10. Execute the reviewed academic rollover.
+7. Click **Review and edit sections & subjects**.
+8. Select the Sections-table rows to recreate in the destination year. Each recreated Section keeps its source name and grade, or can reuse an existing compatible destination Section.
+9. Review the Subject Offerings and clear any offering that should not continue into the destination semester.
+10. Confirm Grade 12 students that should be archived.
+11. Save the preview changes and execute the reviewed academic rollover.
 
 The preview step is important because it lets the admin check the movement before anything is written.
 
@@ -118,6 +119,8 @@ The preview shows:
 
 - source sections;
 - destination sections;
+- active Subject Offerings from the source semester;
+- which Subject Offerings are selected for the destination semester;
 - student counts;
 - promotion, retention, archive, drop, and review counts;
 - each student's recommended decision;
@@ -125,18 +128,21 @@ The preview shows:
 
 For Grade 12 during full academic rollover, the preview shows that the student is archived unless the admin changes the decision.
 
-## Why Sections Are Mapped
+## Section Definitions and Student Placement
 
-Sections are mapped because the source section and destination section are not always the same.
+Section rollover copies academic structure; it does not promote a whole class. A selected source Section is recreated in the destination academic year with the same name, grade, and semester, or mapped to an existing compatible destination Section.
 
 For example:
 
-- Grade 11 ICT-A may become Grade 12 ICT-A.
-- Grade 11 ICT-B may become Grade 12 ICT-B.
+- Grade 11 ICT-A can be recreated as Grade 11 ICT-A in the destination year.
+- Grade 12 ICT-A can be recreated as Grade 12 ICT-A in the destination year.
+- A promoted Grade 11 student can be placed in the recreated Grade 12 ICT-A Section.
 - A student may need to be retained in the same grade level.
 - A draft destination year may already have sections created.
 
-The map tells the system exactly where each promoted or retained student should be enrolled.
+The Section checkbox controls whether that Sections-table row and its selected Subject Offerings are copied. It does not move or block the source Section's students as a group. Each promoted or retained student receives an explicit destination Section selected from the Sections chosen for rollover or from Sections that already exist in the destination year.
+
+For full-year rollover, each Grade 11 source Section can have one corresponding Grade 12 student destination. The preview pairs available Grade 11 and Grade 12 Sections in order and prevents two section-level mappings from using the same Grade 12 destination. When there are not enough available Sections, the admin may create a new Grade 12 Section or choose **Assign students individually** and select a destination for every student in that source Section. Individual students use their source Section's mapping by default and can still receive a reviewed exception.
 
 ## Grade 12 Archive Rule
 
@@ -144,7 +150,7 @@ During full academic rollover, Grade 12 students have no normal next grade level
 
 Because of that:
 
-- Grade 12 sections do not require a destination section.
+- Grade 12 Section definitions may still be copied for the incoming Grade 11 cohort.
 - Grade 12 students are marked as archived or graduated by default.
 - The UI should display them as archived instead of asking for a destination section.
 
@@ -155,6 +161,7 @@ If a Grade 12 student failed, was retained, or needs review, the admin can chang
 Academic rollover can create:
 
 - destination sections when the admin provides a new destination section name;
+- selected destination Subject Offerings linked to the mapped Sections;
 - destination student enrollment records;
 - rollover history records;
 - per-student rollover result records.
@@ -171,8 +178,6 @@ It does not copy:
 
 - attendance logs;
 - attendance sessions;
-- subjects;
-- subject offerings;
 - schedules;
 - instructor assignments;
 - online classes;
@@ -187,16 +192,17 @@ It does not copy:
 - system settings;
 - account configuration.
 
-Subjects, instructors, offerings, and schedules must be configured for the destination academic year or semester separately. This keeps historical records clean and prevents old operational data from being mixed into the new school year.
+The permanent Subject catalog is reused rather than duplicated. The admin can include or exclude each active source Subject Offering during preview. Selected offerings are created for the mapped destination Section and semester without copying the old Instructor or Schedule. This keeps historical teaching assignments clean while avoiding repetitive Subject setup.
 
 ## Subject Offering and Schedule Setup
 
-After rollover, administrators should configure teaching data for the destination semester.
+After rollover, administrators should complete the teaching setup for the destination semester.
 
 - The Subjects page can filter sections by academic year and grade level before selecting a section.
 - Subject offerings inherit their academic year and semester from the selected section.
+- Rollover-created Subject Offerings have no Instructor assignment until an administrator assigns one.
 - Removing an instructor removes only the instructor assignment; the subject offering and section assignment remain.
-- New schedules should use subject offerings from the intended academic year and semester.
+- New Schedules should use the reviewed rollover Subject Offerings from the intended academic year and semester.
 - Historical schedules remain viewable through filters but should not be reused as current schedules.
 
 ## Historical Information

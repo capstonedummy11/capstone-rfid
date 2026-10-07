@@ -6,6 +6,8 @@ const props = defineProps({
     selectedStudentId: { type: [Number, String, null], default: null },
 });
 
+// @function selectStudent: Pinipili ang student sa Linked Student Selector flow.
+// @useIn selectStudent: resources/js/components/StudentPortal/LinkedStudentSelector.vue template @change
 const selectStudent = (event) => {
     const studentId = event.target.value;
     const params = new URLSearchParams(window.location.search);

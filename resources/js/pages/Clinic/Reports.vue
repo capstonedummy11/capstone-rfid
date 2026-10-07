@@ -1,3 +1,4 @@
+<!-- FEATURE:clinic-reports - UI para sa clinic reports. -->
 <script setup>
 import { router } from '@inertiajs/vue3';
 import { Activity, Download, FileBarChart, HeartPulse } from 'lucide-vue-next';
@@ -20,6 +21,8 @@ const form = reactive({
     case_type: props.filters.case_type || '',
 });
 
+// @function applyFilters: Inilalapat ang filters sa Reports flow.
+// @useIn applyFilters: resources/js/pages/Clinic/Reports.vue template @click
 const applyFilters = () => {
     router.get(route('clinic.reports'), form, {
         preserveState: true,
@@ -27,6 +30,8 @@ const applyFilters = () => {
     });
 };
 
+// @function resetFilters: Nire-reset ang filters sa Reports flow.
+// @useIn resetFilters: resources/js/pages/Clinic/Reports.vue template @click
 const resetFilters = () => {
     form.date_from = '';
     form.date_to = '';
@@ -35,6 +40,8 @@ const resetFilters = () => {
     applyFilters();
 };
 
+// @function exportUrl: Ine-export ang url sa Reports flow.
+// @useIn exportUrl: resources/js/pages/Clinic/Reports.vue template
 const exportUrl = () => route('clinic.reports.export', form);
 </script>
 

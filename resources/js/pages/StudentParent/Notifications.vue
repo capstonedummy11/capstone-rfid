@@ -1,3 +1,4 @@
+<!-- FEATURE:online-class-notifications - UI para sa online class notifications. -->
 <script setup>
 import { router } from '@inertiajs/vue3';
 import LinkedStudentSelector from '@/components/StudentPortal/LinkedStudentSelector.vue';
@@ -9,6 +10,8 @@ defineProps({
     notifications: { type: Array, default: () => [] },
 });
 
+// @function markRead: Minamark ang read sa Notifications flow.
+// @useIn markRead: resources/js/pages/StudentParent/Notifications.vue template @click
 const markRead = (notification) => {
     if (notification.read_at) return;
 

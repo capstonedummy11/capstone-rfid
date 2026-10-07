@@ -23,23 +23,27 @@
     </div>
 </template>
 <script setup>
-import item1 from '@/assets/images/Item 1.png';
-import item2 from '@/assets/images/Item 2.png';
 import item3 from '@/assets/images/Item 3.png';
-import item4 from '@/assets/images/Item 4.png';
 import item5 from '@/assets/images/Item 5.png';
+import container1 from '@/assets/images/Container.png';
+import container2 from '@/assets/images/Container 2.png';
+import container3 from '@/assets/images/Container 3.png';
+import container4 from '@/assets/images/Container 4.png';
 const gallery = [
     {
-        image: item1,
+        image: container1,
     },
     {
-        image: item2,
+        image: container2,
+    },
+    {
+        image: container3,
+    },
+    {
+        image: container4,
     },
     {
         image: item3,
-    },
-    {
-        image: item4,
     },
     {
         image: item5,

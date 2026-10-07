@@ -5,8 +5,43 @@ use App\Models\PanelDevice;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
+
+test('admin can open laboratory and device pages when a managed device has no panel session', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $laboratory = Laboratory::query()->create([
+        'name' => 'New Computer Laboratory',
+        'description' => 'No panel session has been opened yet.',
+        'location' => 'Building E',
+        'status' => 'active',
+    ]);
+    $device = PanelDevice::query()->create([
+        'laboratory_id' => $laboratory->laboratory_id,
+        'label' => 'NEW-LAB-PANEL',
+        'pin_hash' => Hash::make('1357'),
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.laboratories'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Auth/Admin/Laboratories')
+            ->where('laboratories.0.laboratory_id', $laboratory->laboratory_id));
+
+    $this->actingAs($admin)
+        ->get(route('admin.active-devices.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Auth/Admin/ActiveDevices')
+            ->where('devices', fn ($devices) => collect($devices)->contains(
+                fn ($row) => (int) $row['panel_device_id'] === $device->panel_device_id
+                    && $row['panel_session_id'] === null
+                    && $row['status_label'] === 'Offline',
+            )));
+});
 
 test('admin can create and manage a device assigned to a laboratory', function () {
     $admin = User::factory()->create(['role' => 'admin']);

@@ -3,7 +3,7 @@
 ## Technology and runtime
 
 - Backend: PHP 8.2+ requirement, Laravel 12.52 in the audited lockfile, Laravel Fortify, Inertia Laravel, Eloquent, notifications/mail, scheduler, filesystem, cache, and sessions.
-- Frontend: Vue 3.5, Inertia Vue 2.3, Vite 7, Tailwind CSS 4, Wayfinder, SweetAlert2, Lucide, and TypeScript tooling.
+- Frontend: Vue 3.5, Inertia Vue 2.3, Vite 7, Tailwind CSS 4, Wayfinder, SweetAlert2, Lucide, and TypeScript tooling. AWS's official web liveness detector is isolated as a React island because AWS does not provide a Vue detector.
 - Database: MySQL in `.env.example`; migrations also completed against a temporary SQLite audit database during documentation review.
 - Documents/data: DOMPDF dependency for PDF support, PhpSpreadsheet for XLSX attendance export, native streamed CSV exports.
 - External services: AWS Rekognition, optional CompreFace code path, Semaphore SMS, SMTP/Laravel Mail.
@@ -30,7 +30,7 @@
 
 ```text
 Browser action
-  -> Laravel web middleware (cookies/session/shared Inertia props/audit/first-password)
+  -> Laravel web middleware (cookies/session/session-identity binding/shared Inertia props/audit/first-password)
   -> authentication and role/feature-specific middleware
   -> controller validation and record-scope authorization
   -> service/business logic and transaction where needed
@@ -43,15 +43,17 @@ Browser action
 
 ## Authentication and authorization
 
-1. `StudentParentLoginController` accepts only `student`/`parent`; a disabled Parent Portal logs a Parent back out with a neutral failure.
-2. `StaffLoginController` accepts only `admin`/`instructor`/`registrar`/`clinic`; Instructor is redirected to verification.
-3. Console uses the public panel verification endpoint to check room/device PIN, then authenticates/maintains a role-restricted Console session.
-4. `EnsurePasswordIsChanged` gates non-Console accounts with `must_change_password`.
-5. `CheckRole` enforces route roles; queries add object-level scope checks.
-6. `EnsureInstructorVerified` gates shared Admin/Instructor pages after each new Instructor login.
-7. `EnsureParentPortalEnabled` blocks Parent access to portal, messages, reports, and evidence while leaving Student access intact.
-8. Root Admin is a boolean privilege on an Admin account. `AdminUserController` enforces Root-only Admin management, prevents self-deletion, and protects the last Root Admin.
-9. Fortify supplies password reset, email verification, password confirmation, and two-factor flows. Login is limited to five attempts/minute per normalized email and IP.
+1. Each successful login regenerates the Laravel session ID and records a unique login instance plus its bound user in that server-side session. Different browser cookie jars remain independent; one browser profile keeps one active account.
+2. `EnsureAuthenticatedSessionIdentity` validates the bound user on every authenticated web request and invalidates only the affected session if an identity mismatch is detected.
+3. `StudentParentLoginController` accepts only `student`/`parent`; a disabled Parent Portal logs a Parent back out with a neutral failure.
+4. `StaffLoginController` accepts only `admin`/`instructor`/`registrar`/`clinic`; Instructor is redirected to verification.
+5. Console uses the public panel verification endpoint to check room/device PIN, then authenticates/maintains a role-restricted Console session.
+6. `EnsurePasswordIsChanged` gates non-Console accounts with `must_change_password`.
+7. `CheckRole` enforces route roles; queries add object-level scope checks.
+8. `EnsureInstructorVerified` gates shared Admin/Instructor pages after each new Instructor login.
+9. `EnsureParentPortalEnabled` blocks Parent access to portal, messages, reports, and evidence while leaving Student access intact.
+10. Root Admin is a boolean privilege on exactly one active Admin account. Normal ownership changes require step-up authentication, signed acceptance, a configurable 14-day delay, and a post-completion cooldown. Emergency changes require distinct non-requester Admin approvals and a delayed execution window. `RootTransferService` and `RootOverrideService` lock lifecycle rows and delegate the atomic privilege swap to `RootOwnershipSwapService`; `AccessRevocationService` rotates remember tokens, clears database sessions, and conditionally revokes future Passport/Sanctum tokens. Every event is appended to immutable `root_audit_logs`.
+11. Fortify supplies password reset, email verification, password confirmation, and authenticator-app two-factor flows. Login is limited to five attempts/minute per normalized email and IP. In addition, every real Admin password login invokes `AdminLoginOtpService`, which stores only a hash of a login-ID-bound email code. `EnsureAdminLoginOtpVerified` blocks that session from protected pages until the code succeeds; resends rotate the challenge and verification/dispatch have independent rate limits.
 
 ## Shared frontend behavior
 
@@ -161,13 +163,13 @@ Emergency sound is a browser-side notification driven by polling/refresh data an
 
 ## Academic rollover algorithm
 
-1. Validate same-year First-to-Second semester mode or different-year active/closed source plus draft destination.
+1. Validate same-year First-to-Second semester mode or different-year active/closed source plus draft destination. Rollover does not change `active_semester`.
 2. Load source-semester enrollments and recommend dropped, graduated, retain, promote, or review.
-3. Validate/create explicitly mapped destination sections with correct grade/semester.
+3. Reuse or create explicitly selected destination Sections with the reviewed grade while preserving the source semester for full-year rollover.
 4. For promote/retain, create the destination enrollment if missing and update current student compatibility placement.
 5. For graduated, mark current Student status graduated; skipped decisions create no enrollment.
 6. Upsert per-student rollover item and complete the transaction/audit.
-7. Do not copy subjects, offerings, schedules, attendance, online classes, messages, files, clinic, borrowing, or logs.
+7. Reuse the global Subject catalog and create only the Subject Offerings selected in preview for mapped destination Sections. Do not copy Instructor assignments, Schedules, attendance, online classes, messages, files, Clinic, borrowing, or logs.
 
 The unused private `copyOfferingsAndSchedules` helper remains in the service, but `execute` explicitly sets those copy counts to zero and does not call it. Documentation follows executed behavior.
 
@@ -175,19 +177,18 @@ The unused private `copyOfferingsAndSchedules` helper remains in the service, bu
 
 | Integration | Trigger | Failure behavior |
 | --- | --- | --- |
-| AWS Rekognition | Attendance/online face comparison and availability checks. | Returns unavailable/no-match path; settings disable impossible combinations; documented Instructor fallbacks may apply. |
+| AWS Rekognition | Attendance/online/instructor face comparison plus optional Face Liveness video challenge. Laravel creates and binds each session, Amplify streams with a start-only Cognito role, Laravel evaluates the result, and the returned reference frame still must match an enrolled image. | Disabled liveness preserves the documented still-capture flow; enabled liveness fails closed on missing/expired/replayed tokens or a low confidence score. Existing documented Instructor fallbacks remain separate explicit paths. |
 | CompreFace | Legacy/alternative face service code path. | Service catches/logs failures; not the primary settings availability provider. |
-| SMTP/Laravel Mail | OTP, password reset, messages, class notices, dispatch, letters. | Most user operation remains stored; email error is caught/recorded where implemented. OTP send itself returns an error on mail failure. |
+| SMTP/Laravel Mail | OTP, password reset, messages, class notices, dispatch, letters. | With `MAIL_MAILER=failover`, Laravel tries the primary SMTP account, then `smtp_backup` on a transport error. Both must allow the configured From address. Most user operation remains stored; email error is caught/recorded where implemented. OTP send itself returns an error if both transports fail. |
 | Semaphore | Emergency hotline SMS. | Alert remains stored and JSON/metadata reports failed/disabled result. |
 | Public filesystem | Faces, evidence, class/message/letter files, sounds. | Missing file returns 404; writes must have runtime permissions and public link where URL access is used. |
 
 ## Current implementation gaps requiring explicit treatment
 
-- No schedule conflict detection.
+- Schedule create/update requires 15-minute (`:00`, `:15`, `:30`, or `:45`) time boundaries and rejects overlapping assignments that share a section, Instructor, laboratory, or room on the same weekday; adjacent end/start times are allowed.
 - Online Classes feature switch is not a universal route-level kill switch.
 - Enrollment status vocabulary is inconsistent (`enrolled` versus `active`) in online-class/report queries.
 - Student Management face buttons reference unregistered Admin route names.
 - Public registration and legacy public message-create/store routes remain enabled; production policy should confirm this.
 - Database queue is the example default but migrations do not create `jobs`, `job_batches`, or `failed_jobs`; either add queue migrations or set `QUEUE_CONNECTION=sync` when no queued work is required.
 - The health route is application-process health only, not dependency readiness.
-

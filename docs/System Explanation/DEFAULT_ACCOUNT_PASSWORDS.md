@@ -4,23 +4,49 @@ Documentation home: [Documentation Index and Source-of-Truth Map](../DOCUMENTATI
 
 Login recovery and mandatory first-login behavior are defined in [Authentication and Password Rules](AUTHENTICATION_PASSWORD_RULES.md).
 
-This document describes how the application assigns an initial password when each type of account is created.
+This document is the canonical reference for how the application assigns an initial password when each role or account type is created. It separates normal account-creation rules from local demonstration seed credentials.
 
 > Security notice: Default and seeded passwords are intended only for first access or local demonstration. Change them immediately, never reuse them in production, and do not add real production credentials to this repository.
 
-## Operational Account-Creation Rules
+## Quick Reference for Newly Created Accounts
 
-| Account type                 | Creation path                                            | Initial password                                                                                                                        |
-| ---------------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| Root admin                   | Admin User Management, created by an existing root admin | No default. The creator must enter a password of at least 8 characters.                                                                 |
-| Admin                        | Admin User Management, created by a root admin           | No default. The creator must enter a password of at least 8 characters.                                                                 |
-| Clinic                       | Admin User Management                                    | No default. The creator must enter a password of at least 8 characters.                                                                 |
-| Registrar                    | Admin User Management                                    | No default. The creator must enter a password of at least 8 characters.                                                                 |
-| Instructor                   | Admin Instructor Management                              | `password`                                                                                                                              |
-| Student                      | Admin Student Management                                 | Student's first name plus last name with all spaces removed.                                                                            |
-| Parent                       | Parent account creation/linking in Student Management    | No default. The creator must enter a password of at least 8 characters for a new parent account.                                        |
-| Self-registered student/user | Public registration                                      | No default. The user chooses and confirms their password.                                                                               |
-| Runtime attendance console   | Attendance panel access                                  | No reusable account password. The system generates a random 40-character password and users authenticate with the configured panel PIN. |
+| Role or account type    | Created from                                                   | Initial password                                                                                            | Must create a private password at next login? | Important notes                                                                                        |
+| ----------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Root Admin              | Existing provisioned account; not creatable in User Management | Provisioned outside the normal User Management workflow.                                                    | Depends on provisioning                       | User Management preserves existing Root Admin status but cannot create or promote another Root Admin.  |
+| Admin                   | **Admin User Management**, created by a Root Admin             | No fixed default. The creator enters a password with at least 8 characters.                                 | Yes                                           | A normal Admin cannot create another Admin.                                                            |
+| Clinic                  | **Admin User Management**                                      | Creator-entered password; Admin reset uses the lowercase Name with spaces removed                           | Yes                                           | Reset ends active sessions and requires a private password at next login.                              |
+| Registrar               | **Admin User Management**                                      | Creator-entered password; Admin reset uses the lowercase Name with spaces removed                           | Yes                                           | Reset ends active sessions and requires a private password at next login.                              |
+| Instructor              | **Admin Instructor Management**                                | Lowercase `FirstName` + `LastName`, with every space removed                                                | Yes                                           | The same formula is restored by **Reset password**. Active sessions end when an Admin resets it.       |
+| Student                 | **Admin Student Management**                                   | Lowercase `FirstName` + `LastName`, with every space removed                                                | Yes                                           | The lowercase student number is the fallback if both names are empty.                                  |
+| Parent                  | **Manage Parents** in Student Management                       | Lowercase `FirstName` + `LastName`, with every space removed                                                | Yes                                           | The create form has no password field. Linking an existing Parent preserves the current password.      |
+| Self-registered Student | Public registration                                            | No default. The user chooses and confirms a password; the legacy public form accepts at least 6 characters. | Current code sets the first-login-change flag | Public registration policy should be reviewed before production deployment.                            |
+| Runtime Console         | Attendance Panel room/PIN verification                         | A random 40-character internal password is generated by the server.                                         | No                                            | Operators do not use this generated password. They authenticate using the configured panel/device PIN. |
+
+## Creation Rules by Management Page
+
+### Admin User Management
+
+This page creates standard Admin, Clinic, and Registrar accounts. It cannot create a Root Admin or promote an existing account to Root Admin. Existing Root Admin status remains visible and is preserved when that account is edited. The person creating a managed account must enter the temporary password; the application does not supply a shared creation default. The password must contain at least 8 characters, is stored as a hash, and the new account is marked for mandatory password replacement.
+
+Clinic and Registrar rows include **Reset password**. Resetting generates a temporary password from the account's Name field, removes every space, and converts the result to lowercase. For example, `Maria Santos` becomes `mariasantos`. The reset ends active sessions and requires a private password at the next login. Admin and Root Admin accounts are deliberately excluded from this reset action.
+
+### Instructor Management
+
+Instructor creation uses the Instructor's first name followed by last name, with every space removed and the complete result converted to lowercase:
+
+```text
+firstnamelastname
+```
+
+For example, `Maria Dela Cruz` receives `mariadelacruz`. The **Reset password** action recalculates the temporary password from the Instructor's current first and last names. The Instructor must replace it before proceeding to Instructor verification or normal role pages.
+
+### Student and Parent Management
+
+Student and new Parent accounts use the first-name-plus-last-name formula documented below. Existing Parent accounts keep their current password when linked to another student. The optional password field is available only while editing an existing Parent.
+
+### Attendance Console
+
+The Console account created for an active panel session receives a random internal password. This value is not displayed or reused. Panel operators use the configured room/device PIN instead; a panel PIN is not an account password.
 
 ## Student Password Formula
 
@@ -36,29 +62,37 @@ Examples:
 
 | Student name   | Initial password |
 | -------------- | ---------------- |
-| Juan Dela Cruz | `JuanDelaCruz`   |
-| Andrea Santos  | `AndreaSantos`   |
-| Nina Dela Cruz | `NinaDelaCruz`   |
+| Juan Dela Cruz | `juandelacruz`   |
+| Andrea Santos  | `andreasantos`   |
+| Nina Dela Cruz | `ninadelacruz`   |
 
-Capitalization is preserved from the saved first and last names. If both names are unexpectedly empty, the student number is used as a fallback.
+The complete result is converted to lowercase. If both names are unexpectedly empty, the lowercase student number is used as a fallback.
 
 Updating a student record does not automatically replace the existing password. The **Reset Default Password** action explicitly resets it using the current first-name-plus-last-name formula.
 
+## Parent Password Formula
+
+When Admin Student Management creates a new Parent account, the initial password is the Parent's first name followed by last name with every space removed and converted to lowercase. For example, `Maria Dela Cruz` receives `mariadelacruz`. The create form does not accept a manually entered password, and the Parent must replace this temporary password at first login.
+
 ## Existing Parent Accounts
 
-When an existing parent account is linked to another student:
+When an existing Parent account is linked to another student:
 
-- Leaving the password field empty preserves the parent's current password.
-- Entering a new password replaces the existing password.
+- The existing password is always preserved during linking.
+- While editing the Parent, leaving the optional password field empty preserves the current password; entering a new password replaces it.
 - Unlinking a parent from one student does not delete the parent account or change its password.
 
 ## Seeded Development Accounts
+
+These values apply only when the corresponding development/demo seeders are run. They are not the passwords assigned by the normal management pages above.
+
+The clean `MinimalSeeder` is separate: it creates `pcshslaboratories@gmail.com` with `MINIMAL_ROOT_ADMIN_PASSWORD`, which defaults to `change-me-now`, and requires replacement at first login.
 
 The standard database seeders create these demonstration accounts:
 
 | Role             | Email                                               | Seeded password |
 | ---------------- | --------------------------------------------------- | --------------- |
-| Root admin       | `root.admin@sample.com`                             | `sample`        |
+| Root admin       | `pcshslaboratories@gmail.com`                       | `sample`        |
 | Admin            | `test@example.com`                                  | `password`      |
 | Admin            | `jeromebernante@gmail.com`                          | `1234`          |
 | Admin            | `vallecera@gmail.com`                               | `sample`        |
@@ -72,7 +106,7 @@ The standard database seeders create these demonstration accounts:
 | Student          | `miguel.reyes@student.sample.com`                   | `sample`        |
 | Parent           | `parent.andrea.santos@sample.com`                   | `sample`        |
 
-Seeder passwords are development fixtures and do not override the operational account-creation rules above.
+Seeder passwords are development fixtures and do not override the operational account-creation rules above. Do not copy these credentials into production data.
 
 ## Password Changes
 
@@ -80,3 +114,11 @@ Seeder passwords are development fixtures and do not override the operational ac
 - Staff accounts can update passwords through the applicable account-management or password-reset flow.
 - Instructor email OTP is a temporary verification code, not an account password. It expires after 10 minutes.
 - The attendance panel PIN is separate from the generated runtime console-account password.
+
+## Security Rules
+
+- Passwords are stored as hashes; plaintext values are shown here only to document creation rules and local fixtures.
+- Every normal non-Console account is intended to replace its temporary password on first login.
+- Never send a temporary password and its username through the same insecure channel.
+- Do not use seeded or generated temporary passwords in production without completing the mandatory password change.
+- Prefer Laravel's email password-reset flow for established accounts. Administrative default-password reset is a recovery fallback, not the normal password-change method.

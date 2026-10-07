@@ -6,15 +6,10 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    // @function up: Ginagawa o binabago ang database schema para sa migration na ito.
+    // @useIn up: Laravel migration runner
     public function up(): void
     {
-        Schema::table('students', function (Blueprint $table) {
-            $table->unsignedBigInteger('section_id')->nullable()->change();
-            $table->unsignedBigInteger('strand_id')->nullable()->change();
-            $table->integer('year_level')->nullable()->change();
-            $table->string('semester')->nullable()->change();
-            $table->string('school_year')->nullable()->change();
-        });
         Schema::create('legacy_academic_fallback_events', function (Blueprint $table) {
             $table->id('legacy_academic_fallback_event_id');
             $table->string('context')->unique();
@@ -25,15 +20,10 @@ return new class extends Migration
         });
     }
 
+    // @function down: Ibinabalik ang schema changes ng migration na ito.
+    // @useIn down: Laravel migration runner
     public function down(): void
     {
         Schema::dropIfExists('legacy_academic_fallback_events');
-        Schema::table('students', function (Blueprint $table) {
-            $table->unsignedBigInteger('section_id')->nullable(false)->change();
-            $table->unsignedBigInteger('strand_id')->nullable(false)->change();
-            $table->integer('year_level')->nullable(false)->change();
-            $table->string('semester')->nullable(false)->change();
-            $table->string('school_year')->nullable(false)->change();
-        });
     }
 };

@@ -10,6 +10,8 @@ use Illuminate\Validation\ValidationException;
 
 class StudentEnrollmentService
 {
+    // @function syncLegacyPlacement: Sini-sync ang legacy placement sa Student Enrollment flow.
+    // @useIn syncLegacyPlacement: TODO(verify): walang direct caller na nakita sa static search
     public function syncLegacyPlacement(Students $student): StudentEnrollment
     {
         $academicYear = $this->yearForLabel((string) $student->school_year);
@@ -29,6 +31,8 @@ class StudentEnrollmentService
         );
     }
 
+    // @function syncPlacement: Sini-sync ang placement sa Student Enrollment flow.
+    // @useIn syncPlacement: app/Http/Controllers/StudentsController.php
     public function syncPlacement(Students $student, array $placement): StudentEnrollment
     {
         $academicYear = $this->yearForLabel((string) $placement['school_year']);
@@ -40,6 +44,8 @@ class StudentEnrollmentService
         );
     }
 
+    // @function yearForLabel: Kinukuha ang year for label result para sa Student Enrollment.
+    // @useIn yearForLabel: StudentEnrollmentService::syncLegacyPlacement (app/Services/StudentEnrollmentService.php)
     public function yearForLabel(string $label): AcademicYear
     {
         $label = trim($label);
@@ -62,6 +68,8 @@ class StudentEnrollmentService
         );
     }
 
+    // @function enrollmentStatus: Binubuo ang enrollment status string para sa Student Enrollment.
+    // @useIn enrollmentStatus: StudentEnrollmentService::syncLegacyPlacement (app/Services/StudentEnrollmentService.php)
     private function enrollmentStatus(string $legacyStatus): string
     {
         return match ($legacyStatus) {

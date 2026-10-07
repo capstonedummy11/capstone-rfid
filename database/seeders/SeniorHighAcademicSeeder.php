@@ -18,6 +18,8 @@ use Illuminate\Support\Facades\Hash;
 
 class SeniorHighAcademicSeeder extends Seeder
 {
+    // @function run: Pinapatakbo ang Senior High Academic Seeder task.
+    // @useIn run: php artisan db:seed
     /**
      * Seed sample senior high sections, laboratories, subjects, and instructor schedules.
      */
@@ -69,7 +71,7 @@ class SeniorHighAcademicSeeder extends Seeder
             return [$number => $laboratory];
         });
 
-        $sections = collect(range(1, 4))->mapWithKeys(function (int $number) use ($strand, $schoolYear) {
+        $sections = collect(range(1, 4))->mapWithKeys(function (int $number) use ($academicYear, $strand, $schoolYear) {
             $section = Section::updateOrCreate(
                 [
                     'section_name' => "Section {$number}",

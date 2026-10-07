@@ -8,6 +8,8 @@ use Laravel\Fortify\Contracts\PasswordResetResponse as PasswordResetResponseCont
 
 class PasswordResetResponse implements PasswordResetResponseContract
 {
+    // @function toResponse: Kinukuha ang to response result para sa Password Reset Response.
+    // @useIn toResponse: Laravel response contract
     public function toResponse($request)
     {
         $user = User::query()

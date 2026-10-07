@@ -21,6 +21,8 @@ class PanelDevice extends Model
         'is_active' => 'boolean',
     ];
 
+    // @function laboratory: Ibinabalik ang laboratory Eloquent belongsTo relationship.
+    // @useIn laboratory: Eloquent relationship property at eager loading
     public function laboratory(): BelongsTo
     {
         return $this->belongsTo(Laboratory::class, 'laboratory_id', 'laboratory_id');

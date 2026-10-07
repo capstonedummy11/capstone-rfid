@@ -1,10 +1,11 @@
+<!-- FEATURE:authentication - UI para sa role-based login and session protection. -->
 <script setup>
 import featureImage from '@/assets/images/Container.png';
 import featureImage2 from '@/assets/images/Container 2.png';
 import featureImage3 from '@/assets/images/Container 3.png';
 import container4 from '@/assets/images/Container 4.png';
 import logo from '@/assets/images/logo-only.jpg';
-import schoolPhoto from '@/assets/images/philsca.png';
+import schoolPhoto from '@/assets/images/pasayCitysouth.png';
 import {
     getSavedStaffProfiles,
     removeSavedStaffProfile,
@@ -64,7 +65,6 @@ const activeSlide = computed(() => carouselSlides[activeSlideIndex.value]);
 const form = useForm({
     email: '',
     password: '',
-    remember: true,
 });
 
 const helperText = computed(() =>
@@ -73,6 +73,8 @@ const helperText = computed(() =>
         : `Welcome back, ${selectedProfile.value.name}. Enter your password to continue.`,
 );
 
+// @function selectProfile: Pinipili ang profile sa Staff Login flow.
+// @useIn selectProfile: resources/js/pages/Auth/StaffLogin.vue template @click
 const selectProfile = (index) => {
     selectedIndex.value = index;
     useDifferentAccount.value = false;
@@ -81,6 +83,8 @@ const selectProfile = (index) => {
     form.clearErrors();
 };
 
+// @function showDifferentAccount: Ipinapakita ang different account sa Staff Login flow.
+// @useIn showDifferentAccount: resources/js/pages/Auth/StaffLogin.vue template @click
 const showDifferentAccount = () => {
     useDifferentAccount.value = true;
     form.email = '';
@@ -89,10 +93,14 @@ const showDifferentAccount = () => {
     form.clearErrors();
 };
 
+// @function goToSlide: Pinoproseso ang go to slide para sa Staff Login.
+// @useIn goToSlide: resources/js/pages/Auth/StaffLogin.vue template @click
 const goToSlide = (index) => {
     activeSlideIndex.value = index;
 };
 
+// @function removeProfile: Tinatanggal ang profile sa Staff Login flow.
+// @useIn removeProfile: resources/js/pages/Auth/StaffLogin.vue template
 const removeProfile = (index) => {
     const profile = profiles.value[index];
 
@@ -112,6 +120,8 @@ const removeProfile = (index) => {
     selectProfile(selectedIndex.value);
 };
 
+// @function submit: Isinusumite ang staff login sa Staff Login flow.
+// @useIn submit: resources/js/pages/Auth/StaffLogin.vue template @click
 const submit = () => {
     const shouldSave = !useDifferentAccount.value ? true : saveOnDevice.value;
 
@@ -381,15 +391,20 @@ onUnmounted(() => {
                                 </button>
                             </span>
                         </label>
-                        <label
-                            class="flex items-center gap-2 text-sm font-semibold text-slate-600"
-                        >
+                        <label class="flex items-start gap-2 text-slate-600">
                             <input
                                 v-model="saveOnDevice"
                                 type="checkbox"
-                                class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                class="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                             />
-                            Save this account on this device
+                            <span>
+                                <span class="block text-sm font-semibold">
+                                    Remember my email
+                                </span>
+                                <span class="block text-xs text-slate-500">
+                                    Your password is never saved.
+                                </span>
+                            </span>
                         </label>
                     </form>
 

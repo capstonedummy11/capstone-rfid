@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Middleware\EnsureAdminLoginOtpVerified;
+use App\Http\Middleware\EnsureAuthenticatedSessionIdentity;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RecordSystemActivity;
@@ -11,10 +13,10 @@ use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: [
-            __DIR__ . '/../routes/web.php',
-            __DIR__ . '/../routes/settings.php',
+            __DIR__.'/../routes/web.php',
+            __DIR__.'/../routes/settings.php',
         ],
-        commands: __DIR__ . '/../routes/console.php',
+        commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
@@ -37,6 +39,8 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $middleware->web(append: [
+            EnsureAuthenticatedSessionIdentity::class,
+            EnsureAdminLoginOtpVerified::class,
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
@@ -51,5 +55,5 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Laravel's default exception handler reports unexpected failures.
     })->create();

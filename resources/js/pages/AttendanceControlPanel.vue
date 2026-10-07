@@ -1,3 +1,6 @@
+<!-- FEATURE:emergency-alerts - UI para sa emergency alerts and delivery. -->
+<!-- FEATURE:console-borrowing - UI para sa console borrowing. -->
+<!-- FEATURE:rfid-attendance - UI para sa rfid attendance console. -->
 <script setup>
 defineOptions({
     layout: null,
@@ -6,6 +9,7 @@ defineOptions({
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import Swal from 'sweetalert2';
 import CameraCapture from '@/components/CameraCapture.vue';
+import { FaceLivenessError, runFaceLiveness } from '@/lib/faceLiveness';
 
 const props = defineProps({
     rooms: {
@@ -100,6 +104,7 @@ const lastAction = ref(
     'Waiting for an instructor RFID tap to begin attendance recording.',
 );
 const attendanceRecords = ref([]);
+const expandedAttendanceStudents = ref({});
 const scanHistory = ref([
     {
         id: 'boot',
@@ -181,6 +186,28 @@ const modeClass = computed(
 
 const attendanceCount = computed(() => attendanceRecords.value.length);
 
+// @function studentRecordKey: Binubuo ang student record key value.
+// @useIn studentRecordKey: resources/js/pages/AttendanceControlPanel.vue:193
+const studentRecordKey = (record) =>
+    String(record?.student_id ?? record?.rfid ?? record?.id ?? '');
+
+// @function isStudentDetailsExpanded: Sinusuri kung student details expanded para sa Attendance Control Panel.
+// @useIn isStudentDetailsExpanded: resources/js/pages/AttendanceControlPanel.vue template
+const isStudentDetailsExpanded = (record) =>
+    expandedAttendanceStudents.value[studentRecordKey(record)] === true;
+
+// @function toggleStudentDetails: Tina-toggle ang student details sa Attendance Control Panel flow.
+// @useIn toggleStudentDetails: resources/js/pages/AttendanceControlPanel.vue template @click
+const toggleStudentDetails = (record) => {
+    const key = studentRecordKey(record);
+    if (!key) return;
+
+    expandedAttendanceStudents.value = {
+        ...expandedAttendanceStudents.value,
+        [key]: !expandedAttendanceStudents.value[key],
+    };
+};
+
 const activeProfessorSchedule = computed(() => {
     const professor = activeProfessor.value;
     if (!professor) return '---';
@@ -254,6 +281,8 @@ const borrowCatalogMap = computed(() => {
     return map;
 });
 
+// @function resolveBorrowItemsPayload: Hinahanap ang borrow items payload sa Attendance Control Panel flow.
+// @useIn resolveBorrowItemsPayload: resources/js/pages/AttendanceControlPanel.vue:289
 const resolveBorrowItemsPayload = (payload) => {
     if (Array.isArray(payload)) return payload;
     if (payload && typeof payload === 'object' && Array.isArray(payload.items))
@@ -284,6 +313,8 @@ const attendeesSlideVisible = computed(
     () => panelUnlocked.value && currentMode.value === 'attendance',
 );
 
+// @function updateClock: Ina-update ang clock sa Attendance Control Panel flow.
+// @useIn updateClock: resources/js/pages/AttendanceControlPanel.vue:2434
 const updateClock = () => {
     const now = new Date();
     currentDate.value = now.toLocaleDateString('en-US', {
@@ -300,6 +331,8 @@ const updateClock = () => {
     });
 };
 
+// @function pushHistory: Pinoproseso ang push history para sa Attendance Control Panel.
+// @useIn pushHistory: resources/js/pages/AttendanceControlPanel.vue:692
 const pushHistory = (title, subtitle, tone = 'neutral') => {
     scanHistory.value.unshift({
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -316,6 +349,8 @@ const pushHistory = (title, subtitle, tone = 'neutral') => {
     scanHistory.value = scanHistory.value.slice(0, 8);
 };
 
+// @function triggerPulse: Pinoproseso ang trigger pulse para sa Attendance Control Panel.
+// @useIn triggerPulse: resources/js/pages/AttendanceControlPanel.vue:2107
 const triggerPulse = (rfid) => {
     lastScanned.value = rfid;
     scanPulse.value = true;
@@ -324,11 +359,15 @@ const triggerPulse = (rfid) => {
     }, 650);
 };
 
+// @function normalizeRfid: Nino-normalize ang rfid sa Attendance Control Panel flow.
+// @useIn normalizeRfid: resources/js/pages/AttendanceControlPanel.vue:294
 const normalizeRfid = (value) =>
     String(value ?? '')
         .trim()
         .toLowerCase();
 
+// @function escapeHtml: Pinoproseso ang escape html para sa Attendance Control Panel.
+// @useIn escapeHtml: resources/js/pages/AttendanceControlPanel.vue:671
 const escapeHtml = (value = '') =>
     String(value)
         .replaceAll('&', '&amp;')
@@ -337,6 +376,8 @@ const escapeHtml = (value = '') =>
         .replaceAll('"', '&quot;')
         .replaceAll("'", '&#039;');
 
+// @function xsrfToken: Kinukuha ang xsrf token result para sa Attendance Control Panel.
+// @useIn xsrfToken: resources/js/pages/AttendanceControlPanel.vue:772
 const xsrfToken = () => {
     const xsrfRaw = document.cookie
         .split('; ')
@@ -346,6 +387,8 @@ const xsrfToken = () => {
     return xsrfRaw ? decodeURIComponent(xsrfRaw) : '';
 };
 
+// @function resolveInstructorRfidPrompt: Hinahanap ang instructor rfid prompt sa Attendance Control Panel flow.
+// @useIn resolveInstructorRfidPrompt: resources/js/pages/AttendanceControlPanel.vue:2246
 const resolveInstructorRfidPrompt = (rfid) => {
     const scannedRfid = String(rfid ?? '').trim();
     if (!pendingInstructorRfidPrompt || !scannedRfid) return false;
@@ -363,6 +406,8 @@ const resolveInstructorRfidPrompt = (rfid) => {
     return true;
 };
 
+// @function requestInstructorRfidPrompt: Pinoproseso ang request instructor rfid prompt para sa Attendance Control Panel.
+// @useIn requestInstructorRfidPrompt: resources/js/pages/AttendanceControlPanel.vue:531
 const requestInstructorRfidPrompt = ({
     title = 'Instructor RFID Required',
     text,
@@ -407,6 +452,8 @@ const requestInstructorRfidPrompt = ({
         },
     });
 
+// @function setTapHeadline: Sine-set ang tap headline sa Attendance Control Panel flow.
+// @useIn setTapHeadline: resources/js/pages/AttendanceControlPanel.vue:749
 const setTapHeadline = (message, holdMs = 2200) => {
     tapHeadline.value = message;
     if (tapHeadlineTimer) {
@@ -419,6 +466,8 @@ const setTapHeadline = (message, holdMs = 2200) => {
     }, holdMs);
 };
 
+// @function triggerCameraCapture: Kinukuha ang trigger camera capture result para sa Attendance Control Panel.
+// @useIn triggerCameraCapture: resources/js/pages/AttendanceControlPanel.vue:902
 const triggerCameraCapture = () => {
     if (captureResetTimer) clearTimeout(captureResetTimer);
     const dataUrl = cameraRef.value?.captureFrame() ?? null;
@@ -433,6 +482,8 @@ const triggerCameraCapture = () => {
     return dataUrl;
 };
 
+// @function showStudentTemporarily: Ipinapakita ang student temporarily sa Attendance Control Panel flow.
+// @useIn showStudentTemporarily: resources/js/pages/AttendanceControlPanel.vue:799
 const showStudentTemporarily = (student) => {
     activeStudent.value = student;
 
@@ -446,6 +497,8 @@ const showStudentTemporarily = (student) => {
     }, STUDENT_INFO_VISIBLE_MS);
 };
 
+// @function lookupRfidFromServer: Hinahanap ang rfid from server sa Attendance Control Panel flow.
+// @useIn lookupRfidFromServer: resources/js/pages/AttendanceControlPanel.vue:2108
 const lookupRfidFromServer = async (rfid) => {
     try {
         const xsrfRaw = document.cookie
@@ -474,6 +527,8 @@ const lookupRfidFromServer = async (rfid) => {
     }
 };
 
+// @function recordStudentTapOnServer: Nagtatala ng ang student tap on server sa Attendance Control Panel flow.
+// @useIn recordStudentTapOnServer: resources/js/pages/AttendanceControlPanel.vue:1030
 const recordStudentTapOnServer = async (student, extra = {}) => {
     try {
         const xsrfRaw = document.cookie
@@ -506,6 +561,8 @@ const recordStudentTapOnServer = async (student, extra = {}) => {
     }
 };
 
+// @function requestInstructorTapForTemporaryMovement: Kinukuha ang request instructor tap for temporary movement result para sa Attendance Control Panel.
+// @useIn requestInstructorTapForTemporaryMovement: resources/js/pages/AttendanceControlPanel.vue:1047
 const requestInstructorTapForTemporaryMovement = async (student) => {
     const result = await requestInstructorRfidPrompt({
         title: 'Instructor RFID Required',
@@ -524,6 +581,8 @@ const requestInstructorTapForTemporaryMovement = async (student) => {
     return String(result.value || '').trim();
 };
 
+// @function loadAttendanceLogsFromServer: Niloload ang attendance logs from server sa Attendance Control Panel flow.
+// @useIn loadAttendanceLogsFromServer: resources/js/pages/AttendanceControlPanel.vue:698
 const loadAttendanceLogsFromServer = async () => {
     if (!selectedRoom.value) return;
 
@@ -561,6 +620,8 @@ const loadAttendanceLogsFromServer = async () => {
     }
 };
 
+// @function syncPanelSessionState: Sini-sync ang panel session state sa Attendance Control Panel flow.
+// @useIn syncPanelSessionState: resources/js/pages/AttendanceControlPanel.vue:697
 const syncPanelSessionState = async (status, extra = {}) => {
     if (!selectedRoom.value) return;
     if (status === 'borrowing' && !borrowingEnabled.value) return;
@@ -596,6 +657,8 @@ const syncPanelSessionState = async (status, extra = {}) => {
     }
 };
 
+// @function persistPanelRuntime: Pinoproseso ang persist panel runtime para sa Attendance Control Panel.
+// @useIn persistPanelRuntime: resources/js/pages/AttendanceControlPanel.vue:2461
 const persistPanelRuntime = () => {
     const runtime = {
         sessionActive: sessionActive.value,
@@ -609,10 +672,14 @@ const persistPanelRuntime = () => {
     localStorage.setItem(PANEL_RUNTIME_KEY, JSON.stringify(runtime));
 };
 
+// @function clearPanelRuntime: Nililinis ang panel runtime sa Attendance Control Panel flow.
+// @useIn clearPanelRuntime: resources/js/pages/AttendanceControlPanel.vue:2003
 const clearPanelRuntime = () => {
     localStorage.removeItem(PANEL_RUNTIME_KEY);
 };
 
+// @function showToast: Ipinapakita ang toast sa Attendance Control Panel flow.
+// @useIn showToast: resources/js/pages/AttendanceControlPanel.vue:699
 const showToast = (icon, title) => {
     Swal.fire({
         toast: true,
@@ -628,6 +695,8 @@ const showToast = (icon, title) => {
     });
 };
 
+// @function showStudentToast: Ipinapakita ang student toast sa Attendance Control Panel flow.
+// @useIn showStudentToast: resources/js/pages/AttendanceControlPanel.vue:829
 const showStudentToast = (student, message, icon = 'success') => {
     const photoSrc =
         capturedPhotoUrl.value ??
@@ -659,6 +728,8 @@ const showStudentToast = (student, message, icon = 'success') => {
     });
 };
 
+// @function startAttendanceSession: Sinisimulan ang attendance session sa Attendance Control Panel flow.
+// @useIn startAttendanceSession: resources/js/pages/AttendanceControlPanel.vue:2132
 const startAttendanceSession = (professor) => {
     sessionActive.value = true;
     currentMode.value = 'attendance';
@@ -678,12 +749,14 @@ const startAttendanceSession = (professor) => {
     showToast('success', 'Attendance recording started');
 };
 
+// @function endAttendanceSession: Tinatapos ang attendance session sa Attendance Control Panel flow.
+// @useIn endAttendanceSession: TODO(verify): walang direct caller na nakita sa static search
 const endAttendanceSession = () => {
     if (!activeProfessor.value) return;
 
     pushHistory(
         'Attendance ended',
-        `${activeProfessor.value.name} closed the session with ${attendanceRecords.value.length} recorded student tap${attendanceRecords.value.length === 1 ? '' : 's'}.`,
+        `${activeProfessor.value.name} closed the session with ${attendanceCount.value} recorded student${attendanceCount.value === 1 ? '' : 's'}.`,
         'warning',
     );
 
@@ -700,6 +773,8 @@ const endAttendanceSession = () => {
     showToast('info', 'Attendance session ended');
 };
 
+// @function enableDismissClassMode: Kinukuha ang enable dismiss class mode result para sa Attendance Control Panel.
+// @useIn enableDismissClassMode: resources/js/pages/AttendanceControlPanel.vue:1886
 const enableDismissClassMode = async () => {
     const confirmation = await Swal.fire({
         icon: 'warning',
@@ -733,11 +808,14 @@ const enableDismissClassMode = async () => {
     showToast('info', 'All checked-in student taps will be checkout');
 };
 
+// @function checkStudentFaceForAttendance: Sini-check ang student face for attendance sa Attendance Control Panel flow.
+// @useIn checkStudentFaceForAttendance: resources/js/pages/AttendanceControlPanel.vue:822
 const checkStudentFaceForAttendance = async (
     student,
     base64DataUrl = null,
     instructorRfid = null,
     cameraUnavailable = false,
+    livenessToken = null,
 ) => {
     try {
         const response = await fetch(
@@ -755,6 +833,7 @@ const checkStudentFaceForAttendance = async (
                     subject_code: activeProfessor.value?.subject_code ?? null,
                     schedule_id: activeProfessor.value?.schedule_id ?? null,
                     image: base64DataUrl,
+                    liveness_token: livenessToken,
                     instructor_rfid: instructorRfid,
                     camera_unavailable: cameraUnavailable,
                 }),
@@ -772,6 +851,8 @@ const checkStudentFaceForAttendance = async (
     }
 };
 
+// @function recordAttendance: Nagtatala ng ang attendance sa Attendance Control Panel flow.
+// @useIn recordAttendance: resources/js/pages/AttendanceControlPanel.vue:2177
 const recordAttendance = async (student) => {
     showStudentTemporarily(student);
 
@@ -824,87 +905,35 @@ const recordAttendance = async (student) => {
             'success',
         );
     } else {
-        triggerCameraCapture();
-
-        if (!capturedPhotoUrl.value) {
-            let bypassResult = await checkStudentFaceForAttendance(
-                student,
-                null,
-                null,
-                true,
-            );
-
-            if (!bypassResult?.ok) {
-                const instructorApproval = await requestInstructorRfidPrompt({
-                    title: 'Camera Unavailable',
-                    text: "Scan the active instructor's RFID once to continue this scheduled class without camera capture. The bypass ends when the class session ends or the panel logs out.",
-                    confirmButtonText: 'Enable Session Bypass',
-                    confirmButtonColor: '#d97706',
-                });
-
-                if (!instructorApproval.isConfirmed) {
-                    pushHistory(
-                        'Attendance blocked',
-                        'Camera was unavailable and the instructor did not enable the session bypass.',
-                        'warning',
-                    );
-                    setTapHeadline('Attendance Not Recorded');
-                    return;
-                }
-
-                bypassResult = await checkStudentFaceForAttendance(
-                    student,
-                    null,
-                    String(instructorApproval.value).trim(),
-                    true,
-                );
-            }
-
-            if (!bypassResult?.ok || !bypassResult.camera_session_override) {
-                showStudentToast(
-                    student,
-                    bypassResult?.message ??
-                        'Camera bypass verification failed. Attendance was not recorded.',
-                    'warning',
-                );
-                setTapHeadline('Instructor Verification Failed');
-                return;
-            }
-
+        let livenessToken = null;
+        try {
+            livenessToken = await runFaceLiveness({
+                purpose: 'attendance_student',
+                subjectKey: student.rfid,
+            });
+        } catch (error) {
+            const message =
+                error instanceof FaceLivenessError
+                    ? error.message
+                    : 'Live-face verification could not be completed.';
+            showStudentToast(student, message, 'warning');
             pushHistory(
-                'Camera session bypass',
-                `${student.name} continued under the active instructor's camera-unavailable approval.`,
+                'Liveness verification blocked',
+                `${student.name}: ${message}`,
                 'warning',
             );
-        } else {
-            let faceResult = await checkStudentFaceForAttendance(
+            setTapHeadline('Liveness Verification Failed');
+            return;
+        }
+
+        if (livenessToken) {
+            const faceResult = await checkStudentFaceForAttendance(
                 student,
-                capturedPhotoUrl.value,
+                null,
+                null,
+                false,
+                livenessToken,
             );
-
-            if (faceResult?.requires_instructor_rfid) {
-                const instructorApproval = await requestInstructorRfidPrompt({
-                    text:
-                        faceResult.message ??
-                        'Scan the active instructor RFID to approve this attendance.',
-                });
-
-                if (!instructorApproval.isConfirmed) {
-                    pushHistory(
-                        'Attendance blocked',
-                        `${student.name}: instructor approval was not provided.`,
-                        'warning',
-                    );
-                    setTapHeadline('Attendance Not Recorded');
-                    return;
-                }
-
-                faceResult = await checkStudentFaceForAttendance(
-                    student,
-                    null,
-                    String(instructorApproval.value).trim(),
-                );
-            }
 
             if (!faceResult?.ok || faceResult.verified === false) {
                 showStudentToast(
@@ -922,25 +951,135 @@ const recordAttendance = async (student) => {
                 return;
             }
 
-            if (faceResult.provider_unavailable) {
+            pushHistory(
+                'Live face verified',
+                `${student.name} passed AWS liveness and face matching; the AWS reference frame was saved as evidence.`,
+                'success',
+            );
+        } else {
+            triggerCameraCapture();
+
+            if (!capturedPhotoUrl.value) {
+                let bypassResult = await checkStudentFaceForAttendance(
+                    student,
+                    null,
+                    null,
+                    true,
+                );
+
+                if (!bypassResult?.ok) {
+                    const instructorApproval =
+                        await requestInstructorRfidPrompt({
+                            title: 'Camera Unavailable',
+                            text: "Scan the active instructor's RFID once to continue this scheduled class without camera capture. The bypass ends when the class session ends or the panel logs out.",
+                            confirmButtonText: 'Enable Session Bypass',
+                            confirmButtonColor: '#d97706',
+                        });
+
+                    if (!instructorApproval.isConfirmed) {
+                        pushHistory(
+                            'Attendance blocked',
+                            'Camera was unavailable and the instructor did not enable the session bypass.',
+                            'warning',
+                        );
+                        setTapHeadline('Attendance Not Recorded');
+                        return;
+                    }
+
+                    bypassResult = await checkStudentFaceForAttendance(
+                        student,
+                        null,
+                        String(instructorApproval.value).trim(),
+                        true,
+                    );
+                }
+
+                if (
+                    !bypassResult?.ok ||
+                    !bypassResult.camera_session_override
+                ) {
+                    showStudentToast(
+                        student,
+                        bypassResult?.message ??
+                            'Camera bypass verification failed. Attendance was not recorded.',
+                        'warning',
+                    );
+                    setTapHeadline('Instructor Verification Failed');
+                    return;
+                }
+
                 pushHistory(
-                    'AWS Rekognition unavailable',
-                    `${student.name}'s camera image was saved as attendance evidence without an AWS comparison.`,
+                    'Camera session bypass',
+                    `${student.name} continued under the active instructor's camera-unavailable approval.`,
                     'warning',
                 );
-                await Swal.fire({
-                    icon: 'warning',
-                    title: 'Face Rekognition Unavailable',
-                    text: faceResult.message,
-                    confirmButtonText: 'Continue',
-                    confirmButtonColor: '#d97706',
-                });
             } else {
-                pushHistory(
-                    'Face verified',
-                    `${student.name} passed AWS face verification and the evidence image was saved.`,
-                    'success',
+                let faceResult = await checkStudentFaceForAttendance(
+                    student,
+                    capturedPhotoUrl.value,
                 );
+
+                if (faceResult?.requires_instructor_rfid) {
+                    const instructorApproval =
+                        await requestInstructorRfidPrompt({
+                            text:
+                                faceResult.message ??
+                                'Scan the active instructor RFID to approve this attendance.',
+                        });
+
+                    if (!instructorApproval.isConfirmed) {
+                        pushHistory(
+                            'Attendance blocked',
+                            `${student.name}: instructor approval was not provided.`,
+                            'warning',
+                        );
+                        setTapHeadline('Attendance Not Recorded');
+                        return;
+                    }
+
+                    faceResult = await checkStudentFaceForAttendance(
+                        student,
+                        null,
+                        String(instructorApproval.value).trim(),
+                    );
+                }
+
+                if (!faceResult?.ok || faceResult.verified === false) {
+                    showStudentToast(
+                        student,
+                        faceResult?.message ??
+                            'Face verification failed. Attendance was not recorded.',
+                        'warning',
+                    );
+                    pushHistory(
+                        'Face verification blocked',
+                        `${student.name}: ${faceResult?.message ?? 'verification failed.'}`,
+                        'warning',
+                    );
+                    setTapHeadline('Face Verification Failed');
+                    return;
+                }
+
+                if (faceResult.provider_unavailable) {
+                    pushHistory(
+                        'AWS Rekognition unavailable',
+                        `${student.name}'s camera image was saved as attendance evidence without an AWS comparison.`,
+                        'warning',
+                    );
+                    await Swal.fire({
+                        icon: 'warning',
+                        title: 'Face Rekognition Unavailable',
+                        text: faceResult.message,
+                        confirmButtonText: 'Continue',
+                        confirmButtonColor: '#d97706',
+                    });
+                } else {
+                    pushHistory(
+                        'Face verified',
+                        `${student.name} passed AWS face verification and the evidence image was saved.`,
+                        'success',
+                    );
+                }
             }
         }
     }
@@ -994,6 +1133,7 @@ const recordAttendance = async (student) => {
 
     const mappedRecord = {
         id: savedRecord.id ?? `${student.id}-${Date.now()}`,
+        student_id: savedRecord.student_id ?? student.id,
         attendance_id: savedRecord.attendance_id ?? null,
         rfid: savedRecord.rfid ?? student.rfid,
         name: savedRecord.name ?? student.name,
@@ -1010,12 +1150,32 @@ const recordAttendance = async (student) => {
         status: savedStatus,
     };
 
-    attendanceRecords.value = [
+    const recordKey = studentRecordKey(mappedRecord);
+    const existingRecord = attendanceRecords.value.find(
+        (record) => studentRecordKey(record) === recordKey,
+    );
+    const existingEvents = Array.isArray(existingRecord?.events)
+        ? existingRecord.events
+        : [];
+    const events = [
         mappedRecord,
+        ...existingEvents.filter((event) => event.id !== mappedRecord.id),
+    ];
+    const studentRecord = {
+        ...existingRecord,
+        ...mappedRecord,
+        id: `student-${recordKey}`,
+        tap_count: events.length,
+        events,
+    };
+
+    attendanceRecords.value = [
+        studentRecord,
         ...attendanceRecords.value.filter(
-            (record) => record.id !== mappedRecord.id,
+            (record) => studentRecordKey(record) !== recordKey,
         ),
     ];
+    await loadAttendanceLogsFromServer();
 
     lastAction.value = `${student.name}: ${tapType} at ${timestamp}. Status: ${savedStatus}.`;
     pushHistory(
@@ -1038,6 +1198,8 @@ const recordAttendance = async (student) => {
     );
 };
 
+// @function submitBorrowingUpdate: Isinusumite ang borrowing update sa Attendance Control Panel flow.
+// @useIn submitBorrowingUpdate: resources/js/pages/AttendanceControlPanel.vue:1404
 const submitBorrowingUpdate = async (borrower, selectedItems) => {
     const barcodes = selectedItems
         .map((item) => String(item?.barcode ?? '').trim())
@@ -1100,16 +1262,22 @@ const submitBorrowingUpdate = async (borrower, selectedItems) => {
     }
 };
 
+// @function processBorrowerMode: Pinoproseso ang borrower mode sa Attendance Control Panel flow.
+// @useIn processBorrowerMode: resources/js/pages/AttendanceControlPanel.vue:2173
 const processBorrowerMode = (student) => {
     const borrower = student;
     showStudentTemporarily(borrower);
 
+    // @function getActiveBorrowedItems: Kinukuha ang active borrowed items sa Attendance Control Panel flow.
+    // @useIn getActiveBorrowedItems: resources/js/pages/AttendanceControlPanel.vue:1231
     const getActiveBorrowedItems = () => {
         const rfidKey = normalizeRfid(borrower?.rfid);
         const payload = props.borrowItemsByRfid?.[rfidKey];
         return resolveBorrowItemsPayload(payload);
     };
 
+    // @function renderBorrowList: Nire-render ang borrow list sa Attendance Control Panel flow.
+    // @useIn renderBorrowList: resources/js/pages/AttendanceControlPanel.vue:1255
     const renderBorrowList = (items) => {
         if (!items.length) {
             return '<div class="rounded-xl border border-dashed border-slate-300 p-3 text-xs text-slate-500">No items scanned yet.</div>';
@@ -1147,6 +1315,8 @@ const processBorrowerMode = (student) => {
     const BARCODE_TIMEOUT = 300;
     const BARCODE_FINALIZE_DELAY = 120;
 
+    // @function updateSelectedListUi: Ina-update ang selected list ui sa Attendance Control Panel flow.
+    // @useIn updateSelectedListUi: resources/js/pages/AttendanceControlPanel.vue:1318
     const updateSelectedListUi = () => {
         const container = document.getElementById('borrow-scan-items');
         if (!container) return;
@@ -1155,6 +1325,8 @@ const processBorrowerMode = (student) => {
         );
     };
 
+    // @function finalizeBarcode: Kinukuha ang finalize barcode result para sa Attendance Control Panel.
+    // @useIn finalizeBarcode: resources/js/pages/AttendanceControlPanel.vue:1334
     const finalizeBarcode = () => {
         const scanned = barcodeBuffer.trim();
         barcodeBuffer = '';
@@ -1216,6 +1388,8 @@ const processBorrowerMode = (student) => {
         updateSelectedListUi();
     };
 
+    // @function barcodeKeydownHandler: Kinukuha ang barcode keydown handler result para sa Attendance Control Panel.
+    // @useIn barcodeKeydownHandler: resources/js/pages/AttendanceControlPanel.vue:1386
     const barcodeKeydownHandler = (event) => {
         const currentKeyTime = Date.now();
         if (currentKeyTime - barcodeLastKeyTime > BARCODE_TIMEOUT) {
@@ -1340,6 +1514,8 @@ const processBorrowerMode = (student) => {
     return swalPromise;
 };
 
+// @function triggerEmergencyCall: Kinukuha ang trigger emergency call result para sa Attendance Control Panel.
+// @useIn triggerEmergencyCall: resources/js/pages/AttendanceControlPanel.vue:1905
 const triggerEmergencyCall = async (
     selectedType = null,
     selectedHotline = null,
@@ -1432,6 +1608,8 @@ const triggerEmergencyCall = async (
             if (!unmatchedResult.isConfirmed) return;
         }
     }
+    // @function renderSelectedStudents: Nire-render ang selected students sa Attendance Control Panel flow.
+    // @useIn renderSelectedStudents: resources/js/pages/AttendanceControlPanel.vue:1598
     const renderSelectedStudents = () => {
         if (selectedStudents.size === 0) {
             return '<div style="padding:12px; color:#64748b; text-align:center;">No student selected yet.</div>';
@@ -1450,6 +1628,8 @@ const triggerEmergencyCall = async (
             )
             .join('');
     };
+    // @function renderMatches: Nire-render ang matches sa Attendance Control Panel flow.
+    // @useIn renderMatches: resources/js/pages/AttendanceControlPanel.vue:1620
     const renderMatches = (query) => {
         const normalized = String(query ?? '').trim().toLowerCase();
         if (!normalized) return '';
@@ -1514,6 +1694,8 @@ const triggerEmergencyCall = async (
                     if (emergencyScope === 'people') search.focus();
                 });
             });
+            // @function refresh: Pinoproseso ang refresh para sa Attendance Control Panel.
+            // @useIn refresh: resources/js/pages/AttendanceControlPanel.vue:1635
             const refresh = () => {
                 matches.innerHTML = renderMatches(search.value);
                 selected.innerHTML = renderSelectedStudents();
@@ -1740,16 +1922,28 @@ const triggerEmergencyCall = async (
           : emergencyHotline
             ? `Hotline SMS: not sent (${String(alertResult?.sms?.reason ?? 'unavailable').replaceAll('_', ' ')}).`
             : 'Hotline SMS: not attempted because no hotline was selected.';
+    const parentNotifications = alertResult?.parent_notifications;
+    const parentStatus = parentNotifications?.students_found
+        ? `Parent notifications: ${parentNotifications.email_sent ?? 0} email(s) and ${parentNotifications.sms_sent ?? 0} SMS sent to ${parentNotifications.parents_found ?? 0} linked parent(s).`
+        : '';
+    const parentWarnings = Array.isArray(parentNotifications?.warnings)
+        ? parentNotifications.warnings
+        : [];
+    const parentWarningHtml = parentWarnings.length
+        ? `<div style="margin-top:12px; padding:10px; border-radius:6px; background:#fff7ed; color:#9a3412; text-align:left;"><strong>Parent contact warning</strong><ul style="margin:6px 0 0 18px;">${parentWarnings.map((warning) => `<li>${escapeHtml(warning)}</li>`).join('')}</ul></div>`
+        : '';
     Swal.fire({
         icon: alertResult?.duplicate ? 'info' : 'warning',
         title: alertResult?.duplicate
             ? 'Existing Emergency Alert Kept'
             : `${emergencyType.name} Sent`,
-        html: `<p>${escapeHtml(panelMessage)}</p><p style="margin-top:10px; font-weight:800;">${escapeHtml(smsStatus)}</p>`,
+        html: `<p>${escapeHtml(panelMessage)}</p><p style="margin-top:10px; font-weight:800;">${escapeHtml(smsStatus)}</p>${parentStatus ? `<p style="margin-top:8px; font-weight:700;">${escapeHtml(parentStatus)}</p>` : ''}${parentWarningHtml}`,
         confirmButtonColor: '#dc2626',
     });
 };
 
+// @function showInstructorOptions: Ipinapakita ang instructor options sa Attendance Control Panel flow.
+// @useIn showInstructorOptions: resources/js/pages/AttendanceControlPanel.vue:2150
 const showInstructorOptions = async () => {
     if (currentMode.value === 'borrowing' && borrowingEnabled.value) {
         const result = await Swal.fire({
@@ -1868,6 +2062,8 @@ const showInstructorOptions = async () => {
     }
 };
 
+// @function logoutPanel: Pinoproseso ang logout panel para sa Attendance Control Panel.
+// @useIn logoutPanel: resources/js/pages/AttendanceControlPanel.vue template @click
 const logoutPanel = async () => {
     const roomToClose = selectedRoom.value;
     panelUnlocked.value = false;
@@ -1916,6 +2112,8 @@ const logoutPanel = async () => {
     }
 };
 
+// @function performForcedPanelLogout: Isinasagawa ang forced panel logout sa Attendance Control Panel flow.
+// @useIn performForcedPanelLogout: resources/js/pages/AttendanceControlPanel.vue:2097
 const performForcedPanelLogout = async (
     message = 'This panel was logged out by an administrator.',
 ) => {
@@ -1952,6 +2150,8 @@ const performForcedPanelLogout = async (
     return message;
 };
 
+// @function checkPanelStatus: Sini-check ang panel status sa Attendance Control Panel flow.
+// @useIn checkPanelStatus: resources/js/pages/AttendanceControlPanel.vue:2436
 const checkPanelStatus = async () => {
     if (!panelUnlocked.value || !selectedRoom.value) return;
 
@@ -1989,6 +2189,8 @@ const checkPanelStatus = async () => {
     }
 };
 
+// @function handleRfidScan: Pinoproseso ang rfid scan sa Attendance Control Panel flow.
+// @useIn handleRfidScan: resources/js/pages/AttendanceControlPanel.vue:2251
 const handleRfidScan = async (rfid) => {
     if (!rfid) return;
 
@@ -2126,6 +2328,8 @@ const handleRfidScan = async (rfid) => {
     });
 };
 
+// @function finalizeScan: Kinukuha ang finalize scan result para sa Attendance Control Panel.
+// @useIn finalizeScan: resources/js/pages/AttendanceControlPanel.vue:2283
 const finalizeScan = () => {
     const scannedValue = rfidBuffer.trim();
     rfidBuffer = '';
@@ -2139,6 +2343,8 @@ const finalizeScan = () => {
     handleRfidScan(scannedValue);
 };
 
+// @function handleKeydown: Pinoproseso ang keydown sa Attendance Control Panel flow.
+// @useIn handleKeydown: resources/js/pages/AttendanceControlPanel.vue:2437
 // RFID tag reading happens here: keyboard/scanner input is buffered and finalized into one tag value.
 const handleKeydown = (event) => {
     if (!isListening.value) return;
@@ -2183,6 +2389,8 @@ const handleKeydown = (event) => {
     }
 };
 
+// @function toggleListening: Tina-toggle ang listening sa Attendance Control Panel flow.
+// @useIn toggleListening: resources/js/pages/AttendanceControlPanel.vue template @click
 const toggleListening = () => {
     isListening.value = !isListening.value;
     lastAction.value = isListening.value
@@ -2201,10 +2409,14 @@ const toggleListening = () => {
     syncPanelSessionState(isListening.value ? 'online' : 'paused');
 };
 
+// @function runDemoTap: Pinapatakbo ang demo tap sa Attendance Control Panel flow.
+// @useIn runDemoTap: resources/js/pages/AttendanceControlPanel.vue template @click
 const runDemoTap = () => {
     runConfiguredDemoTap('professorTap', 'Professor Tap RFID is not set.');
 };
 
+// @function runConfiguredDemoTap: Pinapatakbo ang configured demo tap sa Attendance Control Panel flow.
+// @useIn runConfiguredDemoTap: resources/js/pages/AttendanceControlPanel.vue:2317
 const runConfiguredDemoTap = (key, missingMessage) => {
     if (!demoAttendanceEnabled.value) return;
 
@@ -2217,6 +2429,8 @@ const runConfiguredDemoTap = (key, missingMessage) => {
     handleRfidScan(rfid);
 };
 
+// @function demoProfessorRetap: Pinoproseso ang demo professor retap para sa Attendance Control Panel.
+// @useIn demoProfessorRetap: resources/js/pages/AttendanceControlPanel.vue template @click
 const demoProfessorRetap = () => {
     runConfiguredDemoTap(
         'secondProfessorTap',
@@ -2224,6 +2438,8 @@ const demoProfessorRetap = () => {
     );
 };
 
+// @function runDemoStudentTap: Pinapatakbo ang demo student tap sa Attendance Control Panel flow.
+// @useIn runDemoStudentTap: resources/js/pages/AttendanceControlPanel.vue template @click
 const runDemoStudentTap = () => {
     if (!sessionActive.value || currentMode.value !== 'attendance') {
         showToast('warning', 'Start attendance session first');
@@ -2233,6 +2449,8 @@ const runDemoStudentTap = () => {
     runConfiguredDemoTap('studentTap', 'Student Tap RFID is not set.');
 };
 
+// @function runSecondDemoStudentTap: Pinapatakbo ang second demo student tap sa Attendance Control Panel flow.
+// @useIn runSecondDemoStudentTap: resources/js/pages/AttendanceControlPanel.vue template @click
 const runSecondDemoStudentTap = () => {
     if (!sessionActive.value || currentMode.value !== 'attendance') {
         showToast('warning', 'Start attendance session first');
@@ -2245,6 +2463,8 @@ const runSecondDemoStudentTap = () => {
     );
 };
 
+// @function runDemoBorrowTap: Pinapatakbo ang demo borrow tap sa Attendance Control Panel flow.
+// @useIn runDemoBorrowTap: TODO(verify): walang direct caller na nakita sa static search
 const runDemoBorrowTap = () => {
     if (!sessionActive.value) {
         showToast('warning', 'Start attendance session first');
@@ -2838,45 +3058,117 @@ watch(
                         <li
                             v-for="record in attendanceRecords"
                             :key="record.id"
-                            class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"
+                            class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
                         >
-                            <div
-                                class="flex items-center justify-between gap-3"
+                            <button
+                                type="button"
+                                class="w-full p-3 text-left hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
+                                :aria-expanded="isStudentDetailsExpanded(record)"
+                                @click="toggleStudentDetails(record)"
                             >
-                                <div>
+                                <div
+                                    class="flex items-center justify-between gap-3"
+                                >
+                                    <div>
+                                        <div
+                                            class="text-sm font-bold text-slate-900"
+                                        >
+                                            {{ record.name }}
+                                        </div>
+                                        <div class="mt-0.5 text-xs text-slate-500">
+                                            {{ record.course }} •
+                                            {{ record.section }}
+                                        </div>
+                                    </div>
                                     <div
-                                        class="text-sm font-bold text-slate-900"
+                                        class="rounded-lg bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700"
                                     >
-                                        {{ record.name }}
+                                        {{ record.status }}
                                     </div>
-                                    <div class="mt-0.5 text-xs text-slate-500">
-                                        {{ record.course }} •
-                                        {{ record.section }}
-                                    </div>
+                                    <svg
+                                        class="h-5 w-5 shrink-0 text-blue-600 transition-transform"
+                                        :class="{ 'rotate-180': isStudentDetailsExpanded(record) }"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2.5"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        aria-hidden="true"
+                                    >
+                                        <path d="m6 9 6 6 6-6" />
+                                    </svg>
                                 </div>
                                 <div
-                                    class="rounded-lg bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700"
+                                    class="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500"
                                 >
-                                    {{ record.status }}
+                                    <span>RFID: {{ record.rfid }}</span>
+                                    <span>
+                                        {{ record.tap_count || 0 }} tap(s)
+                                    </span>
                                 </div>
-                            </div>
-                            <div
-                                class="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500"
-                            >
-                                <span>RFID: {{ record.rfid }}</span>
-                                <span
-                                    >{{ record.tap_type || 'Check-in' }} Â·
-                                    {{ record.time }}</span
+                                <div
+                                    class="mt-2 grid grid-cols-3 gap-2 rounded-xl bg-slate-50 px-3 py-2 text-[11px] text-slate-600"
                                 >
-                            </div>
+                                    <span>In: {{ record.time_in || '-' }}</span>
+                                    <span>Out: {{ record.time_out || '-' }}</span>
+                                    <span>{{ record.room_status || 'Inside' }}</span>
+                                </div>
+                            </button>
+
                             <div
-                                class="mt-2 grid grid-cols-3 gap-2 rounded-xl bg-slate-50 px-3 py-2 text-[11px] text-slate-600"
+                                v-if="isStudentDetailsExpanded(record)"
+                                class="space-y-2 border-t border-slate-200 bg-slate-50 p-3"
                             >
-                                <span>In: {{ record.time_in || '-' }}</span>
-                                <span>Out: {{ record.time_out || '-' }}</span>
-                                <span>{{
-                                    record.room_status || 'Inside'
-                                }}</span>
+                                <article
+                                    v-for="event in record.events || []"
+                                    :key="event.id"
+                                    class="rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600"
+                                >
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div>
+                                            <div class="font-bold text-slate-900">
+                                                {{ event.tap_type || 'Tap' }} #{{ event.tap_sequence_number || '-' }}
+                                            </div>
+                                            <div class="mt-0.5 text-slate-500">{{ event.time || 'N/A' }}</div>
+                                        </div>
+                                        <span class="rounded-md bg-slate-100 px-2 py-1 font-semibold">
+                                            {{ event.validation_result || event.status || 'N/A' }}
+                                        </span>
+                                    </div>
+                                    <dl class="mt-3 grid grid-cols-2 gap-x-3 gap-y-2">
+                                        <div>
+                                            <dt class="font-semibold text-slate-700">Room status</dt>
+                                            <dd>{{ event.room_status || '-' }}</dd>
+                                        </div>
+                                        <div>
+                                            <dt class="font-semibold text-slate-700">Verification</dt>
+                                            <dd>{{ event.verification_method || '-' }}</dd>
+                                        </div>
+                                    </dl>
+                                    <p v-if="event.remarks" class="mt-3 rounded-lg bg-slate-50 px-2 py-1.5">
+                                        {{ event.remarks }}
+                                    </p>
+                                    <div
+                                        v-if="event.time_in_image_url || event.time_out_image_url"
+                                        class="mt-3 flex flex-wrap gap-2"
+                                    >
+                                        <a
+                                            v-if="event.time_in_image_url"
+                                            :href="event.time_in_image_url"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            class="font-semibold text-emerald-700 underline"
+                                        >View check-in evidence</a>
+                                        <a
+                                            v-if="event.time_out_image_url"
+                                            :href="event.time_out_image_url"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            class="font-semibold text-emerald-700 underline"
+                                        >View check-out evidence</a>
+                                    </div>
+                                </article>
                             </div>
                         </li>
                     </ul>

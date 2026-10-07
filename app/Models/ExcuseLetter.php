@@ -31,16 +31,22 @@ class ExcuseLetter extends Model
         'reviewed_at' => 'datetime',
     ];
 
+    // @function user: Ibinabalik ang user Eloquent belongsTo relationship.
+    // @useIn user: Eloquent relationship property at eager loading
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id', 'user_id');
     }
 
+    // @function student: Ibinabalik ang student Eloquent belongsTo relationship.
+    // @useIn student: Eloquent relationship property at eager loading
     public function student(): BelongsTo
     {
         return $this->belongsTo(Students::class, 'student_id', 'student_id');
     }
 
+    // @function reviewer: Ibinabalik ang reviewer Eloquent belongsTo relationship.
+    // @useIn reviewer: Eloquent relationship property at eager loading
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by_user_id', 'user_id');

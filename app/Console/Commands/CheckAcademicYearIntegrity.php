@@ -11,13 +11,15 @@ class CheckAcademicYearIntegrity extends Command
     protected $signature = 'academic-years:check-integrity {--json : Emit machine-readable JSON}';
     protected $description = 'Reconcile academic-year foreign keys, enrollment compatibility, and active-year invariants.';
 
+    // @function handle: Pinoproseso ang request o event para sa Check Academic Year Integrity.
+    // @useIn handle: Artisan command na nakarehistro sa Laravel console
     public function handle(): int
     {
         $checks = [
             $this->check('multiple_active_years', max(0, DB::table('academic_years')->where('status', 'active')->count() - 1), 'At most one academic year may be active.'),
             $this->check('students_without_enrollment', DB::table('students')->whereNull('deleted_at')->whereNotExists(fn ($query) => $query->selectRaw('1')->from('student_enrollments')->whereColumn('student_enrollments.student_id', 'students.student_id'))->count(), 'Every non-deleted student needs an enrollment.'),
             $this->check('attendance_year_enrollment_mismatch', DB::table('attendances')->whereNotNull('academic_year_id')->whereNotNull('student_enrollment_id')->whereNotExists(fn ($query) => $query->selectRaw('1')->from('student_enrollments')->whereColumn('student_enrollments.student_enrollment_id', 'attendances.student_enrollment_id')->whereColumn('student_enrollments.student_id', 'attendances.student_id')->whereColumn('student_enrollments.academic_year_id', 'attendances.academic_year_id'))->count(), 'Attendance context must match its student enrollment.'),
-            $this->check('online_attendance_outside_roster', DB::table('online_class_attendances')->join('online_classes', 'online_classes.online_class_id', '=', 'online_class_attendances.online_class_id')->whereNotNull('online_classes.academic_year_id')->whereNotExists(fn ($query) => $query->selectRaw('1')->from('student_enrollments')->whereColumn('student_enrollments.student_id', 'online_class_attendances.student_id')->whereColumn('student_enrollments.academic_year_id', 'online_classes.academic_year_id')->whereColumn('student_enrollments.section_id', 'online_classes.section_id'))->count(), 'Online attendance must belong to the class roster.'),
+            $this->check('online_attendance_outside_roster', DB::table('online_class_attendances')->join('online_classes', 'online_classes.online_class_id', '=', 'online_class_attendances.online_class_id')->whereNull('online_classes.deleted_at')->whereNotNull('online_classes.academic_year_id')->whereNotExists(fn ($query) => $query->selectRaw('1')->from('student_enrollments')->whereColumn('student_enrollments.student_id', 'online_class_attendances.student_id')->whereColumn('student_enrollments.academic_year_id', 'online_classes.academic_year_id')->whereColumn('student_enrollments.section_id', 'online_classes.section_id'))->count(), 'Online attendance must belong to the class roster.'),
         ];
 
         foreach ($this->orphanChecks() as $check) $checks[] = $check;
@@ -34,6 +36,8 @@ class CheckAcademicYearIntegrity extends Command
         return $errors->isEmpty() ? self::SUCCESS : self::FAILURE;
     }
 
+    // @function orphanChecks: Kinukuha ang orphan checks result para sa Check Academic Year Integrity.
+    // @useIn orphanChecks: CheckAcademicYearIntegrity::handle (app/Console/Commands/CheckAcademicYearIntegrity.php)
     private function orphanChecks(): array
     {
         $relations = [
@@ -56,6 +60,8 @@ class CheckAcademicYearIntegrity extends Command
             })->values()->all();
     }
 
+    // @function check: Sini-check ang check academic year integrity sa Check Academic Year Integrity flow.
+    // @useIn check: CheckAcademicYearIntegrity::handle (app/Console/Commands/CheckAcademicYearIntegrity.php)
     private function check(string $name, int $count, string $description): array
     {
         return compact('name', 'count', 'description');

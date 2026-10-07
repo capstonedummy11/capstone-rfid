@@ -7,6 +7,8 @@ use Illuminate\Validation\Rule;
 
 trait ProfileValidationRules
 {
+    // @function profileRules: Kinukuha ang profile rules result para sa Profile Validation Rules.
+    // @useIn profileRules: app/Actions/Fortify/CreateNewUser.php
     /**
      * Get the validation rules used to validate user profiles.
      *
@@ -20,6 +22,8 @@ trait ProfileValidationRules
         ];
     }
 
+    // @function nameRules: Kinukuha ang name rules result para sa Profile Validation Rules.
+    // @useIn nameRules: ProfileValidationRules::profileRules (app/Concerns/ProfileValidationRules.php)
     /**
      * Get the validation rules used to validate user names.
      *
@@ -30,6 +34,8 @@ trait ProfileValidationRules
         return ['required', 'string', 'max:255'];
     }
 
+    // @function emailRules: Kinukuha ang email rules result para sa Profile Validation Rules.
+    // @useIn emailRules: ProfileValidationRules::profileRules (app/Concerns/ProfileValidationRules.php)
     /**
      * Get the validation rules used to validate user emails.
      *
@@ -43,8 +49,8 @@ trait ProfileValidationRules
             'email',
             'max:255',
             $userId === null
-                ? Rule::unique(User::class)
-                : Rule::unique(User::class)->ignore($userId, (new User())->getKeyName()),
+                ? Rule::unique(User::class)->whereNull('deleted_at')
+                : Rule::unique(User::class)->whereNull('deleted_at')->ignore($userId, (new User)->getKeyName()),
         ];
     }
 }

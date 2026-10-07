@@ -96,6 +96,8 @@ Dismiss Class is for releasing the entire class, not for one student's temporary
 
 Tap number alone does not determine the action. Every tap evaluates check-in and checkout existence, location, current time, Dismiss Class state, verification, and instructor authorization.
 
+Face recognition, unavailable-camera handling, and Instructor RFID fallback determine whether the Student is verified. They do not move the checkout window or turn an early movement tap into an official checkout; before the checkout window, the separate temporary-movement Instructor approval still applies.
+
 ## 8. Missing, Duplicate, and Invalid Taps
 
 - No valid check-in after the attendance period results in `Absent` under the configured absence rules.
@@ -118,3 +120,5 @@ Manual edits do not delete or rewrite original tap evidence.
 ## 10. Audit Data
 
 The system keeps one main attendance row per student, schedule, and date. Individual event records include Check-in, Temporary Exit, Temporary Return, Check-out, Invalid Tap, Ignored Tap, and Manual Edit. Event details can include sequence, time, room/device, validation, verification method, evidence paths, and remarks.
+
+The live Attendance Taps panel counts unique students, not individual tap events. Each student appears once; selecting the student's card expands the complete event history for that active class session without removing or merging the underlying audit records.

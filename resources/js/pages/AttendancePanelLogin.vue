@@ -56,6 +56,8 @@ const filteredRooms = computed(() => {
     );
 });
 
+// @function verifyPin: Vini-verify ang pin sa Attendance Panel Login flow.
+// @useIn verifyPin: resources/js/pages/AttendancePanelLogin.vue template @click
 const verifyPin = async () => {
     if (!pinValue.value || !selectedRoom.value) return;
 
@@ -98,6 +100,8 @@ const verifyPin = async () => {
     }
 };
 
+// @function unlockPanel: Kinukuha ang unlock panel result para sa Attendance Panel Login.
+// @useIn unlockPanel: resources/js/pages/AttendancePanelLogin.vue template @click
 const unlockPanel = () => {
     if (!selectedRoom.value || !pinVerified.value) return;
 
@@ -136,6 +140,8 @@ const unlockPanel = () => {
         });
 };
 
+// @function resetPinStep: Nire-reset ang pin step sa Attendance Panel Login flow.
+// @useIn resetPinStep: resources/js/pages/AttendancePanelLogin.vue template @click
 const resetPinStep = () => {
     gateStep.value = 'room';
     pinValue.value = '';

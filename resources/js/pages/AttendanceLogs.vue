@@ -704,6 +704,8 @@ const statusForm = useForm({
     remarks: '',
 });
 
+// @function openStatusEditor: Binubuksan ang status editor sa Attendance Logs flow.
+// @useIn openStatusEditor: resources/js/pages/AttendanceLogs.vue template @click
 const openStatusEditor = (log) => {
     editingAttendance.value = log;
     statusForm.clearErrors();
@@ -713,11 +715,15 @@ const openStatusEditor = (log) => {
     statusForm.remarks = '';
 };
 
+// @function closeStatusEditor: Isinasara ang status editor sa Attendance Logs flow.
+// @useIn closeStatusEditor: resources/js/pages/AttendanceLogs.vue template @click
 const closeStatusEditor = () => {
     editingAttendance.value = null;
     statusForm.reset();
 };
 
+// @function saveAttendanceStatus: Sine-save ang attendance status sa Attendance Logs flow.
+// @useIn saveAttendanceStatus: resources/js/pages/AttendanceLogs.vue template
 const saveAttendanceStatus = () => {
     statusForm.patch(route('admin.attendance.logs.status'), {
         preserveScroll: true,
@@ -725,22 +731,34 @@ const saveAttendanceStatus = () => {
     });
 };
 
+// @function openEvidence: Binubuksan ang evidence sa Attendance Logs flow.
+// @useIn openEvidence: resources/js/pages/AttendanceLogs.vue template @click
 const openEvidence = (url, title) => {
     evidencePreview.value = { url, title };
 };
 
+// @function closeEvidence: Isinasara ang evidence sa Attendance Logs flow.
+// @useIn closeEvidence: resources/js/pages/AttendanceLogs.vue template @click
 const closeEvidence = () => {
     evidencePreview.value = null;
 };
 
+// @function rowKey: Binubuo ang row key value.
+// @useIn rowKey: resources/js/pages/AttendanceLogs.vue:742
 const rowKey = (record) => String(record.id ?? record.attendance_id ?? '');
 
+// @function hasEvidenceEvents: Sinusuri kung evidence events para sa Attendance Logs.
+// @useIn hasEvidenceEvents: resources/js/pages/AttendanceLogs.vue template
 const hasEvidenceEvents = (record) =>
     Array.isArray(record.evidence_events) && record.evidence_events.length > 1;
 
+// @function isEvidenceExpanded: Sinusuri kung evidence expanded para sa Attendance Logs.
+// @useIn isEvidenceExpanded: resources/js/pages/AttendanceLogs.vue template
 const isEvidenceExpanded = (record) =>
     expandedEvidenceRows.value[rowKey(record)] === true;
 
+// @function toggleEvidenceEvents: Tina-toggle ang evidence events sa Attendance Logs flow.
+// @useIn toggleEvidenceEvents: resources/js/pages/AttendanceLogs.vue template @click
 const toggleEvidenceEvents = (record) => {
     const key = rowKey(record);
     expandedEvidenceRows.value = {
@@ -781,6 +799,8 @@ const groupedLogs = computed(() => {
     return Array.from(groups.values());
 });
 
+// @function applyFilters: Inilalapat ang filters sa Attendance Logs flow.
+// @useIn applyFilters: resources/js/pages/AttendanceLogs.vue template @click
 const applyFilters = () => {
     router.get(
         route('admin.attendance.logs'),
@@ -803,11 +823,15 @@ const applyFilters = () => {
     );
 };
 
+// @function applyInstructorRfidFilter: Inilalapat ang instructor rfid filter sa Attendance Logs flow.
+// @useIn applyInstructorRfidFilter: resources/js/pages/AttendanceLogs.vue template
 const applyInstructorRfidFilter = () => {
     instructorFilter.value = '';
     applyFilters();
 };
 
+// @function resetFilters: Nire-reset ang filters sa Attendance Logs flow.
+// @useIn resetFilters: resources/js/pages/AttendanceLogs.vue template @click
 const resetFilters = () => {
     attendanceSessionFilter.value = '';
     dateFilter.value = '';
@@ -817,9 +841,13 @@ const resetFilters = () => {
     applyFilters();
 };
 
+// @function getStatusCount: Kinukuha ang status count sa Attendance Logs flow.
+// @useIn getStatusCount: resources/js/pages/AttendanceLogs.vue template
 const getStatusCount = (status) =>
     logs.value.filter((log) => log.status === status).length;
 
+// @function statusClass: Kinukuha ang status class result para sa Attendance Logs.
+// @useIn statusClass: resources/js/pages/AttendanceLogs.vue template
 const statusClass = (status) => {
     if (status === 'Present') return 'bg-emerald-50 text-emerald-700';
     if (status === 'Pending') return 'bg-sky-50 text-sky-700';
@@ -846,6 +874,8 @@ const StatusSummaryCard = defineComponent({
         tone: { type: String, required: true },
         count: { type: Number, required: true },
     },
+    // @function setup: Kinukuha ang setup result para sa Attendance Logs.
+    // @useIn setup: resources/js/pages/AttendanceLogs.vue:849
     setup(cardProps) {
         return () =>
             h(

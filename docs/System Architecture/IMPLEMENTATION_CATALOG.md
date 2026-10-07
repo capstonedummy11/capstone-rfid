@@ -10,6 +10,7 @@ This catalog maps implementation classes and frontend building blocks to their r
 | `ActiveDeviceController` | Laboratories/devices, global and per-device PINs, active panel state, remote logout. |
 | `ActivityLogController` | General audit filtering and CSV export. |
 | `AdminUserController` | Admin/Root Admin/Registrar/Clinic account management and privilege invariants. |
+| `AdminLoginVerificationController` | Per-login Admin email OTP page, verification, and resend actions. |
 | `AttendanceController` | Console sessions, schedules, RFID lookup, verification grants, tap state machine, evidence, legacy scanner/logs, manual status writes. |
 | `AttendanceManagementController` | Subject/session/student attendance analytics, physical/online rosters, corrections, CSV/XLSX exports. |
 | `AuthController` | Custom public registration submit. |
@@ -35,7 +36,7 @@ This catalog maps implementation classes and frontend building blocks to their r
 | `StudentParentLoginController` | Student/Parent-only login and Parent Portal enforcement. |
 | `StudentsController` | Student/enrollment/account/Parent management plus all Student/Parent portal data, letters, notifications, and compatibility message methods. |
 | `SubjectController` | Subject catalog and Subject Offering lifecycle. |
-| `SystemSettingsController` | Feature/attendance/security settings and emergency-sound library. |
+| `SystemSettingsController` | Feature/attendance/security settings, SMS provider availability/primary selection, provider checks, and emergency-sound library. |
 | `Settings/ProfileController` | Starter-kit profile update/delete. |
 | `Settings/PasswordController` | Authenticated password update. |
 | `Settings/TwoFactorAuthenticationController` | Two-factor settings page state. |
@@ -45,7 +46,7 @@ This catalog maps implementation classes and frontend building blocks to their r
 | Service | Responsibility and important behavior |
 | --- | --- |
 | `AcademicYearService` | Transactional activate/close/archive/reopen invariants; one active year. |
-| `AcademicYearRolloverService` | Preview, section mapping, Student decision execution, idempotent audit items. The executed path does not copy offerings/schedules. |
+| `AcademicYearRolloverService` | Preview, editable Section mapping, selectable Subject Offering creation, Student decision execution, and idempotent audit items. Selected offerings reuse the Subject catalog but do not copy Instructors or Schedules. |
 | `StudentEnrollmentService` | Creates/synchronizes normalized enrollments and legacy current-placement fields. |
 | `AwsFaceRecognitionService` | Provider availability and captured-vs-stored image comparison. |
 | `CompreFaceService` | Alternative/legacy enroll, recognize, and delete-subject client. |
@@ -54,8 +55,16 @@ This catalog maps implementation classes and frontend building blocks to their r
 | `OnlineClassAuditLogger` | Before/after online-class action audit. |
 | `MessengerEmailNotificationService` | Cache-throttled sender-to-recipient email notification. |
 | `ExcuseLetterPdfService` | Generates approved letter PDF bytes with conditional Parent approval content. |
-| `SemaphoreSmsService` | Formats/sends hotline emergency SMS and returns structured success/failure. |
+| `SemaphoreSmsService` / `IprogSmsService` | Common SMS provider implementations for sending and read-only account checks. |
+| `SmsService` / `SmsProviderRegistry` | Resolves DB-configured primary SMS provider, performs fallback, and exposes provider checks without leaking credentials. |
 | `LegacyAcademicFallbackMonitor` | Counts reads that use deprecated academic assignment data. |
+| `Auth/AdminLoginOtpService` | Issues login-ID-bound hashed Admin email codes, verifies expiry/attempt limits, rotates resends, and records session verification. |
+
+## Support classes
+
+| Class | Responsibility |
+| --- | --- |
+| `AuthenticatedSession` | Issues per-login UUID metadata, binds a server session to one authenticated user, and exposes identity checks used by login flows and middleware. |
 
 ## Models
 
@@ -78,6 +87,8 @@ Model responsibilities are deliberately small: fillable/casts/relationships and 
 | Middleware | Responsibility |
 | --- | --- |
 | `CheckRole` | Normalizes role and enforces allowed-role route lists. |
+| `EnsureAuthenticatedSessionIdentity` | Verifies each authenticated request against its session-bound user and invalidates only a mismatched browser session. |
+| `EnsureAdminLoginOtpVerified` | Redirects a real Admin password-login session to its mandatory email OTP checkpoint until verified. |
 | `EnsureInstructorVerified` | Redirects unverified Instructor sessions to verification. |
 | `EnsureParentPortalEnabled` | Rejects Parent routes while the feature is off. |
 | `EnsurePasswordIsChanged` | Forces temporary-password replacement except allow-listed auth routes. |
@@ -90,7 +101,7 @@ Model responsibilities are deliberately small: fillable/casts/relationships and 
 
 - Fortify actions: `CreateNewUser`, `ResetUserPassword`; shared `PasswordValidationRules` and `ProfileValidationRules` concerns.
 - Custom Fortify responses: role-aware `LoginResponse`, `LogoutResponse`, `PasswordResetResponse`, and `EmailVerificationNotificationSentResponse`.
-- Notifications: `MessengerMessageReceived` and `ClinicDispatchAssigned`.
+- Mail/notifications: `AdminLoginOtpMail`, `MessengerMessageReceived`, and `ClinicDispatchAssigned`.
 - `FortifyServiceProvider` configures views, role-aware authentication, responses, and rate limits.
 - `AppServiceProvider` uses immutable dates, production destructive-command protection, and stronger production password defaults.
 
@@ -134,4 +145,3 @@ Model responsibilities are deliberately small: fillable/casts/relationships and 
 ### Pages
 
 All 66 Vue files, including active, child, wrapper, legacy, reusable, and unwired pages, are cataloged in [Pages and Features](../System%20Explanation/PAGES_AND_FEATURES.md) and [Page/Database Impact Map](PAGE_DATABASE_IMPACT_MAP.md).
-

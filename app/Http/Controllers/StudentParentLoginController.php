@@ -1,8 +1,10 @@
 <?php
+// FEATURE:authentication - konektadong model, service, route, o UI para sa feature na ito.
 
 namespace App\Http\Controllers;
 
 use App\Models\SystemSetting;
+use App\Support\AuthenticatedSession;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
@@ -11,6 +13,8 @@ class StudentParentLoginController
 {
     private const ALLOWED_ROLES = ['student', 'parent'];
 
+    // @function store: Pinoproseso ang bagong Student Parent Login record.
+    // @useIn store: routes/web.php:86
     public function store(Request $request)
     {
         $credentials = $request->validate([
@@ -18,7 +22,7 @@ class StudentParentLoginController
             'password' => ['required', 'string'],
         ]);
 
-        if (! Auth::attempt($credentials, $request->boolean('remember'))) {
+        if (! Auth::attempt($credentials, false)) {
             throw ValidationException::withMessages([
                 'email' => __('auth.failed'),
             ]);
@@ -48,6 +52,8 @@ class StudentParentLoginController
                 'email' => __('auth.failed'),
             ]);
         }
+
+        AuthenticatedSession::issue($request, $user);
 
         return redirect()->route('student-parent.dashboard');
     }

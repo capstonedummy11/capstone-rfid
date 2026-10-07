@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 
 class OnlineClassAuditLogger
 {
+    // @function log: Nilolog ang online class audit logger sa Online Class Audit Logger flow.
+    // @useIn log: app/Services/OnlineClassNotificationService.php
     public function log(
         string $action,
         ?OnlineClass $onlineClass = null,

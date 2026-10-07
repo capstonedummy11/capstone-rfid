@@ -1,3 +1,4 @@
+<!-- FEATURE:borrowing-management - UI para sa borrowing oversight and returns. -->
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
@@ -109,6 +110,8 @@ const searchFilter = ref(props.filters?.search ?? '');
 const statusFilter = ref(props.filters?.status ?? '');
 const perPageFilter = ref(Number(props.filters?.perPage ?? 10));
 
+// @function submitFilters: Isinusumite ang filters sa Borrow flow.
+// @useIn submitFilters: resources/js/pages/Borrow.vue template @change
 const submitFilters = (page = 1) => {
     router.get(
         '/admin/borrow',
@@ -126,6 +129,8 @@ const submitFilters = (page = 1) => {
     );
 };
 
+// @function resetFilters: Nire-reset ang filters sa Borrow flow.
+// @useIn resetFilters: resources/js/pages/Borrow.vue template @click
 const resetFilters = () => {
     searchFilter.value = '';
     statusFilter.value = '';
@@ -133,11 +138,15 @@ const resetFilters = () => {
     submitFilters(1);
 };
 
+// @function goToPage: Kinukuha ang go to page result para sa Borrow.
+// @useIn goToPage: resources/js/pages/Borrow.vue template @click
 const goToPage = (page) => {
     if (page < 1 || page > lastPage.value || page === currentPage.value) return;
     submitFilters(page);
 };
 
+// @function statusStyle: Kinukuha ang status style result para sa Borrow.
+// @useIn statusStyle: resources/js/pages/Borrow.vue template
 const statusStyle = (status) => {
     const map = {
         Borrowed: 'bg-emerald-100 text-emerald-700',
@@ -150,6 +159,8 @@ const statusStyle = (status) => {
     return map[status] || 'bg-gray-100 text-gray-600';
 };
 
+// @function stopScanner: Itinitigil ang scanner sa Borrow flow.
+// @useIn stopScanner: resources/js/pages/Borrow.vue template @click
 const stopScanner = () => {
     isScanning.value = false;
     window.removeEventListener('keydown', handleKeydown);
@@ -159,6 +170,8 @@ const stopScanner = () => {
     }
 };
 
+// @function startScanner: Sinisimulan ang scanner sa Borrow flow.
+// @useIn startScanner: resources/js/pages/Borrow.vue template @click
 const startScanner = () => {
     rfidBuffer = '';
     isScanning.value = true;
@@ -166,6 +179,8 @@ const startScanner = () => {
     window.addEventListener('keydown', handleKeydown);
 };
 
+// @function finalizeScan: Kinukuha ang finalize scan result para sa Borrow.
+// @useIn finalizeScan: resources/js/pages/Borrow.vue:204
 const finalizeScan = () => {
     const scannedValue = rfidBuffer.trim();
     if (!scannedValue) return;
@@ -176,6 +191,8 @@ const finalizeScan = () => {
     rfidBuffer = '';
 };
 
+// @function handleKeydown: Pinoproseso ang keydown sa Borrow flow.
+// @useIn handleKeydown: resources/js/pages/Borrow.vue:156
 const handleKeydown = (event) => {
     if (!isScanning.value) return;
 
@@ -212,6 +229,8 @@ const handleKeydown = (event) => {
     }
 };
 
+// @function triggerTestPopup: Kinukuha ang trigger test popup result para sa Borrow.
+// @useIn triggerTestPopup: resources/js/pages/Borrow.vue template @click
 const triggerTestPopup = () => {
     const sortedProfiles = [...registeredStudents.value].sort((a, b) =>
         String(a.studentId ?? '').localeCompare(String(b.studentId ?? '')),
@@ -238,6 +257,8 @@ const triggerTestPopup = () => {
     showUserInfo(demoRfid);
 };
 
+// @function escapeHtml: Pinoproseso ang escape html para sa Borrow.
+// @useIn escapeHtml: resources/js/pages/Borrow.vue:394
 const escapeHtml = (value = '') =>
     String(value)
         .replaceAll('&', '&amp;')
@@ -246,6 +267,8 @@ const escapeHtml = (value = '') =>
         .replaceAll('"', '&quot;')
         .replaceAll("'", '&#039;');
 
+// @function findStudentByRfid: Hinahanap ang student by rfid sa Borrow flow.
+// @useIn findStudentByRfid: resources/js/pages/Borrow.vue:689
 const findStudentByRfid = (rfid) => {
     const normalizedRfid = String(rfid).trim().toLowerCase();
     return (
@@ -255,6 +278,8 @@ const findStudentByRfid = (rfid) => {
     );
 };
 
+// @function getBorrowItems: Kinukuha ang borrow items sa Borrow flow.
+// @useIn getBorrowItems: resources/js/pages/Borrow.vue:701
 const getBorrowItems = (borrower) => {
     const rfidKey = String(borrower?.rfid ?? '')
         .trim()
@@ -282,6 +307,8 @@ const getBorrowItems = (borrower) => {
     return [];
 };
 
+// @function submitBorrowingUpdate: Isinusumite ang borrowing update sa Borrow flow.
+// @useIn submitBorrowingUpdate: resources/js/pages/Borrow.vue:1115
 const submitBorrowingUpdate = async (student, items) => {
     const barcodes = (Array.isArray(items) ? items : [])
         .map((item) => String(item?.barcode ?? '').trim())
@@ -347,7 +374,11 @@ const submitBorrowingUpdate = async (student, items) => {
     }
 };
 
+// @function showRowPopup: Ipinapakita ang row popup sa Borrow flow.
+// @useIn showRowPopup: resources/js/pages/Borrow.vue template @click
 const showRowPopup = (row) => {
+    // @function formatDT: Fino-format ang dt sa Borrow flow.
+    // @useIn formatDT: resources/js/pages/Borrow.vue:400
     const formatDT = (dateStr) => {
         if (!dateStr) return '—';
         try {
@@ -364,6 +395,8 @@ const showRowPopup = (row) => {
         }
     };
 
+    // @function badgeStyle: Kinukuha ang badge style result para sa Borrow.
+    // @useIn badgeStyle: resources/js/pages/Borrow.vue:397
     const badgeStyle = (status) => {
         const s = String(status ?? '').toLowerCase();
         if (s === 'returned') return 'background:#e0f2fe; color:#0369a1;';
@@ -530,6 +563,8 @@ const showRowPopup = (row) => {
     });
 };
 
+// @function showResultPopup: Ipinapakita ang result popup sa Borrow flow.
+// @useIn showResultPopup: resources/js/pages/Borrow.vue:1134
 const showResultPopup = (confirmed, student, borrowItems) => {
     const itemsListHtml = borrowItems
         .map(
@@ -680,6 +715,8 @@ const showResultPopup = (confirmed, student, borrowItems) => {
     }
 };
 
+// @function showUserInfo: Ipinapakita ang user info sa Borrow flow.
+// @useIn showUserInfo: resources/js/pages/Borrow.vue:176
 const showUserInfo = (rfid) => {
     isScanning.value = false;
     scanPulse.value = true;
@@ -706,6 +743,8 @@ const showUserInfo = (rfid) => {
     let barcodeFinalizeTimer = null;
     let barcodeKeydownHandler = null;
 
+    // @function finalizeBarcode: Kinukuha ang finalize barcode result para sa Borrow.
+    // @useIn finalizeBarcode: resources/js/pages/Borrow.vue:1067
     const finalizeBarcode = (barcodeInput) => {
         const scannedCode = barcodeBuffer.trim();
         if (!scannedCode) return;
@@ -828,6 +867,8 @@ const showUserInfo = (rfid) => {
         barcodeBuffer = '';
     };
 
+    // @function getDisplayItems: Kinukuha ang display items sa Borrow flow.
+    // @useIn getDisplayItems: resources/js/pages/Borrow.vue:851
     // ── FIX: Filter out returned items from the display list ──
     const getDisplayItems = () => {
         const displayItems = [...borrowItems].filter(
@@ -846,6 +887,8 @@ const showUserInfo = (rfid) => {
         return displayItems;
     };
 
+    // @function getBorrowItemsHtml: Kinukuha ang borrow items html sa Borrow flow.
+    // @useIn getBorrowItemsHtml: resources/js/pages/Borrow.vue:906
     const getBorrowItemsHtml = () =>
         getDisplayItems()
             .map((item) => {
@@ -894,6 +937,8 @@ const showUserInfo = (rfid) => {
             })
             .join('<div style="height:1px; background:#e2e8f0;"></div>');
 
+    // @function renderBorrowItemsStatus: Nire-render ang borrow items status sa Borrow flow.
+    // @useIn renderBorrowItemsStatus: resources/js/pages/Borrow.vue:755
     const renderBorrowItemsStatus = () => {
         const popup = Swal.getPopup();
         if (!popup) return;
@@ -910,6 +955,8 @@ const showUserInfo = (rfid) => {
         }
     };
 
+    // @function updateScanFeedback: Ina-update ang scan feedback sa Borrow flow.
+    // @useIn updateScanFeedback: resources/js/pages/Borrow.vue:720
     const updateScanFeedback = (message, color) => {
         const popup = Swal.getPopup();
         if (!popup) return;

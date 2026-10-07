@@ -32,7 +32,7 @@
     </div>
 </template>
 <script setup>
-import Group1 from '@/assets/images/Group1.png';
+import Group1 from '@/assets/images/pasayCitysouth.png';
 import JournalComponent from './JournalComponent.vue';
 import repair from '@/assets/images/repair.png';
 import repair2 from '@/assets/images/repair2.png';

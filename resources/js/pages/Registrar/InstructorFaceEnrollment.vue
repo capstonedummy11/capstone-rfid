@@ -1,3 +1,4 @@
+<!-- FEATURE:instructor-biometric-enrollment - UI para sa instructor rfid and face enrollment. -->
 <script setup>
 import { useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
@@ -19,7 +20,7 @@ const props = defineProps({
 });
 
 const page = usePage();
-const selectedPerson = ref(null);
+const selectedPersonId = ref(null);
 const search = ref('');
 const statusFilter = ref('missing');
 const rfidForm = useForm({ rfid_tag: '' });
@@ -30,6 +31,9 @@ const cameraRef = ref(null);
 const fileInputRef = ref(null);
 
 const flashSuccess = computed(() => page.props.flash?.success);
+const selectedPerson = computed(() =>
+    props.people.find((person) => person.id === selectedPersonId.value),
+);
 
 const filteredPeople = computed(() => {
     const term = search.value.trim().toLowerCase();
@@ -58,13 +62,17 @@ const filteredPeople = computed(() => {
     });
 });
 
+// @function openPerson: Binubuksan ang person sa Instructor Face Enrollment flow.
+// @useIn openPerson: resources/js/pages/Registrar/InstructorFaceEnrollment.vue template @click
 const openPerson = (person) => {
-    selectedPerson.value = person;
+    selectedPersonId.value = person.id;
     rfidForm.rfid_tag = person.rfid_tag || '';
     faceForm.image = null;
     showCamera.value = false;
 };
 
+// @function saveRfid: Sine-save ang rfid sa Instructor Face Enrollment flow.
+// @useIn saveRfid: resources/js/pages/Registrar/InstructorFaceEnrollment.vue template
 const saveRfid = () => {
     if (!selectedPerson.value) return;
 
@@ -77,10 +85,14 @@ const saveRfid = () => {
     );
 };
 
+// @function setFaceFile: Sine-set ang face file sa Instructor Face Enrollment flow.
+// @useIn setFaceFile: resources/js/pages/Registrar/InstructorFaceEnrollment.vue template @change
 const setFaceFile = (event) => {
     faceForm.image = event.target.files?.[0] ?? null;
 };
 
+// @function uploadFace: Ina-upload ang face sa Instructor Face Enrollment flow.
+// @useIn uploadFace: resources/js/pages/Registrar/InstructorFaceEnrollment.vue template @click
 const uploadFace = () => {
     if (!selectedPerson.value) return;
 
@@ -100,18 +112,24 @@ const uploadFace = () => {
     );
 };
 
+// @function useFileUpload: Pinoproseso ang use file upload para sa Instructor Face Enrollment.
+// @useIn useFileUpload: resources/js/pages/Registrar/InstructorFaceEnrollment.vue template @click
 const useFileUpload = () => {
     faceForm.image = null;
     showCamera.value = false;
     faceForm.clearErrors('image');
 };
 
+// @function useCamera: Pinoproseso ang use camera para sa Instructor Face Enrollment.
+// @useIn useCamera: resources/js/pages/Registrar/InstructorFaceEnrollment.vue template @click
 const useCamera = () => {
     faceForm.image = null;
     showCamera.value = true;
     faceForm.clearErrors('image');
 };
 
+// @function captureFace: Kinukuha ang capture face result para sa Instructor Face Enrollment.
+// @useIn captureFace: resources/js/pages/Registrar/InstructorFaceEnrollment.vue template @click
 const captureFace = async () => {
     const dataUrl = cameraRef.value?.captureFrame();
     if (!dataUrl) {
@@ -128,12 +146,16 @@ const captureFace = async () => {
     });
 };
 
+// @function retakeFace: Pinoproseso ang retake face para sa Instructor Face Enrollment.
+// @useIn retakeFace: resources/js/pages/Registrar/InstructorFaceEnrollment.vue template @click
 const retakeFace = () => {
     faceForm.image = null;
     faceForm.clearErrors('image');
     cameraRef.value?.resetCapture();
 };
 
+// @function removeFace: Tinatanggal ang face sa Instructor Face Enrollment flow.
+// @useIn removeFace: resources/js/pages/Registrar/InstructorFaceEnrollment.vue template @click
 const removeFace = (index) => {
     if (!selectedPerson.value) return;
 
@@ -149,6 +171,8 @@ const removeFace = (index) => {
     );
 };
 
+// @function toast: Pinoproseso ang toast para sa Instructor Face Enrollment.
+// @useIn toast: resources/js/pages/Registrar/InstructorFaceEnrollment.vue:79
 const toast = (title) => {
     Swal.fire({
         toast: true,

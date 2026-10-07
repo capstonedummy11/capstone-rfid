@@ -1,3 +1,4 @@
+<!-- FEATURE:inventory-management - UI para sa inventory management. -->
 <script setup>
 import DashboardCard from '@/components/Cards/Admin/Dashboard/DashboardCard.vue';
 import InventoryTable from '@/components/Cards/Admin/InventoryTable.vue';

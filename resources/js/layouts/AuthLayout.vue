@@ -25,6 +25,8 @@ const latestUnreadMessageId = ref(null);
 let messagePollTimer = null;
 let messagePollingInitialized = false;
 
+// @function pollUnreadMessages: Kinukuha ang poll unread messages result para sa Auth Layout.
+// @useIn pollUnreadMessages: resources/js/layouts/AuthLayout.vue:70
 const pollUnreadMessages = async (notify = true) => {
     try {
         const response = await fetch(route('messages.unread-status'), {
@@ -137,7 +139,14 @@ watch(
                             {{ currentUser.email }}
                         </div>
                     </div>
+                    <img
+                        v-if="currentUser.profile_photo_url"
+                        :src="currentUser.profile_photo_url"
+                        alt="Profile picture"
+                        class="h-10 w-10 shrink-0 rounded-full border border-slate-200 object-cover"
+                    />
                     <div
+                        v-else
                         class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-bold text-white"
                     >
                         {{ userInitial }}

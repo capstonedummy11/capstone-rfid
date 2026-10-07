@@ -6,6 +6,8 @@ use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
+    // @function run: Pinapatakbo ang Database Seeder task.
+    // @useIn run: php artisan db:seed
     /**
      * Seed the application's database.
      */

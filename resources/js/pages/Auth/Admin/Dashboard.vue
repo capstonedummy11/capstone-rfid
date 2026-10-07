@@ -24,6 +24,8 @@ const props = defineProps({
 });
 
 const isInstructor = computed(() => props.role === 'instructor');
+// @function changeAcademicContext: Pinoproseso ang change academic context para sa Dashboard.
+// @useIn changeAcademicContext: resources/js/pages/Auth/Admin/Dashboard.vue template @change
 const changeAcademicContext = (field, value) => router.get(window.location.pathname, {
     academic_year_id: field === 'academic_year_id' ? value || undefined : props.selectedAcademicYearId || undefined,
     semester: field === 'semester' ? value || undefined : props.selectedSemester || undefined,
@@ -62,6 +64,8 @@ const cards = computed(() => [
     },
 ]);
 
+// @function statusClass: Kinukuha ang status class result para sa Dashboard.
+// @useIn statusClass: resources/js/pages/Auth/Admin/Dashboard.vue template
 const statusClass = (status) => {
     const value = String(status || '').toLowerCase();
     if (value.includes('present') || value.includes('joined')) {

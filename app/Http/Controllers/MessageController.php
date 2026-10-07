@@ -1,4 +1,5 @@
 <?php
+// File purpose: Messenger at Instructor excuse-letter review para sa signed-in actors.
 
 namespace App\Http\Controllers;
 
@@ -14,14 +15,19 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class MessageController
 {
+    // @function __construct: Tinatanggap ang dependencies ng Message sa pagbuo ng object.
+    // @useIn __construct: Laravel dependency injection kapag ginagamit ang MessageController
     public function __construct(
         private readonly MessengerEmailNotificationService $emailNotifications,
     ) {}
 
+    // @function create: Ibinabalik ang Messages/Create page at data para sa request.
+    // @useIn create: routes/web.php:122 (messages.create)
     public function create()
     {
         return Inertia::render('Messages/Create', [
@@ -30,6 +36,8 @@ class MessageController
         ]);
     }
 
+    // @function store: Pinoproseso ang bagong Message record.
+    // @useIn store: routes/web.php:123 (messages.store)
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -71,6 +79,18 @@ class MessageController
         return back()->with('success', 'Message sent to the instructor.');
     }
 
+    // @function index: Ibinabalik ang Messages/Index page at data para sa request.
+    // @useIn index: routes/web.php:126 (messages.index)
+    /**
+     * @feature   Messenger and Attachments
+     * @actor     Shared / Core
+     * @flow      Dito nagpapalitan ng private messages at authorized attachments ang users.
+     * @uses      resources/js/pages/Messages/Index.vue; routes/web.php: MessageController::index, MessageController::sendConversationMessage, MessageController::unreadStatus, MessageController::markRead, MessageController::downloadAttachment
+     * @related   Authentication, Attendance, Reports
+     * @disable   1) I-comment out ang routes/web.php: MessageController::index, MessageController::sendConversationMessage, MessageController::unreadStatus, MessageController::markRead, MessageController::downloadAttachment.
+     * @disable   2) Itago ang action sa resources/js/pages/Messages/Index.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/MessageController.php: MessageController::index matapos alisin ang routes. Side effect: mawawala ang messenger and attachments.
+     */
     public function index(Request $request)
     {
         $user = $request->user();
@@ -166,7 +186,13 @@ class MessageController
             ->values();
 
         $messages = StudentPortalMessage::query()
-            ->with(['sender:user_id,name,email,role', 'recipient:user_id,name,email,role', 'student.parentUsers:user_id,name,email,role'])
+            ->with([
+                'sender:user_id,name,email,role',
+                'recipient:user_id,name,email,role',
+                'student.parentUsers:user_id,name,email,role',
+                'excuseLetter',
+                'excuseLetterReviewedBy:user_id,name,last_name',
+            ])
             ->where(function ($query) use ($user) {
                 $query
                     ->where('sender_user_id', $user->user_id)
@@ -208,6 +234,33 @@ class MessageController
                 'is_image' => $this->isImageAttachment($message),
                 'is_pdf' => strtolower((string) $message->attachment_mime) === 'application/pdf'
                     || str_ends_with(strtolower((string) $message->attachment_name), '.pdf'),
+                'excuse_letter_id' => $message->student_excuse_letter_id,
+                'excuse_letter_status' => $message->excuse_letter_review_decision
+                    ? 'instructor_'.$message->excuse_letter_review_decision
+                    : $message->excuseLetter?->status,
+                'can_review_excuse_letter' => $role === 'instructor'
+                    && (int) $message->recipient_user_id === (int) $user->user_id
+                    && (string) $message->excuseLetter?->status === 'approved'
+                    && ! $message->excuse_letter_reviewed_at,
+                'excuse_letter_review' => $message->excuseLetter ? [
+                    'reviewed_by' => $message->excuseLetterReviewedBy
+                        ? trim($message->excuseLetterReviewedBy->name.' '.($message->excuseLetterReviewedBy->last_name ?? ''))
+                        : null,
+                    'reviewed_at' => $message->excuse_letter_reviewed_at?->toDateTimeString(),
+                    'student' => [
+                        'available' => filter_var($message->student?->email, FILTER_VALIDATE_EMAIL) !== false,
+                        'name' => $message->student ? trim($message->student->first_name.' '.$message->student->last_name) : 'Student',
+                        'email' => $message->student?->email,
+                    ],
+                    'parents' => $message->student?->parentUsers
+                        ?->filter(fn (User $parent) => filter_var($parent->email, FILTER_VALIDATE_EMAIL))
+                        ->map(fn (User $parent) => [
+                            'name' => trim($parent->name.' '.($parent->last_name ?? '')),
+                            'email' => $parent->email,
+                        ])
+                        ->values()
+                        ->all() ?? [],
+                ] : null,
                 'read_at' => $message->read_at?->toDateTimeString(),
                 'created_at' => $message->created_at?->toDateTimeString(),
                 'created_label' => $message->created_at?->diffForHumans(),
@@ -225,6 +278,8 @@ class MessageController
         ]);
     }
 
+    // @function forwardExcuseLetterToParent: Kinukuha ang forward excuse letter to parent result para sa Message.
+    // @useIn forwardExcuseLetterToParent: routes/web.php:131 (messages.forward-to-parent)
     public function forwardExcuseLetterToParent(Request $request, StudentPortalMessage $message)
     {
         $user = $request->user();
@@ -271,6 +326,116 @@ class MessageController
         return back()->with('success', 'Excuse letter emailed to '.$parent->name.'.');
     }
 
+    // @function reviewExcuseLetter: Kinukuha ang review excuse letter result para sa Message.
+    // @useIn reviewExcuseLetter: routes/web.php:133 (messages.excuse-letters.review)
+    /**
+     * @feature   Excuse Letter Review
+     * @actor     Instructor
+     * @flow      Dito nagde-decide ang recipient Instructor sa delivered letter at nagpapadala ng email.
+     * @uses      resources/js/pages/Messages/Index.vue; routes/web.php: MessageController::reviewExcuseLetter
+     * @related   Instructor workspace
+     * @disable   1) I-comment out ang routes/web.php: MessageController::reviewExcuseLetter.
+     * @disable   2) Itago ang action sa resources/js/pages/Messages/Index.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/MessageController.php: MessageController::reviewExcuseLetter matapos alisin ang routes. Side effect: mawawala ang excuse letter review.
+     */
+    public function reviewExcuseLetter(Request $request, StudentPortalMessage $message)
+    {
+        $instructor = $request->user();
+        abort_unless(strtolower((string) $instructor?->role) === 'instructor', 403);
+
+        abort_unless(
+            $message->student_excuse_letter_id
+                && (int) $message->recipient_user_id === (int) $instructor->user_id,
+            403,
+            'This excuse letter was not assigned to this instructor.',
+        );
+        $message->loadMissing(['excuseLetter', 'student.parentUsers']);
+        $letter = $message->excuseLetter;
+        abort_unless($letter, 404);
+
+        if ((string) $letter->status !== 'approved' || $message->excuse_letter_reviewed_at) {
+            throw ValidationException::withMessages([
+                'decision' => 'This excuse letter has already been reviewed or is not ready for instructor review.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'decision' => ['required', Rule::in(['approved', 'denied'])],
+            'recipients' => ['required', 'array', 'min:1'],
+            'recipients.*' => ['required', 'string', 'distinct', Rule::in(['student', 'parent'])],
+            'email_subject' => ['required', 'string', 'max:255'],
+            'email_body' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $student = $message->student;
+        abort_unless($student, 422, 'The student for this excuse letter is unavailable.');
+
+        $emailRecipients = collect();
+        if (in_array('student', $validated['recipients'], true)) {
+            if (! filter_var($student->email, FILTER_VALIDATE_EMAIL)) {
+                throw ValidationException::withMessages([
+                    'recipients' => 'The student does not have a valid email address.',
+                ]);
+            }
+            $emailRecipients->push([
+                'role' => 'student',
+                'name' => trim($student->first_name.' '.$student->last_name),
+                'email' => $student->email,
+            ]);
+        }
+
+        if (in_array('parent', $validated['recipients'], true)) {
+            $parents = $student->parentUsers
+                ->filter(fn (User $parent) => filter_var($parent->email, FILTER_VALIDATE_EMAIL));
+            if ($parents->isEmpty()) {
+                throw ValidationException::withMessages([
+                    'recipients' => 'The student does not have a linked parent with a valid email address.',
+                ]);
+            }
+            $parents->each(fn (User $parent) => $emailRecipients->push([
+                'role' => 'parent',
+                'name' => trim($parent->name.' '.($parent->last_name ?? '')),
+                'email' => $parent->email,
+            ]));
+        }
+
+        $emailRecipients = $emailRecipients->unique('email')->values();
+        $attachmentPath = $message->attachment_path;
+        $hasAttachment = $attachmentPath && Storage::disk('public')->exists($attachmentPath);
+
+        foreach ($emailRecipients as $recipient) {
+            Mail::raw($validated['email_body'], function ($mail) use ($recipient, $validated, $message, $attachmentPath, $hasAttachment) {
+                $mail->to($recipient['email'])->subject($validated['email_subject']);
+                if ($hasAttachment) {
+                    $mail->attach(Storage::disk('public')->path($attachmentPath), [
+                        'as' => $message->attachment_name ?: 'excuse-letter.pdf',
+                        'mime' => 'application/pdf',
+                    ]);
+                }
+            });
+        }
+
+        $message->update([
+            'excuse_letter_review_decision' => $validated['decision'],
+            'excuse_letter_reviewed_by_user_id' => $instructor->user_id,
+            'excuse_letter_reviewed_at' => now(),
+            'excuse_letter_review_email_subject' => $validated['email_subject'],
+            'excuse_letter_review_email_body' => $validated['email_body'],
+            'excuse_letter_review_recipients' => $emailRecipients->all(),
+        ]);
+
+        $decisionLabel = $validated['decision'] === 'approved' ? 'approved' : 'denied';
+        $this->logActivity(
+            'update',
+            'student_excuse_letters',
+            'Instructor '.$decisionLabel.' excuse letter '.$letter->student_excuse_letter_id.' and emailed '.$emailRecipients->count().' recipient(s).',
+        );
+
+        return back()->with('success', 'Excuse letter '.$decisionLabel.' and email sent to '.$emailRecipients->count().' recipient(s).');
+    }
+
+    // @function sendConversationMessage: Ipinapadala ang conversation message sa Message flow.
+    // @useIn sendConversationMessage: routes/web.php:130 (messages.conversation.store)
     public function sendConversationMessage(Request $request)
     {
         $user = $request->user();
@@ -321,6 +486,8 @@ class MessageController
         return back()->with('success', 'Message sent.');
     }
 
+    // @function unreadStatus: Pinoproseso ang unread status at nagbabalik ng JSON response.
+    // @useIn unreadStatus: routes/web.php:128 (messages.unread-status)
     public function unreadStatus(Request $request)
     {
         $latest = StudentPortalMessage::query()
@@ -347,6 +514,8 @@ class MessageController
         ]);
     }
 
+    // @function markRead: Minamark ang read sa Message flow.
+    // @useIn markRead: routes/web.php:135 (messages.read)
     public function markRead(Request $request, StudentPortalMessage $message)
     {
         $user = $request->user();
@@ -361,6 +530,8 @@ class MessageController
         return back();
     }
 
+    // @function downloadAttachment: Idinodownload ang attachment sa Message flow.
+    // @useIn downloadAttachment: routes/web.php:137 (messages.attachments.show)
     public function downloadAttachment(Request $request, StudentPortalMessage $message)
     {
         $userId = (int) $request->user()?->user_id;
@@ -381,6 +552,8 @@ class MessageController
         return Storage::disk('public')->download($message->attachment_path, $message->attachment_name ?: 'message-attachment');
     }
 
+    // @function reply: Kinukuha ang reply result para sa Message.
+    // @useIn reply: routes/web.php:276 (messages.reply)
     public function reply(Request $request, Message $message)
     {
         $user = $request->user();
@@ -425,6 +598,8 @@ class MessageController
         return back()->with('success', 'Reply sent to the student portal.');
     }
 
+    // @function logActivity: Nilolog ang activity sa Message flow.
+    // @useIn logActivity: MessageController::store (app/Http/Controllers/MessageController.php)
     private function logActivity(string $action, string $tableName, string $description): void
     {
         ActivityLog::query()->create([
@@ -435,11 +610,15 @@ class MessageController
         ]);
     }
 
+    // @function escapeMailText: Binubuo ang escape mail text string para sa Message.
+    // @useIn escapeMailText: MessageController::forwardExcuseLetterToParent (app/Http/Controllers/MessageController.php)
     private function escapeMailText(string $value): string
     {
         return e($value);
     }
 
+    // @function inboxThreadMessage: Kinukuha ang inbox thread message result para sa Message.
+    // @useIn inboxThreadMessage: MessageController::index (app/Http/Controllers/MessageController.php)
     private function inboxThreadMessage(Message $message): array
     {
         return [
@@ -460,6 +639,8 @@ class MessageController
         ];
     }
 
+    // @function portalThreadMessage: Kinukuha ang portal thread message result para sa Message.
+    // @useIn portalThreadMessage: MessageController::index (app/Http/Controllers/MessageController.php)
     private function portalThreadMessage(StudentPortalMessage $message, int $currentUserId): array
     {
         $attachmentExtension = strtolower(pathinfo((string) $message->attachment_name, PATHINFO_EXTENSION));
@@ -482,6 +663,8 @@ class MessageController
         ];
     }
 
+    // @function instructorOptions: Binubuo ang instructor options value.
+    // @useIn instructorOptions: MessageController::create (app/Http/Controllers/MessageController.php)
     private function instructorOptions()
     {
         return Instructor::query()
@@ -501,6 +684,8 @@ class MessageController
             ->values();
     }
 
+    // @function recipientOptions: Binubuo ang recipient options value.
+    // @useIn recipientOptions: MessageController::index (app/Http/Controllers/MessageController.php)
     private function recipientOptions(?User $currentUser)
     {
         return User::query()
@@ -521,11 +706,15 @@ class MessageController
             ->values();
     }
 
+    // @function messageRoles: Kinukuha ang message roles result para sa Message.
+    // @useIn messageRoles: MessageController::sendConversationMessage (app/Http/Controllers/MessageController.php)
     private function messageRoles(): array
     {
         return ['admin', 'instructor', 'clinic', 'registrar', 'student', 'parent'];
     }
 
+    // @function isImageAttachment: Sinusuri kung image attachment para sa Message.
+    // @useIn isImageAttachment: MessageController::index (app/Http/Controllers/MessageController.php)
     private function isImageAttachment(StudentPortalMessage $message): bool
     {
         if ($message->attachment_mime && str_starts_with($message->attachment_mime, 'image/')) {
@@ -537,6 +726,8 @@ class MessageController
         return in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true);
     }
 
+    // @function isInboxImageAttachment: Sinusuri kung inbox image attachment para sa Message.
+    // @useIn isInboxImageAttachment: MessageController::inboxThreadMessage (app/Http/Controllers/MessageController.php)
     private function isInboxImageAttachment(Message $message): bool
     {
         if ($message->attachment_mime && str_starts_with($message->attachment_mime, 'image/')) {
@@ -548,6 +739,8 @@ class MessageController
         return in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true);
     }
 
+    // @function currentStudentContext: Kinukuha ang current student context result para sa Message.
+    // @useIn currentStudentContext: MessageController::index (app/Http/Controllers/MessageController.php)
     private function currentStudentContext(Request $request): ?Students
     {
         $role = strtolower((string) $request->user()?->role);
@@ -572,6 +765,8 @@ class MessageController
         return null;
     }
 
+    // @function linkedStudentsPayload: Binubuo ang linked students payload value.
+    // @useIn linkedStudentsPayload: MessageController::index (app/Http/Controllers/MessageController.php)
     private function linkedStudentsPayload(Request $request)
     {
         return $request->user()

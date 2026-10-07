@@ -5,19 +5,35 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use App\Models\SystemSetting;
 use App\Services\AwsFaceRecognitionService;
+use App\Services\SmsService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class SystemSettingsController
 {
+    // @function edit: Ibinabalik ang Auth/Admin/SystemSettings page at data para sa request.
+    // @useIn edit: routes/web.php:388 (settings.edit)
+    /**
+     * @feature   System Settings
+     * @actor     Admin
+     * @flow      Dito sine-set ang feature switches, attendance rules, SMS, at emergency sounds.
+     * @uses      resources/js/pages/Auth/Admin/SystemSettings.vue; routes/web.php: SystemSettingsController::edit, SystemSettingsController::update, SystemSettingsController::checkSmsProvider, SystemSettingsController::storeEmergencySound, SystemSettingsController::selectEmergencySound, SystemSettingsController::destroyEmergencySound
+     * @related   Admin workspace
+     * @disable   1) I-comment out ang routes/web.php: SystemSettingsController::edit, SystemSettingsController::update, SystemSettingsController::checkSmsProvider, SystemSettingsController::storeEmergencySound, SystemSettingsController::selectEmergencySound, SystemSettingsController::destroyEmergencySound.
+     * @disable   2) Itago ang action sa resources/js/pages/Auth/Admin/SystemSettings.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/SystemSettingsController.php: SystemSettingsController::edit matapos alisin ang routes. Side effect: mawawala ang system settings.
+     */
     public function edit()
     {
         $faceAvailability = (new AwsFaceRecognitionService)->availability();
 
         return Inertia::render('Auth/Admin/SystemSettings', [
+            'title' => 'Settings',
             'featureSettings' => SystemSetting::featureFlags(),
             'demoAttendancePanelSettings' => SystemSetting::demoAttendancePanelSettings(),
             'faceRecognitionAvailability' => $faceAvailability,
@@ -29,10 +45,12 @@ class SystemSettingsController
                 'questions' => SystemSetting::securityQuestions(),
             ],
             'clinicEmergencySoundSettings' => SystemSetting::clinicEmergencySoundSettings(),
-            'title' => 'Settings',
+            'smsSettings' => SystemSetting::smsProviderSettings(),
         ]);
     }
 
+    // @function update: Pinoproseso ang pagbabago sa System Settings record.
+    // @useIn update: routes/web.php:390 (settings.update)
     public function update(Request $request)
     {
         $validated = $request->validate([
@@ -53,6 +71,9 @@ class SystemSettingsController
             'late_threshold_minutes' => ['required', 'integer', 'min:0', 'max:180'],
             'security_questions' => ['nullable', 'array', 'min:3', 'max:20'],
             'security_questions.*' => ['required_with:security_questions', 'string', 'min:8', 'max:255', 'distinct'],
+            'sms_semaphore_available' => ['sometimes', 'boolean'],
+            'sms_iprog_available' => ['sometimes', 'boolean'],
+            'sms_primary_provider' => ['nullable', 'string', 'in:semaphore,iprog'],
         ]);
 
         $faceAvailability = (new AwsFaceRecognitionService)->availability();
@@ -102,6 +123,27 @@ class SystemSettingsController
             SystemSetting::setArray(SystemSetting::SECURITY_QUESTIONS, $questions);
         }
 
+        $smsSemaphoreAvailable = array_key_exists('sms_semaphore_available', $validated)
+            ? (bool) $validated['sms_semaphore_available']
+            : SystemSetting::boolean(SystemSetting::SMS_SEMAPHORE_AVAILABLE, false);
+        $smsIprogAvailable = array_key_exists('sms_iprog_available', $validated)
+            ? (bool) $validated['sms_iprog_available']
+            : SystemSetting::boolean(SystemSetting::SMS_IPROG_AVAILABLE, false);
+        $requestedSmsPrimary = array_key_exists('sms_primary_provider', $validated)
+            ? $validated['sms_primary_provider']
+            : SystemSetting::string(SystemSetting::SMS_PRIMARY_PROVIDER, '');
+        $availableSmsProviders = collect([
+            'semaphore' => $smsSemaphoreAvailable,
+            'iprog' => $smsIprogAvailable,
+        ])->filter()->keys();
+        $smsPrimary = in_array($requestedSmsPrimary, $availableSmsProviders->all(), true)
+            ? $requestedSmsPrimary
+            : $availableSmsProviders->first();
+
+        SystemSetting::setBoolean(SystemSetting::SMS_SEMAPHORE_AVAILABLE, $smsSemaphoreAvailable);
+        SystemSetting::setBoolean(SystemSetting::SMS_IPROG_AVAILABLE, $smsIprogAvailable);
+        SystemSetting::setString(SystemSetting::SMS_PRIMARY_PROVIDER, (string) ($smsPrimary ?? ''));
+
         ActivityLog::query()->create([
             'user_id' => Auth::id(),
             'action' => 'update',
@@ -112,6 +154,35 @@ class SystemSettingsController
         return back()->with('success', $warning ?? 'System settings updated.');
     }
 
+    // @function checkSmsProvider: Sini-check ang sms provider sa System Settings flow.
+    // @useIn checkSmsProvider: routes/web.php:392 (settings.sms.providers.check)
+    public function checkSmsProvider(Request $request, string $provider, SmsService $sms): JsonResponse
+    {
+        abort_unless(in_array($provider, SystemSetting::SMS_PROVIDER_NAMES, true), 404);
+
+        try {
+            $result = $sms->checkProvider($provider);
+
+            return response()->json([
+                'success' => (bool) ($result['success'] ?? false),
+                'message' => (string) ($result['message'] ?? 'Provider check failed.'),
+            ]);
+        } catch (\Throwable $exception) {
+            Log::warning('SMS provider check failed unexpectedly.', [
+                'provider' => $provider,
+                'user_id' => Auth::id(),
+                'message' => $exception->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'The SMS provider check could not be completed.',
+            ]);
+        }
+    }
+
+    // @function storeEmergencySound: Sine-save ang emergency sound sa System Settings flow.
+    // @useIn storeEmergencySound: routes/web.php:396 (settings.emergency-sounds.store)
     public function storeEmergencySound(Request $request)
     {
         $validated = $request->validate([
@@ -155,6 +226,8 @@ class SystemSettingsController
         return back()->with('success', 'Emergency sound uploaded and selected.');
     }
 
+    // @function selectEmergencySound: Pinipili ang emergency sound sa System Settings flow.
+    // @useIn selectEmergencySound: routes/web.php:398 (settings.emergency-sounds.select)
     public function selectEmergencySound(string $id)
     {
         $settings = SystemSetting::clinicEmergencySoundSettings();
@@ -183,6 +256,8 @@ class SystemSettingsController
         return back()->with('success', 'Emergency sound selected.');
     }
 
+    // @function destroyEmergencySound: Tinatanggal ang emergency sound sa System Settings flow.
+    // @useIn destroyEmergencySound: routes/web.php:400 (settings.emergency-sounds.destroy)
     public function destroyEmergencySound(string $id)
     {
         if ($id === SystemSetting::DEFAULT_CLINIC_EMERGENCY_SOUND_ID) {
@@ -221,6 +296,8 @@ class SystemSettingsController
         return back()->with('success', 'Emergency sound deleted.');
     }
 
+    // @function showEmergencySound: Ipinapakita ang emergency sound sa System Settings flow.
+    // @useIn showEmergencySound: routes/web.php:457 (emergency-sounds.show)
     public function showEmergencySound(string $id)
     {
         abort_if($id === SystemSetting::DEFAULT_CLINIC_EMERGENCY_SOUND_ID, 404);

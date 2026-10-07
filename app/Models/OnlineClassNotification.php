@@ -1,4 +1,5 @@
 <?php
+// FEATURE:online-class-notifications - konektadong model, service, route, o UI para sa feature na ito.
 
 namespace App\Models;
 
@@ -28,11 +29,15 @@ class OnlineClassNotification extends Model
         'email_sent_at' => 'datetime',
     ];
 
+    // @function onlineClass: Ibinabalik ang online class Eloquent belongsTo relationship.
+    // @useIn onlineClass: Eloquent relationship property at eager loading
     public function onlineClass(): BelongsTo
     {
         return $this->belongsTo(OnlineClass::class, 'online_class_id', 'online_class_id');
     }
 
+    // @function student: Ibinabalik ang student Eloquent belongsTo relationship.
+    // @useIn student: Eloquent relationship property at eager loading
     public function student(): BelongsTo
     {
         return $this->belongsTo(Students::class, 'student_id', 'student_id');

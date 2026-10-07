@@ -11,6 +11,8 @@ use Inertia\Inertia;
 
 class RfidController
 {
+    // @function index: Ibinabalik ang Rfid page at data para sa request.
+    // @useIn index: routes/web.php:318 (rfid)
     public function index(Request $request)
     {
         $filters = [
@@ -117,12 +119,15 @@ class RfidController
             });
 
         return Inertia::render('Rfid', [
+            'title' => 'RFID Management',
             'rfidRows' => $rows,
             'filters' => $filters,
             'unassignedOwners' => $unassignedStudents->concat($unassignedInstructors)->values(),
         ]);
     }
 
+    // @function update: Pinoproseso ang pagbabago sa Rfid record.
+    // @useIn update: routes/web.php:319 (rfid.update)
     public function update(Request $request, string $type, string $id)
     {
         $request->validate([
@@ -152,6 +157,8 @@ class RfidController
         return Redirect::route('admin.rfid')->with('success', 'RFID updated successfully.');
     }
 
+    // @function destroy: Pinoproseso ang pagtanggal ng Rfid record.
+    // @useIn destroy: routes/web.php:320 (rfid.destroy)
     public function destroy(string $type, string $id)
     {
         if ($type === 'student') {

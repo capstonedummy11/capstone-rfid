@@ -1,9 +1,14 @@
 <?php
+// File purpose: Console RFID attendance, verification, at tap events para sa Console, Instructor, at Student.
+// FEATURE:face-recognition - konektadong model, service, route, o UI para sa feature na ito.
+// FEATURE:face-liveness - konektadong model, service, route, o UI para sa feature na ito.
+// FEATURE:rfid-attendance - konektadong model, service, route, o UI para sa feature na ito.
+// FEATURE:attendance-review - konektadong model, service, route, o UI para sa feature na ito.
 
 namespace App\Http\Controllers;
 
-use App\Models\ActivityLog;
 use App\Models\AcademicYear;
+use App\Models\ActivityLog;
 use App\Models\Attendance;
 use App\Models\AttendanceLog;
 use App\Models\Borrowing;
@@ -14,14 +19,15 @@ use App\Models\Item;
 use App\Models\PanelDevice;
 use App\Models\RfidPanelSession;
 use App\Models\Schedule;
-use App\Models\Section;
+use App\Models\StudentEnrollment;
 use App\Models\Students;
 use App\Models\Subject;
-use App\Models\StudentEnrollment;
 use App\Models\SystemSetting;
 use App\Models\User;
 use App\Services\AwsFaceRecognitionService;
+use App\Services\AwsFaceLivenessService;
 use App\Services\CompreFaceService;
+use App\Support\AuthenticatedSession;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -36,6 +42,12 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AttendanceController
 {
+    private const FACE_MISMATCH_MESSAGE = 'Face recognition failed to match.';
+
+    private const AWS_FACE_UNAVAILABLE_MESSAGE = 'AWS face recognition is not working.';
+
+    // @function updatePanelSessionState: Ina-update ang panel session state sa Attendance flow.
+    // @useIn updatePanelSessionState: routes/web.php:168 (attendanceControlPanel.sessionState)
     public function updatePanelSessionState(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -164,6 +176,18 @@ class AttendanceController
         ]);
     }
 
+    // @function recordStudentTap: Nagtatala ng ang student tap sa Attendance flow.
+    // @useIn recordStudentTap: routes/web.php:174 (attendanceControlPanel.studentTap)
+    /**
+     * @feature   RFID Attendance Console
+     * @actor     Shared / Core
+     * @flow      Kinukuha ng reader ang RFID string sa panel; lookup ang student at active roster, saka kailangan ng face o Instructor grant. Ang valid tap ay Check-in, movement, o Check-out depende sa session state at oras.
+     * @uses      resources/js/pages/AttendanceControlPanel.vue; routes/web.php: AttendanceController::verifyPanelPin, AttendanceController::lookupRfid, AttendanceController::updatePanelSessionState, AttendanceController::recordStudentTap, AttendanceController::attendanceLogSnapshot
+     * @related   Authentication, Attendance, Reports
+     * @disable   1) I-comment out ang routes/web.php: AttendanceController::verifyPanelPin, AttendanceController::lookupRfid, AttendanceController::updatePanelSessionState, AttendanceController::recordStudentTap, AttendanceController::attendanceLogSnapshot.
+     * @disable   2) Itago ang action sa resources/js/pages/AttendanceControlPanel.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/AttendanceController.php: AttendanceController::recordStudentTap matapos alisin ang routes. Side effect: mawawala ang rfid attendance console.
+     */
     public function recordStudentTap(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -336,15 +360,7 @@ class AttendanceController
                 return [$attendance, $logId, 'ignored_tap', 'Ignored Tap', false, 'Attendance is already completed for this class.', false];
             }
 
-            $fallbackVerificationMethods = [
-                'captured_aws_unavailable',
-                'camera_session_override',
-                'face_recognition_disabled',
-                'instructor_rfid',
-            ];
-            $isFallbackVerificationCheckout = in_array($verificationMethod, $fallbackVerificationMethods, true);
             $isCheckoutTap = $forceCheckout
-                || $isFallbackVerificationCheckout
                 || ($checkoutWindowStart ? $now->greaterThanOrEqualTo($checkoutWindowStart) : false);
 
             if ($isCheckoutTap) {
@@ -431,6 +447,7 @@ class AttendanceController
             'message' => $message,
             'record' => [
                 'id' => $attendanceLogId,
+                'student_id' => $student->student_id,
                 'attendance_id' => $attendance?->attendance_id,
                 'rfid' => $student->rfid_tag,
                 'name' => trim($student->first_name.' '.$student->last_name),
@@ -448,7 +465,13 @@ class AttendanceController
         ]);
     }
 
-    public function studentFaceCheck(Request $request): JsonResponse
+    // @function studentFaceCheck: Pinoproseso ang student face check at nagbabalik ng JSON response.
+    // @useIn studentFaceCheck: routes/web.php:171 (attendanceControlPanel.studentFaceCheck)
+    public function studentFaceCheck(
+        Request $request,
+        AwsFaceRecognitionService $faceService,
+        AwsFaceLivenessService $livenessService,
+    ): JsonResponse
     {
         $validated = $request->validate([
             'rfid' => ['required', 'string', 'max:255'],
@@ -456,6 +479,7 @@ class AttendanceController
             'subject_code' => ['nullable', 'string', 'max:255'],
             'schedule_id' => ['nullable', 'integer'],
             'image' => ['nullable', 'string'],
+            'liveness_token' => ['nullable', 'string', 'size:64'],
             'instructor_rfid' => ['nullable', 'string', 'max:255'],
             'camera_unavailable' => ['nullable', 'boolean'],
         ]);
@@ -623,7 +647,25 @@ class AttendanceController
             ]);
         }
 
-        if (blank($validated['image'] ?? null)) {
+        $capturedImage = (string) ($validated['image'] ?? '');
+        if (config('services.aws_rekognition.liveness.enabled', false)) {
+            $capturedImage = $livenessService->consumeReferenceImage(
+                $request,
+                (string) ($validated['liveness_token'] ?? ''),
+                'attendance_student',
+                (string) $student->rfid_tag,
+            ) ?? '';
+
+            if ($capturedImage === '') {
+                return response()->json([
+                    'ok' => false,
+                    'verified' => false,
+                    'message' => 'A valid live-face verification is required.',
+                ], 422);
+            }
+        }
+
+        if ($capturedImage === '') {
             return response()->json([
                 'ok' => false,
                 'verified' => false,
@@ -631,12 +673,11 @@ class AttendanceController
             ], 422);
         }
 
-        $faceService = new AwsFaceRecognitionService;
         $faceResult = null;
         $bestMismatch = null;
 
         foreach ($faceImages as $faceImage) {
-            $comparison = $faceService->compareBase64WithStoredImage($validated['image'], $faceImage);
+            $comparison = $faceService->compareBase64WithStoredImage($capturedImage, $faceImage);
             if ($comparison === null) {
                 continue;
             }
@@ -655,7 +696,7 @@ class AttendanceController
 
         if ($faceResult === null) {
             $capturePath = $this->storeAttendanceFaceCapture(
-                (string) $validated['image'],
+                $capturedImage,
                 (int) $attendanceSession->attendance_id,
                 $student,
             );
@@ -665,7 +706,7 @@ class AttendanceController
                     'ok' => false,
                     'verified' => false,
                     'provider_unavailable' => true,
-                    'message' => 'AWS face recognition is unavailable and the captured attendance photo could not be stored.',
+                    'message' => self::AWS_FACE_UNAVAILABLE_MESSAGE,
                 ], 503);
             }
 
@@ -677,7 +718,7 @@ class AttendanceController
                 'provider' => 'aws_rekognition',
                 'provider_unavailable' => true,
                 'capture_recorded' => true,
-                'message' => 'Warning: AWS face recognition is unavailable. The student photo was captured and attached to this attendance event.',
+                'message' => self::AWS_FACE_UNAVAILABLE_MESSAGE,
             ]);
         }
 
@@ -688,12 +729,12 @@ class AttendanceController
                 'provider' => $faceResult['provider'],
                 'similarity' => $faceResult['similarity'],
                 'threshold' => $faceResult['threshold'],
-                'message' => 'Face mismatch. Camera image does not match the enrolled student photo.',
+                'message' => self::FACE_MISMATCH_MESSAGE,
             ], 422);
         }
 
         $capturePath = $this->storeAttendanceFaceCapture(
-            (string) $validated['image'],
+            $capturedImage,
             (int) $attendanceSession->attendance_id,
             $student,
         );
@@ -719,7 +760,13 @@ class AttendanceController
         ]);
     }
 
-    public function instructorFaceCheck(Request $request): JsonResponse
+    // @function instructorFaceCheck: Pinoproseso ang instructor face check at nagbabalik ng JSON response.
+    // @useIn instructorFaceCheck: routes/web.php:172 (attendanceControlPanel.instructorFaceCheck)
+    public function instructorFaceCheck(
+        Request $request,
+        AwsFaceRecognitionService $faceService,
+        AwsFaceLivenessService $livenessService,
+    ): JsonResponse
     {
         $validated = $request->validate([
             'instructor_rfid' => ['required', 'string', 'max:255'],
@@ -727,6 +774,7 @@ class AttendanceController
             'student_rfid' => ['required', 'string', 'max:255'],
             'reason' => ['nullable', 'string', 'max:255'],
             'image' => ['nullable', 'string'],
+            'liveness_token' => ['nullable', 'string', 'size:64'],
         ]);
 
         $rfid = strtolower(trim($validated['instructor_rfid']));
@@ -768,7 +816,25 @@ class AttendanceController
             ]);
         }
 
-        if (empty($validated['image'])) {
+        $capturedImage = (string) ($validated['image'] ?? '');
+        if (config('services.aws_rekognition.liveness.enabled', false)) {
+            $capturedImage = $livenessService->consumeReferenceImage(
+                $request,
+                (string) ($validated['liveness_token'] ?? ''),
+                'attendance_instructor',
+                (string) $instructor->user_id,
+            ) ?? '';
+
+            if ($capturedImage === '') {
+                return response()->json([
+                    'ok' => false,
+                    'verified' => false,
+                    'message' => 'A valid instructor live-face verification is required.',
+                ], 422);
+            }
+        }
+
+        if ($capturedImage === '') {
             return response()->json([
                 'ok' => false,
                 'verified' => false,
@@ -776,8 +842,8 @@ class AttendanceController
             ], 422);
         }
 
-        $faceResult = (new AwsFaceRecognitionService)->compareBase64WithStoredImage(
-            $validated['image'],
+        $faceResult = $faceService->compareBase64WithStoredImage(
+            $capturedImage,
             $faceImages[0],
         );
 
@@ -785,7 +851,7 @@ class AttendanceController
             return response()->json([
                 'ok' => false,
                 'verified' => false,
-                'message' => 'AWS face recognition is unavailable or could not verify the instructor face.',
+                'message' => self::AWS_FACE_UNAVAILABLE_MESSAGE,
             ], 503);
         }
 
@@ -796,7 +862,7 @@ class AttendanceController
                 'provider' => $faceResult['provider'],
                 'similarity' => $faceResult['similarity'],
                 'threshold' => $faceResult['threshold'],
-                'message' => 'Instructor face mismatch. Attendance was not recorded.',
+                'message' => self::FACE_MISMATCH_MESSAGE,
             ], 422);
         }
 
@@ -812,11 +878,15 @@ class AttendanceController
         ]);
     }
 
+    // @function attendanceVerificationKey: Binubuo ang attendance verification key value.
+    // @useIn attendanceVerificationKey: AttendanceController::recordStudentTap (app/Http/Controllers/AttendanceController.php)
     private function attendanceVerificationKey(int $attendanceSessionId, int $studentId): string
     {
         return "attendance.verification.{$attendanceSessionId}.{$studentId}";
     }
 
+    // @function grantAttendanceVerification: Pinoproseso ang grant attendance verification para sa Attendance.
+    // @useIn grantAttendanceVerification: AttendanceController::studentFaceCheck (app/Http/Controllers/AttendanceController.php)
     private function grantAttendanceVerification(Request $request, object $attendanceSession, Students $student, string $method, ?string $facePath = null): void
     {
         $request->session()->put($this->attendanceVerificationKey(
@@ -829,11 +899,15 @@ class AttendanceController
         ]);
     }
 
+    // @function cameraBypassKey: Binubuo ang camera bypass key value.
+    // @useIn cameraBypassKey: AttendanceController::updatePanelSessionState (app/Http/Controllers/AttendanceController.php)
     private function cameraBypassKey(int $attendanceSessionId): string
     {
         return "attendance.camera_bypass.{$attendanceSessionId}";
     }
 
+    // @function matchesScheduleInstructorRfid: Sinusuri kung schedule instructor rfid para sa Attendance.
+    // @useIn matchesScheduleInstructorRfid: AttendanceController::studentFaceCheck (app/Http/Controllers/AttendanceController.php)
     private function matchesScheduleInstructorRfid(Schedule $schedule, string $rfid): bool
     {
         if ($rfid === '') {
@@ -846,6 +920,8 @@ class AttendanceController
             && strtolower(trim((string) $schedule->instructor->user->rfid_tag)) === $rfid;
     }
 
+    // @function storeAttendanceFaceCapture: Sine-save ang attendance face capture sa Attendance flow.
+    // @useIn storeAttendanceFaceCapture: AttendanceController::studentFaceCheck (app/Http/Controllers/AttendanceController.php)
     private function storeAttendanceFaceCapture(string $dataUrl, int $attendanceSessionId, Students $student): ?string
     {
         $base64 = preg_replace('/^data:[^;]+;base64,/', '', $dataUrl);
@@ -864,6 +940,8 @@ class AttendanceController
         return Storage::disk('public')->put($path, $bytes) ? $path : null;
     }
 
+    // @function finalizeCuttingStudents: Pinoproseso ang finalize cutting students para sa Attendance.
+    // @useIn finalizeCuttingStudents: AttendanceController::updatePanelSessionState (app/Http/Controllers/AttendanceController.php)
     private function finalizeCuttingStudents(object $attendanceSession): void
     {
         $openLogs = DB::table('attendance_logs')
@@ -888,6 +966,8 @@ class AttendanceController
         }
     }
 
+    // @function attendanceLogSnapshot: Pinoproseso ang attendance log snapshot at nagbabalik ng JSON response.
+    // @useIn attendanceLogSnapshot: routes/web.php:176 (attendanceControlPanel.attendanceLogs)
     public function attendanceLogSnapshot(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -914,6 +994,7 @@ class AttendanceController
             return response()->json([
                 'ok' => true,
                 'records' => [],
+                'total_students' => 0,
             ]);
         }
 
@@ -922,11 +1003,13 @@ class AttendanceController
             ->leftJoin('attendances', 'attendances.attendance_id', '=', 'attendance_logs.main_attendance_id')
             ->leftJoin('strands', 'strands.strand_id', '=', 'students.strand_id')
             ->leftJoin('sections', 'sections.section_id', '=', 'students.section_id')
+            ->whereNull('students.deleted_at')
             ->where('attendance_logs.attendance_id', $attendanceSession->attendance_id)
             ->orderByDesc('attendance_logs.tap_datetime')
             ->orderByDesc('attendance_logs.id')
             ->select([
                 'attendance_logs.id',
+                'attendance_logs.student_id',
                 'attendance_logs.time_in',
                 'attendance_logs.time_out',
                 'attendance_logs.status',
@@ -956,6 +1039,7 @@ class AttendanceController
             ->map(function ($record) {
                 return [
                     'id' => $record->id,
+                    'student_id' => $record->student_id,
                     'rfid' => $record->rfid_tag,
                     'name' => trim(($record->first_name ?? '').' '.($record->last_name ?? '')),
                     'course' => $record->strand_code,
@@ -976,12 +1060,28 @@ class AttendanceController
             })
             ->values();
 
+        $studentRecords = $records
+            ->groupBy(fn (array $record) => (string) ($record['student_id'] ?? $record['rfid']))
+            ->map(function ($events, string $studentKey) {
+                $events = $events->values();
+                $summary = $events->first();
+                $summary['id'] = 'student-'.$studentKey;
+                $summary['tap_count'] = $events->count();
+                $summary['events'] = $events->all();
+
+                return $summary;
+            })
+            ->values();
+
         return response()->json([
             'ok' => true,
-            'records' => $records,
+            'records' => $studentRecords,
+            'total_students' => $studentRecords->count(),
         ]);
     }
 
+    // @function lookupRfid: Hinahanap ang rfid sa Attendance flow.
+    // @useIn lookupRfid: routes/web.php:166 (attendanceControlPanel.lookupRfid)
     public function lookupRfid(Request $request): JsonResponse
     {
         $rfid = strtolower(trim((string) $request->input('rfid', '')));
@@ -1028,6 +1128,9 @@ class AttendanceController
                     })
                     ->leftJoin('sections', 'sections.section_id', '=', 'schedules.section_id')
                     ->leftJoin('strands', 'strands.strand_id', '=', 'sections.strand_id')
+                    ->whereNull('subjects.deleted_at')
+                    ->whereNull('sections.deleted_at')
+                    ->whereNull('strands.deleted_at')
                     ->whereRaw('LOWER(TRIM(schedules.room)) = ?', [$normalizedRoom])
                     ->whereRaw('TIME(?) >= schedules.time_start AND TIME(?) < schedules.time_end', [$currentTime, $currentTime])
                     ->where(function ($query) use ($instructorProfileId, $instructor) {
@@ -1086,6 +1189,7 @@ class AttendanceController
                                 ->on('subjects.section_id', '=', 'schedules.section_id')
                                 ->where('subjects.user_id', '=', $instructor->user_id);
                         })
+                        ->whereNull('subjects.deleted_at')
                         ->whereRaw('TIME(?) >= schedules.time_start AND TIME(?) < schedules.time_end', [$currentTime, $currentTime])
                         ->get(['schedules.weekdays'])
                         ->filter(fn ($s) => $this->matchesWeekday((string) ($s->weekdays ?? ''), $weekday, $weekdayFull))
@@ -1211,6 +1315,8 @@ class AttendanceController
         ]);
     }
 
+    // @function verifyFace: Vini-verify ang face sa Attendance flow.
+    // @useIn verifyFace: routes/web.php:179 (attendanceControlPanel.verifyFace)
     /**
      * Face verification endpoint.
      * Accepts a base64 image from the webcam and returns whether the recognized
@@ -1257,7 +1363,9 @@ class AttendanceController
         ]);
     }
 
-    public function verifyStudentFace(Request $request): JsonResponse
+    // @function verifyStudentFace: Vini-verify ang student face sa Attendance flow.
+    // @useIn verifyStudentFace: routes/web.php:149 (faceRecognition.verifyStudent)
+    public function verifyStudentFace(Request $request, AwsFaceRecognitionService $faceService): JsonResponse
     {
         $validated = $request->validate([
             'image' => ['required', 'string'],
@@ -1296,7 +1404,7 @@ class AttendanceController
             ], 422);
         }
 
-        $faceResult = (new AwsFaceRecognitionService)->compareBase64WithStoredImage(
+        $faceResult = $faceService->compareBase64WithStoredImage(
             $validated['image'],
             $faceImages[0],
         );
@@ -1305,7 +1413,7 @@ class AttendanceController
             return response()->json([
                 'ok' => false,
                 'verified' => false,
-                'message' => 'AWS face recognition is unavailable or could not compare the images.',
+                'message' => self::AWS_FACE_UNAVAILABLE_MESSAGE,
             ], 503);
         }
 
@@ -1316,7 +1424,7 @@ class AttendanceController
                 'provider' => $faceResult['provider'],
                 'similarity' => $faceResult['similarity'],
                 'threshold' => $faceResult['threshold'],
-                'message' => 'Face mismatch.',
+                'message' => self::FACE_MISMATCH_MESSAGE,
             ], 422);
         }
 
@@ -1333,6 +1441,8 @@ class AttendanceController
         ]);
     }
 
+    // @function controlPanel: Ibinabalik ang AttendanceControlPanel page at data para sa request.
+    // @useIn controlPanel: routes/web.php:161 (attendanceControlPanel)
     public function controlPanel()
     {
         $panelRoom = $this->currentPanelRoom();
@@ -1342,11 +1452,14 @@ class AttendanceController
         }
 
         return Inertia::render('AttendanceControlPanel', [
+            'title' => 'Attendance Control Panel',
             ...$this->panelPayload(),
             'panelRoom' => $panelRoom,
         ]);
     }
 
+    // @function panelLogin: Ibinabalik ang AttendancePanelLogin page at data para sa request.
+    // @useIn panelLogin: routes/web.php:145 (attendanceControlPanel.login)
     public function panelLogin()
     {
         $isConsole = strtolower(trim((string) Auth::user()?->role)) === 'console';
@@ -1357,11 +1470,14 @@ class AttendanceController
         }
 
         return Inertia::render('AttendancePanelLogin', [
+            'title' => 'Attendance Panel Login',
             'rooms' => $this->panelRooms(),
             'alreadyVerified' => $isConsole,
         ]);
     }
 
+    // @function verifyPanelPin: Vini-verify ang panel pin sa Attendance flow.
+    // @useIn verifyPanelPin: routes/web.php:147 (panelVerify)
     public function verifyPanelPin(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -1425,10 +1541,13 @@ class AttendanceController
 
         Auth::login($consoleUser);
         $request->session()->regenerate();
+        AuthenticatedSession::issue($request, $consoleUser);
 
         return response()->json(['success' => true]);
     }
 
+    // @function selectPanelRoom: Pinipili ang panel room sa Attendance flow.
+    // @useIn selectPanelRoom: routes/web.php:162 (attendanceControlPanel.room)
     public function selectPanelRoom(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -1441,6 +1560,8 @@ class AttendanceController
         return response()->json(['success' => true]);
     }
 
+    // @function panelLogout: Pinoproseso ang panel logout at nagbabalik ng JSON response.
+    // @useIn panelLogout: routes/web.php:163 (attendanceControlPanel.logout)
     public function panelLogout(Request $request): JsonResponse
     {
         $room = trim((string) ($request->input('room') ?? session('panel.room')));
@@ -1493,6 +1614,8 @@ class AttendanceController
         ]);
     }
 
+    // @function panelStatus: Pinoproseso ang panel status at nagbabalik ng JSON response.
+    // @useIn panelStatus: routes/web.php:164 (attendanceControlPanel.status)
     public function panelStatus(Request $request): JsonResponse
     {
         $room = trim((string) ($request->input('room') ?? $this->currentPanelRoom()));
@@ -1524,6 +1647,8 @@ class AttendanceController
         ]);
     }
 
+    // @function currentPanelRoom: Binubuo ang current panel room string para sa Attendance.
+    // @useIn currentPanelRoom: AttendanceController::controlPanel (app/Http/Controllers/AttendanceController.php)
     private function currentPanelRoom(): ?string
     {
         $room = trim((string) session('panel.room', ''));
@@ -1557,6 +1682,8 @@ class AttendanceController
         return $room;
     }
 
+    // @function openPanelRoomSession: Binubuksan ang panel room session sa Attendance flow.
+    // @useIn openPanelRoomSession: AttendanceController::selectPanelRoom (app/Http/Controllers/AttendanceController.php)
     private function openPanelRoomSession(string $room, ?User $user): void
     {
         $session = RfidPanelSession::query()
@@ -1580,6 +1707,8 @@ class AttendanceController
         $session->save();
     }
 
+    // @function panelPayload: Binubuo ang panel payload value.
+    // @useIn panelPayload: AttendanceController::controlPanel (app/Http/Controllers/AttendanceController.php)
     private function panelPayload(): array
     {
         $activeAcademicYearId = AcademicYear::currentOrLatest()?->academic_year_id;
@@ -1684,6 +1813,8 @@ class AttendanceController
         ];
     }
 
+    // @function panelLabelForRoom: Binubuo ang panel label for room string para sa Attendance.
+    // @useIn panelLabelForRoom: AttendanceController::updatePanelSessionState (app/Http/Controllers/AttendanceController.php)
     private function panelLabelForRoom(string $room): string
     {
         return (string) (PanelDevice::query()
@@ -1692,6 +1823,8 @@ class AttendanceController
             ?: SystemSetting::string(SystemSetting::PANEL_DEVICE_LABEL, 'Attendance Console'));
     }
 
+    // @function panelRooms: Kinukuha ang panel rooms result para sa Attendance.
+    // @useIn panelRooms: AttendanceController::panelLogin (app/Http/Controllers/AttendanceController.php)
     private function panelRooms(): array
     {
         $latestSessionsByRoom = RfidPanelSession::query()
@@ -1740,6 +1873,8 @@ class AttendanceController
         return $rooms;
     }
 
+    // @function storeStudentFaceCapture: Sine-save ang student face capture sa Attendance flow.
+    // @useIn storeStudentFaceCapture: TODO(verify): walang direct caller na nakita sa static search
     private function storeStudentFaceCapture(string $dataUrl, Students $student): ?string
     {
         $base64 = preg_replace('/^data:[^;]+;base64,/', '', $dataUrl);
@@ -1758,6 +1893,8 @@ class AttendanceController
         return Storage::disk('public')->put($fileName, $bytes) ? $fileName : null;
     }
 
+    // @function logInstructorOverride: Nilolog ang instructor override sa Attendance flow.
+    // @useIn logInstructorOverride: AttendanceController::instructorFaceCheck (app/Http/Controllers/AttendanceController.php)
     private function logInstructorOverride(User $instructor, string $studentRfid, string $reason): void
     {
         ActivityLog::query()->create([
@@ -1772,6 +1909,8 @@ class AttendanceController
         ]);
     }
 
+    // @function buildBorrowItemsByRfid: Binubuo ang borrow items by rfid sa Attendance flow.
+    // @useIn buildBorrowItemsByRfid: AttendanceController::panelPayload (app/Http/Controllers/AttendanceController.php)
     private function buildBorrowItemsByRfid(): array
     {
         $map = [];
@@ -1826,6 +1965,8 @@ class AttendanceController
         return $map;
     }
 
+    // @function index: Ibinabalik ang AttendanceScanner page at data para sa request.
+    // @useIn index: AttendanceController::scanner (app/Http/Controllers/AttendanceController.php)
     /**
      * Display a listing of the resource.
      */
@@ -1899,6 +2040,7 @@ class AttendanceController
             ->values();
 
         return Inertia::render('AttendanceScanner', [
+            'title' => 'Attendance Scanner',
             'session' => $currentSchedule ? [
                 'instructor' => $currentSchedule->instructor?->user?->name ?? $currentSchedule->subject?->user?->name ?? 'Unassigned Instructor',
                 'subject' => $currentSchedule->subject?->subject_name ?? 'Unassigned Subject',
@@ -1915,11 +2057,15 @@ class AttendanceController
         ]);
     }
 
+    // @function scanner: Kinukuha ang scanner result para sa Attendance.
+    // @useIn scanner: routes/web.php:254 (attendance.scanner)
     public function scanner()
     {
         return $this->index();
     }
 
+    // @function logs: Ibinabalik ang AttendanceLogs page at data para sa request.
+    // @useIn logs: routes/web.php:269 (attendance.logs.legacy)
     public function logs(Request $request)
     {
         $filters = [
@@ -1989,7 +2135,11 @@ class AttendanceController
                 ->leftJoin('subjects', function ($join) {
                     $join->on('subjects.subject_code', '=', 'attendance_sessions.subject_code')
                         ->on('subjects.section_id', '=', 'schedules.section_id');
-                });
+                })
+                ->whereNull('instructors.deleted_at')
+                ->whereNull('instructor_users.deleted_at')
+                ->whereNull('sections.deleted_at')
+                ->whereNull('subjects.deleted_at');
         };
 
         $query = DB::table('attendance_logs')
@@ -1998,6 +2148,8 @@ class AttendanceController
             ->leftJoin('students', 'students.student_id', '=', 'attendance_logs.student_id')
             ->leftJoin('sections as student_sections', 'student_sections.section_id', '=', 'students.section_id')
             ->leftJoin('strands', 'strands.strand_id', '=', 'students.strand_id');
+
+        $query->whereNull('students.deleted_at');
 
         $sessionJoin($query);
 
@@ -2152,9 +2304,14 @@ class AttendanceController
                     ->on('schedules.subject_code', '=', 'subjects.subject_code');
             })
             ->leftJoin('instructors', 'instructors.instructor_id', '=', 'schedules.instructor_id')
-            ->leftJoin('users as subject_instructor_users', 'subject_instructor_users.user_id', '=', 'instructors.user_id');
+            ->leftJoin('users as subject_instructor_users', 'subject_instructor_users.user_id', '=', 'instructors.user_id')
+            ->whereNull('subjects.deleted_at')
+            ->whereNull('sections.deleted_at')
+            ->whereNull('instructors.deleted_at')
+            ->whereNull('subject_instructor_users.deleted_at');
 
         return Inertia::render('AttendanceLogs', [
+            'title' => 'Attendance Logs',
             'logs' => $logs,
             'filters' => $filters,
             'currentUserRole' => $role,
@@ -2198,6 +2355,8 @@ class AttendanceController
         ]);
     }
 
+    // @function updateAttendanceStatus: Ina-update ang attendance status sa Attendance flow.
+    // @useIn updateAttendanceStatus: routes/web.php:270 (attendance.logs.status)
     public function updateAttendanceStatus(Request $request)
     {
         $validated = $request->validate([
@@ -2347,6 +2506,8 @@ class AttendanceController
         return back()->with('success', 'Attendance status updated and logged.');
     }
 
+    // @function evidence: Kinukuha ang evidence result para sa Attendance.
+    // @useIn evidence: routes/web.php:156 (attendance.evidence)
     public function evidence(Request $request, AttendanceLog $attendanceLog, string $moment): StreamedResponse
     {
         abort_unless(in_array($moment, ['time-in', 'time-out'], true), 404);
@@ -2383,6 +2544,8 @@ class AttendanceController
         return Storage::disk('public')->response($path);
     }
 
+    // @function scan: Pinoproseso ang scan at nagbabalik ng JSON response.
+    // @useIn scan: routes/web.php:273 (attendance.scan)
     public function scan(Request $request)
     {
         $validated = $request->validate([
@@ -2416,6 +2579,28 @@ class AttendanceController
 
         $now = Carbon::now();
         $status = $schedule->time_start && $now->format('H:i:s') > $schedule->time_start ? 'late' : 'present';
+        $attendanceSessionId = DB::table('attendance_sessions')
+            ->where('schedule_id', $schedule->scheduled_id)
+            ->whereDate('date', $now->toDateString())
+            ->where('status', 'attendance')
+            ->latest('attendance_id')
+            ->value('attendance_id');
+
+        if (! $attendanceSessionId) {
+            $attendanceSessionId = DB::table('attendance_sessions')->insertGetId([
+                'subject_code' => $schedule->subject_code,
+                'schedule_id' => $schedule->scheduled_id,
+                'academic_year_id' => $schedule->academic_year_id,
+                'subject_offering_id' => $schedule->subject_offering_id,
+                'date' => $now->toDateString(),
+                'time_start' => $schedule->time_start ?? $now->format('H:i:s'),
+                'time_end' => null,
+                'status' => 'attendance',
+                'room' => $schedule->room,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
 
         $attendance = Attendance::query()->firstOrNew([
             'student_id' => $student->student_id,
@@ -2433,13 +2618,14 @@ class AttendanceController
                 'time_end' => $schedule->time_end,
                 'time_in' => $now->format('H:i:s'),
                 'status' => $status,
-                'subject' => $schedule->subject->subject_name,
+                'subject_code' => $schedule->subject_code,
                 'room' => $schedule->room,
+                'total_taps' => 1,
             ]);
             $attendance->save();
 
             AttendanceLog::create([
-                'attendance_id' => $attendance->attendance_id,
+                'attendance_id' => $attendanceSessionId,
                 'main_attendance_id' => $attendance->attendance_id,
                 'student_id' => $student->student_id,
                 'schedule_id' => $schedule->scheduled_id,
@@ -2454,6 +2640,7 @@ class AttendanceController
         } elseif (! $attendance->time_out) {
             $attendance->update([
                 'time_out' => $now->format('H:i:s'),
+                'total_taps' => 2,
             ]);
 
             $latestLog = AttendanceLog::query()
@@ -2468,7 +2655,7 @@ class AttendanceController
                 ]);
             } else {
                 AttendanceLog::create([
-                    'attendance_id' => $attendance->attendance_id,
+                    'attendance_id' => $attendanceSessionId,
                     'main_attendance_id' => $attendance->attendance_id,
                     'student_id' => $student->student_id,
                     'schedule_id' => $schedule->scheduled_id,
@@ -2511,6 +2698,8 @@ class AttendanceController
         ]);
     }
 
+    // @function insertAttendanceTapLog: Kinukuha ang insert attendance tap log result para sa Attendance.
+    // @useIn insertAttendanceTapLog: AttendanceController::recordStudentTap (app/Http/Controllers/AttendanceController.php)
     private function insertAttendanceTapLog(int $sessionId, Attendance $attendance, Students $student, ?int $scheduleId, \Carbon\CarbonInterface $tapTime, string $tapType, int $sequence, string $room, string $validationResult, ?string $remarks = null, ?string $verificationMethod = null, ?string $verificationFacePath = null): int
     {
         $isCheckout = $tapType === 'Check-out';
@@ -2543,6 +2732,8 @@ class AttendanceController
         ]);
     }
 
+    // @function insertInvalidAttendanceTapLog: Kinukuha ang insert invalid attendance tap log result para sa Attendance.
+    // @useIn insertInvalidAttendanceTapLog: AttendanceController::recordStudentTap (app/Http/Controllers/AttendanceController.php)
     private function insertInvalidAttendanceTapLog(int $sessionId, Students $student, ?int $scheduleId, \Carbon\CarbonInterface $tapTime, string $tapType, int $sequence, string $room, string $remarks): int
     {
         $context = $this->attendanceAcademicContext($scheduleId, (int) $student->student_id);
@@ -2570,6 +2761,8 @@ class AttendanceController
         ]);
     }
 
+    // @function attendanceAcademicContext: Kinukuha ang attendance academic context result para sa Attendance.
+    // @useIn attendanceAcademicContext: AttendanceController::updatePanelSessionState (app/Http/Controllers/AttendanceController.php)
     private function attendanceAcademicContext(?int $scheduleId, ?int $studentId = null): array
     {
         $schedule = $scheduleId ? Schedule::query()->find($scheduleId) : null;
@@ -2591,6 +2784,8 @@ class AttendanceController
         ];
     }
 
+    // @function instructorRfidAuthorizesTemporaryMovement: Sinusuri ang instructor rfid authorizes temporary movement condition para sa Attendance.
+    // @useIn instructorRfidAuthorizesTemporaryMovement: AttendanceController::recordStudentTap (app/Http/Controllers/AttendanceController.php)
     private function instructorRfidAuthorizesTemporaryMovement(?Schedule $schedule, ?string $instructorRfid): bool
     {
         $rfid = strtolower(trim((string) $instructorRfid));
@@ -2601,12 +2796,16 @@ class AttendanceController
 
         return DB::table('instructors')
             ->join('users', 'users.user_id', '=', 'instructors.user_id')
+            ->whereNull('instructors.deleted_at')
+            ->whereNull('users.deleted_at')
             ->where('instructors.instructor_id', $schedule->instructor_id)
             ->whereRaw('LOWER(users.rfid_tag) = ?', [$rfid])
             ->whereRaw('LOWER(users.role) = ?', ['instructor'])
             ->exists();
     }
 
+    // @function attendanceDisplayStatus: Binubuo ang attendance display status string para sa Attendance.
+    // @useIn attendanceDisplayStatus: AttendanceController::recordStudentTap (app/Http/Controllers/AttendanceController.php)
     private function attendanceDisplayStatus(object $attendance, ?object $session = null): string
     {
         $status = strtolower((string) ($attendance->attendance_status ?? $attendance->status ?? 'pending'));
@@ -2637,6 +2836,8 @@ class AttendanceController
         };
     }
 
+    // @function attendanceSessionHasEnded: Sinusuri ang attendance session has ended condition para sa Attendance.
+    // @useIn attendanceSessionHasEnded: AttendanceController::attendanceDisplayStatus (app/Http/Controllers/AttendanceController.php)
     private function attendanceSessionHasEnded(object $attendance, ?object $session = null): bool
     {
         $sessionStatus = strtolower((string) ($session->session_status ?? $session->status ?? ''));
@@ -2658,6 +2859,8 @@ class AttendanceController
         return $end ? now()->greaterThan($end) : false;
     }
 
+    // @function scheduleDateTime: Kinukuha ang schedule date time result para sa Attendance.
+    // @useIn scheduleDateTime: AttendanceController::recordStudentTap (app/Http/Controllers/AttendanceController.php)
     private function scheduleDateTime(string $date, ?string $time): ?Carbon
     {
         if (! $time) {
@@ -2671,6 +2874,8 @@ class AttendanceController
         }
     }
 
+    // @function formatTime: Fino-format ang time sa Attendance flow.
+    // @useIn formatTime: AttendanceController::index (app/Http/Controllers/AttendanceController.php)
     private function formatTime(?string $value): ?string
     {
         if (! $value) {
@@ -2682,6 +2887,8 @@ class AttendanceController
         return $timestamp === false ? $value : date('g:i A', $timestamp);
     }
 
+    // @function appendAbsentAttendanceLogs: Kinukuha ang append absent attendance logs result para sa Attendance.
+    // @useIn appendAbsentAttendanceLogs: AttendanceController::logs (app/Http/Controllers/AttendanceController.php)
     private function appendAbsentAttendanceLogs($logs, array $filters, bool $isAdmin, bool $isInstructor, ?int $instructorId, int $absentDefaultDays)
     {
         $absentDefaultDays = max(1, min(365, $absentDefaultDays));
@@ -2697,6 +2904,10 @@ class AttendanceController
                 $join->on('subjects.subject_code', '=', 'attendance_sessions.subject_code')
                     ->on('subjects.section_id', '=', 'schedules.section_id');
             })
+            ->whereNull('instructors.deleted_at')
+            ->whereNull('instructor_users.deleted_at')
+            ->whereNull('sections.deleted_at')
+            ->whereNull('subjects.deleted_at')
             ->whereNotNull('schedules.section_id')
             ->where(function ($query) use ($today) {
                 $query->whereDate('attendance_sessions.date', '<', $today)
@@ -2814,6 +3025,8 @@ class AttendanceController
         return $logs->concat($absentLogs)->values();
     }
 
+    // @function combineAttendanceLogRows: Binubuo ang combine attendance log rows value.
+    // @useIn combineAttendanceLogRows: AttendanceController::logs (app/Http/Controllers/AttendanceController.php)
     private function combineAttendanceLogRows($logs)
     {
         return collect($logs)
@@ -2873,6 +3086,8 @@ class AttendanceController
             ->values();
     }
 
+    // @function matchesWeekday: Sinusuri kung weekday para sa Attendance.
+    // @useIn matchesWeekday: AttendanceController::lookupRfid (app/Http/Controllers/AttendanceController.php)
     private function matchesWeekday(string $weekdays, string $weekdayAbbr, string $weekdayFull): bool
     {
         $tokens = preg_split('/[,\-\/\s]+/', strtolower(trim($weekdays))) ?: [];

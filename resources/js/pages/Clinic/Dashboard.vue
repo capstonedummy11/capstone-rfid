@@ -1,3 +1,4 @@
+<!-- FEATURE:clinic-dispatch - UI para sa emergency alert response and dispatch. -->
 <script setup>
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
@@ -12,6 +13,7 @@ import {
     Trash2,
     Users,
 } from 'lucide-vue-next';
+import { confirmActionModal } from '@/lib/feedbackModal';
 
 const props = defineProps({
     counts: { type: Object, default: () => ({}) },
@@ -118,6 +120,8 @@ const calendarDays = computed(() => {
     return days;
 });
 
+// @function resetTypeForm: Nire-reset ang type form sa Dashboard flow.
+// @useIn resetTypeForm: resources/js/pages/Clinic/Dashboard.vue template @click
 const resetTypeForm = () => {
     editingTypeId.value = null;
     typeForm.reset();
@@ -126,6 +130,8 @@ const resetTypeForm = () => {
     typeForm.sort_order = 0;
 };
 
+// @function editType: Pinoproseso ang edit type para sa Dashboard.
+// @useIn editType: resources/js/pages/Clinic/Dashboard.vue template @click
 const editType = (type) => {
     editingTypeId.value = type.emergency_type_id;
     typeForm.name = type.name || '';
@@ -135,6 +141,8 @@ const editType = (type) => {
     typeForm.sort_order = type.sort_order || 0;
 };
 
+// @function refreshDashboard: Pinoproseso ang refresh dashboard para sa Dashboard.
+// @useIn refreshDashboard: resources/js/pages/Clinic/Dashboard.vue:179
 const refreshDashboard = (
     only = [
         'alerts',
@@ -152,6 +160,8 @@ const refreshDashboard = (
     });
 };
 
+// @function setAlertProcessing: Sine-set ang alert processing sa Dashboard flow.
+// @useIn setAlertProcessing: resources/js/pages/Clinic/Dashboard.vue:225
 const setAlertProcessing = (id, isProcessing) => {
     const next = new Set(processingAlertIds.value);
 
@@ -164,8 +174,12 @@ const setAlertProcessing = (id, isProcessing) => {
     processingAlertIds.value = next;
 };
 
+// @function isAlertProcessing: Sinusuri kung alert processing para sa Dashboard.
+// @useIn isAlertProcessing: resources/js/pages/Clinic/Dashboard.vue template
 const isAlertProcessing = (id) => processingAlertIds.value.has(id);
 
+// @function submitType: Isinusumite ang type sa Dashboard flow.
+// @useIn submitType: resources/js/pages/Clinic/Dashboard.vue template
 const submitType = () => {
     if (editingTypeId.value) {
         typeForm.put(
@@ -190,8 +204,14 @@ const submitType = () => {
     });
 };
 
-const deleteType = (type) => {
-    if (!confirm(`Delete emergency type "${type.name}"?`)) return;
+// @function deleteType: Tinatanggal ang type sa Dashboard flow.
+// @useIn deleteType: resources/js/pages/Clinic/Dashboard.vue template @click
+const deleteType = async (type) => {
+    const confirmed = await confirmActionModal({
+        title: 'Delete emergency type?',
+        text: `Delete emergency type "${type.name}"?`,
+    });
+    if (!confirmed) return;
 
     router.delete(
         route('clinic.emergency-types.destroy', type.emergency_type_id),
@@ -202,6 +222,8 @@ const deleteType = (type) => {
     );
 };
 
+// @function updateAlert: Ina-update ang alert sa Dashboard flow.
+// @useIn updateAlert: resources/js/pages/Clinic/Dashboard.vue template @change
 const updateAlert = (id, status) => {
     router.put(
         route('clinic.emergency-alerts.update', { id }),
@@ -213,6 +235,8 @@ const updateAlert = (id, status) => {
     );
 };
 
+// @function dispatchAlert: Ipinapadala ang alert sa Dashboard flow.
+// @useIn dispatchAlert: resources/js/pages/Clinic/Dashboard.vue template @click
 const dispatchAlert = (id) => {
     const clinicUserId = selectedClinicByAlert.value[id];
     if (!clinicUserId) return;
@@ -229,6 +253,8 @@ const dispatchAlert = (id) => {
     );
 };
 
+// @function ignoreAlert: Pinoproseso ang ignore alert para sa Dashboard.
+// @useIn ignoreAlert: resources/js/pages/Clinic/Dashboard.vue template @click
 const ignoreAlert = (id) => {
     setAlertProcessing(id, true);
 
@@ -243,12 +269,16 @@ const ignoreAlert = (id) => {
     );
 };
 
+// @function highestAlertId: Pinoproseso ang highest alert id para sa Dashboard.
+// @useIn highestAlertId: resources/js/pages/Clinic/Dashboard.vue:309
 const highestAlertId = (alerts) =>
     Math.max(
         0,
         ...(alerts ?? []).map((alert) => Number(alert.emergency_alert_id) || 0),
     );
 
+// @function unlockAlertAudio: Kinukuha ang unlock alert audio result para sa Dashboard.
+// @useIn unlockAlertAudio: resources/js/pages/Clinic/Dashboard.vue:302
 const unlockAlertAudio = () => {
     if (audioUnlocked.value || typeof window === 'undefined') return;
 
@@ -280,6 +310,8 @@ watch(selectedEmergencySoundUrl, (url) => {
     registerAudioUnlockListeners();
 });
 
+// @function playEmergencySound: Kinukuha ang play emergency sound result para sa Dashboard.
+// @useIn playEmergencySound: resources/js/pages/Clinic/Dashboard.vue:317
 const playEmergencySound = () => {
     if (!audioUnlocked.value || !alertAudio) return;
 
@@ -290,6 +322,8 @@ const playEmergencySound = () => {
     });
 };
 
+// @function registerAudioUnlockListeners: Kinukuha ang register audio unlock listeners result para sa Dashboard.
+// @useIn registerAudioUnlockListeners: resources/js/pages/Clinic/Dashboard.vue:286
 const registerAudioUnlockListeners = () => {
     if (typeof window === 'undefined') return;
 
@@ -522,21 +556,57 @@ onBeforeUnmount(() => {
 
             <section class="grid gap-5 xl:grid-cols-[1fr_390px]">
                 <div class="rounded-md bg-white p-4 shadow-sm">
-                    <div v-if="assignedDispatches.length" class="mb-5 rounded-md border border-blue-200 bg-blue-50 p-4">
-                        <h2 class="text-sm font-black uppercase tracking-wide text-blue-800">My Dispatch Assignments</h2>
-                        <article v-for="assignment in assignedDispatches" :key="assignment.case_id" class="mt-3 rounded-md bg-white p-3 shadow-sm">
-                            <p class="font-black text-slate-900">{{ assignment.patient_name }} · {{ assignment.case_type }}</p>
-                            <p class="mt-1 text-sm font-semibold text-blue-700">
-                                Responder sent: {{ assignment.assigned_responder_name || 'Not assigned' }}
+                    <div
+                        v-if="assignedDispatches.length"
+                        class="mb-5 rounded-md border border-blue-200 bg-blue-50 p-4"
+                    >
+                        <h2
+                            class="text-sm font-black tracking-wide text-blue-800 uppercase"
+                        >
+                            My Dispatch Assignments
+                        </h2>
+                        <article
+                            v-for="assignment in assignedDispatches"
+                            :key="assignment.case_id"
+                            class="mt-3 rounded-md bg-white p-3 shadow-sm"
+                        >
+                            <p class="font-black text-slate-900">
+                                {{ assignment.patient_name }} ·
+                                {{ assignment.case_type }}
                             </p>
-                            <p class="mt-1 text-sm font-semibold text-rose-700">Proceed to: {{ assignment.location }}</p>
-                            <p class="mt-1 text-sm text-slate-600">{{ assignment.symptoms }}</p>
-                            <div v-if="assignment.history.length || assignment.attendance.length" class="mt-2 border-t border-slate-100 pt-2 text-xs text-slate-500">
-                                <p v-for="record in assignment.history" :key="`history-${assignment.case_id}-${record.date}-${record.summary}`">
-                                    Clinic history: {{ record.date }} · {{ record.summary }}
+                            <p class="mt-1 text-sm font-semibold text-blue-700">
+                                Responder sent:
+                                {{
+                                    assignment.assigned_responder_name ||
+                                    'Not assigned'
+                                }}
+                            </p>
+                            <p class="mt-1 text-sm font-semibold text-rose-700">
+                                Proceed to: {{ assignment.location }}
+                            </p>
+                            <p class="mt-1 text-sm text-slate-600">
+                                {{ assignment.symptoms }}
+                            </p>
+                            <div
+                                v-if="
+                                    assignment.history.length ||
+                                    assignment.attendance.length
+                                "
+                                class="mt-2 border-t border-slate-100 pt-2 text-xs text-slate-500"
+                            >
+                                <p
+                                    v-for="record in assignment.history"
+                                    :key="`history-${assignment.case_id}-${record.date}-${record.summary}`"
+                                >
+                                    Clinic history: {{ record.date }} ·
+                                    {{ record.summary }}
                                 </p>
-                                <p v-for="record in assignment.attendance" :key="`attendance-${assignment.case_id}-${record.date}`">
-                                    Attendance: {{ record.date }} · {{ record.status }}
+                                <p
+                                    v-for="record in assignment.attendance"
+                                    :key="`attendance-${assignment.case_id}-${record.date}`"
+                                >
+                                    Attendance: {{ record.date }} ·
+                                    {{ record.status }}
                                 </p>
                             </div>
                         </article>
@@ -582,8 +652,12 @@ onBeforeUnmount(() => {
                                     <p class="mt-2 text-sm text-slate-600">
                                         {{ detail.symptoms }}
                                     </p>
-                                    <p v-if="detail.response_seconds !== null" class="mt-1 text-xs font-bold text-emerald-700">
-                                        Dispatched in {{ detail.response_seconds }} seconds
+                                    <p
+                                        v-if="detail.response_seconds !== null"
+                                        class="mt-1 text-xs font-bold text-emerald-700"
+                                    >
+                                        Dispatched in
+                                        {{ detail.response_seconds }} seconds
                                     </p>
                                     <div
                                         v-if="detail.patients?.length > 1"
@@ -591,7 +665,10 @@ onBeforeUnmount(() => {
                                     >
                                         <div
                                             v-for="patient in detail.patients"
-                                            :key="patient.student_id || patient.student_number"
+                                            :key="
+                                                patient.student_id ||
+                                                patient.student_number
+                                            "
                                             class="flex items-center gap-2 rounded-md bg-slate-50 p-2"
                                         >
                                             <img
@@ -601,8 +678,21 @@ onBeforeUnmount(() => {
                                                 class="h-8 w-8 rounded-full object-cover"
                                             />
                                             <div class="text-xs">
-                                                <p class="font-black text-slate-800">{{ patient.name }}</p>
-                                                <p class="text-slate-500">{{ patient.student_number }} · {{ patient.section || 'No section' }}</p>
+                                                <p
+                                                    class="font-black text-slate-800"
+                                                >
+                                                    {{ patient.name }}
+                                                </p>
+                                                <p class="text-slate-500">
+                                                    {{
+                                                        patient.student_number
+                                                    }}
+                                                    ·
+                                                    {{
+                                                        patient.section ||
+                                                        'No section'
+                                                    }}
+                                                </p>
                                             </div>
                                         </div>
                                     </div>
@@ -626,19 +716,38 @@ onBeforeUnmount(() => {
                                     class="mb-2 w-full rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold"
                                     :disabled="clinicAccounts.length === 0"
                                 >
-                                    <option value="">{{ clinicAccounts.length ? 'Assign Clinic responder' : 'No active Clinic responder available' }}</option>
-                                    <option v-for="account in clinicAccounts" :key="account.user_id" :value="account.user_id">
+                                    <option value="">
+                                        {{
+                                            clinicAccounts.length
+                                                ? 'Assign Clinic responder'
+                                                : 'No active Clinic responder available'
+                                        }}
+                                    </option>
+                                    <option
+                                        v-for="account in clinicAccounts"
+                                        :key="account.user_id"
+                                        :value="account.user_id"
+                                    >
                                         {{ account.name }} · {{ account.email }}
                                     </option>
                                 </select>
-                                <p v-if="clinicAccounts.length === 0" class="mb-2 rounded-md bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
-                                    Alert remains Open and queued. Activate or create a Clinic responder before dispatching.
+                                <p
+                                    v-if="clinicAccounts.length === 0"
+                                    class="mb-2 rounded-md bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800"
+                                >
+                                    Alert remains Open and queued. Activate or
+                                    create a Clinic responder before
+                                    dispatching.
                                 </p>
                             </div>
                             <div class="flex gap-2">
                                 <button
                                     class="flex-1 rounded-md bg-rose-500 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                                    :disabled="isAlertProcessing(detail.id) || clinicAccounts.length === 0 || !selectedClinicByAlert[detail.id]"
+                                    :disabled="
+                                        isAlertProcessing(detail.id) ||
+                                        clinicAccounts.length === 0 ||
+                                        !selectedClinicByAlert[detail.id]
+                                    "
                                     @click="dispatchAlert(detail.id)"
                                 >
                                     {{

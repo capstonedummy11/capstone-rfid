@@ -39,6 +39,8 @@ watch(
     { immediate: true },
 );
 
+// @function onUpdate: Hinahandle ang update sa Edit Inventory flow.
+// @useIn onUpdate: resources/js/components/Modal/EditInventory.vue template @click
 const onUpdate = () => {
     if (!form.barcode || !form.name) {
         Swal.fire({

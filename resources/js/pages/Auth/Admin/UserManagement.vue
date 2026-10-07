@@ -1,7 +1,10 @@
+<!-- FEATURE:user-management - UI para sa user and role management. -->
 <script setup>
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import {
     Edit3,
+    Eye,
+    EyeOff,
     KeyRound,
     ShieldCheck,
     Trash2,
@@ -9,17 +12,24 @@ import {
     UsersRound,
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
+import { confirmActionModal } from '@/lib/feedbackModal';
+import RootOwnershipPanel from '@/components/Admin/RootOwnershipPanel.vue';
 
 const props = defineProps({
     users: { type: Array, default: () => [] },
     roleOptions: { type: Array, default: () => [] },
     canManageAdmins: { type: Boolean, default: false },
     stats: { type: Object, default: () => ({}) },
+    rootOwnership: { type: Object, required: true },
 });
 
 const page = usePage();
 const flashSuccess = computed(() => page.props.flash?.success);
 const editingId = ref(null);
+const passwordResetUser = ref(null);
+const passwordResetSuccess = ref(null);
+const showPassword = ref(false);
+const showPasswordConfirmation = ref(false);
 
 const form = useForm({
     name: '',
@@ -27,8 +37,9 @@ const form = useForm({
     phone: '',
     role: props.roleOptions[0]?.value || 'clinic',
     password: '',
-    is_root_admin: false,
+    password_confirmation: '',
 });
+const passwordResetForm = useForm({});
 
 const statCards = computed(() => [
     {
@@ -60,17 +71,24 @@ const roleLabels = {
     registrar: 'Registrar',
 };
 
+// @function roleLabel: Pinoproseso ang role label para sa User Management.
+// @useIn roleLabel: resources/js/pages/Auth/Admin/UserManagement.vue template
 const roleLabel = (role) =>
     roleLabels[String(role || '').toLowerCase()] ||
     String(role || '').replace('_', ' ');
 
+// @function resetForm: Nire-reset ang form sa User Management flow.
+// @useIn resetForm: resources/js/pages/Auth/Admin/UserManagement.vue template @click
 const resetForm = () => {
     editingId.value = null;
     form.reset();
     form.role = props.roleOptions[0]?.value || 'clinic';
-    form.is_root_admin = false;
+    showPassword.value = false;
+    showPasswordConfirmation.value = false;
 };
 
+// @function editUser: Pinoproseso ang edit user para sa User Management.
+// @useIn editUser: resources/js/pages/Auth/Admin/UserManagement.vue template @click
 const editUser = (user) => {
     editingId.value = user.id;
     form.name = user.name || '';
@@ -78,12 +96,22 @@ const editUser = (user) => {
     form.phone = user.phone || '';
     form.role = user.role || props.roleOptions[0]?.value || 'clinic';
     form.password = '';
-    form.is_root_admin = Boolean(user.is_root_admin);
+    form.password_confirmation = '';
+    showPassword.value = false;
+    showPasswordConfirmation.value = false;
 };
 
+// @function submit: Isinusumite ang user management sa User Management flow.
+// @useIn submit: resources/js/pages/Auth/Admin/UserManagement.vue template
 const submit = () => {
-    if (form.role !== 'admin') {
-        form.is_root_admin = false;
+    form.clearErrors('password_confirmation');
+
+    if (form.password !== form.password_confirmation) {
+        form.setError(
+            'password_confirmation',
+            'The password confirmation does not match.',
+        );
+        return;
     }
 
     if (editingId.value) {
@@ -100,9 +128,67 @@ const submit = () => {
     });
 };
 
-const deleteUser = (user) => {
+// @function defaultPassword: Pinoproseso ang default password para sa User Management.
+// @useIn defaultPassword: resources/js/pages/Auth/Admin/UserManagement.vue template
+const defaultPassword = (user) =>
+    `${user.name ?? ''}${user.last_name ?? ''}`
+        .replace(/\s+/g, '')
+        .toLowerCase();
+
+// @function openPasswordReset: Binubuksan ang password reset sa User Management flow.
+// @useIn openPasswordReset: resources/js/pages/Auth/Admin/UserManagement.vue template @click
+const openPasswordReset = (user) => {
+    if (!user.can_reset_password) return;
+    passwordResetForm.clearErrors();
+    passwordResetUser.value = user;
+};
+
+// @function closePasswordReset: Isinasara ang password reset sa User Management flow.
+// @useIn closePasswordReset: resources/js/pages/Auth/Admin/UserManagement.vue template @click
+const closePasswordReset = () => {
+    if (passwordResetForm.processing) return;
+    passwordResetUser.value = null;
+};
+
+// @function confirmPasswordReset: Kinukuha ang confirm password reset result para sa User Management.
+// @useIn confirmPasswordReset: resources/js/pages/Auth/Admin/UserManagement.vue template @click
+const confirmPasswordReset = () => {
+    const user = passwordResetUser.value;
+    if (!user || passwordResetForm.processing) return;
+
+    const password = defaultPassword(user);
+    passwordResetForm.put(
+        route('admin.users.password.reset-default', user.id),
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                passwordResetSuccess.value = {
+                    name: user.name,
+                    role: roleLabel(user.role),
+                    password,
+                };
+                passwordResetUser.value = null;
+            },
+            onError: (errors) => {
+                passwordResetForm.setError(
+                    'reset',
+                    Object.values(errors).flat().join(', ') ||
+                        'The password could not be reset. Please try again.',
+                );
+            },
+        },
+    );
+};
+
+// @function deleteUser: Tinatanggal ang user sa User Management flow.
+// @useIn deleteUser: resources/js/pages/Auth/Admin/UserManagement.vue template @click
+const deleteUser = async (user) => {
     if (!user.can_delete) return;
-    if (!confirm(`Delete ${user.email}?`)) return;
+    const confirmed = await confirmActionModal({
+        title: 'Delete user?',
+        text: `Delete ${user.email}?`,
+    });
+    if (!confirmed) return;
 
     router.delete(route('admin.users.destroy', user.id), {
         preserveScroll: true,
@@ -148,6 +234,8 @@ const deleteUser = (user) => {
             >
                 {{ flashSuccess }}
             </div>
+
+            <RootOwnershipPanel :ownership="rootOwnership" />
 
             <section class="grid gap-3 md:grid-cols-3">
                 <article
@@ -273,35 +361,108 @@ const deleteUser = (user) => {
                             </span>
                         </label>
 
-                        <label
-                            v-if="canManageAdmins && form.role === 'admin'"
-                            class="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700"
-                        >
-                            <input
-                                v-model="form.is_root_admin"
-                                type="checkbox"
-                                class="h-4 w-4 rounded border-slate-300 text-brand"
-                            />
-                            Root admin
-                        </label>
-
-                        <label class="block">
-                            <span class="text-xs font-bold text-slate-500">
+                        <div class="block">
+                            <label
+                                for="managed-user-password"
+                                class="text-xs font-bold text-slate-500"
+                            >
                                 {{ editingId ? 'New Password' : 'Password' }}
-                            </span>
-                            <input
-                                v-model="form.password"
-                                type="password"
-                                class="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand"
-                                autocomplete="new-password"
-                            />
+                            </label>
+                            <div class="relative mt-1">
+                                <input
+                                    id="managed-user-password"
+                                    v-model="form.password"
+                                    :type="showPassword ? 'text' : 'password'"
+                                    class="w-full rounded-md border border-slate-200 px-3 py-2 pr-10 text-sm outline-none focus:border-brand"
+                                    autocomplete="new-password"
+                                />
+                                <button
+                                    type="button"
+                                    class="absolute inset-y-0 right-0 inline-flex w-10 items-center justify-center text-slate-500 hover:text-slate-700 focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
+                                    :aria-label="
+                                        showPassword
+                                            ? 'Hide password'
+                                            : 'Show password'
+                                    "
+                                    :aria-pressed="showPassword"
+                                    @click="showPassword = !showPassword"
+                                >
+                                    <EyeOff
+                                        v-if="showPassword"
+                                        class="h-4 w-4"
+                                        aria-hidden="true"
+                                    />
+                                    <Eye
+                                        v-else
+                                        class="h-4 w-4"
+                                        aria-hidden="true"
+                                    />
+                                </button>
+                            </div>
                             <span
                                 v-if="form.errors.password"
                                 class="mt-1 block text-xs font-semibold text-rose-600"
                             >
                                 {{ form.errors.password }}
                             </span>
-                        </label>
+                        </div>
+
+                        <div class="block">
+                            <label
+                                for="managed-user-password-confirmation"
+                                class="text-xs font-bold text-slate-500"
+                            >
+                                {{
+                                    editingId
+                                        ? 'Confirm New Password'
+                                        : 'Confirm Password'
+                                }}
+                            </label>
+                            <div class="relative mt-1">
+                                <input
+                                    id="managed-user-password-confirmation"
+                                    v-model="form.password_confirmation"
+                                    :type="
+                                        showPasswordConfirmation
+                                            ? 'text'
+                                            : 'password'
+                                    "
+                                    class="w-full rounded-md border border-slate-200 px-3 py-2 pr-10 text-sm outline-none focus:border-brand"
+                                    autocomplete="new-password"
+                                />
+                                <button
+                                    type="button"
+                                    class="absolute inset-y-0 right-0 inline-flex w-10 items-center justify-center text-slate-500 hover:text-slate-700 focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
+                                    :aria-label="
+                                        showPasswordConfirmation
+                                            ? 'Hide password confirmation'
+                                            : 'Show password confirmation'
+                                    "
+                                    :aria-pressed="showPasswordConfirmation"
+                                    @click="
+                                        showPasswordConfirmation =
+                                            !showPasswordConfirmation
+                                    "
+                                >
+                                    <EyeOff
+                                        v-if="showPasswordConfirmation"
+                                        class="h-4 w-4"
+                                        aria-hidden="true"
+                                    />
+                                    <Eye
+                                        v-else
+                                        class="h-4 w-4"
+                                        aria-hidden="true"
+                                    />
+                                </button>
+                            </div>
+                            <span
+                                v-if="form.errors.password_confirmation"
+                                class="mt-1 block text-xs font-semibold text-rose-600"
+                            >
+                                {{ form.errors.password_confirmation }}
+                            </span>
+                        </div>
                     </div>
 
                     <div class="mt-5 flex gap-2">
@@ -392,6 +553,27 @@ const deleteUser = (user) => {
                                     </td>
                                     <td class="px-4 py-3">
                                         <div class="flex justify-end gap-2">
+                                            <div
+                                                v-if="user.can_reset_password"
+                                                class="group relative"
+                                            >
+                                                <button
+                                                    type="button"
+                                                    class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-amber-200 text-amber-600 hover:bg-amber-50 focus:ring-2 focus:ring-amber-200 focus:outline-none"
+                                                    aria-label="Reset password"
+                                                    @click="
+                                                        openPasswordReset(user)
+                                                    "
+                                                >
+                                                    <KeyRound class="h-4 w-4" />
+                                                </button>
+                                                <span
+                                                    role="tooltip"
+                                                    class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 rounded bg-slate-900 px-2 py-1 text-[11px] font-medium whitespace-nowrap text-white opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100"
+                                                >
+                                                    Reset password
+                                                </span>
+                                            </div>
                                             <button
                                                 type="button"
                                                 :disabled="!user.can_update"
@@ -426,6 +608,99 @@ const deleteUser = (user) => {
                     </div>
                 </div>
             </section>
+        </div>
+
+        <div
+            v-if="passwordResetUser"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            role="presentation"
+            @click.self="closePasswordReset"
+        >
+            <div
+                class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="managed-user-reset-title"
+            >
+                <h2
+                    id="managed-user-reset-title"
+                    class="text-xl font-black text-slate-950"
+                >
+                    Reset {{ roleLabel(passwordResetUser.role) }} password?
+                </h2>
+                <p class="mt-3 text-sm leading-6 text-slate-600">
+                    Reset {{ passwordResetUser.name }}'s password to
+                    <strong>{{ defaultPassword(passwordResetUser) }}</strong
+                    >? Their active sessions will end, and they must create a
+                    private password at the next login.
+                </p>
+                <p
+                    v-if="passwordResetForm.errors.reset"
+                    class="mt-3 rounded-md bg-rose-50 p-3 text-sm text-rose-700"
+                    role="alert"
+                >
+                    {{ passwordResetForm.errors.reset }}
+                </p>
+                <div class="mt-6 flex justify-end gap-3">
+                    <button
+                        type="button"
+                        class="rounded-md border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                        :disabled="passwordResetForm.processing"
+                        @click="closePasswordReset"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        class="rounded-md bg-amber-600 px-4 py-2 text-sm font-bold text-white hover:bg-amber-700 disabled:opacity-60"
+                        :disabled="passwordResetForm.processing"
+                        @click="confirmPasswordReset"
+                    >
+                        {{
+                            passwordResetForm.processing
+                                ? 'Resetting...'
+                                : 'Reset password'
+                        }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div
+            v-if="passwordResetSuccess"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            role="presentation"
+        >
+            <div
+                class="w-full max-w-md rounded-lg bg-white p-6 text-center shadow-xl"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="managed-user-reset-success-title"
+            >
+                <div
+                    class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-700"
+                >
+                    <ShieldCheck class="h-8 w-8" aria-hidden="true" />
+                </div>
+                <h2
+                    id="managed-user-reset-success-title"
+                    class="mt-4 text-xl font-black text-slate-950"
+                >
+                    {{ passwordResetSuccess.role }} password reset
+                </h2>
+                <p class="mt-3 text-sm leading-6 text-slate-600">
+                    {{ passwordResetSuccess.name }}'s temporary password is
+                    <strong>{{ passwordResetSuccess.password }}</strong
+                    >. They must create a private password at the next login.
+                </p>
+                <button
+                    type="button"
+                    class="mt-6 rounded-md bg-emerald-600 px-5 py-2 text-sm font-bold text-white hover:bg-emerald-700"
+                    @click="passwordResetSuccess = null"
+                >
+                    OK
+                </button>
+            </div>
         </div>
     </div>
 </template>

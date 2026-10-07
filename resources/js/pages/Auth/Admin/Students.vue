@@ -1,3 +1,4 @@
+<!-- FEATURE:student-management - UI para sa student and parent management. -->
 <template>
     <div class="w-full">
         <div class="mx-auto max-w-[1400px] px-4 py-6">
@@ -15,11 +16,26 @@
                             }}
                         </p>
                     </div>
-                    <div
-                        v-if="canManageStudents"
-                        class="flex items-center gap-2"
-                    >
+                    <div class="flex flex-wrap items-center gap-2">
                         <button
+                            type="button"
+                            class="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium transition"
+                            :class="
+                                viewingArchivedStudents
+                                    ? 'border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200'
+                                    : 'border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100'
+                            "
+                            @click="toggleArchivedStudents"
+                        >
+                            <Archive class="h-4 w-4" />
+                            {{
+                                viewingArchivedStudents
+                                    ? 'View All Students'
+                                    : 'Archived Students'
+                            }}
+                        </button>
+                        <button
+                            v-if="canManageStudents"
                             @click="openAddModal"
                             class="rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
                         >
@@ -126,10 +142,23 @@
                         </select>
                     </div>
                     <div>
-                        <label class="mb-1 block text-xs font-medium text-slate-600">Semester</label>
-                        <select v-model="selectedSemester" @change="onFilterChange" class="w-full rounded-md border border-slate-300 px-3 py-2">
+                        <label
+                            class="mb-1 block text-xs font-medium text-slate-600"
+                            >Semester</label
+                        >
+                        <select
+                            v-model="selectedSemester"
+                            @change="onFilterChange"
+                            class="w-full rounded-md border border-slate-300 px-3 py-2"
+                        >
                             <option value="">All Semesters</option>
-                            <option v-for="semester in semesterOptions" :key="semester" :value="semester">{{ semester }}</option>
+                            <option
+                                v-for="semester in semesterOptions"
+                                :key="semester"
+                                :value="semester"
+                            >
+                                {{ semester }}
+                            </option>
                         </select>
                     </div>
                     <div>
@@ -162,9 +191,9 @@
 
             <section class="rounded-lg bg-white p-6 shadow-lg">
                 <div class="overflow-x-auto">
-
-
-                    <table class="min-w-[1450px] w-full table-fixed border-collapse">
+                    <table
+                        class="w-full min-w-[1450px] table-fixed border-collapse"
+                    >
                         <thead>
                             <tr class="bg-gray-50">
                                 <th
@@ -236,31 +265,47 @@
                                 :key="student.student_id"
                                 class="hover:bg-gray-50"
                             >
-                                <td class="break-words border border-gray-300 px-3 py-3">
+                                <td
+                                    class="border border-gray-300 px-3 py-3 break-words"
+                                >
                                     {{ student.student_number }}
                                 </td>
-                                <td class="break-words border border-gray-300 px-3 py-3">
+                                <td
+                                    class="border border-gray-300 px-3 py-3 break-words"
+                                >
                                     {{ student.first_name }}
                                     {{ student.last_name }}
                                 </td>
-                                <td class="break-words border border-gray-300 px-3 py-3">
+                                <td
+                                    class="border border-gray-300 px-3 py-3 break-words"
+                                >
                                     {{ student.email }}
                                 </td>
-                                <td class="break-words border border-gray-300 px-3 py-3">
+                                <td
+                                    class="border border-gray-300 px-3 py-3 break-words"
+                                >
                                     <div class="font-medium">
                                         {{ student.strand_code ?? 'N/A' }}
                                     </div>
                                 </td>
-                                <td class="break-words border border-gray-300 px-3 py-3">
+                                <td
+                                    class="border border-gray-300 px-3 py-3 break-words"
+                                >
                                     {{ student.section_name ?? 'N/A' }}
                                 </td>
-                                <td class="break-words border border-gray-300 px-3 py-3">
+                                <td
+                                    class="border border-gray-300 px-3 py-3 break-words"
+                                >
                                     {{ student.year_level }}
                                 </td>
-                                <td class="break-words border border-gray-300 px-3 py-3">
+                                <td
+                                    class="border border-gray-300 px-3 py-3 break-words"
+                                >
                                     {{ student.school_year }}
                                 </td>
-                                <td class="break-words border border-gray-300 px-3 py-3">
+                                <td
+                                    class="border border-gray-300 px-3 py-3 break-words"
+                                >
                                     <span
                                         :class="statusClasses(student.status)"
                                         >{{
@@ -268,7 +313,9 @@
                                         }}</span
                                     >
                                 </td>
-                                <td class="break-words border border-gray-300 px-3 py-3">
+                                <td
+                                    class="border border-gray-300 px-3 py-3 break-words"
+                                >
                                     <span
                                         v-if="student.rfid_tag"
                                         class="text-green-600"
@@ -278,7 +325,9 @@
                                         >Not assigned</span
                                     >
                                 </td>
-                                <td class="break-words border border-gray-300 px-3 py-3">
+                                <td
+                                    class="border border-gray-300 px-3 py-3 break-words"
+                                >
                                     <div
                                         v-if="
                                             student.face_images &&
@@ -314,7 +363,9 @@
                                         >None</span
                                     >
                                 </td>
-                                <td class="break-words border border-gray-300 px-3 py-3">
+                                <td
+                                    class="border border-gray-300 px-3 py-3 break-words"
+                                >
                                     <div
                                         v-if="student.parents?.length"
                                         class="space-y-1"
@@ -343,9 +394,11 @@
                                 </td>
                                 <td
                                     v-if="canManageStudents"
-                                    class="break-words border border-gray-300 px-3 py-3"
+                                    class="border border-gray-300 px-3 py-3 break-words"
                                 >
-                                    <div class="flex flex-wrap items-center gap-2">
+                                    <div
+                                        class="flex flex-wrap items-center gap-2"
+                                    >
                                         <button
                                             type="button"
                                             @click="openEditModal(student)"
@@ -353,7 +406,10 @@
                                             class="group relative rounded-md bg-indigo-600 p-2 text-white hover:bg-indigo-700"
                                         >
                                             <Pencil class="h-4 w-4" />
-                                            <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100">Edit student</span>
+                                            <span
+                                                class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 rounded bg-slate-900 px-2 py-1 text-[11px] font-medium whitespace-nowrap text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100"
+                                                >Edit student</span
+                                            >
                                         </button>
                                         <button
                                             type="button"
@@ -362,16 +418,24 @@
                                             class="group relative rounded-md bg-emerald-600 p-2 text-white hover:bg-emerald-700"
                                         >
                                             <Users class="h-4 w-4" />
-                                            <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100">Manage parents</span>
+                                            <span
+                                                class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 rounded bg-slate-900 px-2 py-1 text-[11px] font-medium whitespace-nowrap text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100"
+                                                >Manage parents</span
+                                            >
                                         </button>
                                         <button
                                             type="button"
-                                            @click="openEnrollmentHistory(student)"
+                                            @click="
+                                                openEnrollmentHistory(student)
+                                            "
                                             aria-label="Enrollment history"
                                             class="group relative rounded-md bg-sky-600 p-2 text-white hover:bg-sky-700"
                                         >
                                             <History class="h-4 w-4" />
-                                            <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100">Enrollment history</span>
+                                            <span
+                                                class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 rounded bg-slate-900 px-2 py-1 text-[11px] font-medium whitespace-nowrap text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100"
+                                                >Enrollment history</span
+                                            >
                                         </button>
                                         <button
                                             type="button"
@@ -382,16 +446,23 @@
                                             class="group relative rounded-md bg-amber-500 p-2 text-white hover:bg-amber-600"
                                         >
                                             <KeyRound class="h-4 w-4" />
-                                            <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100">Reset password</span>
+                                            <span
+                                                class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 rounded bg-slate-900 px-2 py-1 text-[11px] font-medium whitespace-nowrap text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100"
+                                                >Reset password</span
+                                            >
                                         </button>
                                         <button
                                             type="button"
+                                            data-testid="delete-student"
                                             @click="deleteStudent(student)"
                                             aria-label="Delete student"
                                             class="group relative rounded-md bg-rose-500 p-2 text-white hover:bg-rose-600"
                                         >
                                             <Trash2 class="h-4 w-4" />
-                                            <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100">Delete student</span>
+                                            <span
+                                                class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 rounded bg-slate-900 px-2 py-1 text-[11px] font-medium whitespace-nowrap text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100"
+                                                >Delete student</span
+                                            >
                                         </button>
                                     </div>
                                 </td>
@@ -583,7 +654,13 @@
                                     class="w-full rounded-md border border-slate-300 px-3 py-2"
                                     required
                                 >
-                                    <option v-for="semester in (isEditing ? semesterOptions : enrollmentSemesterOptions)" :key="semester" :value="semester">
+                                    <option
+                                        v-for="semester in isEditing
+                                            ? semesterOptions
+                                            : enrollmentSemesterOptions"
+                                        :key="semester"
+                                        :value="semester"
+                                    >
                                         {{ semester }}
                                     </option>
                                 </select>
@@ -604,7 +681,9 @@
                                 >
                                     <option value="">Select School Year</option>
                                     <option
-                                        v-for="schoolYear in (isEditing ? availableSchoolYearOptions : enrollmentSchoolYearOptions)"
+                                        v-for="schoolYear in isEditing
+                                            ? availableSchoolYearOptions
+                                            : enrollmentSchoolYearOptions"
                                         :key="schoolYear"
                                         :value="schoolYear"
                                     >
@@ -784,22 +863,40 @@
                 class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
                 @click.self="closeEnrollmentHistory"
             >
-                <div class="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
+                <div
+                    class="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
+                >
                     <div class="flex items-start justify-between gap-4">
                         <div>
-                            <h2 class="text-xl font-semibold text-slate-900">Enrollment History</h2>
+                            <h2 class="text-xl font-semibold text-slate-900">
+                                Enrollment History
+                            </h2>
                             <p class="mt-1 text-sm text-slate-500">
-                                {{ selectedStudent.first_name }} {{ selectedStudent.last_name }} · {{ selectedStudent.student_number }}
+                                {{ selectedStudent.first_name }}
+                                {{ selectedStudent.last_name }} ·
+                                {{ selectedStudent.student_number }}
                             </p>
                         </div>
-                        <button class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700" @click="closeEnrollmentHistory">Close</button>
+                        <button
+                            class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700"
+                            @click="closeEnrollmentHistory"
+                        >
+                            Close
+                        </button>
                     </div>
-                    <div v-if="!selectedStudent.enrollments?.length" class="mt-6 rounded-lg bg-slate-50 p-6 text-center text-sm text-slate-500">
+                    <div
+                        v-if="!selectedStudent.enrollments?.length"
+                        class="mt-6 rounded-lg bg-slate-50 p-6 text-center text-sm text-slate-500"
+                    >
                         No enrollment-history record is available yet.
                     </div>
                     <div v-else class="mt-6 overflow-x-auto">
-                        <table class="min-w-full divide-y divide-slate-200 text-sm">
-                            <thead class="bg-slate-50 text-left text-xs uppercase text-slate-500">
+                        <table
+                            class="min-w-full divide-y divide-slate-200 text-sm"
+                        >
+                            <thead
+                                class="bg-slate-50 text-left text-xs text-slate-500 uppercase"
+                            >
                                 <tr>
                                     <th class="px-3 py-2">School year</th>
                                     <th class="px-3 py-2">Semester</th>
@@ -810,13 +907,32 @@
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
-                                <tr v-for="enrollment in selectedStudent.enrollments" :key="enrollment.student_enrollment_id">
-                                    <td class="px-3 py-3 font-medium text-slate-900">{{ enrollment.academic_year }}</td>
-                                    <td class="px-3 py-3 text-slate-600">{{ enrollment.semester }}</td>
-                                    <td class="px-3 py-3 text-slate-600">{{ enrollment.year_level }}</td>
-                                    <td class="px-3 py-3 text-slate-600">{{ enrollment.section_name }}</td>
-                                    <td class="px-3 py-3 text-slate-600">{{ enrollment.strand_code }}</td>
-                                    <td class="px-3 py-3 capitalize text-slate-600">{{ enrollment.status }}</td>
+                                <tr
+                                    v-for="enrollment in selectedStudent.enrollments"
+                                    :key="enrollment.student_enrollment_id"
+                                >
+                                    <td
+                                        class="px-3 py-3 font-medium text-slate-900"
+                                    >
+                                        {{ enrollment.academic_year }}
+                                    </td>
+                                    <td class="px-3 py-3 text-slate-600">
+                                        {{ enrollment.semester }}
+                                    </td>
+                                    <td class="px-3 py-3 text-slate-600">
+                                        {{ enrollment.year_level }}
+                                    </td>
+                                    <td class="px-3 py-3 text-slate-600">
+                                        {{ enrollment.section_name }}
+                                    </td>
+                                    <td class="px-3 py-3 text-slate-600">
+                                        {{ enrollment.strand_code }}
+                                    </td>
+                                    <td
+                                        class="px-3 py-3 text-slate-600 capitalize"
+                                    >
+                                        {{ enrollment.status }}
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>
@@ -919,24 +1035,43 @@
                             </button>
                         </div>
 
-                        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
                             <div>
                                 <label
                                     class="mb-1 block text-sm font-medium text-slate-700"
                                 >
-                                    Parent Name *
+                                    First Name *
                                 </label>
                                 <input
-                                    v-model="parentForm.name"
+                                    v-model="parentForm.first_name"
                                     type="text"
                                     class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                                     required
                                 />
                                 <p
-                                    v-if="parentForm.errors.name"
+                                    v-if="parentForm.errors.first_name"
                                     class="mt-1 text-xs text-rose-600"
                                 >
-                                    {{ parentForm.errors.name }}
+                                    {{ parentForm.errors.first_name }}
+                                </p>
+                            </div>
+                            <div>
+                                <label
+                                    class="mb-1 block text-sm font-medium text-slate-700"
+                                >
+                                    Last Name *
+                                </label>
+                                <input
+                                    v-model="parentForm.last_name"
+                                    type="text"
+                                    class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                    required
+                                />
+                                <p
+                                    v-if="parentForm.errors.last_name"
+                                    class="mt-1 text-xs text-rose-600"
+                                >
+                                    {{ parentForm.errors.last_name }}
                                 </p>
                             </div>
                             <div>
@@ -960,7 +1095,23 @@
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+                        <p
+                            v-if="!selectedParent"
+                            class="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700"
+                        >
+                            The temporary password is generated from the
+                            parent's first and last name without spaces. The
+                            parent must replace it after signing in.
+                        </p>
+
+                        <div
+                            :class="[
+                                'grid grid-cols-1 gap-4',
+                                selectedParent
+                                    ? 'md:grid-cols-4'
+                                    : 'md:grid-cols-3',
+                            ]"
+                        >
                             <div>
                                 <label
                                     class="mb-1 block text-sm font-medium text-slate-700"
@@ -1008,7 +1159,7 @@
                                     <option value="female">Female</option>
                                 </select>
                             </div>
-                            <div>
+                            <div v-if="selectedParent">
                                 <label
                                     class="mb-1 block text-sm font-medium text-slate-700"
                                 >
@@ -1017,7 +1168,7 @@
                                 <input
                                     v-model="parentForm.password"
                                     type="password"
-                                    placeholder="Required for new"
+                                    placeholder="Leave blank to keep current"
                                     class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                                 />
                                 <p
@@ -1058,10 +1209,18 @@
 
 <script setup lang="ts">
 import { router, useForm, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import {
+    Archive,
+    History,
+    KeyRound,
+    Pencil,
+    Trash2,
+    Users,
+} from 'lucide-vue-next';
 import Swal from 'sweetalert2';
-import { History, KeyRound, Pencil, Trash2, Users } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 import CameraCapture from '@/components/CameraCapture.vue';
+import { showAlertModal } from '@/lib/feedbackModal';
 
 interface Student {
     student_id: string | number;
@@ -1099,6 +1258,8 @@ interface StudentEnrollment {
 interface ParentAccount {
     id: string | number;
     name: string;
+    first_name: string;
+    last_name: string;
     email: string;
     phone?: string;
     gender?: string;
@@ -1154,10 +1315,16 @@ const props = defineProps({
         default: () => [],
     },
     currentAcademicYear: {
-        type: Object as () => { name: string; active_semester: string | null } | null,
+        type: Object as () => {
+            name: string;
+            active_semester: string | null;
+        } | null,
         default: null,
     },
-    semesterOptions: { type: Array as () => string[], default: () => ['1st Semester', '2nd Semester'] },
+    semesterOptions: {
+        type: Array as () => string[],
+        default: () => ['1st Semester', '2nd Semester'],
+    },
     currentUserRole: {
         type: String,
         default: '',
@@ -1184,6 +1351,9 @@ const selectedYear = ref(props.filters.year ?? '');
 const selectedSchoolYear = ref(props.filters.school_year ?? '');
 const selectedSemester = ref(props.filters.semester ?? '');
 const selectedStatus = ref(props.filters.status ?? '');
+const viewingArchivedStudents = computed(
+    () => selectedStatus.value === 'graduated',
+);
 const showModal = ref(false);
 const isEditing = ref(false);
 const selectedStudent = ref<Student | null>(null);
@@ -1216,7 +1386,8 @@ const form = useForm({
 });
 
 const parentForm = useForm({
-    name: '',
+    first_name: '',
+    last_name: '',
     email: '',
     phone: '',
     gender: '',
@@ -1253,7 +1424,8 @@ const filteredStudents = computed<Student[]>(() => {
             selectedSchoolYear.value === '' ||
             String(student.school_year) === selectedSchoolYear.value;
         const matchesSemester =
-            selectedSemester.value === '' || student.semester === selectedSemester.value;
+            selectedSemester.value === '' ||
+            student.semester === selectedSemester.value;
         const matchesStatus =
             selectedStatus.value === '' ||
             student.status === selectedStatus.value;
@@ -1291,9 +1463,13 @@ const enrollmentSchoolYearOptions = computed(() =>
     props.currentAcademicYear?.name ? [props.currentAcademicYear.name] : [],
 );
 const enrollmentSemesterOptions = computed(() =>
-    props.currentAcademicYear?.active_semester ? [props.currentAcademicYear.active_semester] : [],
+    props.currentAcademicYear?.active_semester
+        ? [props.currentAcademicYear.active_semester]
+        : [],
 );
 
+// @function onFilterChange: Hinahandle ang filter change sa Students flow.
+// @useIn onFilterChange: resources/js/pages/Auth/Admin/Students.vue template @input
 const onFilterChange = () => {
     router.get(
         route('admin.students.index'),
@@ -1314,6 +1490,8 @@ const onFilterChange = () => {
     );
 };
 
+// @function resetFilters: Nire-reset ang filters sa Students flow.
+// @useIn resetFilters: resources/js/pages/Auth/Admin/Students.vue template @click
 const resetFilters = () => {
     search.value = '';
     selectedStrand.value = '';
@@ -1325,6 +1503,21 @@ const resetFilters = () => {
     onFilterChange();
 };
 
+// @function toggleArchivedStudents: Tina-toggle ang archived students sa Students flow.
+// @useIn toggleArchivedStudents: resources/js/pages/Auth/Admin/Students.vue template @click
+const toggleArchivedStudents = () => {
+    const leaveArchive = viewingArchivedStudents.value;
+    selectedStatus.value = leaveArchive ? '' : 'graduated';
+    selectedStrand.value = '';
+    selectedSection.value = '';
+    selectedYear.value = '';
+    selectedSchoolYear.value = leaveArchive ? '' : 'all';
+    selectedSemester.value = '';
+    onFilterChange();
+};
+
+// @function openAddModal: Binubuksan ang add modal sa Students flow.
+// @useIn openAddModal: resources/js/pages/Auth/Admin/Students.vue template @click
 const openAddModal = () => {
     if (!canManageStudents.value) return;
     isEditing.value = false;
@@ -1336,6 +1529,8 @@ const openAddModal = () => {
     showModal.value = true;
 };
 
+// @function openEditModal: Binubuksan ang edit modal sa Students flow.
+// @useIn openEditModal: resources/js/pages/Auth/Admin/Students.vue template @click
 const openEditModal = (student: Student) => {
     if (!canManageStudents.value) return;
     isEditing.value = true;
@@ -1362,6 +1557,8 @@ const openEditModal = (student: Student) => {
     showModal.value = true;
 };
 
+// @function closeModal: Isinasara ang modal sa Students flow.
+// @useIn closeModal: resources/js/pages/Auth/Admin/Students.vue template @click
 const closeModal = () => {
     showModal.value = false;
     isEditing.value = false;
@@ -1372,6 +1569,8 @@ const closeModal = () => {
     form.reset();
 };
 
+// @function resetParentForm: Nire-reset ang parent form sa Students flow.
+// @useIn resetParentForm: resources/js/pages/Auth/Admin/Students.vue template @click
 const resetParentForm = () => {
     selectedParent.value = null;
     parentForm.reset();
@@ -1379,6 +1578,8 @@ const resetParentForm = () => {
     parentForm.relationship = 'parent';
 };
 
+// @function openParentModal: Binubuksan ang parent modal sa Students flow.
+// @useIn openParentModal: resources/js/pages/Auth/Admin/Students.vue template @click
 const openParentModal = (student: Student) => {
     if (!canManageStudents.value) return;
     selectedStudent.value = student;
@@ -1386,26 +1587,35 @@ const openParentModal = (student: Student) => {
     resetParentForm();
 };
 
+// @function closeParentModal: Isinasara ang parent modal sa Students flow.
+// @useIn closeParentModal: resources/js/pages/Auth/Admin/Students.vue template @click
 const closeParentModal = () => {
     showParentModal.value = false;
     selectedStudent.value = null;
     resetParentForm();
 };
 
+// @function openEnrollmentHistory: Binubuksan ang enrollment history sa Students flow.
+// @useIn openEnrollmentHistory: resources/js/pages/Auth/Admin/Students.vue template @click
 const openEnrollmentHistory = (student: Student) => {
     selectedStudent.value = student;
     showEnrollmentModal.value = true;
 };
 
+// @function closeEnrollmentHistory: Isinasara ang enrollment history sa Students flow.
+// @useIn closeEnrollmentHistory: resources/js/pages/Auth/Admin/Students.vue template @click
 const closeEnrollmentHistory = () => {
     showEnrollmentModal.value = false;
     selectedStudent.value = null;
 };
 
+// @function editParent: Pinoproseso ang edit parent para sa Students.
+// @useIn editParent: resources/js/pages/Auth/Admin/Students.vue template @click
 const editParent = (parent: ParentAccount) => {
     selectedParent.value = parent;
     parentForm.clearErrors();
-    parentForm.name = parent.name;
+    parentForm.first_name = parent.first_name;
+    parentForm.last_name = parent.last_name;
     parentForm.email = parent.email;
     parentForm.phone = parent.phone ?? '';
     parentForm.gender = parent.gender ?? '';
@@ -1413,6 +1623,8 @@ const editParent = (parent: ParentAccount) => {
     parentForm.password = '';
 };
 
+// @function submitParentForm: Isinusumite ang parent form sa Students flow.
+// @useIn submitParentForm: resources/js/pages/Auth/Admin/Students.vue template
 const submitParentForm = () => {
     if (!selectedStudent.value) return;
 
@@ -1454,6 +1666,8 @@ const submitParentForm = () => {
     );
 };
 
+// @function unlinkParent: Kinukuha ang unlink parent result para sa Students.
+// @useIn unlinkParent: resources/js/pages/Auth/Admin/Students.vue template @click
 const unlinkParent = async (parent: ParentAccount) => {
     if (!selectedStudent.value) return;
     const result = await Swal.fire({
@@ -1501,12 +1715,15 @@ const unlinkParent = async (parent: ParentAccount) => {
     );
 };
 
+// @function defaultStudentPassword: Pinoproseso ang default student password para sa Students.
+// @useIn defaultStudentPassword: resources/js/pages/Auth/Admin/Students.vue:1698
 const defaultStudentPassword = (student: Student) =>
-    `${student.first_name ?? ''}${student.last_name ?? ''}`.replace(
-        /\s+/g,
-        '',
-    ) || String(student.student_number ?? '');
+    `${student.first_name ?? ''}${student.last_name ?? ''}`
+        .replace(/\s+/g, '')
+        .toLowerCase() || String(student.student_number ?? '').toLowerCase();
 
+// @function resetStudentPassword: Nire-reset ang student password sa Students flow.
+// @useIn resetStudentPassword: resources/js/pages/Auth/Admin/Students.vue template @click
 const resetStudentPassword = async (student: Student) => {
     if (!canManageStudents.value) return;
 
@@ -1537,6 +1754,8 @@ const resetStudentPassword = async (student: Student) => {
     );
 };
 
+// @function submitForm: Isinusumite ang form sa Students flow.
+// @useIn submitForm: resources/js/pages/Auth/Admin/Students.vue template
 const submitForm = () => {
     if (
         !form.first_name ||
@@ -1548,7 +1767,11 @@ const submitForm = () => {
         !form.semester ||
         !form.school_year
     ) {
-        alert('Please fill in all required fields.');
+        showAlertModal(
+            'Missing required fields',
+            'Please fill in all required fields.',
+            'warning',
+        );
         return;
     }
 
@@ -1576,6 +1799,8 @@ const submitForm = () => {
     }
 };
 
+// @function getXsrf: Kinukuha ang xsrf sa Students flow.
+// @useIn getXsrf: resources/js/pages/Auth/Admin/Students.vue:1791
 const getXsrf = () => {
     const raw = document.cookie
         .split('; ')
@@ -1584,6 +1809,8 @@ const getXsrf = () => {
     return raw ? decodeURIComponent(raw) : '';
 };
 
+// @function uploadFaceImageBlob: Ina-upload ang face image blob sa Students flow.
+// @useIn uploadFaceImageBlob: resources/js/pages/Auth/Admin/Students.vue:1819
 const uploadFaceImageBlob = async (blob: Blob, filename: string) => {
     if (!selectedStudent.value) return;
     faceImageUploading.value = true;
@@ -1624,6 +1851,8 @@ const uploadFaceImageBlob = async (blob: Blob, filename: string) => {
     }
 };
 
+// @function handleFaceImageFile: Pinoproseso ang face image file sa Students flow.
+// @useIn handleFaceImageFile: resources/js/pages/Auth/Admin/Students.vue template @change
 const handleFaceImageFile = async (event: Event) => {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (!file) return;
@@ -1631,6 +1860,8 @@ const handleFaceImageFile = async (event: Event) => {
     (event.target as HTMLInputElement).value = '';
 };
 
+// @function captureAndUploadFaceImage: Kinukuha ang capture and upload face image result para sa Students.
+// @useIn captureAndUploadFaceImage: resources/js/pages/Auth/Admin/Students.vue template @click
 const captureAndUploadFaceImage = async () => {
     const dataUrl = faceImageCameraRef.value?.captureFrame();
     if (!dataUrl) return;
@@ -1639,6 +1870,8 @@ const captureAndUploadFaceImage = async () => {
     await uploadFaceImageBlob(blob, 'capture.jpg');
 };
 
+// @function removeFaceImage: Tinatanggal ang face image sa Students flow.
+// @useIn removeFaceImage: resources/js/pages/Auth/Admin/Students.vue template @click
 const removeFaceImage = async (index: number) => {
     if (!selectedStudent.value) return;
     faceImageUploading.value = true;
@@ -1676,6 +1909,8 @@ const removeFaceImage = async (index: number) => {
     }
 };
 
+// @function deleteStudent: Tinatanggal ang student sa Students flow.
+// @useIn deleteStudent: resources/js/pages/Auth/Admin/Students.vue template @click
 const deleteStudent = async (student: Student) => {
     if (!canManageStudents.value) return;
     const result = await Swal.fire({
@@ -1697,13 +1932,24 @@ const deleteStudent = async (student: Student) => {
         {
             preserveState: true,
             onSuccess: () => router.reload({ only: ['students'] }),
+            onError: (errors) =>
+                showAlertModal(
+                    'Student not deleted',
+                    Object.values(errors).join(' ') ||
+                        'The student could not be deleted.',
+                    'error',
+                ),
         },
     );
 };
 
+// @function capitalizeFirst: Pinoproseso ang capitalize first para sa Students.
+// @useIn capitalizeFirst: resources/js/pages/Auth/Admin/Students.vue template
 const capitalizeFirst = (str: string) =>
     str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
 
+// @function statusClasses: Pinoproseso ang status classes para sa Students.
+// @useIn statusClasses: resources/js/pages/Auth/Admin/Students.vue template
 const statusClasses = (status: string) => [
     'rounded-md px-2 py-1 text-xs font-medium',
     status === 'active'

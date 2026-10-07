@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Auth\AdminLoginOtpService;
+use App\Support\AuthenticatedSession;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
@@ -11,6 +13,8 @@ class StaffLoginController
 {
     private const ALLOWED_ROLES = ['admin', 'instructor', 'registrar', 'clinic'];
 
+    // @function create: Ibinabalik ang Auth/StaffLogin page at data para sa request.
+    // @useIn create: routes/web.php:81 (staff.login)
     public function create(Request $request)
     {
         $user = $request->user();
@@ -27,14 +31,26 @@ class StaffLoginController
         return Inertia::render('Auth/StaffLogin');
     }
 
-    public function store(Request $request)
+    // @function store: Pinoproseso ang bagong Staff Login record.
+    // @useIn store: routes/web.php:93
+    /**
+     * @feature   Role-Based Login and Session Protection
+     * @actor     Shared / Core
+     * @flow      Dito nilolog in ang staff at binabantayan ang role at browser session.
+     * @uses      resources/js/pages/Auth/StaffLogin.vue; routes/web.php: StaffLoginController::store, StudentParentLoginController::store; app/Http/Middleware/CheckRole.php
+     * @related   Authentication, Attendance, Reports
+     * @disable   1) I-comment out ang routes/web.php: StaffLoginController::store at StudentParentLoginController::store.
+     * @disable   2) Itago ang action sa resources/js/pages/Auth/StaffLogin.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/StaffLoginController.php: store at app/Http/Controllers/StudentParentLoginController.php: store matapos alisin ang routes. Huwag alisin ang app/Http/Middleware/CheckRole.php: handle habang may authenticated routes; side effect: walang bagong staff o portal login.
+     */
+    public function store(Request $request, AdminLoginOtpService $adminOtp)
     {
         $credentials = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
         ]);
 
-        if (! Auth::attempt($credentials, $request->boolean('remember'))) {
+        if (! Auth::attempt($credentials, false)) {
             throw ValidationException::withMessages([
                 'email' => __('auth.failed'),
             ]);
@@ -55,9 +71,22 @@ class StaffLoginController
             ]);
         }
 
+        AuthenticatedSession::issue($request, $user);
+
+        if ($role === 'admin') {
+            $sent = $adminOtp->issue($request, $user);
+            $response = redirect()->route('admin.login-verification.show');
+
+            return $sent
+                ? $response->with('success', 'A verification code was sent to your Admin email address.')
+                : $response->withErrors(['otp' => AdminLoginOtpService::DELIVERY_ERROR]);
+        }
+
         return $this->redirectForRole($role);
     }
 
+    // @function redirectForRole: Kinukuha ang redirect for role result para sa Staff Login.
+    // @useIn redirectForRole: StaffLoginController::create (app/Http/Controllers/StaffLoginController.php)
     private function redirectForRole(string $role)
     {
         if ($role === 'instructor') {

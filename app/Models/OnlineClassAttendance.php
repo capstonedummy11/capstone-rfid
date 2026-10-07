@@ -31,18 +31,26 @@ class OnlineClassAttendance extends Model
         'face_verified_at' => 'datetime',
     ];
 
+    // @function onlineClass: Ibinabalik ang online class Eloquent belongsTo relationship.
+    // @useIn onlineClass: Eloquent relationship property at eager loading
     public function onlineClass(): BelongsTo
     {
         return $this->belongsTo(OnlineClass::class, 'online_class_id', 'online_class_id');
     }
 
+    // @function student: Ibinabalik ang student Eloquent belongsTo relationship.
+    // @useIn student: Eloquent relationship property at eager loading
     public function student(): BelongsTo
     {
         return $this->belongsTo(Students::class, 'student_id', 'student_id');
     }
 
+    // @function studentEnrollment: Ibinabalik ang student enrollment Eloquent belongsTo relationship.
+    // @useIn studentEnrollment: Eloquent relationship property at eager loading
     public function studentEnrollment(): BelongsTo { return $this->belongsTo(StudentEnrollment::class, 'student_enrollment_id', 'student_enrollment_id'); }
 
+    // @function booted: Nirerehistro ang model event hooks para sa Online Class Attendance.
+    // @useIn booted: Eloquent model boot lifecycle
     protected static function booted(): void
     {
         static::creating(function (OnlineClassAttendance $attendance) {

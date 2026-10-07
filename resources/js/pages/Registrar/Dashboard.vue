@@ -34,6 +34,8 @@ const maxDaily = computed(() =>
     ),
 );
 
+// @function isFaceLog: Sinusuri kung face log para sa Dashboard.
+// @useIn isFaceLog: resources/js/pages/Registrar/Dashboard.vue template
 const isFaceLog = (action) => ['face', 'face_removed'].includes(action);
 </script>
 

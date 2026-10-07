@@ -1,3 +1,5 @@
+<!-- FEATURE:student-face-enrollment - UI para sa student face enrollment. -->
+<!-- FEATURE:student-rfid-enrollment - UI para sa student rfid enrollment. -->
 <script setup>
 import { useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
@@ -20,7 +22,7 @@ const props = defineProps({
 });
 
 const page = usePage();
-const selectedPerson = ref(null);
+const selectedPersonKey = ref(null);
 const search = ref('');
 const statusFilter = ref('missing');
 
@@ -32,6 +34,11 @@ const cameraRef = ref(null);
 const fileInputRef = ref(null);
 
 const flashSuccess = computed(() => page.props.flash?.success);
+const selectedPerson = computed(() =>
+    props.people.find(
+        (person) => `${person.type}-${person.id}` === selectedPersonKey.value,
+    ),
+);
 
 const filteredPeople = computed(() => {
     const term = search.value.trim().toLowerCase();
@@ -61,8 +68,10 @@ const filteredPeople = computed(() => {
     });
 });
 
+// @function openPerson: Binubuksan ang person sa Biometric Enrollment flow.
+// @useIn openPerson: resources/js/pages/Registrar/BiometricEnrollment.vue template @click
 const openPerson = (person) => {
-    selectedPerson.value = person;
+    selectedPersonKey.value = `${person.type}-${person.id}`;
     rfidForm.rfid_tag = person.rfid_tag || '';
     faceForm.image = null;
     showCamera.value = false;
@@ -82,6 +91,8 @@ const faceRoute = computed(() => {
     });
 });
 
+// @function saveRfid: Sine-save ang rfid sa Biometric Enrollment flow.
+// @useIn saveRfid: resources/js/pages/Registrar/BiometricEnrollment.vue template
 const saveRfid = () => {
     rfidForm.put(rfidRoute.value, {
         preserveScroll: true,
@@ -89,6 +100,8 @@ const saveRfid = () => {
     });
 };
 
+// @function uploadFace: Ina-upload ang face sa Biometric Enrollment flow.
+// @useIn uploadFace: resources/js/pages/Registrar/BiometricEnrollment.vue template @click
 const uploadFace = () => {
     if (selectedPerson.value?.type !== 'student') return;
 
@@ -105,22 +118,30 @@ const uploadFace = () => {
     });
 };
 
+// @function setFaceFile: Sine-set ang face file sa Biometric Enrollment flow.
+// @useIn setFaceFile: resources/js/pages/Registrar/BiometricEnrollment.vue template @change
 const setFaceFile = (event) => {
     faceForm.image = event.target.files?.[0] ?? null;
 };
 
+// @function useFileUpload: Pinoproseso ang use file upload para sa Biometric Enrollment.
+// @useIn useFileUpload: resources/js/pages/Registrar/BiometricEnrollment.vue template @click
 const useFileUpload = () => {
     faceForm.image = null;
     showCamera.value = false;
     faceForm.clearErrors('image');
 };
 
+// @function useCamera: Pinoproseso ang use camera para sa Biometric Enrollment.
+// @useIn useCamera: resources/js/pages/Registrar/BiometricEnrollment.vue template @click
 const useCamera = () => {
     faceForm.image = null;
     showCamera.value = true;
     faceForm.clearErrors('image');
 };
 
+// @function captureFace: Kinukuha ang capture face result para sa Biometric Enrollment.
+// @useIn captureFace: resources/js/pages/Registrar/BiometricEnrollment.vue template @click
 const captureFace = async () => {
     const dataUrl = cameraRef.value?.captureFrame();
     if (!dataUrl) {
@@ -137,12 +158,16 @@ const captureFace = async () => {
     });
 };
 
+// @function retakeFace: Pinoproseso ang retake face para sa Biometric Enrollment.
+// @useIn retakeFace: resources/js/pages/Registrar/BiometricEnrollment.vue template @click
 const retakeFace = () => {
     faceForm.image = null;
     faceForm.clearErrors('image');
     cameraRef.value?.resetCapture();
 };
 
+// @function removeFace: Tinatanggal ang face sa Biometric Enrollment flow.
+// @useIn removeFace: resources/js/pages/Registrar/BiometricEnrollment.vue template @click
 const removeFace = (index) => {
     if (selectedPerson.value?.type !== 'student') return;
 
@@ -158,6 +183,8 @@ const removeFace = (index) => {
     );
 };
 
+// @function toast: Pinoproseso ang toast para sa Biometric Enrollment.
+// @useIn toast: resources/js/pages/Registrar/BiometricEnrollment.vue:95
 const toast = (title) => {
     Swal.fire({
         toast: true,
@@ -541,7 +568,6 @@ const toast = (title) => {
                             {{ faceForm.errors.image }}
                         </p>
                     </form>
-
                 </div>
 
                 <div

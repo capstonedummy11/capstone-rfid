@@ -5,6 +5,8 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
+  // @function up: Ginagawa o binabago ang database schema para sa migration na ito.
+  // @useIn up: Laravel migration runner
   /**
    * Run the migrations.
    */
@@ -12,16 +14,25 @@ return new class extends Migration {
   {
     Schema::create('schedules', function (Blueprint $table) {
       $table->id('scheduled_id');
+      $table->unsignedBigInteger('academic_year_id')->nullable();
+      $table->unsignedBigInteger('subject_offering_id')->nullable();
       $table->foreignId('section_id')->constrained('sections', 'section_id');
       $table->string('subject_code');
+      $table->string('semester', 50)->nullable();
       $table->string('weekdays');
       $table->time('time_start');
       $table->time('time_end');
       $table->string('room');
+      $table->unsignedBigInteger('laboratory_id')->nullable();
+      $table->unsignedBigInteger('instructor_id')->nullable();
       $table->timestamps();
+
+      $table->index(['academic_year_id', 'weekdays', 'time_start'], 'schedule_year_time_index');
     });
   }
 
+  // @function down: Ibinabalik ang schema changes ng migration na ito.
+  // @useIn down: Laravel migration runner
   /**
    * Reverse the migrations.
    */

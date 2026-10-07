@@ -19,6 +19,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ClinicController
 {
+    // @function dashboard: Ibinabalik ang Clinic/Dashboard page at data para sa request.
+    // @useIn dashboard: routes/web.php:458 (dashboard)
+    // Pinagsasama ang alert queue, dispatch assignments, at counts para sa Clinic dashboard.
     public function dashboard(Request $request)
     {
         $alerts = EmergencyAlert::with(['type', 'cases'])->latest('emergency_alert_id')->limit(20)->get();
@@ -34,6 +37,7 @@ class ClinicController
         $totalResponds = EmergencyAlert::whereIn('status', ['acknowledged', 'resolved'])->count();
 
         return Inertia::render('Clinic/Dashboard', [
+            'title' => 'Clinic Dashboard',
             'currentUser' => [
                 'name' => $currentUser?->name,
                 'email' => $currentUser?->email,
@@ -72,17 +76,34 @@ class ClinicController
         ]);
     }
 
+    // @function caseLogs: Ibinabalik ang Clinic/CaseLogs page at data para sa request.
+    // @useIn caseLogs: routes/web.php:460 (case-logs)
+    /**
+     * @feature   Case Logs and Patient History
+     * @actor     Clinic
+     * @flow      Dito ini-record ang clinic cases at patient history.
+     * @uses      resources/js/pages/Clinic/CaseLogs.vue; routes/web.php: ClinicController::caseLogs, ClinicController::storeCase, ClinicController::updateCase, ClinicController::createHistoryFromCase, ClinicController::patientHistory, ClinicController::storeHistory, ClinicController::updateHistory, ClinicController::destroyHistory
+     * @related   Clinic workspace
+     * @disable   1) I-comment out ang routes/web.php: ClinicController::caseLogs, ClinicController::storeCase, ClinicController::updateCase, ClinicController::createHistoryFromCase, ClinicController::patientHistory, ClinicController::storeHistory, ClinicController::updateHistory, ClinicController::destroyHistory.
+     * @disable   2) Itago ang action sa resources/js/pages/Clinic/CaseLogs.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/ClinicController.php: ClinicController::caseLogs matapos alisin ang routes. Side effect: mawawala ang case logs and patient history.
+     */
     public function caseLogs()
     {
         return Inertia::render('Clinic/CaseLogs', [
+            'title' => 'Clinic Case Logs',
             'cases' => ClinicCase::with(['alert.type', 'assignedResponder'])->latest('clinic_case_id')->get()->map(fn (ClinicCase $case) => $this->casePayload($case))->values(),
             'emergencyTypes' => $this->emergencyTypes(),
         ]);
     }
 
+    // @function patientHistory: Ibinabalik ang Clinic/PatientHistory page at data para sa request.
+    // @useIn patientHistory: routes/web.php:468 (patient-history)
+    // Kinukuha ang patient records na ipapakita sa history page.
     public function patientHistory()
     {
         return Inertia::render('Clinic/PatientHistory', [
+            'title' => 'Patient History',
             'histories' => PatientHistory::latest('patient_history_id')->get()->map(fn (PatientHistory $history) => $this->historyPayload($history))->values(),
             'recentCases' => ClinicCase::latest('clinic_case_id')->take(25)->get()->map(fn (ClinicCase $case) => [
                 'id' => $case->clinic_case_id,
@@ -95,6 +116,18 @@ class ClinicController
         ]);
     }
 
+    // @function reports: Ibinabalik ang Clinic/Reports page at data para sa request.
+    // @useIn reports: routes/web.php:476 (reports)
+    /**
+     * @feature   Clinic Reports
+     * @actor     Clinic
+     * @flow      Dito fina-filter at ine-export ang clinic activity.
+     * @uses      resources/js/pages/Clinic/Reports.vue; routes/web.php: ClinicController::reports, ClinicController::exportReports
+     * @related   Clinic workspace
+     * @disable   1) I-comment out ang routes/web.php: ClinicController::reports, ClinicController::exportReports.
+     * @disable   2) Itago ang action sa resources/js/pages/Clinic/Reports.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Ihinto ang app/Http/Controllers/ClinicController.php: ClinicController::reports matapos alisin ang routes. Side effect: mawawala ang clinic reports.
+     */
     public function reports(Request $request)
     {
         $filters = [
@@ -112,6 +145,7 @@ class ClinicController
             ->filter();
 
         return Inertia::render('Clinic/Reports', [
+            'title' => 'Clinic Reports',
             'filters' => $filters,
             'summary' => [
                 'alerts' => (clone $alerts)->count(),
@@ -122,6 +156,7 @@ class ClinicController
             ],
             'alertsByType' => $this->filteredAlerts($filters)
                 ->join('emergency_types', 'emergency_types.emergency_type_id', '=', 'emergency_alerts.emergency_type_id')
+                ->whereNull('emergency_types.deleted_at')
                 ->selectRaw('emergency_types.name as name, COUNT(*) as total')
                 ->groupBy('emergency_types.name')
                 ->orderByDesc('total')
@@ -149,6 +184,9 @@ class ClinicController
         ]);
     }
 
+    // @function exportReports: Ine-export ang reports sa Clinic flow.
+    // @useIn exportReports: routes/web.php:478 (reports.export)
+    // Nag-stream ng CSV gamit ang parehong filters ng Clinic reports page.
     public function exportReports(Request $request): StreamedResponse
     {
         $filters = [
@@ -183,6 +221,9 @@ class ClinicController
         ]);
     }
 
+    // @function storeCase: Sine-save ang case sa Clinic flow.
+    // @useIn storeCase: routes/web.php:462 (case-logs.store)
+    // Gumagawa ng Clinic Case mula sa validated patient at incident fields.
     public function storeCase(Request $request)
     {
         $case = ClinicCase::query()->create($this->validatedCase($request) + [
@@ -194,6 +235,9 @@ class ClinicController
         return back()->with('success', 'Clinic case created.');
     }
 
+    // @function updateCase: Ina-update ang case sa Clinic flow.
+    // @useIn updateCase: routes/web.php:464 (case-logs.update)
+    // Binabago ang napiling Clinic Case gamit ang validated fields.
     public function updateCase(Request $request, int $id)
     {
         $case = ClinicCase::query()->findOrFail($id);
@@ -204,6 +248,9 @@ class ClinicController
         return back()->with('success', 'Clinic case updated.');
     }
 
+    // @function createHistoryFromCase: Gumagawa ng ang history from case sa Clinic flow.
+    // @useIn createHistoryFromCase: routes/web.php:466 (case-logs.history)
+    // Gumagawa ng Patient History record mula sa existing Clinic Case.
     public function createHistoryFromCase(Request $request, int $id)
     {
         $case = ClinicCase::query()->findOrFail($id);
@@ -229,6 +276,9 @@ class ClinicController
         return back()->with('success', 'Patient history created from case.');
     }
 
+    // @function storeHistory: Sine-save ang history sa Clinic flow.
+    // @useIn storeHistory: routes/web.php:470 (patient-history.store)
+    // Gumagawa ng standalone Patient History record mula sa form.
     public function storeHistory(Request $request)
     {
         $history = PatientHistory::query()->create($this->validatedHistory($request) + [
@@ -240,6 +290,9 @@ class ClinicController
         return back()->with('success', 'Patient history saved.');
     }
 
+    // @function updateHistory: Ina-update ang history sa Clinic flow.
+    // @useIn updateHistory: routes/web.php:472 (patient-history.update)
+    // Binabago ang napiling Patient History record.
     public function updateHistory(Request $request, int $id)
     {
         $history = PatientHistory::query()->findOrFail($id);
@@ -250,6 +303,9 @@ class ClinicController
         return back()->with('success', 'Patient history updated.');
     }
 
+    // @function destroyHistory: Tinatanggal ang history sa Clinic flow.
+    // @useIn destroyHistory: routes/web.php:474 (patient-history.destroy)
+    // Tinatanggal ang napiling Patient History record at nilolog ang action.
     public function destroyHistory(Request $request, int $id)
     {
         $history = PatientHistory::query()->findOrFail($id);
@@ -261,6 +317,9 @@ class ClinicController
         return back()->with('success', 'Patient history deleted.');
     }
 
+    // @function emergencyTypes: Kinukuha ang emergency types result para sa Clinic.
+    // @useIn emergencyTypes: ClinicController::dashboard (app/Http/Controllers/ClinicController.php)
+    // Kinukuha ang ordered emergency types para sa form at dashboard.
     private function emergencyTypes()
     {
         return EmergencyType::orderBy('sort_order')->orderBy('name')->get()->map(fn (EmergencyType $type) => [
@@ -273,6 +332,9 @@ class ClinicController
         ])->values();
     }
 
+    // @function formatAlerts: Fino-format ang alerts sa Clinic flow.
+    // @useIn formatAlerts: ClinicController::dashboard (app/Http/Controllers/ClinicController.php)
+    // Ginagawang dashboard rows ang alert records.
     private function formatAlerts($alerts)
     {
         return $alerts->map(fn (EmergencyAlert $alert) => [
@@ -288,6 +350,9 @@ class ClinicController
         ])->values();
     }
 
+    // @function formatEmergencyDetails: Fino-format ang emergency details sa Clinic flow.
+    // @useIn formatEmergencyDetails: ClinicController::dashboard (app/Http/Controllers/ClinicController.php)
+    // Dinadagdagan ang alert rows ng patient at response details.
     private function formatEmergencyDetails($alerts)
     {
         return $alerts->map(function (EmergencyAlert $alert) {
@@ -338,6 +403,9 @@ class ClinicController
         })->values();
     }
 
+    // @function dispatchAssignmentPayload: Ipinapadala ang assignment payload sa Clinic flow.
+    // @useIn dispatchAssignmentPayload: ClinicController::dashboard (app/Http/Controllers/ClinicController.php)
+    // Binubuo ang responder assignment card kasama ang recent patient context.
     private function dispatchAssignmentPayload(ClinicCase $case): array
     {
         $history = $case->student_id
@@ -379,6 +447,9 @@ class ClinicController
         ];
     }
 
+    // @function studentForAlert: Kinukuha ang student for alert result para sa Clinic.
+    // @useIn studentForAlert: ClinicController::formatEmergencyDetails (app/Http/Controllers/ClinicController.php)
+    // Hinahanap ang linked student mula sa case o alert metadata.
     private function studentForAlert(EmergencyAlert $alert, ?ClinicCase $case): ?Students
     {
         if ($case?->student_id) {
@@ -397,6 +468,9 @@ class ClinicController
         return null;
     }
 
+    // @function studentAvatar: Binubuo ang student avatar string para sa Clinic.
+    // @useIn studentAvatar: ClinicController::formatEmergencyDetails (app/Http/Controllers/ClinicController.php)
+    // Ginagawang URL ang unang enrolled face image para sa patient preview.
     private function studentAvatar(?Students $student): ?string
     {
         $faceImages = $student?->face_images ?? [];
@@ -405,6 +479,9 @@ class ClinicController
         return $firstImage ? Storage::url($firstImage) : null;
     }
 
+    // @function calendarEvents: Kinukuha ang calendar events result para sa Clinic.
+    // @useIn calendarEvents: ClinicController::dashboard (app/Http/Controllers/ClinicController.php)
+    // Ginagawang calendar entries ang recent emergency alerts.
     private function calendarEvents()
     {
         return EmergencyAlert::query()
@@ -416,6 +493,9 @@ class ClinicController
             ->values();
     }
 
+    // @function yearRange: Binubuo ang year range string para sa Clinic.
+    // @useIn yearRange: ClinicController::dashboard (app/Http/Controllers/ClinicController.php)
+    // Kinukuha ang school-year label mula sa section data o kasalukuyang taon.
     private function yearRange(): string
     {
         $schoolYear = Section::query()
@@ -432,6 +512,9 @@ class ClinicController
         return $year.' - '.($year + 1);
     }
 
+    // @function validatedCase: Kinukuha ang validated case result para sa Clinic.
+    // @useIn validatedCase: ClinicController::storeCase (app/Http/Controllers/ClinicController.php)
+    // Kinukuha ang validated case fields mula sa request.
     private function validatedCase(Request $request): array
     {
         return $request->validate([
@@ -449,6 +532,9 @@ class ClinicController
         ]);
     }
 
+    // @function validatedHistory: Kinukuha ang validated history result para sa Clinic.
+    // @useIn validatedHistory: ClinicController::storeHistory (app/Http/Controllers/ClinicController.php)
+    // Kinukuha ang validated history fields mula sa request.
     private function validatedHistory(Request $request): array
     {
         return $request->validate([
@@ -462,6 +548,9 @@ class ClinicController
         ]);
     }
 
+    // @function casePayload: Binubuo ang case payload value.
+    // @useIn casePayload: ClinicController::caseLogs (app/Http/Controllers/ClinicController.php)
+    // Pinipili ang Clinic Case fields na ibabalik sa page.
     private function casePayload(ClinicCase $case): array
     {
         return [
@@ -484,6 +573,9 @@ class ClinicController
         ];
     }
 
+    // @function historyPayload: Binubuo ang history payload value.
+    // @useIn historyPayload: ClinicController::patientHistory (app/Http/Controllers/ClinicController.php)
+    // Pinipili ang Patient History fields na ipapakita sa page.
     private function historyPayload(PatientHistory $history): array
     {
         return [
@@ -499,6 +591,9 @@ class ClinicController
         ];
     }
 
+    // @function filteredAlerts: Kinukuha ang filtered alerts result para sa Clinic.
+    // @useIn filteredAlerts: ClinicController::reports (app/Http/Controllers/ClinicController.php)
+    // Inilalapat ang report filters sa emergency alerts query.
     private function filteredAlerts(array $filters)
     {
         return EmergencyAlert::query()
@@ -507,6 +602,9 @@ class ClinicController
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('emergency_alerts.status', $status));
     }
 
+    // @function filteredCases: Kinukuha ang filtered cases result para sa Clinic.
+    // @useIn filteredCases: ClinicController::reports (app/Http/Controllers/ClinicController.php)
+    // Inilalapat ang report filters sa Clinic Cases query.
     private function filteredCases(array $filters)
     {
         return ClinicCase::query()
@@ -516,6 +614,9 @@ class ClinicController
             ->when($filters['case_type'] ?? null, fn ($query, $type) => $query->where('case_type', $type));
     }
 
+    // @function logActivity: Nilolog ang activity sa Clinic flow.
+    // @useIn logActivity: ClinicController::storeCase (app/Http/Controllers/ClinicController.php)
+    // Nagtatala ng activity para sa history at audit.
     private function logActivity(Request $request, string $action, string $tableName, string $description): void
     {
         ActivityLog::query()->create([

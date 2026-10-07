@@ -6,7 +6,7 @@ This data dictionary was reconciled from every migration by running the full mig
 
 | Table | Fields | Relationships and purpose |
 | --- | --- | --- |
-| `users` | `user_id PK`, `name`, `middle_name?`, `last_name?`, `email unique`, `password`, `phone?`, `gender?`, `role`, `rfid_tag? unique`, `remember_token?`, `deleted_at?`, `face_images? JSON`, `security_question?`, `security_answer_hash?`, `security_questions? JSON`, `is_root_admin`, `email_verified_at?`, `two_factor_secret?`, `two_factor_recovery_codes?`, `two_factor_confirmed_at?`, `must_change_password` | Central account for every role. Referenced by Instructor, Parent links, messages, clinic, audits, lifecycle actors, etc. Soft deleted. |
+| `users` | `user_id PK`, `name`, `middle_name?`, `last_name?`, `email unique`, `password`, `phone?`, `gender?`, `profile_photo_path?`, `role`, `rfid_tag? unique`, `remember_token?`, `deleted_at?`, `face_images? JSON`, `security_question?`, `security_answer_hash?`, `security_questions? JSON`, `is_root_admin`, `email_verified_at?`, `two_factor_secret?`, `two_factor_recovery_codes?`, `two_factor_confirmed_at?`, `must_change_password` | Central account for every role. `profile_photo_path` identifies an optional public account avatar and is separate from biometric `face_images`. Referenced by Instructor, Parent links, messages, clinic, audits, lifecycle actors, etc. Soft deleted. |
 | `password_reset_tokens` | `email PK`, `token`, `created_at?` | Fortify password-reset tokens. |
 | `sessions` | `id PK`, `user_id?`, `ip_address?`, `user_agent?`, `payload`, `last_activity` | Database-backed web sessions. `user_id` is indexed but not a migration FK. |
 | `cache` | `key PK`, `value`, `expiration` | Database cache values, including notification cooldown when database cache is selected. |
@@ -22,13 +22,13 @@ The migration set does **not** create `jobs`, `job_batches`, or `failed_jobs`, e
 | `academic_years` | `academic_year_id PK`, `name unique`, `starts_on`, `ends_on`, `status`, `active_semester?`, `activated_at?`, `activated_by_user_id? FK`, `closed_at?`, `closed_by_user_id? FK`, `reopened_at?`, `reopened_by_user_id? FK`, `reopen_reason?` | Year lifecycle. Actor FKs set null when account is deleted. |
 | `laboratories` | `laboratory_id PK`, `name`, `description?`, `location`, `status` | Physical rooms/labs referenced by schedules and assigned panel devices. |
 | `strands` | `strand_id PK`, `strand_code unique`, `strand_name`, `department`, `status`, `deleted_at?` | Academic strand/track; parent of Sections, Instructors, and enrollments. |
-| `sections` | `section_id PK`, `strand_id FK`, `section_name`, `year_level`, `semester`, `school_year`, `status`, `academic_year_id? FK` | Year/semester class group. Academic year deletion restricted. |
-| `subjects` | `subject_id PK`, legacy `section_id? FK`, legacy `user_id? FK`, `subject_name`, `subject_code unique`, `year_level?`, `department?`, `unit`, `semester?`, `subject_description?` | Reusable subject catalog. Legacy assignment columns remain nullable for compatibility. |
+| `sections` | `section_id PK`, `strand_id FK`, `section_name`, `year_level`, `semester`, `school_year`, `status`, `academic_year_id? FK`, `deleted_at?` | Year/semester class group. Academic year deletion restricted. Soft deleted when it has no Student, Subject, Schedule, or enrollment history. |
+| `subjects` | `subject_id PK`, legacy `section_id? FK`, legacy `user_id? FK`, `subject_name`, active `subject_code` unique, `year_level?`, `department?`, `unit`, `semester?`, `subject_description?`, `deleted_at?` | Reusable subject catalog. Legacy assignment columns remain nullable for compatibility. Soft deleted. |
 | `subject_offerings` | `subject_offering_id PK`, `academic_year_id FK`, `subject_id FK`, `section_id FK`, `instructor_id? FK`, `semester`, `status` | Year-specific assignment. Year/subject/section deletion restricted; Instructor deletion sets null. |
 | `schedules` | `scheduled_id PK`, `academic_year_id? FK`, `subject_offering_id? FK`, `section_id FK`, `subject_code`, `semester?`, `laboratory_id? FK`, `instructor_id? FK`, `weekdays`, `time_start`, `time_end`, `room` | Scheduled class. Academic/offering deletion restricted; lab/Instructor deletion sets null. |
 | `students` | `student_id PK`, legacy/current `section_id? FK`, `strand_id? FK`, `student_number unique`, `first_name`, `last_name`, `middle_name?`, `gender`, `email? unique`, `phone?`, `year_level?`, `semester?`, `school_year?`, `rfid_tag? unique`, `status`, `face_images? JSON`, `deleted_at?` | Permanent Student identity plus compatibility current placement. Soft deleted. |
 | `student_enrollments` | `student_enrollment_id PK`, `student_id FK`, `academic_year_id FK`, `section_id FK`, `strand_id FK`, `year_level`, `semester`, `status` default `enrolled`, `enrolled_at?`, `ended_at?` | Historical Student placement. Unique Student/year/semester; Student deletion cascades, academic references restrict. |
-| `instructors` | `instructor_id PK`, `user_id FK`, `strand_id FK`, `instructor_number unique`, `status` | Instructor profile. User deletion cascades. |
+| `instructors` | `instructor_id PK`, `user_id FK`, `strand_id FK`, active `instructor_number` unique, `status`, `deleted_at?` | Instructor profile. Instructor and linked User records are soft deleted together. |
 | `registrar_enrollment_logs` | `id PK`, `registrar_user_id? FK`, `action`, `person_type`, `person_id`, `person_name`, `identifier?` | Immutable-style Registrar RFID/face audit. Registrar deletion sets null. |
 | `legacy_academic_fallback_events` | `legacy_academic_fallback_event_id PK`, `context unique`, `use_count`, `last_used_at?`, `last_payload? JSON` | Counts runtime reads that fall back to deprecated academic columns. |
 
@@ -75,9 +75,9 @@ The migration set does **not** create `jobs`, `job_batches`, or `failed_jobs`, e
 | Table | Fields | Relationships and purpose |
 | --- | --- | --- |
 | `parent_student_links` | `id PK`, `parent_user_id FK`, `student_id FK`, `relationship` | Unique Parent/Student pair; either deletion cascades. |
-| `student_portal_messages` | `student_portal_message_id PK`, `student_id? FK`, `sender_user_id FK`, `recipient_user_id? FK`, legacy `instructor_user_id? FK`, `sender_role`, compatibility `subject`, compatibility `body`, `subject_ciphertext?`, `body_ciphertext?`, `attachment_path?`, `attachment_name?`, `attachment_mime?`, `attachment_size?`, `read_at?` | Unified private Messenger. Student/sender deletion cascades; recipient/Instructor deletion sets null. |
+| `student_portal_messages` | `student_portal_message_id PK`, `student_id? FK`, `student_excuse_letter_id? FK`, sender/recipient fields, compatibility/encrypted message fields, attachment metadata, `excuse_letter_review_decision?`, `excuse_letter_reviewed_by_user_id? FK`, `excuse_letter_reviewed_at?`, review email subject/body/recipients, `read_at?` | Unified private Messenger. The optional letter FK identifies generated letters without filename guessing; per-message review fields allow every recipient Instructor to decide independently and preserve the resolved email audit. |
 | `messages` | `message_id PK`, `instructor_user_id FK`, `sender_type`, `sender_name`, `sender_email?`, `student_number?`, compatibility `subject?`, compatibility `body`, `subject_ciphertext?`, `body_ciphertext?`, attachment fields, `read_at?` | Legacy public/student-to-Instructor inbox. Instructor deletion cascades. |
-| `student_excuse_letters` | `student_excuse_letter_id PK`, `student_id FK`, `academic_year_id? FK`, `student_enrollment_id? FK`, `submitted_by_user_id FK`, `submitted_by_role`, `subject`, `from_date`, `to_date`, `reason`, `attachment_path?`, `attachment_name?`, `status`, `parent_signature?`, `parent_approval_notes?`, `parent_approved_by_user_id? FK`, `parent_approved_at?`, `recipient_user_ids? JSON` | Portal approval/PDF workflow. Student/submitter deletion cascades; Parent sets null; academic context restricts. |
+| `student_excuse_letters` | `student_excuse_letter_id PK`, `student_id FK`, academic/submission fields, dates/reason/attachment, `status`, Parent signature/approval fields, `recipient_user_ids? JSON` | Portal Parent-approval/PDF workflow. Instructor decisions are stored per delivered `student_portal_messages` row so multiple recipient Instructors remain independent. |
 | `excuse_letters` | `id PK`, `user_id FK`, `student_id? FK`, `submitted_by_role`, `subject`, `from_date`, `to_date`, `reason`, attachment metadata, `status`, `review_notes?`, `reviewed_by_user_id? FK`, `reviewed_at?` | Older excuse-letter schema retained for compatibility; current portal uses `student_excuse_letters`. |
 
 ## Clinic and emergency
@@ -94,8 +94,12 @@ The migration set does **not** create `jobs`, `job_batches`, or `failed_jobs`, e
 
 | Table | Fields | Relationships and purpose |
 | --- | --- | --- |
-| `system_settings` | `system_setting_id PK`, `key unique`, `value? JSON/text`, `type` | Feature flags, thresholds, PIN hash, questions, demo RFIDs, and sound library. |
+| `system_settings` | `system_setting_id PK`, `key unique`, `value? JSON/text`, `type` | Feature flags, thresholds, PIN hash, questions, demo RFIDs, sound library, and SMS provider availability/primary-provider keys. |
 | `activity_logs` | `logs_id PK`, `event_id? unique`, `user_id? FK`, `user_name?`, `user_role?`, `action`, `table_name`, `module?`, `outcome`, `severity`, `subject_type?`, `subject_id?`, `route_name?`, `http_method?`, `ip_address?`, `user_agent?`, `status_code?`, `description?`, `created_at` | General audit. Account deletion sets `user_id` null while snapshots remain. |
+| `root_transfer_requests` | Old/new owner FKs, requester, status, unique pending guard, hashed cancellation token, effective/expiry/acceptance/completion/reminder timestamps, request IP/user agent | Normal accepted and delayed Root Admin ownership lifecycle. |
+| `root_override_requests` / `root_override_approvals` | Requester/current/proposed owner, written reason, required approvals, delay/expiry/status; unique approver decision per request | Multi-person delayed emergency ownership recovery. |
+| `root_audit_logs` | Actor/target/request FKs, action, timestamp, IP, user agent, metadata JSON | Append-only ownership security log; application models reject update/delete operations. |
+| `jobs` / `failed_jobs` | Laravel database queue payload, reservation, attempt, availability, and failure fields | Supports queued ownership mail and other queued work. |
 
 ## Important uniqueness and lifecycle rules
 
@@ -103,10 +107,11 @@ The migration set does **not** create `jobs`, `job_batches`, or `failed_jobs`, e
 - Section identity is scoped by academic year/semester in the evolved schema rules.
 - One Student enrollment is expected per Student/year/semester.
 - One subject offering is expected per year/semester/subject/section combination.
-- RFID tags are unique separately on `users` and `students`; controller checks must prevent cross-table collisions.
+- Email, RFID, Student/Instructor numbers, Subject codes, Strand codes, and inventory barcodes are unique among active rows. Soft-deleted rows retain their original values for audit history but do not block replacement records. SQLite/PostgreSQL enforce this with partial unique indexes; MySQL uses generated active-value columns with unique indexes.
+- RFID tags are unique separately on active `users` and active `students`; controller checks also prevent cross-table collisions.
 - Online attendance is unique per class/Student and finalizer inserts are idempotent.
 - Rollover source/destination and rollover/Student pairs are unique.
-- Soft-delete tables retain history and may release or continue to occupy unique values depending on query/controller behavior.
+- Soft-delete validation must use `Rule::unique(...)->whereNull('deleted_at')`; update rules must additionally ignore the current primary key. Database indexes remain the final concurrency-safe enforcement layer.
 
 ## File storage that is not in the database
 

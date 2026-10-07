@@ -62,24 +62,32 @@ watch(
     { immediate: true },
 );
 
+// @function open: Binubuksan ang searchable select sa Searchable Select flow.
+// @useIn open: resources/js/components/SearchableSelect.vue template @focus
 const open = () => {
     if (props.disabled) return;
     query.value = '';
     isOpen.value = true;
 };
 
+// @function selectOption: Pinipili ang option sa Searchable Select flow.
+// @useIn selectOption: resources/js/components/SearchableSelect.vue template
 const selectOption = (option: SearchableOption) => {
     emit('update:modelValue', String(option.value));
     query.value = option.label;
     isOpen.value = false;
 };
 
+// @function clearSelection: Nililinis ang selection sa Searchable Select flow.
+// @useIn clearSelection: resources/js/components/SearchableSelect.vue template
 const clearSelection = () => {
     emit('update:modelValue', '');
     query.value = '';
     isOpen.value = false;
 };
 
+// @function clearInvalidQuery: Binubuo ang clear invalid query database query.
+// @useIn clearInvalidQuery: resources/js/components/SearchableSelect.vue:93
 const clearInvalidQuery = () => {
     window.setTimeout(() => {
         if (isOpen.value) return;
@@ -87,6 +95,8 @@ const clearInvalidQuery = () => {
     }, 120);
 };
 
+// @function closeAfterBlur: Isinasara ang after blur sa Searchable Select flow.
+// @useIn closeAfterBlur: resources/js/components/SearchableSelect.vue template @blur
 const closeAfterBlur = () => {
     window.setTimeout(() => {
         isOpen.value = false;

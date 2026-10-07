@@ -1,3 +1,4 @@
+<!-- FEATURE:face-recognition - UI para sa face recognition. -->
 <script setup>
 import { onMounted, onUnmounted, ref } from 'vue';
 
@@ -16,6 +17,8 @@ const cameraReady = ref(false);
 
 let stream = null;
 
+// @function startCamera: Sinisimulan ang camera sa Camera Capture flow.
+// @useIn startCamera: resources/js/components/CameraCapture.vue:77
 async function startCamera() {
     cameraError.value = null;
     try {
@@ -39,12 +42,16 @@ async function startCamera() {
     }
 }
 
+// @function stopCamera: Itinitigil ang camera sa Camera Capture flow.
+// @useIn stopCamera: resources/js/components/CameraCapture.vue:78
 function stopCamera() {
     stream?.getTracks().forEach((t) => t.stop());
     stream = null;
     cameraReady.value = false;
 }
 
+// @function captureFrame: Kinukuha ang capture frame result para sa Camera Capture.
+// @useIn captureFrame: resources/js/components/CameraCapture.vue:10
 /**
  * Capture the current video frame into a base64 JPEG data URL.
  * Returns the data URL string (or null on failure).
@@ -69,6 +76,8 @@ function captureFrame() {
     return dataUrl;
 }
 
+// @function resetCapture: Nire-reset ang capture sa Camera Capture flow.
+// @useIn resetCapture: resources/js/components/CameraCapture.vue:10
 function resetCapture() {
     capturedDataUrl.value = null;
 }

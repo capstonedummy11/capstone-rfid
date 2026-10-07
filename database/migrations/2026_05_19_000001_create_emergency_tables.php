@@ -1,11 +1,15 @@
 <?php
 
+// FEATURE:emergency-alerts - Dito ang emergency alert records na binabasa ng Clinic.
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    // @function up: Ginagawa o binabago ang database schema para sa migration na ito.
+    // @useIn up: Laravel migration runner
     public function up(): void
     {
         Schema::create('emergency_types', function (Blueprint $table) {
@@ -27,11 +31,15 @@ return new class extends Migration
             $table->string('room')->nullable();
             $table->string('subject_code')->nullable();
             $table->string('triggered_by_name')->nullable();
+            $table->string('sub_type')->nullable();
             $table->string('severity')->default('urgent');
             $table->enum('status', ['open', 'acknowledged', 'resolved', 'cancelled'])->default('open');
             $table->text('message');
             $table->json('metadata')->nullable();
             $table->timestamp('resolved_at')->nullable();
+            $table->timestamp('acknowledged_at')->nullable();
+            $table->timestamp('dispatched_at')->nullable();
+            $table->unsignedInteger('response_seconds')->nullable();
             $table->timestamps();
         });
 
@@ -66,6 +74,8 @@ return new class extends Migration
         });
     }
 
+    // @function down: Ibinabalik ang schema changes ng migration na ito.
+    // @useIn down: Laravel migration runner
     public function down(): void
     {
         Schema::dropIfExists('patient_histories');

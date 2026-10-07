@@ -14,7 +14,7 @@
                     class="hidden items-center gap-7 text-sm font-semibold text-default md:flex"
                 >
                     <a href="/" class="transition hover:text-brand">Home</a>
-                    <a href="#about_us" class="transition hover:text-brand"
+                    <a href="/about" class="transition hover:text-brand"
                         >About Us</a
                     >
                 </div>
@@ -39,7 +39,7 @@
                     class="flex flex-col gap-4 text-sm font-semibold text-default"
                 >
                     <a href="/" @click="isMenuOpen = false">Home</a>
-                    <a href="#about_us" @click="isMenuOpen = false">About Us</a>
+                    <a href="/about" @click="isMenuOpen = false">About Us</a>
                 </div>
             </div>
         </header>
@@ -50,8 +50,8 @@
                 class="relative min-h-[calc(100vh-74px)] overflow-hidden"
             >
                 <img
-                    :src="philsca"
-                    alt="Philsca campus"
+                    :src="pasayCitysouth"
+                    alt="Pasay City South campus"
                     class="absolute inset-0 h-full w-full object-cover"
                 />
                 <div class="absolute inset-0 bg-[#193153]/55"></div>
@@ -248,63 +248,22 @@
             </section>
         </main>
 
-        <footer class="bg-azure-gradient p-7 text-white md:py-16">
-            <div
-                class="mx-auto flex max-w-[1400px] flex-col gap-10 md:flex-row md:items-start md:justify-center md:gap-20"
-            >
-                <div>
-                    <h2 class="text-2xl font-bold">GET IN TOUCH</h2>
-                    <ul class="mt-4 list-inside list-disc leading-8">
-                        <li>Phone: +63-912-345-6789</li>
-                        <li>Fax: +1 496 457 654</li>
-                        <li>Email: our-mail@example.com</li>
-                        <li>Address: samplestreet123</li>
-                    </ul>
-                </div>
-
-                <div class="w-full max-w-[520px]">
-                    <h2 class="text-2xl font-bold">NEWS LETTER</h2>
-                    <p class="mt-4">Sign up your newsletter</p>
-                    <form class="mt-4 flex flex-col gap-3 sm:flex-row">
-                        <input
-                            type="email"
-                            class="h-[50px] w-full border-2 border-white bg-transparent p-3 text-white placeholder:text-white/70"
-                            placeholder="Email Address"
-                        />
-                        <button
-                            type="button"
-                            class="h-[50px] bg-[#F17A20] px-10 font-bold text-white"
-                        >
-                            GO
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </footer>
-
-        <footer
-            class="flex min-h-[100px] flex-col items-center justify-center bg-[#002F5B] p-5 text-white"
-        >
-            <p>Blog | Contact Us</p>
-            <p class="mt-3 text-center text-custom-gray">
-                Copyright 2026 RFID - Attendance Monitoring/Borrowing and
-                Inventory System
-            </p>
-        </footer>
+        <Footer />
     </div>
 </template>
 
 <script setup>
 import { ref } from 'vue';
 import logo from '@/assets/images/logo.png';
-import philsca from '@/assets/images/philsca.png';
+import pasayCitysouth from '@/assets/images/pasayCitysouth.png';
 import featureImage from '@/assets/images/Container.png';
 import featureImage2 from '@/assets/images/Container 2.png';
 import featureImage3 from '@/assets/images/Container 3.png';
 import container4 from '@/assets/images/Container 4.png';
-import item1 from '@/assets/images/Item 1.png';
-import item2 from '@/assets/images/Item 2.png';
 import item3 from '@/assets/images/Item 3.png';
+import item5 from '@/assets/images/Item 5.png';
+import galleryCampus from '@/assets/images/Home/1.jpg';
+import Footer from '@/components/LandingPage/Footer.vue';
 
 defineOptions({
     layout: null,
@@ -350,16 +309,32 @@ const showcaseItems = [
 
 const galleryImages = [
     {
-        src: item1,
-        alt: 'RFID item preview one',
+        src: featureImage,
+        alt: 'RFID attendance module',
     },
     {
-        src: item2,
-        alt: 'RFID item preview two',
+        src: featureImage2,
+        alt: 'RFID borrowing module',
+    },
+    {
+        src: featureImage3,
+        alt: 'RFID inventory module',
+    },
+    {
+        src: container4,
+        alt: 'RFID automation overview',
     },
     {
         src: item3,
-        alt: 'RFID item preview three',
+        alt: 'RFID item preview',
+    },
+    {
+        src: item5,
+        alt: 'RFID equipment preview',
+    },
+    {
+        src: galleryCampus,
+        alt: 'School campus and RFID operations',
     },
 ];
 </script>

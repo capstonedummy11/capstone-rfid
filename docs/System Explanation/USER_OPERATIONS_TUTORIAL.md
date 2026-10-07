@@ -33,7 +33,7 @@ The reason for this order is simple: schedules need sections, subjects, instruct
 
 For all roles, see the canonical [Authentication and Password Rules](AUTHENTICATION_PASSWORD_RULES.md). Admin, Instructor, Registrar, Clinic, Student, and Parent users can select **Forgot password?** and recover through their registered email. Console accounts are excluded.
 
-When an account is new or an administrator has restored a temporary/default password, login opens **Create your private password** first. Enter and confirm a different password before continuing to the dashboard.
+When an account is new or an administrator has restored a temporary/default password, login opens **Create your private password** first. Use the live strength bar and checklist to enter at least 12 characters with lowercase and uppercase letters, at least one number, and at least one symbol. After every requirement turns green, confirm the different password and continue to the dashboard.
 
 Start with an admin or root admin account.
 
@@ -191,6 +191,7 @@ Root admin note:
 
 - Only a root admin can create, update, delete, or promote admin accounts.
 - Normal admins can manage clinic and registrar accounts, but admin-account management is restricted.
+- When creating or changing a managed account password, enter the same value in Password and Confirm Password. The eye buttons reveal only the corresponding field and do not bypass server confirmation.
 
 ## 8. Create Instructor Profiles
 
@@ -207,6 +208,8 @@ For each instructor, prepare:
 - Name/user account.
 - Email or staff account information.
 - Assigned strand or related profile details if used by the form.
+
+If an Instructor forgets the account password, select **Reset password** in that Instructor's row and confirm. The password returns to the documented lowercase `firstnamelastname` temporary value with spaces removed, active Instructor sessions end, and the Instructor must create a private password at the next login before completing Instructor verification.
 
 Why this comes before schedules:
 
@@ -275,7 +278,7 @@ For each student, enroll:
 Why this is required:
 
 - RFID identifies the student at the attendance panel.
-- Face images allow AWS Rekognition comparison when face verification is enabled.
+- Face images allow AWS Rekognition comparison when face verification is enabled. If AWS Face Liveness is configured, the user first completes the short video challenge and AWS's resulting reference frame must still match the enrolled image.
 - Students without face records may require instructor approval during attendance.
 
 ## 12. Enroll Instructor RFID And Face Records
@@ -307,6 +310,8 @@ Login as admin, then go to:
 ```
 
 Create schedules only after laboratories, sections, subjects, and instructors exist.
+
+The Schedule page first opens a dashboard instead of combining all laboratories into one timetable. Use its summary cards to review total and active laboratories, laboratories with schedules, unique scheduled subjects, and the subject list for each laboratory. Select a laboratory card or its sidebar entry to open that laboratory's weekly timetable and the **Add Schedule** action.
 
 For each schedule, select:
 
@@ -623,6 +628,7 @@ Student-created excuse letter flow:
 2. Student opens Excuse Letters.
 3. Student creates an excuse letter.
 4. Student adds the reason, date details, and attachment if needed.
+   When the Student selects a From date while To is empty, To automatically uses the same date and can still be changed. Both dates must remain within the displayed active academic-year range. An invalid date is shown in the form and does not upload the attachment or create a letter.
 5. The letter is saved with parent approval required.
 6. Linked parents receive an email asking them to review and sign the letter.
 7. The parent follows the email link and logs in.
@@ -647,6 +653,25 @@ Important rule:
 
 - Student-created letters need parent approval before download.
 - Parent-created letters are already approved because the parent created and signed them.
+
+Instructor review and result email:
+
+1. The assigned Instructor opens `/messages` and selects the conversation containing the generated excuse-letter PDF.
+2. Select **Approve** or **Deny** on that excuse-letter message.
+3. Select **Student**, **Parent**, or both. Parent sends to every linked Parent with a valid email address.
+4. Review or edit the prepared email subject and message, then submit the decision.
+5. The system emails the selected recipients, includes the generated PDF when available, and records the Instructor, decision time, final template, and actual recipients.
+
+Only the Instructor who received that specific linked delivery can decide it once. When a letter was sent to multiple Instructors, each Instructor has an independent decision.
+
+Excuse-letter form validation:
+
+- Subject and reason are required and enforce their server limits.
+- From and To are required, To cannot precede From, and both must remain in the active academic year.
+- A Parent-created letter requires the Parent signature.
+- A typed Instructor search must be selected or cleared; a blank recipient selection means all assigned Instructors.
+- Attachments are optional, limited to PDF, Word, JPG, JPEG, or PNG, and cannot exceed 5 MB.
+- Client-side checks provide immediate field messages. Laravel repeats every rule before storing the attachment or letter.
 
 ## 24. Use Emergency Alerts And Emergency Text Area
 
@@ -751,6 +776,19 @@ Use this section as the quick feature map for each role.
 | Student    | Portal dashboard, attendance history, online classes, excuse letters, messages, notifications, profile updates.                                                                                        |
 | Parent     | Linked student dashboard, attendance viewing, excuse letter approval, parent-created excuse letters, messages, notifications, profile updates.                                                         |
 | Clinic     | Clinic dashboard, emergency alerts, case logs, patient histories, emergency hotlines, emergency types, clinic reports, Messenger.                                                                      |
+
+### Manage Your Own Profile
+
+Admin, Instructor, Clinic, and Registrar users can open **My Profile** from the System navigation. Student and Parent users open **My Profile** from the Student Portal navigation.
+
+From the profile page:
+
+1. Select **Choose picture** to preview a JPEG, PNG, or WebP account picture up to 2 MB.
+2. Update the available personal fields such as name, phone, or gender. Staff accounts can also update their account email and optional middle/last name.
+3. Select **Save Profile** once. The button remains disabled while the request is running.
+4. Use **Remove** and save when the account should return to the initials placeholder.
+
+Account pictures are stored separately from Student and Instructor biometric face enrollment. Uploading a profile picture does not enroll or replace a face used for attendance verification.
 
 ### Root Admin
 
@@ -930,7 +968,7 @@ Features:
 - Excuse letter attachment upload.
 - Messenger and portal messages.
 - Online class notifications.
-- Profile update.
+- Profile picture and contact-detail update.
 - Password update.
 
 Common tasks:
@@ -958,7 +996,7 @@ Features:
 - Excuse letter downloads after approval.
 - Messenger and portal messages.
 - Online class notification viewing when available.
-- Parent profile update.
+- Parent profile picture and contact-detail update.
 - Password update.
 
 Common tasks:

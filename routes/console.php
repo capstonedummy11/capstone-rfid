@@ -1,4 +1,7 @@
 <?php
+// FEATURE:root-ownership - konektadong model, service, route, o UI para sa feature na ito.
+// FEATURE:online-class-management - konektadong model, service, route, o UI para sa feature na ito.
+// FEATURE:online-class-join - konektadong model, service, route, o UI para sa feature na ito.
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -14,6 +17,14 @@ Artisan::command('online-classes:finalize-attendance', function (\App\Services\O
 })->purpose('Persist Absent attendance for students who did not join ended online classes');
 
 Schedule::command('online-classes:finalize-attendance')->everyMinute()->withoutOverlapping();
+
+Artisan::command('root-ownership:process', function (\App\Services\RootTransferService $transfers, \App\Services\RootOverrideService $overrides) {
+    $transfers->processDue();
+    $overrides->processDue();
+    $this->info('Root ownership transfers, reminders, expiries, and overrides processed.');
+})->purpose('Process Root Admin ownership lifecycle events');
+
+Schedule::command('root-ownership:process')->everyFiveMinutes()->withoutOverlapping();
 
 Artisan::command('db:schema-notes', function () {
     $descriptions = [

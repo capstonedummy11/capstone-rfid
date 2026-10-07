@@ -21,16 +21,22 @@ class Strand extends Model
         'status',
     ];
 
+    // @function sections: Ibinabalik ang sections Eloquent hasMany relationship.
+    // @useIn sections: Eloquent relationship property at eager loading
     public function sections(): HasMany
     {
         return $this->hasMany(Section::class, 'strand_id', 'strand_id');
     }
 
+    // @function students: Ibinabalik ang students Eloquent hasMany relationship.
+    // @useIn students: Eloquent relationship property at eager loading
     public function students(): HasMany
     {
         return $this->hasMany(Students::class, 'strand_id', 'strand_id');
     }
 
+    // @function enrollments: Ibinabalik ang enrollments Eloquent hasMany relationship.
+    // @useIn enrollments: Eloquent relationship property at eager loading
     public function enrollments(): HasMany
     {
         return $this->hasMany(StudentEnrollment::class, 'strand_id', 'strand_id');

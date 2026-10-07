@@ -29,16 +29,22 @@ class OnlineClassAuditLog extends Model
         'created_at' => 'datetime',
     ];
 
+    // @function onlineClass: Ibinabalik ang online class Eloquent belongsTo relationship.
+    // @useIn onlineClass: Eloquent relationship property at eager loading
     public function onlineClass(): BelongsTo
     {
         return $this->belongsTo(OnlineClass::class, 'online_class_id', 'online_class_id');
     }
 
+    // @function user: Ibinabalik ang user Eloquent belongsTo relationship.
+    // @useIn user: Eloquent relationship property at eager loading
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id', 'user_id');
     }
 
+    // @function section: Ibinabalik ang section Eloquent belongsTo relationship.
+    // @useIn section: Eloquent relationship property at eager loading
     public function section(): BelongsTo
     {
         return $this->belongsTo(Section::class, 'section_id', 'section_id');

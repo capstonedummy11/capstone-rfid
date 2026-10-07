@@ -27,10 +27,14 @@ const form = useForm({
     attachment: null,
 });
 
+// @function setAttachment: Sine-set ang attachment sa Create flow.
+// @useIn setAttachment: resources/js/pages/Messages/Create.vue template @change
 const setAttachment = (event) => {
     form.attachment = event.target.files?.[0] ?? null;
 };
 
+// @function submit: Isinusumite ang create sa Create flow.
+// @useIn submit: resources/js/pages/Messages/Create.vue template
 const submit = () => {
     successMessage.value = '';
 

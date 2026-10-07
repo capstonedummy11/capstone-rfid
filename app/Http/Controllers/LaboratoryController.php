@@ -1,4 +1,5 @@
 <?php
+// FEATURE:device-management - konektadong model, service, route, o UI para sa feature na ito.
 
 namespace App\Http\Controllers;
 
@@ -8,6 +9,8 @@ use Inertia\Inertia;
 
 class LaboratoryController
 {
+    // @function index: Wala pang implementasyon ang legacy index placeholder.
+    // @useIn index: TODO(verify): walang direct caller na nakita sa static search
     /**
      * Display a listing of the resource.
      */
@@ -16,6 +19,8 @@ class LaboratoryController
         //
     }
 
+    // @function indexAdmin: Ibinabalik ang Auth/Admin/Laboratories page at data para sa request.
+    // @useIn indexAdmin: routes/web.php:312 (laboratories)
     /**
      * Display admin listing of the resource.
      */
@@ -51,6 +56,7 @@ class LaboratoryController
         });
 
         return Inertia::render('Auth/Admin/Laboratories', [
+            'title' => 'Laboratory Management',
             'laboratories' => $laboratories,
             'filters' => [
                 'search' => $search,
@@ -59,6 +65,8 @@ class LaboratoryController
         ]);
     }
 
+    // @function store: Pinoproseso ang bagong Laboratory record.
+    // @useIn store: routes/web.php:313 (laboratories.store)
     /**
      * Store a newly created resource in storage.
      */
@@ -76,6 +84,8 @@ class LaboratoryController
         return back()->with('success', 'Laboratory added successfully.');
     }
 
+    // @function update: Pinoproseso ang pagbabago sa Laboratory record.
+    // @useIn update: routes/web.php:314 (laboratories.update)
     /**
      * Update the specified resource in storage.
      */
@@ -95,6 +105,8 @@ class LaboratoryController
         return back()->with('success', 'Laboratory updated successfully.');
     }
 
+    // @function destroy: Pinoproseso ang pagtanggal ng Laboratory record.
+    // @useIn destroy: routes/web.php:315 (laboratories.destroy)
     /**
      * Remove the specified resource from storage.
      */

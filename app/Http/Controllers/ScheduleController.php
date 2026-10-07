@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ActivityLog;
 use App\Models\AcademicYear;
+use App\Models\ActivityLog;
 use App\Models\Instructor;
 use App\Models\Laboratory;
+use App\Models\RfidPanelSession;
 use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\Subject;
@@ -17,6 +18,38 @@ use Inertia\Inertia;
 
 class ScheduleController
 {
+    private const WEEKDAYS = [
+        'sun' => 'Sun',
+        'sunday' => 'Sun',
+        'mon' => 'Mon',
+        'monday' => 'Mon',
+        'tue' => 'Tue',
+        'tues' => 'Tue',
+        'tuesday' => 'Tue',
+        'wed' => 'Wed',
+        'wednesday' => 'Wed',
+        'thu' => 'Thu',
+        'thur' => 'Thu',
+        'thurs' => 'Thu',
+        'thursday' => 'Thu',
+        'fri' => 'Fri',
+        'friday' => 'Fri',
+        'sat' => 'Sat',
+        'saturday' => 'Sat',
+    ];
+
+    // @function indexAdmin: Ibinabalik ang Auth/Admin/Schedules page at data para sa request.
+    // @useIn indexAdmin: routes/web.php:290 (schedules.index)
+    /**
+     * @feature   Academic Structure and Scheduling
+     * @actor     Admin
+     * @flow      Dito binubuo ang strands, sections, subjects, offerings, at class schedules.
+     * @uses      resources/js/pages/Auth/Admin/Schedules.vue; routes/web.php: ScheduleController::indexAdmin, ScheduleController::store, ScheduleController::update, ScheduleController::destroy
+     * @related   Admin workspace
+     * @disable   1) I-comment out ang routes/web.php: ScheduleController::indexAdmin/store/update/destroy, SectionController::indexAdmin/store/update/destroy, SubjectController::indexAdmin/store/update/destroy/storeOffering/destroyOffering/removeOfferingInstructor, StrandController::indexAdmin/store/update/destroy.
+     * @disable   2) Itago ang action sa resources/js/pages/Auth/Admin/Schedules.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
+     * @disable   3) Itago rin ang resources/js/pages/Auth/Admin/Sections.vue, resources/js/pages/Auth/Admin/Subjects.vue, at resources/js/pages/Auth/Admin/Strands.vue; ihinto ang app/Http/Controllers/ScheduleController.php: indexAdmin matapos alisin ang routes. Side effect: hindi na makakapag-configure ng academic structure o schedule ang Admin.
+     */
     public function indexAdmin(Request $request)
     {
         $user = $request->user();
@@ -48,32 +81,33 @@ class ScheduleController
         }
 
         return Inertia::render('Auth/Admin/Schedules', [
+            'title' => 'Schedules',
             'schedules' => $query
                 ->orderBy('room')
                 ->orderBy('weekdays')
                 ->orderBy('time_start')
                 ->get()
                 ->map(fn (Schedule $schedule) => [
-                'scheduled_id'   => $schedule->scheduled_id,
-                'academic_year_id' => $schedule->academic_year_id,
-                'academic_year_name' => $schedule->academicYear?->name,
-                'academic_year_status' => $schedule->academicYear?->status,
-                'subject_offering_id' => $schedule->subject_offering_id,
-                'semester' => $schedule->semester,
-                'is_writable' => $schedule->academicYear?->isWritable() ?? true,
-                'laboratory_id'  => $schedule->laboratory_id,
-                'laboratory_name' => $schedule->laboratory?->name,
-                'instructor_id'  => $schedule->instructor_id,
-                'instructor_name' => $schedule->instructor?->user?->name,
-                'section_id'     => $schedule->section_id,
-                'section_name'   => $schedule->section?->section_name,
-                'subject_code'   => $schedule->subject_code,
-                'subject_name'   => $schedule->subject?->subject_name,
-                'weekdays'       => $schedule->weekdays,
-                'time_start'     => $schedule->time_start,
-                'time_end'       => $schedule->time_end,
-                'room'           => $schedule->room,
-            ])->values(),
+                    'scheduled_id' => $schedule->scheduled_id,
+                    'academic_year_id' => $schedule->academic_year_id,
+                    'academic_year_name' => $schedule->academicYear?->name,
+                    'academic_year_status' => $schedule->academicYear?->status,
+                    'subject_offering_id' => $schedule->subject_offering_id,
+                    'semester' => $schedule->semester,
+                    'is_writable' => $schedule->academicYear?->isWritable() ?? true,
+                    'laboratory_id' => $schedule->laboratory_id,
+                    'laboratory_name' => $schedule->laboratory?->name,
+                    'instructor_id' => $schedule->instructor_id,
+                    'instructor_name' => $schedule->instructor?->user?->name,
+                    'section_id' => $schedule->section_id,
+                    'section_name' => $schedule->section?->section_name,
+                    'subject_code' => $schedule->subject_code,
+                    'subject_name' => $schedule->subject?->subject_name,
+                    'weekdays' => $schedule->weekdays,
+                    'time_start' => $schedule->time_start,
+                    'time_end' => $schedule->time_end,
+                    'room' => $schedule->room,
+                ])->values(),
             'filters' => ['laboratory_id' => $laboratoryId, 'academic_year_id' => $requestedYear === 'all' ? 'all' : $academicYearId, 'semester' => $semester],
             'academicYears' => AcademicYear::query()->orderByDesc('starts_on')->get(['academic_year_id', 'name', 'status']),
             'currentUserRole' => $role,
@@ -133,84 +167,100 @@ class ScheduleController
                 : [],
             'instructorOptions' => $isAdmin ? Instructor::query()->with('user')->get()->map(fn (Instructor $i) => [
                 'instructor_id' => $i->instructor_id,
-                'name'          => $i->user?->name ?? '(No name)',
+                'name' => $i->user?->name ?? '(No name)',
             ])->sortBy('name')->values() : [],
         ]);
     }
 
+    // @function store: Pinoproseso ang bagong Schedule record.
+    // @useIn store: routes/web.php:333 (schedules.store)
     public function store(Request $request)
     {
         $validated = $request->validate([
             'subject_offering_id' => 'nullable|exists:subject_offerings,subject_offering_id',
             'laboratory_id' => 'nullable|exists:laboratories,laboratory_id',
             'instructor_id' => 'nullable|exists:instructors,instructor_id',
-            'section_id'    => 'nullable|required_without:subject_offering_id|exists:sections,section_id',
-            'subject_code'  => 'nullable|required_without:subject_offering_id|exists:subjects,subject_code',
-            'weekdays'      => 'required|string|max:255',
-            'time_start'    => 'required|date_format:H:i',
-            'time_end'      => 'required|date_format:H:i',
-            'room'          => 'nullable|string|max:255',
+            'section_id' => 'nullable|required_without:subject_offering_id|exists:sections,section_id',
+            'subject_code' => 'nullable|required_without:subject_offering_id|exists:subjects,subject_code',
+            'weekdays' => 'required|string|max:255',
+            'time_start' => 'required|date_format:H:i',
+            'time_end' => 'required|date_format:H:i|after:time_start',
+            'room' => 'nullable|string|max:255',
         ]);
 
+        $this->assertQuarterHourTimes($validated);
         $validated = $this->resolveOffering($validated);
+        $validated['weekdays'] = $this->normalizeWeekdays($validated['weekdays']);
+        $this->assertNoScheduleConflict($validated);
 
         $schedule = Schedule::create(array_merge($validated, [
-            'time_start' => $validated['time_start'] . ':00',
-            'time_end'   => $validated['time_end'] . ':00',
+            'time_start' => $validated['time_start'].':00',
+            'time_end' => $validated['time_end'].':00',
         ]));
 
-        $this->log('create', 'schedules', 'Created schedule ' . $schedule->scheduled_id);
+        $this->log('create', 'schedules', 'Created schedule '.$schedule->scheduled_id);
 
         return back()->with('success', 'Schedule added successfully.');
     }
 
+    // @function update: Pinoproseso ang pagbabago sa Schedule record.
+    // @useIn update: routes/web.php:335 (schedules.update)
     public function update(Request $request, int $id)
     {
         $schedule = Schedule::findOrFail($id);
         if ($schedule->academicYear && ! $schedule->academicYear->isWritable()) {
             return back()->withErrors(['schedule' => 'A schedule from a closed or archived academic year cannot be edited.']);
         }
+        $this->assertScheduleIsNotRunning($schedule, 'edited');
 
         $validated = $request->validate([
             'subject_offering_id' => 'nullable|exists:subject_offerings,subject_offering_id',
             'laboratory_id' => 'nullable|exists:laboratories,laboratory_id',
             'instructor_id' => 'nullable|exists:instructors,instructor_id',
-            'section_id'    => 'nullable|required_without:subject_offering_id|exists:sections,section_id',
-            'subject_code'  => 'nullable|required_without:subject_offering_id|exists:subjects,subject_code',
-            'weekdays'      => 'required|string|max:255',
-            'time_start'    => 'required|date_format:H:i',
-            'time_end'      => 'required|date_format:H:i',
-            'room'          => 'nullable|string|max:255',
+            'section_id' => 'nullable|required_without:subject_offering_id|exists:sections,section_id',
+            'subject_code' => 'nullable|required_without:subject_offering_id|exists:subjects,subject_code',
+            'weekdays' => 'required|string|max:255',
+            'time_start' => 'required|date_format:H:i',
+            'time_end' => 'required|date_format:H:i|after:time_start',
+            'room' => 'nullable|string|max:255',
         ]);
 
+        $this->assertQuarterHourTimes($validated);
         $validated = $this->resolveOffering($validated);
+        $validated['weekdays'] = $this->normalizeWeekdays($validated['weekdays']);
+        $this->assertNoScheduleConflict($validated, $schedule->scheduled_id);
 
         $schedule->update(array_merge($validated, [
-            'time_start' => $validated['time_start'] . ':00',
-            'time_end'   => $validated['time_end'] . ':00',
+            'time_start' => $validated['time_start'].':00',
+            'time_end' => $validated['time_end'].':00',
         ]));
 
-        $this->log('update', 'schedules', 'Updated schedule ' . $schedule->scheduled_id);
+        $this->log('update', 'schedules', 'Updated schedule '.$schedule->scheduled_id);
 
         return back()->with('success', 'Schedule updated successfully.');
     }
 
+    // @function destroy: Pinoproseso ang pagtanggal ng Schedule record.
+    // @useIn destroy: routes/web.php:337 (schedules.destroy)
     public function destroy(int $id)
     {
         $schedule = Schedule::findOrFail($id);
         if ($schedule->academicYear && ! $schedule->academicYear->isWritable()) {
             return back()->withErrors(['schedule' => 'A schedule from a closed or archived academic year cannot be deleted.']);
         }
+        $this->assertScheduleIsNotRunning($schedule, 'deleted');
         if ($schedule->attendances()->exists() || $schedule->onlineClasses()->exists()) {
             return back()->withErrors(['schedule' => 'This schedule has attendance or online-class history and cannot be deleted.']);
         }
         $scheduleId = $schedule->scheduled_id;
         $schedule->delete();
-        $this->log('delete', 'schedules', 'Deleted schedule ' . $scheduleId);
+        $this->log('delete', 'schedules', 'Deleted schedule '.$scheduleId);
 
         return back()->with('success', 'Schedule deleted successfully.');
     }
 
+    // @function resolveOffering: Hinahanap ang offering sa Schedule flow.
+    // @useIn resolveOffering: ScheduleController::store (app/Http/Controllers/ScheduleController.php)
     private function resolveOffering(array $validated): array
     {
         if (empty($validated['subject_offering_id'])) {
@@ -257,6 +307,8 @@ class ScheduleController
         ]);
     }
 
+    // @function assertCurrentAcademicContext: Sini-check ang current academic context sa Schedule flow.
+    // @useIn assertCurrentAcademicContext: ScheduleController::resolveOffering (app/Http/Controllers/ScheduleController.php)
     private function assertCurrentAcademicContext(int|string|null $academicYearId, ?string $semester): void
     {
         $currentAcademicYear = AcademicYear::currentOrLatest();
@@ -273,12 +325,169 @@ class ScheduleController
         }
     }
 
+    // @function normalizeWeekdays: Nino-normalize ang weekdays sa Schedule flow.
+    // @useIn normalizeWeekdays: ScheduleController::store (app/Http/Controllers/ScheduleController.php)
+    private function normalizeWeekdays(string $weekdays): string
+    {
+        $tokens = preg_split('/[,\-\/\s]+/', strtolower(trim($weekdays)), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $normalized = collect($tokens)
+            ->map(fn (string $day) => self::WEEKDAYS[$day] ?? null)
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($tokens === [] || $normalized->count() !== count(array_unique($tokens))) {
+            throw ValidationException::withMessages([
+                'weekdays' => 'Select only valid weekdays from Sunday through Saturday.',
+            ]);
+        }
+
+        $weekdayOrder = array_flip(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
+
+        return $normalized
+            ->sortBy(fn (string $day) => $weekdayOrder[$day])
+            ->implode(',');
+    }
+
+    // @function assertQuarterHourTimes: Sini-check ang quarter hour times sa Schedule flow.
+    // @useIn assertQuarterHourTimes: ScheduleController::store (app/Http/Controllers/ScheduleController.php)
+    private function assertQuarterHourTimes(array $validated): void
+    {
+        $errors = [];
+
+        foreach (['time_start' => 'Start time', 'time_end' => 'End time'] as $field => $label) {
+            $minutes = (int) substr($validated[$field], 3, 2);
+            if ($minutes % 15 !== 0) {
+                $errors[$field] = "{$label} must use a 15-minute interval.";
+            }
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
+    // @function assertScheduleIsNotRunning: Sini-check ang schedule is not running sa Schedule flow.
+    // @useIn assertScheduleIsNotRunning: ScheduleController::update (app/Http/Controllers/ScheduleController.php)
+    private function assertScheduleIsNotRunning(Schedule $schedule, string $operation): void
+    {
+        $now = now();
+        $scheduledDays = collect(preg_split('/[,\-\/\s]+/', (string) $schedule->weekdays, -1, PREG_SPLIT_NO_EMPTY))
+            ->map(fn (string $day) => self::WEEKDAYS[strtolower(trim($day))] ?? null)
+            ->filter();
+
+        if (! $scheduledDays->contains($now->format('D'))) {
+            return;
+        }
+
+        $currentTime = $now->format('H:i:s');
+        $startTime = substr((string) $schedule->time_start, 0, 8);
+        $endTime = substr((string) $schedule->time_end, 0, 8);
+
+        if ($currentTime < $startTime || $currentTime >= $endTime) {
+            return;
+        }
+
+        $room = trim((string) ($schedule->room ?: $schedule->laboratory?->name));
+        if ($room === '') {
+            return;
+        }
+
+        $hasMatchingLivePanel = RfidPanelSession::query()
+            ->where('schedule_id', $schedule->scheduled_id)
+            ->whereRaw('LOWER(TRIM(room)) = ?', [strtolower($room)])
+            ->where('status', 'attendance')
+            ->whereNull('ended_at')
+            ->exists();
+
+        if (! $hasMatchingLivePanel) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'schedule' => "This schedule is currently running in {$room} from "
+                .substr($startTime, 0, 5).' to '.substr($endTime, 0, 5)
+                ." and cannot be {$operation} until the class ends.",
+        ]);
+    }
+
+    // @function assertNoScheduleConflict: Sini-check ang no schedule conflict sa Schedule flow.
+    // @useIn assertNoScheduleConflict: ScheduleController::store (app/Http/Controllers/ScheduleController.php)
+    private function assertNoScheduleConflict(array $attributes, ?int $ignoreScheduleId = null): void
+    {
+        $startTime = $attributes['time_start'].':00';
+        $endTime = $attributes['time_end'].':00';
+        $weekdays = explode(',', $attributes['weekdays']);
+        $room = strtolower(trim((string) ($attributes['room'] ?? '')));
+
+        $conflicts = Schedule::query()
+            ->with(['subject', 'section', 'instructor.user', 'laboratory'])
+            ->where('academic_year_id', $attributes['academic_year_id'])
+            ->where('semester', $attributes['semester'])
+            ->where('time_start', '<', $endTime)
+            ->where('time_end', '>', $startTime)
+            ->when($ignoreScheduleId, fn ($query) => $query->whereKeyNot($ignoreScheduleId))
+            ->where(function ($query) use ($attributes, $room) {
+                $query->where('section_id', $attributes['section_id']);
+
+                if (! empty($attributes['instructor_id'])) {
+                    $query->orWhere('instructor_id', $attributes['instructor_id']);
+                }
+                if (! empty($attributes['laboratory_id'])) {
+                    $query->orWhere('laboratory_id', $attributes['laboratory_id']);
+                }
+                if ($room !== '') {
+                    $query->orWhereRaw('LOWER(room) = ?', [$room]);
+                }
+            })
+            ->get()
+            ->first(fn (Schedule $schedule) => collect(explode(',', $this->normalizeWeekdays($schedule->weekdays)))
+                ->intersect($weekdays)
+                ->isNotEmpty());
+
+        if (! $conflicts) {
+            return;
+        }
+
+        $sectionName = $conflicts->section?->section_name ?: 'ID '.$conflicts->section_id;
+        $instructorName = $conflicts->instructor?->user?->name ?: 'ID '.$conflicts->instructor_id;
+        $laboratoryName = $conflicts->laboratory?->name ?: 'ID '.$conflicts->laboratory_id;
+        $roomName = trim((string) $conflicts->room);
+
+        $conflictReasons = collect([
+            (int) $conflicts->section_id === (int) $attributes['section_id']
+                ? "Section \"{$sectionName}\" already has an overlapping class"
+                : null,
+            ! empty($attributes['instructor_id']) && (int) $conflicts->instructor_id === (int) $attributes['instructor_id']
+                ? "Instructor \"{$instructorName}\" is already assigned to the overlapping class"
+                : null,
+            ! empty($attributes['laboratory_id']) && (int) $conflicts->laboratory_id === (int) $attributes['laboratory_id']
+                ? "Laboratory \"{$laboratoryName}\" is already in use"
+                : null,
+            $room !== '' && strtolower($roomName) === $room
+                ? "Room \"{$roomName}\" is already in use"
+                : null,
+        ])->filter()->unique()->implode('; ');
+        $subject = $conflicts->subject?->subject_code ?: 'another subject';
+        $days = collect(explode(',', $this->normalizeWeekdays($conflicts->weekdays)))
+            ->intersect($weekdays)
+            ->implode(', ');
+
+        throw ValidationException::withMessages([
+            'time_start' => "Schedule conflict with {$subject} on {$days} from "
+                .substr((string) $conflicts->time_start, 0, 5).' to '
+                .substr((string) $conflicts->time_end, 0, 5).". Conflict reason: {$conflictReasons}.",
+        ]);
+    }
+
+    // @function log: Nilolog ang schedule sa Schedule flow.
+    // @useIn log: ScheduleController::store (app/Http/Controllers/ScheduleController.php)
     private function log(string $action, string $tableName, string $description): void
     {
         ActivityLog::create([
-            'user_id'     => Auth::id(),
-            'action'      => $action,
-            'table_name'  => $tableName,
+            'user_id' => Auth::id(),
+            'action' => $action,
+            'table_name' => $tableName,
             'description' => $description,
         ]);
     }

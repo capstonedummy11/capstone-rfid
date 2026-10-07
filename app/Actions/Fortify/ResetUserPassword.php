@@ -12,6 +12,8 @@ class ResetUserPassword implements ResetsUserPasswords
 {
     use PasswordValidationRules;
 
+    // @function reset: Nire-reset ang reset user password sa Reset User Password flow.
+    // @useIn reset: Laravel Fortify authentication action
     /**
      * Validate and reset the user's forgotten password.
      *
@@ -27,7 +29,7 @@ class ResetUserPassword implements ResetsUserPasswords
 
         Validator::make($input, [
             'password' => $this->passwordRules(),
-        ])->validate();
+        ], $this->passwordValidationMessages())->validate();
 
         $user->forceFill([
             'password' => $input['password'],
