@@ -285,7 +285,7 @@ Route::prefix('admin')
             // FEATURE:online-class-management - route para sa Online Class Management.
             Route::delete('/online-classes/{onlineClass}', [OnlineClassController::class, 'destroy'])->name('online-classes.destroy');
             // FEATURE:student-management - route para sa Student and Parent Management.
-            // Route::get('/students', [StudentsController::class, 'indexAdmin'], ['title' => 'Instructor Management'])->name('students.index');
+            Route::get('/students', [StudentsController::class, 'indexAdmin'], ['title' => 'Instructor Management'])->name('students.index');
             // FEATURE:academic-scheduling - route para sa Academic Structure and Scheduling.
             Route::get('/schedules', [ScheduleController::class, 'indexAdmin'])->name('schedules.index');
         });

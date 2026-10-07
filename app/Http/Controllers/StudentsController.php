@@ -212,52 +212,52 @@ class StudentsController
             })
             ->values();
 
-        return Inertia::render('Auth/Admin/Students', [
-            'title' => $isInstructor ? 'Handled Students' : 'Student Management',
-            'students' => $students,
-            'filters' => $filters,
-            'currentUserRole' => $role,
-            'canManageStudents' => $isAdmin,
-            'strandOptions' => Strand::query()
-                ->orderBy('strand_code')
-                ->get(['strand_id', 'strand_code', 'strand_name'])
-                ->map(fn (Strand $strand) => [
-                    'strand_id' => $strand->strand_id,
-                    'strand_code' => $strand->strand_code,
-                    'strand_name' => $strand->strand_name,
-                ])
-                ->values(),
-            'sectionOptions' => Section::query()
-                ->with(['strand'])
-                ->when($isInstructor, fn ($sectionQuery) => $sectionQuery->whereIn('section_id', $handledSectionIds->all()))
-                ->orderBy('section_name')
-                ->get()
-                ->map(fn (Section $section) => [
-                    'section_id' => $section->section_id,
-                    'section_name' => $section->section_name,
-                    'strand_id' => $section->strand_id,
-                    'academic_year_id' => $section->academic_year_id,
-                    'semester' => $section->semester,
-                    'year_level' => $section->year_level,
-                    'school_year' => $section->school_year,
-                    'label' => trim(implode(' - ', array_filter([
-                        $section->section_name,
-                        $section->strand?->strand_code,
-                        $section->school_year,
-                    ]))),
-                ])
-                ->values(),
-            'schoolYearOptions' => AcademicYear::query()
-                ->orderByDesc('starts_on')
-                ->pluck('name')
-                ->values(),
-            'currentAcademicYear' => $currentAcademicYear ? [
-                'academic_year_id' => $currentAcademicYear->academic_year_id,
-                'name' => $currentAcademicYear->name,
-                'active_semester' => $currentAcademicYear->active_semester,
-            ] : null,
-            'semesterOptions' => ['1st Semester', '2nd Semester'],
-        ]);
+        // return Inertia::render('Auth/Admin/Students', [
+        //     'title' => $isInstructor ? 'Handled Students' : 'Student Management',
+        //     'students' => $students,
+        //     'filters' => $filters,
+        //     'currentUserRole' => $role,
+        //     'canManageStudents' => $isAdmin,
+        //     'strandOptions' => Strand::query()
+        //         ->orderBy('strand_code')
+        //         ->get(['strand_id', 'strand_code', 'strand_name'])
+        //         ->map(fn (Strand $strand) => [
+        //             'strand_id' => $strand->strand_id,
+        //             'strand_code' => $strand->strand_code,
+        //             'strand_name' => $strand->strand_name,
+        //         ])
+        //         ->values(),
+        //     'sectionOptions' => Section::query()
+        //         ->with(['strand'])
+        //         ->when($isInstructor, fn ($sectionQuery) => $sectionQuery->whereIn('section_id', $handledSectionIds->all()))
+        //         ->orderBy('section_name')
+        //         ->get()
+        //         ->map(fn (Section $section) => [
+        //             'section_id' => $section->section_id,
+        //             'section_name' => $section->section_name,
+        //             'strand_id' => $section->strand_id,
+        //             'academic_year_id' => $section->academic_year_id,
+        //             'semester' => $section->semester,
+        //             'year_level' => $section->year_level,
+        //             'school_year' => $section->school_year,
+        //             'label' => trim(implode(' - ', array_filter([
+        //                 $section->section_name,
+        //                 $section->strand?->strand_code,
+        //                 $section->school_year,
+        //             ]))),
+        //         ])
+        //         ->values(),
+        //     'schoolYearOptions' => AcademicYear::query()
+        //         ->orderByDesc('starts_on')
+        //         ->pluck('name')
+        //         ->values(),
+        //     'currentAcademicYear' => $currentAcademicYear ? [
+        //         'academic_year_id' => $currentAcademicYear->academic_year_id,
+        //         'name' => $currentAcademicYear->name,
+        //         'active_semester' => $currentAcademicYear->active_semester,
+        //     ] : null,
+        //     'semesterOptions' => ['1st Semester', '2nd Semester'],
+        // ]);
     }
 
     // @function create: Inihahanda ang create form o page.
