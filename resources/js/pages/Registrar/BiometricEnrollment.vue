@@ -324,7 +324,7 @@ const toast = (title) => {
                                     </td>
                                     <td class="px-4 py-3 text-slate-600">
                                         {{
-                                            [person.strand, person.section]
+                                            [person.strand\, person.section]
                                                 .filter(Boolean)
                                                 .join(' / ') || '-'
                                         }}
