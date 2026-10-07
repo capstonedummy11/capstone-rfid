@@ -15,7 +15,7 @@
 
 ## How to find a feature
 
-Piliin ang actor at feature sa ibaba, buksan ang Main files, o gamitin ang `rg -n "FEATURE:<slug>" app routes resources` para makita ang connected code. Ang `@feature` block sa main entry point ang may flow, dependencies, at disable steps. Sundin ang current routes at code kung may lumang demo notes na iba ang sinasabi.
+Piliin ang actor at feature sa ibaba, buksan ang Main files, o gamitin ang `grep -RnF "FEATURE:<slug>" app routes resources` para makita ang connected code. Ang `@feature` block sa main entry point ang may flow, dependencies, at disable steps. Sundin ang current routes at code kung may lumang demo notes na iba ang sinasabi.
 
 Sa bawat named function, ang `@function` ang maikling purpose at ang `@useIn` ang route, template event, caller, o framework lifecycle na gumagamit nito. Ang `TODO(verify)` ay nangangahulugang walang direktang caller na napatunayan sa static search; huwag itong ituring na siguradong unused nang walang runtime check.
 
