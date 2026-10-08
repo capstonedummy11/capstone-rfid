@@ -55,5 +55,14 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        // Laravel's default exception handler reports unexpected failures.
+        // Laravel catches unhandled exceptions for every request; attach safe identifiers to its reports.
+        $exceptions->context(function (): array {
+            $request = request();
+
+            return [
+                'route_name' => $request->route()?->getName(),
+                'http_method' => $request->method(),
+                'actor_id' => $request->user()?->getAuthIdentifier(),
+            ];
+        });
     })->create();

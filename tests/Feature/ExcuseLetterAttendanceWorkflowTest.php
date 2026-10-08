@@ -175,7 +175,7 @@ test('current enrollment instructor can be searched and receives an excuse lette
         ->get(route('admin.attendance.logs'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Attendance/SubjectSelection')
+            ->component('Shared/Attendance/SubjectSelection/SubjectSelectionPage')
             ->has('subjects', 1)
             ->where('subjects.0.id', $subject->subject_id)
             ->where('subjects.0.code', $subject->subject_code)
@@ -191,7 +191,7 @@ test('current enrollment instructor can be searched and receives an excuse lette
         ->get(route('admin.attendance.subject', $subject))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Attendance/Dashboard')
+            ->component('Shared/Attendance/Dashboard/DashboardPage')
             ->where('subject.id', $subject->subject_id)
             ->where('overview.total_students', 1)
             ->where('overview.total_sessions', 1)
@@ -201,7 +201,7 @@ test('current enrollment instructor can be searched and receives an excuse lette
         ->get(route('student-parent.excuse-letters.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('StudentParent/ExcuseLetters')
+            ->component('StudentParent/ExcuseLetters/ExcuseLettersPage')
             ->where('student.section', $currentSection->section_name)
             ->where('activeAcademicYear.starts_on', '2026-06-01')
             ->where('activeAcademicYear.ends_on', '2027-03-31')
@@ -278,7 +278,7 @@ test('current enrollment instructor can be searched and receives an excuse lette
         ->get(route('messages.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Messages/Index')
+            ->component('Shared/Messages/Index/IndexPage')
             ->has('messages', 1)
             ->where('messages.0.excuse_letter_id', $letter->student_excuse_letter_id)
             ->where('messages.0.can_review_excuse_letter', true)

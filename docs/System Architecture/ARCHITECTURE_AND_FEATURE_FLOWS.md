@@ -20,7 +20,8 @@
 | `app/Http/Middleware` | Roles, Instructor verification, Parent Portal, first-password, activity audit, appearance, shared props. |
 | `app/Models` | Eloquent records, relationships, encryption accessors, casts, and academic compatibility hooks. |
 | `app/Services` | Academic year/rollover, enrollment, face providers, online attendance/notifications/audit, SMS, Messenger mail, PDF generation. |
-| `resources/js/pages` | Route-level Vue pages and retained legacy/prototype pages. |
+| `resources/js/pages` | Route-level Vue pages grouped by role and feature; each page keeps its related UI in a local `components` folder where appropriate. Page files end in `Page.vue`, and both resolvers use the nested Inertia component path. |
+| `app/Http/Controllers` | Request controllers grouped by role and feature; shared workflows live under `Shared`, with the base Laravel controller at the root. |
 | `resources/js/layouts` | Shared authenticated navigation, role/feature visibility, unread polling, saved-profile behavior. |
 | `database/migrations` | Final schema and compatibility evolution. |
 | `database/seeders` | Minimal, reference, demo, and account datasets. |
@@ -39,11 +40,12 @@ Browser action
   -> Vue updates the page and shows success/error feedback
 ```
 
-`RecordSystemActivity` observes all POST/PUT/PATCH/DELETE requests and selected GET exports/log views. It deliberately catches its own failures so audit storage cannot break the business request.
+`RecordSystemActivity` observes all POST/PUT/PATCH/DELETE requests, selected GET exports/log views, and web error responses of any method. It also catches downstream exceptions to attempt a failed audit entry, then rethrows them to Laravel's central exception handler. Laravel reports unexpected exceptions with route, method, and actor identifiers; its normal response handling preserves validation, authorization, and server-error status codes. Audit storage errors are reported separately where possible and do not replace the business response.
 
 ## Authentication and authorization
 
 1. Each successful login regenerates the Laravel session ID and records a unique login instance plus its bound user in that server-side session. Different browser cookie jars remain independent; one browser profile keeps one active account.
+   A cached login form for the same already-authenticated account ends the existing session and performs a fresh password login, so a replaced temporary password cannot reach the dashboard through the guest redirect. Another account's email remains blocked from taking over that browser session.
 2. `EnsureAuthenticatedSessionIdentity` validates the bound user on every authenticated web request and invalidates only the affected session if an identity mismatch is detected.
 3. `StudentParentLoginController` accepts only `student`/`parent`; a disabled Parent Portal logs a Parent back out with a neutral failure.
 4. `StaffLoginController` accepts only `admin`/`instructor`/`registrar`/`clinic`; Instructor is redirected to verification.

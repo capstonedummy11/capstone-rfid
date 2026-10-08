@@ -10,7 +10,7 @@ use App\Models\SystemSetting;
 class ExcuseLetterPdfService
 {
     // @function render: Nire-render ang excuse letter pdf sa Excuse Letter Pdf flow.
-    // @useIn render: app/Http/Controllers/StudentsController.php
+    // @useIn render: app/Http/Controllers/Shared/Students/StudentsController.php
     public function render(StudentExcuseLetter $letter, string $studentName, string $section, string $submittedBy): string
     {
         $lines = [

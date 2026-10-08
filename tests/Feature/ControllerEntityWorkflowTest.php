@@ -76,7 +76,7 @@ test('academic year controller creates updates and changes lifecycle state', fun
     $this->actingAs($admin)->get(route('admin.academic-years.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/AcademicYears')
+            ->component('Admin/AcademicYears/AcademicYearsPage')
             ->where('academicYears.0.name', '2026-2027'));
 
     $this->actingAs($admin)->put(route('admin.academic-years.update', $year), [
@@ -117,7 +117,7 @@ test('strand controller creates then reuses the strand for update index and dele
     $this->actingAs($admin)->get(route('admin.strands.index', ['search' => 'ENT']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Strands')
+            ->component('Admin/Strands/StrandsPage')
             ->where('strands.0.strand_id', $strand->strand_id));
 
     $this->actingAs($admin)->put(route('admin.strands.update', $strand->strand_id), [
@@ -168,7 +168,7 @@ test('section controller creates then reuses the section for index update and de
     $this->actingAs($admin)->get(route('admin.sections.index', ['search' => 'SEC 11-A']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Sections')
+            ->component('Admin/Sections/SectionsPage')
             ->where('sections.0.section_id', $section->section_id));
 
     $this->actingAs($admin)->put(route('admin.sections.update', $section->section_id), [
@@ -194,7 +194,7 @@ test('section controller creates then reuses the section for index update and de
     $this->actingAs($admin)->get(route('admin.sections.index', ['academic_year' => 'all']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Sections')
+            ->component('Admin/Sections/SectionsPage')
             ->missing('sections.0'));
 
     $this->actingAs($admin)->put(route('admin.sections.update', $section->section_id), [
@@ -231,7 +231,7 @@ test('subject controller creates catalog subject offering then updates removes o
     $this->actingAs($admin)->get(route('admin.subjects.index', ['search' => 'CTRL-101']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Subjects')
+            ->component('Admin/Subjects/SubjectsPage')
             ->where('subjects.0.subject_id', $subject->subject_id)
             ->where('subjects.0.offerings.0.academic_year', $year->name));
 
@@ -264,7 +264,7 @@ test('subject controller creates catalog subject offering then updates removes o
     $this->actingAs($admin)->get(route('admin.subjects.index', ['academic_year_id' => 'all']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Subjects')
+            ->component('Admin/Subjects/SubjectsPage')
             ->missing('subjects.0'));
 
     $this->actingAs($admin)->put(route('admin.subjects.update', $subject->subject_id), [
@@ -278,6 +278,154 @@ test('subject controller creates catalog subject offering then updates removes o
 
     $this->actingAs($admin)->delete(route('admin.subjects.destroy', $subject->subject_id))
         ->assertNotFound();
+});
+
+test('admin can assign an active instructor to an unassigned writable offering', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    ['year' => $year, 'strand' => $strand, 'section' => $section] = controllerEntityAcademicContext();
+    $subject = Subject::create(['subject_name' => 'Assignment Subject', 'subject_code' => 'ASSIGN-101', 'unit' => 3]);
+    $offering = SubjectOffering::create([
+        'academic_year_id' => $year->academic_year_id,
+        'subject_id' => $subject->subject_id,
+        'section_id' => $section->section_id,
+        'instructor_id' => null,
+        'semester' => '1st Semester',
+        'status' => 'active',
+    ]);
+    $instructorUser = User::factory()->create(['role' => 'instructor']);
+    $instructor = Instructor::create([
+        'user_id' => $instructorUser->user_id,
+        'strand_id' => $strand->strand_id,
+        'instructor_number' => 'INS-ASSIGN-101',
+        'status' => 'active',
+    ]);
+    $unprofiledUser = User::factory()->create(['role' => 'instructor']);
+
+    $this->actingAs($admin)->get(route('admin.subjects.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Admin/Subjects/SubjectsPage')
+            ->where('subjects.0.offerings.0.instructor_id', null)
+            ->where('subjects.0.offerings.0.is_writable', true));
+
+    $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.assign', $offering), [
+        'user_id' => $unprofiledUser->user_id,
+    ])->assertSessionHasErrors('user_id');
+    $this->assertDatabaseHas('activity_logs', [
+        'route_name' => 'admin.subjects.offerings.instructor.assign',
+        'outcome' => 'failure',
+    ]);
+
+    $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.assign', $offering), [
+        'user_id' => $instructorUser->user_id,
+    ])->assertRedirect()->assertSessionHas('success');
+    $this->assertDatabaseHas('activity_logs', [
+        'route_name' => 'admin.subjects.offerings.instructor.assign',
+        'outcome' => 'success',
+    ]);
+
+    $this->assertDatabaseHas('subject_offerings', [
+        'subject_offering_id' => $offering->subject_offering_id,
+        'instructor_id' => $instructor->instructor_id,
+    ]);
+
+    $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.assign', $offering), [
+        'user_id' => $instructorUser->user_id,
+    ])->assertSessionHasErrors('offering');
+
+    $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.remove', $offering))
+        ->assertRedirect()->assertSessionHas('success');
+    $schedule = Schedule::create([
+        'academic_year_id' => $year->academic_year_id,
+        'subject_offering_id' => $offering->subject_offering_id,
+        'section_id' => $section->section_id,
+        'subject_code' => $subject->subject_code,
+        'semester' => '1st Semester',
+        'weekdays' => 'Mon',
+        'time_start' => '08:00:00',
+        'time_end' => '09:00:00',
+        'room' => 'Assignment Room',
+    ]);
+    $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.assign', $offering), [
+        'user_id' => $instructorUser->user_id,
+    ])->assertSessionHasErrors('offering');
+    $schedule->delete();
+    $year->update(['status' => AcademicYear::STATUS_CLOSED]);
+
+    $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.assign', $offering), [
+        'user_id' => $instructorUser->user_id,
+    ])->assertSessionHasErrors('offering');
+    $this->assertDatabaseHas('subject_offerings', [
+        'subject_offering_id' => $offering->subject_offering_id,
+        'instructor_id' => null,
+    ]);
+});
+
+test('instructor assignment rolls back and shows a form error when auditing fails', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    ['year' => $year, 'strand' => $strand, 'section' => $section] = controllerEntityAcademicContext();
+    $subject = Subject::create(['subject_name' => 'Audit Subject', 'subject_code' => 'AUDIT-101', 'unit' => 3]);
+    $offering = SubjectOffering::create([
+        'academic_year_id' => $year->academic_year_id,
+        'subject_id' => $subject->subject_id,
+        'section_id' => $section->section_id,
+        'semester' => '1st Semester',
+        'status' => 'active',
+    ]);
+    $instructorUser = User::factory()->create(['role' => 'instructor']);
+    Instructor::create([
+        'user_id' => $instructorUser->user_id,
+        'strand_id' => $strand->strand_id,
+        'instructor_number' => 'INS-AUDIT-101',
+        'status' => 'active',
+    ]);
+    \App\Models\ActivityLog::creating(fn () => throw new \RuntimeException('Simulated audit failure'));
+
+    $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.assign', $offering), [
+        'user_id' => $instructorUser->user_id,
+    ])->assertRedirect()->assertSessionHasErrors('offering');
+
+    $this->assertDatabaseHas('subject_offerings', [
+        'subject_offering_id' => $offering->subject_offering_id,
+        'instructor_id' => null,
+    ]);
+    \App\Models\ActivityLog::flushEventListeners();
+});
+
+test('an unexpected assignment error is visible as a failed system activity event', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    ['year' => $year, 'strand' => $strand, 'section' => $section] = controllerEntityAcademicContext();
+    $subject = Subject::create(['subject_name' => 'Failure Subject', 'subject_code' => 'FAIL-101', 'unit' => 3]);
+    $offering = SubjectOffering::create([
+        'academic_year_id' => $year->academic_year_id,
+        'subject_id' => $subject->subject_id,
+        'section_id' => $section->section_id,
+        'semester' => '1st Semester',
+        'status' => 'active',
+    ]);
+    $instructorUser = User::factory()->create(['role' => 'instructor']);
+    Instructor::create([
+        'user_id' => $instructorUser->user_id,
+        'strand_id' => $strand->strand_id,
+        'instructor_number' => 'INS-FAIL-101',
+        'status' => 'active',
+    ]);
+    SubjectOffering::updating(fn () => throw new \RuntimeException('Simulated offering save failure'));
+
+    $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.assign', $offering), [
+        'user_id' => $instructorUser->user_id,
+    ])->assertRedirect()->assertSessionHasErrors('offering');
+
+    $this->assertDatabaseHas('subject_offerings', [
+        'subject_offering_id' => $offering->subject_offering_id,
+        'instructor_id' => null,
+    ]);
+    $this->assertDatabaseHas('activity_logs', [
+        'route_name' => 'admin.subjects.offerings.instructor.assign',
+        'outcome' => 'failure',
+        'severity' => 'warning',
+    ]);
+    SubjectOffering::flushEventListeners();
 });
 
 test('instructor controller creates linked user then updates index and deletes through the user', function () {
@@ -307,7 +455,7 @@ test('instructor controller creates linked user then updates index and deletes t
     $this->actingAs($admin)->get(route('admin.instructors.index', ['search' => 'INS-CTRL-001']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Instructors')
+            ->component('Admin/Instructors/InstructorsPage')
             ->where('instructors.0.instructor_id', $instructor->instructor_id));
 
     $this->actingAs($admin)->put(route('admin.instructors.update', $instructor->instructor_id), [
@@ -599,7 +747,7 @@ test('schedule controller creates from offering then updates indexes and deletes
     $this->actingAs($admin)->get(route('admin.schedules.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Schedules')
+            ->component('Shared/Schedules/SchedulesPage')
             ->where('schedules.0.scheduled_id', $schedule->scheduled_id));
 
     $this->actingAs($admin)->put(route('admin.schedules.update', $schedule->scheduled_id), [
@@ -796,7 +944,7 @@ test('student controller creates enrollment account parent link reset update and
     $this->actingAs($admin)->get(route('admin.students.index', ['search' => 'STU-CTRL-001']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Students')
+            ->component('Shared/Students/StudentsPage')
             ->where('students.0.student_id', $student->student_id));
 
     $this->actingAs($admin)->post(route('admin.students.parents.store', $student->student_id), [
@@ -873,7 +1021,7 @@ test('student controller creates enrollment account parent link reset update and
     $this->actingAs($admin)->get(route('admin.students.index', ['academic_year' => 'all']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Students')
+            ->component('Shared/Students/StudentsPage')
             ->missing('students.0'));
 
     $this->actingAs($admin)->put(route('admin.students.update', $student->student_id), [
@@ -1069,7 +1217,7 @@ test('laboratory and active device controllers create update index pin and delet
     $this->actingAs($admin)->get(route('admin.active-devices.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/ActiveDevices')
+            ->component('Admin/ActiveDevices/ActiveDevicesPage')
             ->where('devices', fn ($devices) => collect($devices)->contains(
                 fn (array $row) => (int) $row['panel_device_id'] === (int) $device->panel_device_id
                     && $row['device_label'] === 'ENTITY-LAB-PANEL',
@@ -1189,7 +1337,7 @@ test('admin user controller creates managed user then updates indexes and delete
     $this->actingAs($root)->get(route('admin.users.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/UserManagement')
+            ->component('Admin/UserManagement/UserManagementPage')
             ->where('users.1.id', $registrar->user_id));
 
     $this->actingAs($root)->put(route('admin.users.update', $registrar->user_id), [
@@ -1255,7 +1403,7 @@ test('emergency type and hotline controllers create update index and soft delete
     $this->actingAs($clinic)->get(route('clinic.emergency-hotlines.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Clinic/EmergencyHotlines')
+            ->component('Clinic/EmergencyHotlines/EmergencyHotlinesPage')
             ->where('hotlines.0.emergency_hotline_id', $hotline->emergency_hotline_id));
 
     $this->actingAs($clinic)->put(route('clinic.emergency-hotlines.update', $hotline->emergency_hotline_id), [
@@ -1308,7 +1456,7 @@ test('clinic case and patient history controllers create update index convert an
     $this->actingAs($clinic)->get(route('clinic.case-logs'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Clinic/CaseLogs')
+            ->component('Clinic/CaseLogs/CaseLogsPage')
             ->where('cases.0.id', $case->clinic_case_id));
 
     $this->actingAs($clinic)->put(route('clinic.case-logs.update', $case->clinic_case_id), [
@@ -1347,7 +1495,7 @@ test('clinic case and patient history controllers create update index convert an
     $this->actingAs($clinic)->get(route('clinic.patient-history'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Clinic/PatientHistory')
+            ->component('Clinic/PatientHistory/PatientHistoryPage')
             ->where('histories.0.id', $manualHistory->patient_history_id));
 
     $this->actingAs($clinic)->put(route('clinic.patient-history.update', $manualHistory->patient_history_id), [

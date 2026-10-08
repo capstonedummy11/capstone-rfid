@@ -18,7 +18,7 @@ class SmsService
     ) {}
 
     // @function sendEmergencyAlert: Ipinapadala ang emergency alert sa Sms flow.
-    // @useIn sendEmergencyAlert: app/Http/Controllers/EmergencyController.php
+    // @useIn sendEmergencyAlert: app/Http/Controllers/Shared/Emergency/EmergencyController.php
     public function sendEmergencyAlert(EmergencyHotline $hotline, EmergencyAlert $alert): array
     {
         if (! $hotline->sms_enabled) {
@@ -33,7 +33,7 @@ class SmsService
     }
 
     // @function sendParentAlert: Ipinapadala ang parent alert sa Sms flow.
-    // @useIn sendParentAlert: app/Http/Controllers/EmergencyController.php
+    // @useIn sendParentAlert: app/Http/Controllers/Shared/Emergency/EmergencyController.php
     public function sendParentAlert(User $parent, Students $student, EmergencyAlert $alert): array
     {
         return $this->sendWithFallback(
@@ -44,7 +44,7 @@ class SmsService
     }
 
     // @function checkProvider: Sini-check ang provider sa Sms flow.
-    // @useIn checkProvider: app/Http/Controllers/SystemSettingsController.php
+    // @useIn checkProvider: app/Http/Controllers/Shared/SystemSettings/SystemSettingsController.php
     public function checkProvider(string $provider): array
     {
         return $this->providers->get($provider)->check();

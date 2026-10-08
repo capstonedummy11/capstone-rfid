@@ -50,7 +50,7 @@ class SubjectOffering extends Model
     }
 
     // @function isWritable: Sinusuri kung writable para sa Subject Offering.
-    // @useIn isWritable: app/Http/Controllers/SubjectController.php
+    // @useIn isWritable: app/Http/Controllers/Admin/Subjects/SubjectController.php
     public function isWritable(): bool
     {
         return $this->academicYear?->isWritable() ?? false;

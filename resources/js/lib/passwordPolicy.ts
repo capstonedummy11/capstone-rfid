@@ -7,7 +7,7 @@ export const PASSWORD_LENGTH_ERROR =
     'Password must be at least 12 characters long.';
 
 // @function isPasswordTooShort: Sinusuri kung password too short para sa password Policy.
-// @useIn isPasswordTooShort: resources/js/pages/StudentParent/Profile.vue
+// @useIn isPasswordTooShort: resources/js/pages/StudentParent/Profile/ProfilePage.vue
 export const isPasswordTooShort = (password: string): boolean =>
     password.length > 0 && password.length < MIN_PASSWORD_LENGTH;
 
@@ -36,7 +36,7 @@ export const PASSWORD_REQUIREMENTS = [
 ] as const;
 
 // @function evaluatePasswordRequirements: Pinoproseso ang evaluate password requirements para sa password Policy.
-// @useIn evaluatePasswordRequirements: resources/js/pages/Auth/FirstLoginPassword.vue
+// @useIn evaluatePasswordRequirements: resources/js/pages/Shared/Auth/FirstLoginPassword/FirstLoginPasswordPage.vue
 export const evaluatePasswordRequirements = (password: string) =>
     PASSWORD_REQUIREMENTS.map((requirement) => ({
         key: requirement.key,
@@ -45,6 +45,6 @@ export const evaluatePasswordRequirements = (password: string) =>
     }));
 
 // @function meetsPasswordRequirements: Pinoproseso ang meets password requirements para sa password Policy.
-// @useIn meetsPasswordRequirements: resources/js/pages/Auth/FirstLoginPassword.vue
+// @useIn meetsPasswordRequirements: resources/js/pages/Shared/Auth/FirstLoginPassword/FirstLoginPasswordPage.vue
 export const meetsPasswordRequirements = (password: string): boolean =>
     PASSWORD_REQUIREMENTS.every((requirement) => requirement.isMet(password));

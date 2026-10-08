@@ -51,7 +51,7 @@ test('admin can create a strand entity and reuse it on connected pages', functio
         ->get(route('admin.strands.index', ['search' => 'ENT']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Strands')
+            ->component('Admin/Strands/StrandsPage')
             ->has('strands', 1)
             ->where('strands.0.strand_code', 'ENT')
             ->where('strands.0.strand_name', 'Entity Creation Strand')
@@ -61,7 +61,7 @@ test('admin can create a strand entity and reuse it on connected pages', functio
         ->get(route('admin.sections.index', ['strand' => $strand->strand_id]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Sections')
+            ->component('Admin/Sections/SectionsPage')
             ->has('strandOptions', 1)
             ->where('strandOptions.0.strand_id', $strand->strand_id)
             ->where('strandOptions.0.strand_code', 'ENT')
@@ -72,7 +72,7 @@ test('admin can create a strand entity and reuse it on connected pages', functio
         ->get(route('admin.students.index', ['strand' => $strand->strand_id]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Students')
+            ->component('Shared/Students/StudentsPage')
             ->has('strandOptions', 1)
             ->where('strandOptions.0.strand_id', $strand->strand_id)
             ->where('strandOptions.0.strand_code', 'ENT')
@@ -83,7 +83,7 @@ test('admin can create a strand entity and reuse it on connected pages', functio
         ->get(route('admin.instructors.index', ['strand' => 'ENT']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Instructors')
+            ->component('Admin/Instructors/InstructorsPage')
             ->has('strands', 1)
             ->where('strands.0.strand_id', $strand->strand_id)
             ->where('strands.0.strand_code', 'ENT')
@@ -117,7 +117,7 @@ test('admin-created academic setup data is reused across strand section student 
         ->get(route('admin.sections.index', ['strand' => $strand->strand_id]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Sections')
+            ->component('Admin/Sections/SectionsPage')
             ->has('strandOptions', 1)
             ->where('strandOptions.0.strand_id', $strand->strand_id)
             ->where('strandOptions.0.strand_code', 'XPT')
@@ -146,7 +146,7 @@ test('admin-created academic setup data is reused across strand section student 
         ]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Students')
+            ->component('Shared/Students/StudentsPage')
             ->has('strandOptions', 1)
             ->where('strandOptions.0.strand_id', $strand->strand_id)
             ->where('strandOptions.0.strand_code', 'XPT')
@@ -196,7 +196,7 @@ test('admin-created academic setup data is reused across strand section student 
         ]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Students')
+            ->component('Shared/Students/StudentsPage')
             ->has('students', 1)
             ->where('students.0.student_number', 'XPT-2026-001')
             ->where('students.0.strand_id', $strand->strand_id)
@@ -238,7 +238,7 @@ test('admin-created academic setup data is reused across strand section student 
         ]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Subjects')
+            ->component('Admin/Subjects/SubjectsPage')
             ->has('subjects', 1)
             ->where('subjects.0.subject_code', 'XPT-101')
             ->where('subjects.0.offerings.0.academic_year', $year->name)
@@ -310,7 +310,7 @@ test('instructor subject offering and schedule share the same academic context a
         ->get(route('admin.instructors.index', ['strand' => 'TIS']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Instructors')
+            ->component('Admin/Instructors/InstructorsPage')
             ->has('instructors', 1)
             ->where('instructors.0.instructor_number', 'TIS-INST-001')
             ->where('instructors.0.strand_id', $strand->strand_id)
@@ -349,7 +349,7 @@ test('instructor subject offering and schedule share the same academic context a
         ]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Subjects')
+            ->component('Admin/Subjects/SubjectsPage')
             ->has('subjects', 1)
             ->where('subjects.0.subject_code', 'TIS-101')
             ->where('subjects.0.offerings.0.section_id', $section->section_id)
@@ -394,7 +394,7 @@ test('instructor subject offering and schedule share the same academic context a
         ]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Schedules')
+            ->component('Shared/Schedules/SchedulesPage')
             ->has('schedules', 1)
             ->where('schedules.0.scheduled_id', $schedule->scheduled_id)
             ->where('schedules.0.academic_year_id', $year->academic_year_id)
@@ -417,7 +417,7 @@ test('instructor subject offering and schedule share the same academic context a
         ]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Schedules')
+            ->component('Shared/Schedules/SchedulesPage')
             ->where('currentUserRole', 'instructor')
             ->where('canManageSchedules', false)
             ->has('schedules', 1)
@@ -449,7 +449,7 @@ test('admin instructor page ignores instructor rows whose user account was remov
         ->get(route('admin.instructors.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Instructors')
+            ->component('Admin/Instructors/InstructorsPage')
             ->has('instructors', 0));
 });
 
@@ -522,7 +522,7 @@ test('admin managed clinic account is reused by clinic dashboard case logs and p
         ->get(route('admin.users.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/UserManagement')
+            ->component('Admin/UserManagement/UserManagementPage')
             ->where('stats.clinic', 1)
             ->where('users.1.email', 'clinic.cross.page@example.test')
             ->where('users.1.role', 'clinic')
@@ -570,7 +570,7 @@ test('admin managed clinic account is reused by clinic dashboard case logs and p
         ->get(route('clinic.dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Clinic/Dashboard')
+            ->component('Clinic/Dashboard/DashboardPage')
             ->where('currentUser.email', 'clinic.cross.page@example.test')
             ->where('clinicAccounts.0.email', 'clinic.cross.page@example.test')
             ->has('assignedDispatches', 1)
@@ -583,7 +583,7 @@ test('admin managed clinic account is reused by clinic dashboard case logs and p
         ->get(route('clinic.case-logs'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Clinic/CaseLogs')
+            ->component('Clinic/CaseLogs/CaseLogsPage')
             ->has('cases', 1)
             ->where('cases.0.id', $case->clinic_case_id)
             ->where('cases.0.student_id', $student->student_id)
@@ -606,7 +606,7 @@ test('admin managed clinic account is reused by clinic dashboard case logs and p
         ->get(route('clinic.patient-history'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Clinic/PatientHistory')
+            ->component('Clinic/PatientHistory/PatientHistoryPage')
             ->has('histories', 1)
             ->where('histories.0.id', $history->patient_history_id)
             ->where('histories.0.student_id', $student->student_id)

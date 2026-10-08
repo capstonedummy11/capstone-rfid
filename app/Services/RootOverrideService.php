@@ -18,7 +18,7 @@ class RootOverrideService
     public function __construct(private readonly RootOwnershipSwapService $swap, private readonly RootAuditService $audit) {}
 
     // @function request: Pinoproseso ang request sa database transaction.
-    // @useIn request: app/Http/Controllers/RootOverrideController.php
+    // @useIn request: app/Http/Controllers/Shared/RootOwnership/RootOverrideController.php
     public function request(User $actor, User $target, string $reason, Request $httpRequest): RootOverrideRequest
     {
         $override = DB::transaction(function () use ($actor, $target, $reason, $httpRequest) {
@@ -45,7 +45,7 @@ class RootOverrideService
     }
 
     // @function decide: Pinoproseso ang decide sa database transaction.
-    // @useIn decide: app/Http/Controllers/RootOverrideController.php
+    // @useIn decide: app/Http/Controllers/Shared/RootOwnership/RootOverrideController.php
     public function decide(RootOverrideRequest $override, User $actor, string $decision, ?string $comment, Request $request): void
     {
         DB::transaction(function () use ($override, $actor, $decision, $comment, $request) {

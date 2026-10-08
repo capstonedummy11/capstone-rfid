@@ -26,7 +26,7 @@ import {
     UserRound,
 } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
-import Navlinks from '@/components/Auth/Navlinks.vue';
+import NavTab from '@/components/Auth/NavTab.vue';
 import ActivityLogs from '@/components/Icon/ActivityLogs.vue';
 import Attendance from '@/components/Icon/Attendance.vue';
 import Borrowing from '@/components/Icon/Borrowing.vue';
@@ -348,7 +348,7 @@ const confirmLogout = async () => {
                 </header>
 
                 <div class="mb-5">
-                    <Navlinks
+                    <NavTab
                         v-for="item in section.links"
                         :key="item.text"
                         :icon="item.icon"

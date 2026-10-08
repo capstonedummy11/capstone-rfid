@@ -49,3 +49,14 @@ test('each role can open its primary page', function (string $role, string $rout
     'student' => ['student', 'student-parent.dashboard'],
     'parent' => ['parent', 'student-parent.dashboard'],
 ]);
+
+test('instructors retain shared admin pages but cannot open admin-only pages', function () {
+    $instructor = User::factory()->create(['role' => 'instructor']);
+
+    $this->actingAs($instructor)
+        ->withSession(['instructor_verified' => true])
+        ->get(route('admin.dashboard'))
+        ->assertOk();
+
+    $this->get(route('admin.academic-years.index'))->assertForbidden();
+});

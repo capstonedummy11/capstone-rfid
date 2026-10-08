@@ -102,6 +102,7 @@ Admin controls the switches on **System Settings**. The application shares their
 
 ## General auditing
 
-- Mutating web requests and selected exports/log views are automatically written to `activity_logs` when possible.
+- Mutating web requests, selected exports/log views, and web error responses (including failed page loads) are automatically written to `activity_logs` when possible. Successful ordinary page views are not recorded.
 - The audit middleware records user, role, route, HTTP method, subject, IP address, user agent, outcome, severity, and status code. Audit failure is deliberately prevented from breaking the user's operation.
+- A form submission that redirects with validation or operation errors is recorded as a failed request even though the HTTP response is a redirect. Unhandled exceptions retain Laravel's HTTP error response and application report; their audit entries store status and request metadata, not exception details. If audit storage itself is unavailable, that failure is reported to the application log where possible, without replacing the original response.
 - Attendance, online classes, registrar enrollment, rollover, and some emergency/message operations also write specialized records.

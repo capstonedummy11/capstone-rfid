@@ -4,10 +4,18 @@ namespace App\Http\Middleware;
 
 use App\Models\ActivityLog;
 use Closure;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class RecordSystemActivity
@@ -18,33 +26,60 @@ class RecordSystemActivity
     // @useIn handle: Laravel web middleware pipeline
     /**
      * @feature   Audit Logging
+     *
      * @actor     Shared / Core
+     *
      * @flow      Dito nilolog ang mutating requests at selected exports kahit may audit storage error.
-     * @uses      resources/js/pages/Auth/Admin/ActivityLogs.vue; app/Http/Middleware/RecordSystemActivity.php: RecordSystemActivity::handle
+     *
+     * @uses      resources/js/pages/Admin/ActivityLogs/ActivityLogsPage.vue; app/Http/Middleware/RecordSystemActivity.php: RecordSystemActivity::handle
+     *
      * @related   Authentication, Attendance, Reports
+     *
      * @disable   1) Alisin ang RecordSystemActivity::class registration sa bootstrap/app.php.
      * @disable   2) Itago ang activity-log link sa resources/js/layouts/AuthNavbar.vue.
      * @disable   3) Ihinto ang app/Http/Middleware/RecordSystemActivity.php: handle. Side effect: mawawala ang automatic system activity trail; may module-specific logs pa rin.
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (! $this->shouldAudit($request)) {
-            return $next($request);
-        }
-
+        $shouldAudit = $this->shouldAudit($request);
         $user = $request->user();
 
         try {
             $response = $next($request);
-            $this->record($request, $response->getStatusCode(), $request->user() ?? $user);
+            // Keep routine page views out of the audit table, but capture failed ones.
+            if ($shouldAudit || $response->getStatusCode() >= 400) {
+                $this->record($request, $response->getStatusCode(), $request->user() ?? $user, $this->hasFormErrors($response));
+            }
 
             return $response;
         } catch (Throwable $exception) {
-            $status = method_exists($exception, 'getStatusCode') ? $exception->getStatusCode() : 500;
+            $status = $this->exceptionStatus($exception);
             $this->record($request, $status, $user);
 
             throw $exception;
         }
+    }
+
+    private function exceptionStatus(Throwable $exception): int
+    {
+        return match (true) {
+            $exception instanceof HttpResponseException => $exception->getResponse()->getStatusCode(),
+            $exception instanceof HttpExceptionInterface => $exception->getStatusCode(),
+            $exception instanceof ValidationException => $exception->status,
+            $exception instanceof AuthenticationException => 401,
+            $exception instanceof AuthorizationException => $exception->status() ?? 403,
+            $exception instanceof ModelNotFoundException => 404,
+            $exception instanceof TokenMismatchException => 419,
+            default => 500,
+        };
+    }
+
+    private function hasFormErrors(Response $response): bool
+    {
+        $session = $response instanceof RedirectResponse ? $response->getSession() : null;
+
+        // Only errors flashed by this response count; older session errors belong to a previous request.
+        return $session !== null && in_array('errors', $session->get('_flash.new', []), true);
     }
 
     // @function shouldAudit: Sinusuri kung audit para sa Record System Activity.
@@ -63,13 +98,13 @@ class RecordSystemActivity
 
     // @function record: Nagtatala ng ang record system activity sa Record System Activity flow.
     // @useIn record: RecordSystemActivity::handle (app/Http/Middleware/RecordSystemActivity.php)
-    private function record(Request $request, int $status, mixed $user): void
+    private function record(Request $request, int $status, mixed $user, bool $hasFormErrors = false): void
     {
         try {
             $routeName = $request->route()?->getName();
             $routeParameters = $request->route()?->parameters() ?? [];
             [$subjectType, $subjectId] = $this->subject($routeParameters);
-            $outcome = $status >= 400 ? 'failure' : 'success';
+            $outcome = $status >= 400 || $hasFormErrors ? 'failure' : 'success';
             $module = $this->module($routeName, $request->path());
 
             ActivityLog::query()->create([
@@ -81,7 +116,7 @@ class RecordSystemActivity
                 'table_name' => $module,
                 'module' => $module,
                 'outcome' => $outcome,
-                'severity' => $status >= 500 ? 'error' : ($status >= 400 ? 'warning' : 'info'),
+                'severity' => $status >= 500 ? 'error' : ($outcome === 'failure' ? 'warning' : 'info'),
                 'subject_type' => $subjectType,
                 'subject_id' => $subjectId,
                 'route_name' => $routeName,
@@ -89,11 +124,18 @@ class RecordSystemActivity
                 'ip_address' => $request->ip(),
                 'user_agent' => Str::limit((string) $request->userAgent(), 1000, ''),
                 'status_code' => $status,
-                'description' => sprintf('%s %s request %s.', $request->method(), $module, $outcome),
+                'description' => $hasFormErrors
+                    ? sprintf('%s %s request failed with form errors.', $request->method(), $module)
+                    : sprintf('%s %s request %s.', $request->method(), $module, $outcome),
                 'created_at' => now(),
             ]);
-        } catch (Throwable) {
-            // Auditing must never break the user-facing operation.
+        } catch (Throwable $exception) {
+            // Audit storage can fail independently of the request; retain its cause in the application log.
+            try {
+                report($exception);
+            } catch (Throwable) {
+                // Logging failure must never replace the original request result.
+            }
         }
     }
 

@@ -12,7 +12,7 @@ test('reset password link screen can be rendered', function () {
 
     $response->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/ForgotPassword')
+            ->component('Shared/Auth/ForgotPassword/ForgotPasswordPage')
             ->where('backUrl', route('landingPage'))
             ->where('backLabel', 'Back to Student / Parent login'));
 });
@@ -21,7 +21,7 @@ test('forgot password opened from secure login returns to secure login', functio
     $this->get(route('password.request', ['from' => 'staff']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/ForgotPassword')
+            ->component('Shared/Auth/ForgotPassword/ForgotPasswordPage')
             ->where('backUrl', route('staff.login'))
             ->where('backLabel', 'Back to Staff login'));
 });

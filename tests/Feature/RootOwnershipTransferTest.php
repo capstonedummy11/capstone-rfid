@@ -83,10 +83,10 @@ test('signed one time email link cancels a transfer without trusting an active s
         return $cancelUrl !== null;
     });
 
-    $this->get($cancelUrl)->assertOk()->assertInertia(fn ($page) => $page->component('RootOwnership/Cancel'));
-    $this->post($cancelUrl)->assertOk()->assertInertia(fn ($page) => $page->component('RootOwnership/Result'));
+    $this->get($cancelUrl)->assertOk()->assertInertia(fn ($page) => $page->component('Shared/RootOwnership/Cancel/CancelPage'));
+    $this->post($cancelUrl)->assertOk()->assertInertia(fn ($page) => $page->component('Shared/RootOwnership/Result/ResultPage'));
     expect($transfer->fresh()->status)->toBe('cancelled')->and($transfer->fresh()->cancel_token_hash)->toBeNull();
-    $this->get($cancelUrl)->assertOk()->assertInertia(fn ($page) => $page->component('RootOwnership/Result'));
+    $this->get($cancelUrl)->assertOk()->assertInertia(fn ($page) => $page->component('Shared/RootOwnership/Result/ResultPage'));
 });
 
 test('unauthorized admin cannot create a normal transfer', function () {

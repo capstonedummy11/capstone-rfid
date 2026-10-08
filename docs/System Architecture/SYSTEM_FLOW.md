@@ -796,7 +796,7 @@ For automatic area-wide fire/disaster handling, the optional incident/location-d
 
 Clinic dashboard sound behavior:
 
-- `resources/js/pages/Clinic/Dashboard.vue` polls for refreshed alert data while the clinic dashboard is open.
+- `resources/js/pages/Clinic/Dashboard/DashboardPage.vue` polls for refreshed alert data while the clinic dashboard is open.
 - The page compares the newest `emergency_alert_id` against the latest alert already seen by the browser.
 - When a higher alert ID appears after initial page load, the browser plays `/sound/emergency-alert.mp3`.
 - The MP3 file is stored at `public/sound/emergency-alert.mp3`.

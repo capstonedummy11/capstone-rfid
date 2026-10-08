@@ -210,7 +210,7 @@ test('administrator can browse all attendance subjects and open subject analytic
         ->get(route('admin.attendance.logs'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Attendance/SubjectSelection')
+            ->component('Shared/Attendance/SubjectSelection/SubjectSelectionPage')
             ->has('subjects', 1)
             ->where('subjects.0.id', $subject->subject_id)
             ->where('currentUserRole', 'admin'));
@@ -219,7 +219,7 @@ test('administrator can browse all attendance subjects and open subject analytic
         ->get(route('admin.attendance.subject', $subject))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Attendance/Dashboard')
+            ->component('Shared/Attendance/Dashboard/DashboardPage')
             ->where('subject.id', $subject->subject_id)
             ->where('overview.total_students', 1)
             ->where('overview.total_sessions', 1)
@@ -229,7 +229,7 @@ test('administrator can browse all attendance subjects and open subject analytic
         ->get(route('admin.attendance.summary', $subject))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Attendance/Summary')
+            ->component('Shared/Attendance/Summary/SummaryPage')
             ->where('statuses', ['Present', 'Absent', 'Late', 'Excused', 'Unexcused', 'Online Class'])
             ->has('rows', 1)
             ->where('rows.0.student_id', $fixture['student']->student_id));
@@ -310,7 +310,7 @@ test('online class participation is counted as online class and present attendan
         ->get(route('admin.attendance.session', [$subject, 'online-'.$onlineClassId]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Attendance/SessionDetails')
+            ->component('Shared/Attendance/SessionDetails/SessionDetailsPage')
             ->where('session.type', 'online')
             ->where('statusTotals.Present', 1)
             ->where('statusTotals.Absent', 1));
@@ -319,7 +319,7 @@ test('online class participation is counted as online class and present attendan
         ->get(route('admin.online-classes.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/OnlineClasses')
+            ->component('Shared/OnlineClasses/OnlineClassesPage')
             ->where('onlineClasses.0.attendance_subject_id', $subject->subject_id)
             ->where(
                 'onlineClasses.0.attendance_url',
@@ -353,7 +353,7 @@ test('online class participation is counted as online class and present attendan
         ->get(route('student-parent.attendance'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('StudentParent/Attendance')
+            ->component('StudentParent/Attendance/AttendancePage')
             ->where('attendance.0.source', 'online')
             ->where('attendance.0.status', 'present'));
 });
@@ -553,7 +553,7 @@ test('attendance panel room remains unlocked on refresh until panel logout', fun
         ->get(route('attendanceControlPanel'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('AttendanceControlPanel')
+            ->component('AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage')
             ->where('panelRoom', 'COMLAB-ATT')
         );
 
@@ -583,7 +583,7 @@ test('attendance panel demo buttons are disabled by default and use configured r
         ->get(route('attendanceControlPanel'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('AttendanceControlPanel')
+            ->component('AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage')
             ->where('featureSettings.demo_attendance_panel_enabled', false)
             ->where('demoAttendancePanel.enabled', false)
         );
@@ -601,7 +601,7 @@ test('attendance panel demo buttons are disabled by default and use configured r
         ->get(route('attendanceControlPanel'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('AttendanceControlPanel')
+            ->component('AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage')
             ->where('featureSettings.demo_attendance_panel_enabled', true)
             ->where('demoAttendancePanel.enabled', true)
             ->where('demoAttendancePanel.rfids.professor_tap', 'PROF-ONE')
@@ -715,7 +715,7 @@ test('fallback verification keeps temporary exit and return rules before the che
         ->get(route('admin.attendance.session', [$subject, $fixture['attendanceSessionId']]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Attendance/SessionDetails')
+            ->component('Shared/Attendance/SessionDetails/SessionDetailsPage')
             ->where('rows.0.time_out', null)
             ->has('rows.0.tap_events', 3)
             ->where('rows.0.tap_events.0.tap_type', 'Check-in')

@@ -92,6 +92,7 @@ Model responsibilities are deliberately small: fillable/casts/relationships and 
 | `EnsureInstructorVerified` | Redirects unverified Instructor sessions to verification. |
 | `EnsureParentPortalEnabled` | Rejects Parent routes while the feature is off. |
 | `EnsurePasswordIsChanged` | Forces temporary-password replacement except allow-listed auth routes. |
+| `ReauthenticateCurrentUser` | On a cached login form for the current account, ends that session so the submitted password must pass the normal login check; the guest guard still blocks switching accounts. |
 | `PreventConsolePasswordReset` | Returns neutral response without creating a Console email-reset workflow. |
 | `RecordSystemActivity` | Best-effort automatic mutation/export/log-access audit. |
 | `HandleInertiaRequests` | Shares user, feature settings, flash, title, and sidebar state. |
@@ -125,14 +126,14 @@ Model responsibilities are deliberately small: fillable/casts/relationships and 
 
 | Group | Components and use |
 | --- | --- |
-| Authentication | `Login`, `Navlinks`, `PasswordField`, `RegistrationForm`, `RegistrationInput` provide reusable auth forms/navigation. |
+| Authentication | `Login`, `NavTab`, `PasswordField`, `RegistrationForm`, `RegistrationInput` provide reusable auth forms/navigation. |
 | Buttons | `AddButton`, `Button`, `LoginButton`, `Menu` provide common controls. |
 | Identity/input | `CameraCapture` handles browser camera capture; `SearchableSelect` provides large relationship search. |
-| Student portal | `LinkedStudentSelector`, `StatCard`, `SuccessModal` provide linked-child context and feedback. |
-| Admin cards | Barcode scanner, Dashboard cards/table, Inventory table, and Search bar support Admin UIs. |
+| Student portal | `LinkedStudentSelector` provides linked-child context across portal pages. |
+| Admin cards | Shared Dashboard cards and tables support Admin UIs; inventory-specific controls are colocated with the Inventory page. |
 | Landing | About/showcase/gallery/journal/call-to-action components build reusable marketing sections. |
 | Icons | The `components/Icon` directory contains presentation-only SVG/Vue icons for navigation/cards/statuses. |
-| Modal | `EditInventory` is a focused Inventory edit modal. |
+| Modal | Feature-specific modals live beside the page that owns their workflow. |
 
 ### Composables
 

@@ -61,7 +61,7 @@ class AwsFaceLivenessService
     }
 
     // @function createSession: Gumagawa ng ang session sa Aws Face Liveness flow.
-    // @useIn createSession: app/Http/Controllers/FaceLivenessController.php
+    // @useIn createSession: app/Http/Controllers/Shared/FaceLiveness/FaceLivenessController.php
     public function createSession(Request $request, string $purpose, string $subjectKey): array
     {
         $availability = $this->availability();
@@ -100,7 +100,7 @@ class AwsFaceLivenessService
     }
 
     // @function completeSession: Kinukuha ang complete session result para sa Aws Face Liveness.
-    // @useIn completeSession: app/Http/Controllers/FaceLivenessController.php
+    // @useIn completeSession: app/Http/Controllers/Shared/FaceLiveness/FaceLivenessController.php
     /**
      * @feature   Face Liveness
      * @actor     Shared / Core
@@ -166,7 +166,7 @@ class AwsFaceLivenessService
     }
 
     // @function consumeReferenceImage: Ginagamit nang isang beses ang reference image sa Aws Face Liveness flow.
-    // @useIn consumeReferenceImage: app/Http/Controllers/AttendanceController.php
+    // @useIn consumeReferenceImage: app/Http/Controllers/Shared/Attendance/AttendanceController.php
     public function consumeReferenceImage(Request $request, string $token, string $purpose, string $subjectKey): ?string
     {
         $tokens = $request->session()->get('face_liveness_tokens', []);

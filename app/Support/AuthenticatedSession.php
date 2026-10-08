@@ -15,7 +15,7 @@ final class AuthenticatedSession
     public const ISSUED_AT = 'auth_session.issued_at';
 
     // @function issue: Pinoproseso ang issue para sa Authenticated Session.
-    // @useIn issue: app/Http/Controllers/StudentParentLoginController.php
+    // @useIn issue: app/Http/Controllers/StudentParent/Login/StudentParentLoginController.php
     public static function issue(Request $request, Authenticatable $user): void
     {
         $request->session()->put([

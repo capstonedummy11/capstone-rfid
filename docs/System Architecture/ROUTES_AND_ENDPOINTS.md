@@ -4,16 +4,18 @@
 
 All application endpoints use Laravel's `web` middleware and session/CSRF model. GET requests usually return Inertia pages; mutations return redirects with flash/errors or JSON for the Console; exports/files return streamed responses. This is not a stateless REST API.
 
+`routes/web.php` loads the role files within Laravel's `web` middleware group. Public/login routes remain in `web.php`; `admin.php` contains Admin-only routes; `admin-instructor.php` contains routes shared by Admin and verified Instructors under the existing `/admin` prefix; `instructor.php`, `registrar.php`, `clinic.php`, `student-parent.php`, and `attendance-console.php` hold their respective role flows. `shared.php` holds cross-role messages, reports, face liveness, and attendance evidence. Laravel's Artisan command routes remain in `routes/console.php`. File placement does not grant access: each protected route group retains its explicit auth and role middleware.
+
 ## Public and authentication endpoints
 
 | Methods and URI | Name/purpose | Main protection |
 | --- | --- | --- |
 | `GET /`, `GET /home`, `GET /dashboard` | Landing and role redirects. | Dashboard requires auth. |
 | `GET /about`, `GET /up` | Public About Us page and health response. | Public. |
-| `GET/POST /{SECURE_LOGIN_ROUTE}` | Staff login page/submit. | Guest + login throttle on POST. |
+| `GET/POST /{SECURE_LOGIN_ROUTE}` | Staff login page/submit. | Same-account reauthentication, guest guard, and login throttle on POST. |
 | `GET/POST /admin/login-verification`, `POST /admin/login-verification/resend` | Display, verify, or rotate the mandatory per-login Admin email OTP. | Authenticated Admin; separate verification/resend throttles. |
 | `GET /secure-login` | Compatibility redirect to configured staff path. | Public. |
-| `POST /login` | Student/Parent login submit. | Guest + login throttle. |
+| `POST /login` | Student/Parent login submit. | Same-account reauthentication, guest guard, and login throttle. |
 | Fortify reset/verify/2FA routes | Password reset, confirmation, verification, two factor, logout. | Fortify/web middleware. |
 | `GET/PUT /first-login/password` | Required temporary-password replacement. | Auth; GET is unthrottled and PUT uses the named `first-login-password` limiter at 15 attempts per minute per user. |
 | `GET/POST /register` | Public registration UI/submit. | Public. |
@@ -40,7 +42,7 @@ Prefix `/admin`, auth:
 - Admin or verified Instructor: dashboard; attendance scanner/logs/subject/summary/student/session/export/status; messages/reply; online-class CRUD/cancel; Student list; Schedule list.
 - Admin only: Academic Year lifecycle/rollover; Laboratory CRUD; Borrowing/return; RFID update/clear; Section, Subject/Offering, Schedule, Inventory/Item, Strand, Student/Parent, Instructor, User CRUD; Student, Instructor, Clinic, and Registrar administrative password resets; Activity and Online Class log exports; Active Device/PIN/session management; System Settings/SMS provider checks/sound library; prototype students-management route.
 
-Endpoint names and controller methods are declared in `routes/web.php`; the runtime route list is authoritative when duplicate URIs exist. In particular, the final `GET /admin/inventory` closure is named `admin.inventory` and supersedes the earlier same-URI index route in the runtime list.
+Endpoint names and controller methods are declared in the route files loaded by `routes/web.php`; the runtime route list is authoritative when duplicate URIs exist. In particular, the final `GET /admin/inventory` closure in `admin.php` is named `admin.inventory` and supersedes the earlier same-URI index route in the runtime list.
 
 ## Registrar endpoints
 

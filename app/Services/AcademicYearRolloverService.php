@@ -108,7 +108,7 @@ class AcademicYearRolloverService
     }
 
     // @function execute: Isinasagawa ang academic year rollover sa Academic Year Rollover flow.
-    // @useIn execute: app/Http/Controllers/AcademicYearController.php
+    // @useIn execute: app/Http/Controllers/Admin/AcademicYears/AcademicYearController.php
     public function execute(AcademicYear $source, AcademicYear $destination, User $actor, array $decisions, array $sectionMappings, string $mode = 'year', ?string $destinationSemester = null, ?array $subjectSelections = null): AcademicYearRollover
     {
         $preview = $this->preview($source, $destination, $mode, $destinationSemester);

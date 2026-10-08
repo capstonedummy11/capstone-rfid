@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Log;
 class MessengerEmailNotificationService
 {
     // @function notify: Sinusuri ang notify condition para sa Messenger Email Notification.
-    // @useIn notify: app/Http/Controllers/StudentsController.php
+    // @useIn notify: app/Http/Controllers/Shared/Students/StudentsController.php
     public function notify(User $sender, User $recipient, StudentPortalMessage $message): bool
     {
         if (! filter_var($recipient->email, FILTER_VALIDATE_EMAIL)) {

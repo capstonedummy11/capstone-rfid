@@ -38,6 +38,6 @@ test('two factor challenge can be rendered', function () {
         ->get(route('two-factor.login'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('auth/TwoFactorChallenge')
+            ->component('Shared/Auth/TwoFactorChallenge/TwoFactorChallengePage')
         );
 });

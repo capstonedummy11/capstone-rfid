@@ -75,7 +75,7 @@ test('registrar can view dashboard and biometric enrollment pages', function () 
         ->get(route('registrar.dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Registrar/Dashboard')
+            ->component('Registrar/Dashboard/DashboardPage')
             ->where('stats.total', 2)
             ->where('stats.students', 1)
             ->where('stats.faculty', 1)
@@ -85,7 +85,7 @@ test('registrar can view dashboard and biometric enrollment pages', function () 
         ->get(route('registrar.biometric-enrollment'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Registrar/BiometricEnrollment')
+            ->component('Registrar/BiometricEnrollment/BiometricEnrollmentPage')
             ->has('people', 1)
             ->where('people.0.type', 'student')
             ->where('stats.faculty', 0)
@@ -95,7 +95,7 @@ test('registrar can view dashboard and biometric enrollment pages', function () 
         ->get(route('registrar.instructor-face-enrollment'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Registrar/InstructorFaceEnrollment')
+            ->component('Registrar/InstructorFaceEnrollment/InstructorFaceEnrollmentPage')
             ->has('people', 1)
         );
 });

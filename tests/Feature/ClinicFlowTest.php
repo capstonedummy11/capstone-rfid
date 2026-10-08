@@ -62,7 +62,7 @@ test('clinic can view dashboard reports case logs patient history and hotline ma
         ->get(route('clinic.dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Clinic/Dashboard')
+            ->component('Clinic/Dashboard/DashboardPage')
             ->has('alerts')
             ->has('emergencyTypes')
         );
@@ -71,7 +71,7 @@ test('clinic can view dashboard reports case logs patient history and hotline ma
         ->get(route('clinic.case-logs'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Clinic/CaseLogs')
+            ->component('Clinic/CaseLogs/CaseLogsPage')
             ->has('cases')
             ->has('emergencyTypes', 1)
         );
@@ -80,7 +80,7 @@ test('clinic can view dashboard reports case logs patient history and hotline ma
         ->get(route('clinic.patient-history'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Clinic/PatientHistory')
+            ->component('Clinic/PatientHistory/PatientHistoryPage')
             ->has('histories')
             ->has('recentCases')
         );
@@ -89,7 +89,7 @@ test('clinic can view dashboard reports case logs patient history and hotline ma
         ->get(route('clinic.reports'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Clinic/Reports')
+            ->component('Clinic/Reports/ReportsPage')
             ->has('summary')
             ->has('caseBreakdown')
             ->has('caseTrends')
@@ -100,7 +100,7 @@ test('clinic can view dashboard reports case logs patient history and hotline ma
         ->get(route('clinic.emergency-hotlines.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Clinic/EmergencyHotlines')
+            ->component('Clinic/EmergencyHotlines/EmergencyHotlinesPage')
             ->has('hotlines', 1)
         );
 });
@@ -181,7 +181,7 @@ test('clinic dashboard shows only open emergency details cards', function () {
         ->get(route('clinic.dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Clinic/Dashboard')
+            ->component('Clinic/Dashboard/DashboardPage')
             ->has('emergencyDetails', 1)
             ->where('emergencyDetails.0.patient_name', 'Open Alert')
         );
@@ -254,7 +254,7 @@ test('attendance panel receives emergency hotlines and emergency alert calls wri
         ->get(route('attendanceControlPanel'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('AttendanceControlPanel')
+            ->component('AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage')
             ->has('emergencyHotlines', 1)
             ->where('emergencyHotlines.0.name', 'School Clinic')
         );
@@ -875,7 +875,7 @@ test('clinic reports can be filtered and exported as csv', function () {
         ]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Clinic/Reports')
+            ->component('Clinic/Reports/ReportsPage')
             ->where('summary.cases', 1)
             ->has('recentCases', 1)
         );

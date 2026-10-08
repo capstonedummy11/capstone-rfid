@@ -125,7 +125,7 @@ class SystemSetting extends Model
     }
 
     // @function demoAttendancePanelSettings: Kinukuha ang demo attendance panel settings result para sa System Setting.
-    // @useIn demoAttendancePanelSettings: app/Http/Controllers/SystemSettingsController.php
+    // @useIn demoAttendancePanelSettings: app/Http/Controllers/Shared/SystemSettings/SystemSettingsController.php
     public static function demoAttendancePanelSettings(): array
     {
         $rfids = static::array(static::DEMO_ATTENDANCE_PANEL_RFIDS, static::DEFAULT_DEMO_ATTENDANCE_PANEL_RFIDS);
@@ -179,7 +179,7 @@ class SystemSetting extends Model
     }
 
     // @function integer: Kinukuha ang integer result para sa System Setting.
-    // @useIn integer: app/Http/Controllers/SystemSettingsController.php
+    // @useIn integer: app/Http/Controllers/Shared/SystemSettings/SystemSettingsController.php
     public static function integer(string $key, int $default = 0): int
     {
         if (! Schema::hasTable('system_settings')) {
@@ -217,7 +217,7 @@ class SystemSetting extends Model
     }
 
     // @function securityQuestions: Kinukuha ang security questions result para sa System Setting.
-    // @useIn securityQuestions: app/Http/Controllers/SystemSettingsController.php
+    // @useIn securityQuestions: app/Http/Controllers/Shared/SystemSettings/SystemSettingsController.php
     public static function securityQuestions(): array
     {
         $questions = collect(static::array(static::SECURITY_QUESTIONS, static::DEFAULT_SECURITY_QUESTIONS))
@@ -231,7 +231,7 @@ class SystemSetting extends Model
     }
 
     // @function clinicEmergencySoundSettings: Kinukuha ang clinic emergency sound settings result para sa System Setting.
-    // @useIn clinicEmergencySoundSettings: app/Http/Controllers/SystemSettingsController.php
+    // @useIn clinicEmergencySoundSettings: app/Http/Controllers/Shared/SystemSettings/SystemSettingsController.php
     public static function clinicEmergencySoundSettings(): array
     {
         $library = static::array(static::CLINIC_EMERGENCY_SOUND_LIBRARY, []);
@@ -287,7 +287,7 @@ class SystemSetting extends Model
     }
 
     // @function setClinicEmergencySoundLibrary: Sine-set ang clinic emergency sound library sa System Setting flow.
-    // @useIn setClinicEmergencySoundLibrary: app/Http/Controllers/SystemSettingsController.php
+    // @useIn setClinicEmergencySoundLibrary: app/Http/Controllers/Shared/SystemSettings/SystemSettingsController.php
     public static function setClinicEmergencySoundLibrary(array $sounds, string $selectedId): void
     {
         static::setArray(static::CLINIC_EMERGENCY_SOUND_LIBRARY, [
@@ -297,7 +297,7 @@ class SystemSetting extends Model
     }
 
     // @function setBoolean: Sine-set ang boolean sa System Setting flow.
-    // @useIn setBoolean: app/Http/Controllers/SystemSettingsController.php
+    // @useIn setBoolean: app/Http/Controllers/Shared/SystemSettings/SystemSettingsController.php
     public static function setBoolean(string $key, bool $value): void
     {
         static::query()->updateOrCreate(
@@ -310,7 +310,7 @@ class SystemSetting extends Model
     }
 
     // @function setString: Sine-set ang string sa System Setting flow.
-    // @useIn setString: app/Http/Controllers/SystemSettingsController.php
+    // @useIn setString: app/Http/Controllers/Shared/SystemSettings/SystemSettingsController.php
     public static function setString(string $key, string $value): void
     {
         static::query()->updateOrCreate(
@@ -323,7 +323,7 @@ class SystemSetting extends Model
     }
 
     // @function setInteger: Sine-set ang integer sa System Setting flow.
-    // @useIn setInteger: app/Http/Controllers/SystemSettingsController.php
+    // @useIn setInteger: app/Http/Controllers/Shared/SystemSettings/SystemSettingsController.php
     public static function setInteger(string $key, int $value): void
     {
         static::query()->updateOrCreate(

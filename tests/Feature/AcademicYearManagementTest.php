@@ -870,7 +870,7 @@ test('academic rollover is transactional idempotent and preserves source history
         ]))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->component('Auth/Admin/Students')
+            ->component('Shared/Students/StudentsPage')
             ->where('filters.school_year', 'all')
             ->where('filters.status', 'graduated')
             ->has('students', 1)

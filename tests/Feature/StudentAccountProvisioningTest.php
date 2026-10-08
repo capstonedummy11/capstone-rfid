@@ -104,7 +104,7 @@ test('student created by an admin can sign in with the submitted email and gener
     $this->get(route('student-parent.dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('StudentParent/Dashboard')
+            ->component('StudentParent/Dashboard/DashboardPage')
             ->where('student.student_number', $studentData['student_number'])
             ->where('student.email', $studentData['email'])
         );

@@ -53,7 +53,7 @@ class AwsFaceRecognitionService
     }
 
     // @function compareBase64WithStoredImage: Kinukuha ang compare base64 with stored image result para sa Aws Face Recognition.
-    // @useIn compareBase64WithStoredImage: app/Http/Controllers/AttendanceController.php
+    // @useIn compareBase64WithStoredImage: app/Http/Controllers/Shared/Attendance/AttendanceController.php
     /**
      * @feature   Face Recognition
      * @actor     Shared / Core
@@ -61,7 +61,7 @@ class AwsFaceRecognitionService
      * @uses      resources/js/components/CameraCapture.vue; app/Services/AwsFaceRecognitionService.php: AwsFaceRecognitionService::compareBase64WithStoredImage
      * @related   Authentication, Attendance, Reports
      * @disable   1) I-off ang SystemSetting::FACE_RECOGNITION_ENABLED sa app/Models/SystemSetting.php.
-     * @disable   2) Itago ang face action sa resources/js/pages/AttendanceControlPanel.vue.
+     * @disable   2) Itago ang face action sa resources/js/pages/AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage.vue.
      * @disable   3) Alisin ang AttendanceController::studentFaceCheck at OnlineClassController::join face calls bago ihinto ang app/Services/AwsFaceRecognitionService.php: compareBase64WithStoredImage. Side effect: kailangang sundin ang documented fallback o titigil ang face-required flows.
      */
     public function compareBase64WithStoredImage(string $capturedDataUrl, string $storedPath): ?array

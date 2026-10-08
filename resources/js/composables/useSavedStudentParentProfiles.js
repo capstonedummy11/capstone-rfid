@@ -105,7 +105,7 @@ export const getSavedStudentParentProfiles = () => {
 };
 
 // @function setStudentParentSavePreference: Sine-set ang student parent save preference sa use Saved Student Parent Profiles flow.
-// @useIn setStudentParentSavePreference: resources/js/pages/Auth/StudentParentLogin.vue
+// @useIn setStudentParentSavePreference: resources/js/pages/StudentParent/Login/StudentParentLoginPage.vue
 export const setStudentParentSavePreference = (email, shouldSave) => {
     if (typeof window === 'undefined') return;
 
@@ -163,7 +163,7 @@ export const saveStudentParentProfile = (user) => {
 };
 
 // @function removeSavedStudentParentProfile: Tinatanggal ang saved student parent profile sa use Saved Student Parent Profiles flow.
-// @useIn removeSavedStudentParentProfile: resources/js/pages/Auth/StudentParentLogin.vue
+// @useIn removeSavedStudentParentProfile: resources/js/pages/StudentParent/Login/StudentParentLoginPage.vue
 export const removeSavedStudentParentProfile = (email) => {
     const normalizedEmail = String(email || '')
         .trim()
@@ -205,7 +205,7 @@ export const getSavedStaffProfiles = () => {
 };
 
 // @function setStaffSavePreference: Sine-set ang staff save preference sa use Saved Student Parent Profiles flow.
-// @useIn setStaffSavePreference: resources/js/pages/Auth/StaffLogin.vue
+// @useIn setStaffSavePreference: resources/js/pages/Shared/Auth/StaffLogin/StaffLoginPage.vue
 export const setStaffSavePreference = (email, shouldSave) => {
     if (typeof window === 'undefined') return;
 
@@ -263,7 +263,7 @@ export const saveStaffProfile = (user) => {
 };
 
 // @function removeSavedStaffProfile: Tinatanggal ang saved staff profile sa use Saved Student Parent Profiles flow.
-// @useIn removeSavedStaffProfile: resources/js/pages/Auth/StaffLogin.vue
+// @useIn removeSavedStaffProfile: resources/js/pages/Shared/Auth/StaffLogin/StaffLoginPage.vue
 export const removeSavedStaffProfile = (email) => {
     const normalizedEmail = String(email || '')
         .trim()

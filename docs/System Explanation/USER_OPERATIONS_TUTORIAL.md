@@ -313,6 +313,8 @@ Create schedules only after laboratories, sections, subjects, and instructors ex
 
 The Schedule page first opens a dashboard instead of combining all laboratories into one timetable. Use its summary cards to review total and active laboratories, laboratories with schedules, unique scheduled subjects, and the subject list for each laboratory. Select a laboratory card or its sidebar entry to open that laboratory's weekly timetable and the **Add Schedule** action.
 
+The timetable normally shows 7:00 AM through 9:00 PM. If a schedule in the selected view starts earlier or ends later, the 15-minute rows extend to include its full time range.
+
 For each schedule, select:
 
 - Laboratory or room.

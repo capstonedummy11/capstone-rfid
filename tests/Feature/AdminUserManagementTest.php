@@ -22,7 +22,7 @@ test('root admin can view and manage admin clinic and registrar accounts', funct
         ->get(route('admin.users.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/UserManagement')
+            ->component('Admin/UserManagement/UserManagementPage')
             ->where('canManageAdmins', true)
             ->has('roleOptions', 3)
         );
@@ -89,7 +89,7 @@ test('standard admin can create clinic and registrar users but cannot manage adm
         ->get(route('admin.users.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/UserManagement')
+            ->component('Admin/UserManagement/UserManagementPage')
             ->where('canManageAdmins', false)
             ->has('roleOptions', 2)
         );

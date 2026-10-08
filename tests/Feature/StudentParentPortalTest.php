@@ -115,7 +115,7 @@ test('student and parent roles can open their portal pages', function () {
         ->get(route('student-parent.dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('StudentParent/Dashboard')
+            ->component('StudentParent/Dashboard/DashboardPage')
             ->where('student.student_number', 'SHS-ICT-TEST-01')
         );
 
@@ -123,7 +123,7 @@ test('student and parent roles can open their portal pages', function () {
         ->get(route('student-parent.attendance', ['student_id' => $fixture['student']->student_id]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('StudentParent/Attendance')
+            ->component('StudentParent/Attendance/AttendancePage')
             ->where('student.student_number', 'SHS-ICT-TEST-01')
             ->has('linkedStudents', 1)
             ->has('attendance', 1)
@@ -167,7 +167,7 @@ test('student and parent only see portal messages where they are sender or recip
         ->get(route('student-parent.messages.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Messages/Index')
+            ->component('Shared/Messages/Index/IndexPage')
             ->has('messages', 2)
             ->has('recipients')
         );
@@ -176,7 +176,7 @@ test('student and parent only see portal messages where they are sender or recip
         ->get(route('student-parent.messages.index', ['student_id' => $fixture['student']->student_id]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Messages/Index')
+            ->component('Shared/Messages/Index/IndexPage')
             ->has('messages', 1)
             ->where('messages.0.sender_role', 'parent')
         );
@@ -219,7 +219,7 @@ test('authenticated users can search recipients and exchange attachment messages
         ->get(route('messages.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Messages/Index')
+            ->component('Shared/Messages/Index/IndexPage')
             ->has('recipients', 2)
         );
 
@@ -258,7 +258,7 @@ test('authenticated users can search recipients and exchange attachment messages
         ->get(route('messages.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Messages/Index')
+            ->component('Shared/Messages/Index/IndexPage')
             ->has('messages', 1)
             ->where('messages.0.sender', 'Admin User')
             ->where('messages.0.recipient', 'Clinic User')
@@ -278,7 +278,7 @@ test('authenticated users can search recipients and exchange attachment messages
         ->get(route('messages.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Messages/Index')
+            ->component('Shared/Messages/Index/IndexPage')
             ->has('messages', 2)
         );
 
@@ -372,7 +372,7 @@ test('instructor inbox replies create student portal replies', function () {
         ->get(route('admin.messages.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Messages/Index')
+            ->component('Shared/Messages/Index/IndexPage')
             ->has('conversations', 1)
             ->where('conversations.0.participant.name', 'Andrea Santos')
             ->has('conversations.0.messages', 2)

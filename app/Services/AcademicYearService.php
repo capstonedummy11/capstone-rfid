@@ -10,14 +10,14 @@ use Illuminate\Validation\ValidationException;
 class AcademicYearService
 {
     // @function active: Kinukuha ang active result para sa Academic Year.
-    // @useIn active: app/Http/Controllers/AcademicYearController.php
+    // @useIn active: app/Http/Controllers/Admin/AcademicYears/AcademicYearController.php
     public function active(): ?AcademicYear
     {
         return AcademicYear::active();
     }
 
     // @function activate: Ina-activate ang academic year sa Academic Year flow.
-    // @useIn activate: app/Http/Controllers/AcademicYearController.php
+    // @useIn activate: app/Http/Controllers/Admin/AcademicYears/AcademicYearController.php
     public function activate(AcademicYear $academicYear, User $actor): AcademicYear
     {
         return DB::transaction(function () use ($academicYear, $actor) {
@@ -51,7 +51,7 @@ class AcademicYearService
     }
 
     // @function close: Isinasara ang academic year sa Academic Year flow.
-    // @useIn close: app/Http/Controllers/AcademicYearController.php
+    // @useIn close: app/Http/Controllers/Admin/AcademicYears/AcademicYearController.php
     public function close(AcademicYear $academicYear, User $actor): AcademicYear
     {
         if ($academicYear->status !== AcademicYear::STATUS_ACTIVE) {
@@ -70,7 +70,7 @@ class AcademicYearService
     }
 
     // @function archive: Ina-archive ang academic year sa Academic Year flow.
-    // @useIn archive: app/Http/Controllers/AcademicYearController.php
+    // @useIn archive: app/Http/Controllers/Admin/AcademicYears/AcademicYearController.php
     public function archive(AcademicYear $academicYear): AcademicYear
     {
         if ($academicYear->status !== AcademicYear::STATUS_CLOSED) {
@@ -85,7 +85,7 @@ class AcademicYearService
     }
 
     // @function reopen: Binubuksan muli ang academic year sa Academic Year flow.
-    // @useIn reopen: app/Http/Controllers/AcademicYearController.php
+    // @useIn reopen: app/Http/Controllers/Admin/AcademicYears/AcademicYearController.php
     public function reopen(AcademicYear $academicYear, User $actor, string $reason): AcademicYear
     {
         if (! in_array($academicYear->status, [AcademicYear::STATUS_CLOSED, AcademicYear::STATUS_ARCHIVED], true)) {
