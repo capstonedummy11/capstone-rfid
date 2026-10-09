@@ -29,7 +29,7 @@ import Swal from 'sweetalert2';
 import NavTab from '@/components/Auth/NavTab.vue';
 import ActivityLogs from '@/components/Icon/ActivityLogs.vue';
 import Attendance from '@/components/Icon/Attendance.vue';
-import Borrowing from '@/components/Icon/Borrowing.vue';
+// import Borrowing from '@/components/Icon/Borrowing.vue';
 import Dashboard from '@/components/Icon/Dashboard.vue';
 import Graduation from '@/components/Icon/Graduation.vue';
 import Instructor from '@/components/Icon/Instructor.vue';
@@ -38,7 +38,7 @@ import Reports from '@/components/Icon/Reports.vue';
 // import RFID from '@/components/Icon/RFID.vue';
 import Schedule from '@/components/Icon/Schedule.vue';
 import Section from '@/components/Icon/Section.vue';
-import Inventory from '@/components/Icon/Inventory.vue';
+// import Inventory from '@/components/Icon/Inventory.vue';
 
 const isNavOpen = defineModel('isNavOpen', { default: true });
 const props = defineProps({
@@ -216,6 +216,7 @@ const sections = [
                 route: route('profile.edit'),
                 roles: ['admin', 'instructor', 'clinic', 'registrar'],
             },
+            /* Temporarily hide borrowing and inventory navigation.
             {
                 icon: Borrowing,
                 text: 'Borrowing',
@@ -230,6 +231,7 @@ const sections = [
                 roles: ['admin'],
                 feature: 'inventory_enabled',
             },
+            */
             {
                 icon: Reports,
                 text: 'Reports',

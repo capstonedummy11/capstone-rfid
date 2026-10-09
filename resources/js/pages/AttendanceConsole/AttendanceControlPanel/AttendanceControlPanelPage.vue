@@ -153,9 +153,11 @@ const STUDENT_INFO_VISIBLE_MS =
     Number.isFinite(studentInfoVisibleSeconds) && studentInfoVisibleSeconds > 0
         ? studentInfoVisibleSeconds * 1000
         : 10000;
-const borrowingEnabled = computed(() =>
-    Boolean(panelFeatureSettings.value?.borrowing_enabled),
-);
+// Borrowing is temporarily disabled on the attendance panel.
+// const borrowingEnabled = computed(() =>
+//     Boolean(panelFeatureSettings.value?.borrowing_enabled),
+// );
+const borrowingEnabled = computed(() => false);
 const demoAttendanceEnabled = computed(() =>
     Boolean(demoAttendancePanelSettings.value?.enabled),
 );
@@ -1995,9 +1997,9 @@ const showInstructorOptions = async () => {
         text: dismissClassMode.value
             ? 'Dismiss Class is active. Choose Continue Class to restore normal attendance rules.'
             : 'Choose the next action for this live session.',
-        html: borrowingEnabled.value
-            ? '<button type="button" id="instructor-borrowing-mode" class="swal2-styled" style="background:#d97706;">Borrowing Mode</button>'
-            : undefined,
+        // html: borrowingEnabled.value
+        //     ? '<button type="button" id="instructor-borrowing-mode" class="swal2-styled" style="background:#d97706;">Borrowing Mode</button>'
+        //     : undefined,
         showConfirmButton: true,
         showDenyButton: true,
         showCancelButton: true,
@@ -2009,6 +2011,7 @@ const showInstructorOptions = async () => {
         cancelButtonColor: '#dc2626',
         reverseButtons: true,
         allowOutsideClick: false,
+        /* Borrowing mode action temporarily hidden.
         didOpen: () => {
             const borrowingButton = document.getElementById(
                 'instructor-borrowing-mode',
@@ -2018,6 +2021,7 @@ const showInstructorOptions = async () => {
                 Swal.clickConfirm();
             });
         },
+        */
         preConfirm: () => selectedInstructorAction,
     });
 

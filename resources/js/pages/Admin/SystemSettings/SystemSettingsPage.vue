@@ -539,6 +539,7 @@ const toggleFaceSetting = (field) => {
                         />
                     </label>
 
+                    <!-- borrowing setting temporarily hidden.
                     <label
                         class="flex items-center justify-between gap-4 rounded-md border border-slate-200 p-4"
                     >
@@ -559,6 +560,7 @@ const toggleFaceSetting = (field) => {
                             class="h-5 w-5 shrink-0 accent-brand"
                         />
                     </label>
+                    -->
 
                     <label
                         class="flex items-center justify-between gap-4 rounded-md border border-slate-200 p-4"
@@ -948,6 +950,7 @@ const toggleFaceSetting = (field) => {
                         />
                     </label>
 
+                    <!-- inventory setting temporarily hidden.
                     <label
                         class="flex items-center justify-between gap-4 rounded-md border border-slate-200 p-4"
                     >
@@ -968,6 +971,7 @@ const toggleFaceSetting = (field) => {
                             class="h-5 w-5 shrink-0 accent-brand"
                         />
                     </label>
+                    -->
 
                     <label
                         class="flex items-center justify-between gap-4 rounded-md border border-slate-200 p-4"
