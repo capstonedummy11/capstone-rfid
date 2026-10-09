@@ -2,6 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { livenessErrorMessage } from '../faceLivenessErrors';
 
 describe('AWS liveness error diagnostics', () => {
+    it('explains landscape failures even when AWS does not include an underlying error', () => {
+        const message = livenessErrorMessage({
+            state: 'MOBILE_LANDSCAPE_ERROR',
+        });
+        expect(message).toContain('Rotate your device upright');
+        expect(message).toContain('Rotation Lock');
+        expect(message).not.toContain(
+            'The liveness camera could not complete verification',
+        );
+        expect(message).toContain('"state": "MOBILE_LANDSCAPE_ERROR"');
+    });
     it('reads the wrapped Safari camera exception instead of the generic fallback', () => {
         const error = new DOMException(
             'The camera is already in use.',

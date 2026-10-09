@@ -46,6 +46,21 @@ afterEach(() => {
 });
 
 describe('liveness camera lifecycle', () => {
+    it('blocks landscape iPad verification before mounting AWS or pausing previews', async () => {
+        vi.stubGlobal('navigator', {
+            userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
+            maxTouchPoints: 5,
+        });
+        vi.stubGlobal(
+            'matchMedia',
+            vi.fn(() => ({ matches: true })),
+        );
+        await expect(
+            runFaceLiveness({ purpose: 'instructor_login', subjectKey: 1 }),
+        ).rejects.toThrow('Rotate your device upright');
+        expect(mocks.pause).not.toHaveBeenCalled();
+        expect(mocks.detector).not.toHaveBeenCalled();
+    });
     it('shows the nested Safari error and releases the SDK camera before resuming the preview', async () => {
         const stop = vi.fn();
         class TestStream {

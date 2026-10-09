@@ -1,4 +1,6 @@
 // AWS onError returns { state, error }, rather than an Error directly.
+import { LIVENESS_PORTRAIT_MESSAGE } from './faceLivenessOrientation';
+
 export function livenessErrorMessage(
     value: unknown,
     diagnosticMode = true,
@@ -12,13 +14,15 @@ export function livenessErrorMessage(
         underlying && typeof underlying === 'object'
             ? (underlying as Record<string, unknown>)
             : null;
-    const message =
-        typeof error?.message === 'string' && error.message
-            ? error.message
-            : typeof underlying === 'string' && underlying
-              ? underlying
-              : 'The liveness camera could not complete verification.';
     const state = typeof envelope?.state === 'string' ? envelope.state : '';
+    const message =
+        state === 'MOBILE_LANDSCAPE_ERROR'
+            ? LIVENESS_PORTRAIT_MESSAGE
+            : typeof error?.message === 'string' && error.message
+              ? error.message
+              : typeof underlying === 'string' && underlying
+                ? underlying
+                : 'The liveness camera could not complete verification.';
     const name = typeof error?.name === 'string' ? error.name : '';
     const summary = [state, name, message].filter(Boolean).join(': ');
 

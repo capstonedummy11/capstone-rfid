@@ -6,6 +6,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { cameraAvailabilityMessage, pauseCameraPreviews } from './cameraAccess';
 import { livenessErrorMessage } from './faceLivenessErrors';
+import { livenessOrientationMessage } from './faceLivenessOrientation';
 
 type LivenessPurpose =
     | 'attendance_student'
@@ -297,6 +298,21 @@ export async function runFaceLiveness({
         const session = payload as SessionResponse;
         const unavailable = cameraAvailabilityMessage();
         if (unavailable) throw new FaceLivenessError(unavailable);
+        if (livenessOrientationMessage()) {
+            throw new FaceLivenessError(
+                livenessErrorMessage(
+                    {
+                        state: 'MOBILE_LANDSCAPE_ERROR',
+                        browser: navigator.userAgent,
+                        viewport: {
+                            width: window.innerWidth,
+                            height: window.innerHeight,
+                        },
+                    },
+                    diagnosticMode,
+                ),
+            );
+        }
         Amplify.configure({
             Auth: {
                 Cognito: {
