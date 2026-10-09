@@ -58,14 +58,20 @@ class StudentsController
     // @function indexAdmin: Ibinabalik ang Auth/Admin/Students page at data para sa request.
     // @useIn indexAdmin: routes/web.php:288 (students.index)
     /**
-     * @feature   Student and Parent Management
-     * @actor     Admin
-     * @flow      Dito ginagawa ang student records, enrollment, at linked Parent accounts.
-     * @uses      resources/js/pages/Shared/Students/StudentsPage.vue; routes/web.php: StudentsController::indexAdmin, StudentsController::store, StudentsController::update, StudentsController::destroy, StudentsController::storeParent, StudentsController::updateParent, StudentsController::destroyParent
-     * @related   Admin workspace
-     * @disable   1) I-comment out ang routes/web.php: StudentsController::indexAdmin, StudentsController::store, StudentsController::update, StudentsController::destroy, StudentsController::storeParent, StudentsController::updateParent, StudentsController::destroyParent.
-     * @disable   2) Itago ang action sa resources/js/pages/Shared/Students/StudentsPage.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
-     * @disable   3) Ihinto ang app/Http/Controllers/Shared/Students/StudentsController.php: StudentsController::indexAdmin matapos alisin ang routes. Side effect: mawawala ang student and parent management.
+     * @feature     Student and Parent Management
+     * @actor       Admin
+     * @flow        Dito ginagawa ang student records, enrollment, at linked Parent accounts.
+     * @uses        resources/js/pages/Shared/Students/StudentsPage.vue; routes/admin.php, routes/admin-instructor.php: StudentsController::indexAdmin, StudentsController::store, StudentsController::update, StudentsController::destroy, StudentsController::storeParent, StudentsController::updateParent, StudentsController::destroyParent
+     * @related     Attendance rosters, Student/Parent portal, Parent notifications, at reports.
+     * @disable     1) Suriin ang Student and Parent Management callers, pending work, at dependent screens; Needs developer check: exact shared routes at background consumers.
+     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Shared/Students/StudentsPage.vue`.
+     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     * @sideEffects Nagbabago ang students, student_enrollments, users, parent_student_links, at audit logs.
+     * @dependsOn   Attendance rosters, Student/Parent portal, Parent notifications, at reports.
+     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     * @editable    Admin Student Management: student details, enrollment, at Parent contact/link.
      */
     public function indexAdmin(Request $request)
     {
@@ -612,14 +618,20 @@ class StudentsController
     // @function portalDashboard: Ibinabalik ang StudentParent/Dashboard page at data para sa request.
     // @useIn portalDashboard: routes/web.php:504 (dashboard)
     /**
-     * @feature   Linked Student Dashboard and Attendance
-     * @actor     Parent
-     * @flow      Dito nakikita ng Parent ang dashboard ng linked student.
-     * @uses      resources/js/pages/StudentParent/Dashboard/DashboardPage.vue; routes/web.php: StudentsController::portalDashboard, StudentsController::portalAttendance
-     * @related   Parent workspace
-     * @disable   1) I-comment out ang routes/web.php: StudentsController::portalDashboard, StudentsController::portalAttendance.
-     * @disable   2) Itago ang action sa resources/js/pages/StudentParent/Dashboard/DashboardPage.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
-     * @disable   3) Ihinto ang app/Http/Controllers/Shared/Students/StudentsController.php: StudentsController::portalDashboard matapos alisin ang routes. Side effect: mawawala ang linked student dashboard and attendance.
+     * @feature     Linked Student Dashboard and Attendance
+     * @actor       Parent
+     * @flow        Dito nakikita ng Parent ang dashboard ng linked student.
+     * @uses        resources/js/pages/StudentParent/Dashboard/DashboardPage.vue; routes/student-parent.php: StudentsController::portalDashboard, StudentsController::portalAttendance
+     * @related     Parent portal at linked-student authorization.
+     * @disable     1) Suriin ang Linked Student Dashboard and Attendance callers, pending work, at dependent screens; Needs developer check: shared ang portalAttendance action sa Student at Parent; panatilihin ang Student access kung Parent-only ang ihihinto.
+     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/StudentParent/Dashboard/DashboardPage.vue`.
+     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     * @sideEffects Nagbabasa ng linked Student dashboard/attendance; walang normal write sa view.
+     * @dependsOn   Parent portal at linked-student authorization.
+     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     * @editable    Parent portal: pumili ng linked Student at filters; hindi editable ang official attendance.
      */
     public function portalDashboard(Request $request)
     {
@@ -715,14 +727,20 @@ class StudentsController
     // @function portalAttendance: Ibinabalik ang StudentParent/Attendance page at data para sa request.
     // @useIn portalAttendance: routes/web.php:516 (attendance)
     /**
-     * @feature   Attendance History
-     * @actor     Student
-     * @flow      Dito nakikita ng student ang sariling physical at online attendance.
-     * @uses      resources/js/pages/StudentParent/Attendance/AttendancePage.vue; routes/web.php: StudentsController::portalAttendance
-     * @related   Student workspace
-     * @disable   1) I-comment out ang routes/web.php: StudentsController::portalAttendance.
-     * @disable   2) Itago ang action sa resources/js/pages/StudentParent/Attendance/AttendancePage.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
-     * @disable   3) Ihinto ang app/Http/Controllers/Shared/Students/StudentsController.php: StudentsController::portalAttendance matapos alisin ang routes. Side effect: mawawala ang attendance history.
+     * @feature     Attendance History
+     * @actor       Student
+     * @flow        Dito nakikita ng student ang sariling physical at online attendance.
+     * @uses        resources/js/pages/StudentParent/Attendance/AttendancePage.vue; routes/student-parent.php: StudentsController::portalAttendance
+     * @related     Student self-service at Parent linked-student viewing.
+     * @disable     1) Suriin ang Attendance History callers, pending work, at dependent screens; Needs developer check: shared ang portalAttendance action sa Student at Parent; huwag itong alisin para sa isang actor lamang.
+     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/StudentParent/Attendance/AttendancePage.vue`.
+     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     * @sideEffects Nagbabasa ng Student physical/online attendance; walang normal write sa view.
+     * @dependsOn   Student self-service at Parent linked-student viewing.
+     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     * @editable    Student Attendance: available filters; walang no-code status editor.
      */
     public function portalAttendance(Request $request)
     {
@@ -772,14 +790,20 @@ class StudentsController
     // @function storePortalExcuseLetter: Sine-save ang portal excuse letter sa Students flow.
     // @useIn storePortalExcuseLetter: routes/web.php:520 (excuse-letters.store)
     /**
-     * @feature   Excuse Letter Submission
-     * @actor     Student
-     * @flow      Dito nagsusubmit ng letter ang student; Parent approval muna kung enabled.
-     * @uses      resources/js/pages/StudentParent/ExcuseLetters/ExcuseLettersPage.vue; routes/web.php: StudentsController::portalExcuseLetters, StudentsController::storePortalExcuseLetter
-     * @related   Student workspace
-     * @disable   1) I-comment out ang routes/web.php: StudentsController::portalExcuseLetters, StudentsController::storePortalExcuseLetter.
-     * @disable   2) Itago ang action sa resources/js/pages/StudentParent/ExcuseLetters/ExcuseLettersPage.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
-     * @disable   3) Ihinto ang app/Http/Controllers/Shared/Students/StudentsController.php: StudentsController::storePortalExcuseLetter matapos alisin ang routes. Side effect: mawawala ang excuse letter submission.
+     * @feature     Excuse Letter Submission
+     * @actor       Student
+     * @flow        Dito nagsusubmit ng letter ang student; Parent approval muna kung enabled.
+     * @uses        resources/js/pages/StudentParent/ExcuseLetters/ExcuseLettersPage.vue; routes/student-parent.php: StudentsController::portalExcuseLetters, StudentsController::storePortalExcuseLetter
+     * @related     Parent approval, Instructor Messenger review, at letter PDF.
+     * @disable     1) Suriin ang Excuse Letter Submission callers, pending work, at dependent screens; Needs developer check: shared ang Excuse Letters page at routes ng Student/Parent; huwag alisin ang approval dahil lang ihihinto ang submission o email.
+     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/StudentParent/ExcuseLetters/ExcuseLettersPage.vue`.
+     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     * @sideEffects Gumagawa ng letter/attachment at audit; maaaring magpadala ng Parent approval request o approved Instructor delivery.
+     * @dependsOn   Parent approval, Instructor Messenger review, at letter PDF.
+     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     * @editable    Student/Parent Excuse Letters: subject, dates, reason, recipient Instructors, at attachment.
      */
     public function storePortalExcuseLetter(Request $request)
     {
@@ -877,14 +901,20 @@ class StudentsController
     // @function approvePortalExcuseLetter: Kinukuha ang approve portal excuse letter result para sa Students.
     // @useIn approvePortalExcuseLetter: routes/web.php:522 (excuse-letters.approve)
     /**
-     * @feature   Excuse Letter Approval
-     * @actor     Parent
-     * @flow      Dito pinipirmahan at ina-approve ng Parent ang pending letter.
-     * @uses      resources/js/pages/StudentParent/ExcuseLetters/ExcuseLettersPage.vue; routes/web.php: StudentsController::approvePortalExcuseLetter
-     * @related   Parent workspace
-     * @disable   1) I-comment out ang routes/web.php: StudentsController::approvePortalExcuseLetter.
-     * @disable   2) Itago ang action sa resources/js/pages/StudentParent/ExcuseLetters/ExcuseLettersPage.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
-     * @disable   3) Ihinto ang app/Http/Controllers/Shared/Students/StudentsController.php: StudentsController::approvePortalExcuseLetter matapos alisin ang routes. Side effect: mawawala ang excuse letter approval.
+     * @feature     Excuse Letter Approval
+     * @actor       Parent
+     * @flow        Dito pinipirmahan at ina-approve ng Parent ang pending letter.
+     * @uses        resources/js/pages/StudentParent/ExcuseLetters/ExcuseLettersPage.vue; routes/student-parent.php: StudentsController::approvePortalExcuseLetter
+     * @related     Instructor review at approved-letter download; hindi nito binabago ang attendance.
+     * @disable     1) Suriin ang Excuse Letter Approval callers, pending work, at dependent screens; Needs developer check: ang pag-off ng approval ay mag-iiwan ng pending letters; kung email lamang ang ihihinto, panatilihin ang save, approval, PDF, at Instructor delivery.
+     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/StudentParent/ExcuseLetters/ExcuseLettersPage.vue`.
+     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     * @sideEffects Ina-update ang letter signature/status/audit at gumagawa ng PDF, Instructor message, at email attempt.
+     * @dependsOn   Instructor review at approved-letter download; hindi nito binabago ang attendance.
+     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     * @editable    Parent Excuse Letters: signature at optional approval notes; email template ay code/config.
      */
     public function approvePortalExcuseLetter(Request $request, StudentExcuseLetter $letter)
     {
@@ -1053,14 +1083,20 @@ class StudentsController
     // @function portalNotifications: Ibinabalik ang StudentParent/Notifications page at data para sa request.
     // @useIn portalNotifications: routes/web.php:530 (notifications.index)
     /**
-     * @feature   Online Class Notifications
-     * @actor     Parent
-     * @flow      Dito nakikita at minamark read ang class-change notices ng linked student.
-     * @uses      resources/js/pages/StudentParent/Notifications/NotificationsPage.vue; routes/web.php: StudentsController::portalNotifications, StudentsController::markPortalNotificationRead
-     * @related   Parent workspace
-     * @disable   1) I-comment out ang routes/web.php: StudentsController::portalNotifications, StudentsController::markPortalNotificationRead.
-     * @disable   2) Itago ang action sa resources/js/pages/StudentParent/Notifications/NotificationsPage.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
-     * @disable   3) Ihinto ang app/Http/Controllers/Shared/Students/StudentsController.php: StudentsController::portalNotifications matapos alisin ang routes. Side effect: mawawala ang online class notifications.
+     * @feature     Online Class Notifications
+     * @actor       Parent
+     * @flow        Dito nakikita at minamark read ang class-change notices ng linked student.
+     * @uses        resources/js/pages/StudentParent/Notifications/NotificationsPage.vue; routes/student-parent.php: StudentsController::portalNotifications, StudentsController::markPortalNotificationRead
+     * @related     Online-class changes at Parent linked-student portal.
+     * @disable     1) Suriin ang Online Class Notifications callers, pending work, at dependent screens; Needs developer check: kung email lamang ang ihihinto, huwag alisin ang notice creation, portal view, o mark-read action.
+     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/StudentParent/Notifications/NotificationsPage.vue`.
+     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     * @sideEffects Nagbabasa ng notification at ina-update ang read_at kapag mark read.
+     * @dependsOn   Online-class changes at Parent linked-student portal.
+     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     * @editable    Portal Notifications: mark read; ang notice template ay hindi nakumpirmang editable sa UI.
      */
     public function portalNotifications(Request $request)
     {
@@ -1388,6 +1424,23 @@ class StudentsController
 
     // @function notifyParentsExcuseLetterNeedsApproval: Nagnonotify ang parents excuse letter needs approval sa Students flow.
     // @useIn notifyParentsExcuseLetterNeedsApproval: StudentsController::storePortalExcuseLetter (app/Http/Controllers/Shared/Students/StudentsController.php)
+    /**
+     * @feature   Parent Excuse-Letter Approval Request Email
+     * @actor     Student submission; linked Parent recipient
+     * @flow      Pagka-save ng Student letter na pending_parent_approval, ini-email ang bawat linked Parent na may valid email para mag-sign in at pumirma.
+     * @uses      StudentsController::storePortalExcuseLetter; StudentsController::notifyParentsExcuseLetterNeedsApproval; student-parent.excuse-letters.index
+     * @related   Excuse Letter Submission, Excuse Letter Approval, Parent Portal
+     * @disable   1) Needs developer check: walang email-only switch; magdagdag ng guard sa Mail::raw call dito para approval-request sending lang ang huminto.
+     * @disable   2) Panatilihin ang letter save, pending_parent_approval state, Parent approval route, PDF/Instructor delivery, at ibang mail; huwag i-off ang Parent Portal o Parent Excuse Letters setting para lang dito.
+     * @disable   3) I-test ang Student submission at Parent approval kahit walang email; i-check ang sent count at activity text para hindi magmukhang naipadala ang mail.
+     * @sideEffects Email attempt sa valid linked Parents; failed send ay warning log; nilolog din ang bilang ng naipadalang approval requests.
+     * @dependsOn Linked Parent accounts at valid email; kailangan ng Parent ang approval link para sa normal navigation papunta sa pending letter.
+     * @performance Minimal na bawas sa SMTP calls kapag sending lang ang naka-off; Needs developer check: sukatin ang request time sa deployed mail provider.
+     * @dataImpact Nananatili ang na-save na letter at approval data; walang deletion ng existing letters o attachments.
+     * @reEnable  1) Ibalik ang email-only guard sa sending state. 2) I-test ang isang valid linked Parent at mail delivery. 3) I-check ang sent count/log at Parent approval.
+     * @editable  Parent contact email sa Student/Parent Management; sender name sa server mail configuration. Subject/body ay fixed sa code, hindi editable sa Admin UI.
+     * @editable  Code-inserted values: Parent name, Student name, letter subject, from date, to date, at approval URL. Walang reason sa email. Huwag alisin ang approval URL o ibang value nang hindi sinusuri ang message.
+     */
     private function notifyParentsExcuseLetterNeedsApproval(StudentExcuseLetter $letter): int
     {
         $student = $letter->student;

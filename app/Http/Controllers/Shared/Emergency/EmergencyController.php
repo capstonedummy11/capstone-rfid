@@ -28,14 +28,20 @@ class EmergencyController
     // @function storeAlert: Sine-save ang alert sa Emergency flow.
     // @useIn storeAlert: routes/web.php:181 (attendanceControlPanel.emergencyAlert)
     /**
-     * @feature   Emergency Alerts and Delivery
-     * @actor     Shared / Core
-     * @flow      Dito sine-save ang emergency alert at ina-attempt ang hotline at Parent notifications.
-     * @uses      resources/js/pages/AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage.vue; routes/web.php: EmergencyController::storeAlert
-     * @related   Authentication, Attendance, Reports
-     * @disable   1) I-comment out ang routes/web.php: EmergencyController::storeAlert.
-     * @disable   2) Itago ang action sa resources/js/pages/AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
-     * @disable   3) Ihinto ang app/Http/Controllers/Shared/Emergency/EmergencyController.php: EmergencyController::storeAlert matapos alisin ang routes. Side effect: mawawala ang emergency alerts and delivery.
+     * @feature     Emergency Alerts and Delivery
+     * @actor       Console user; Clinic staff respond afterward
+     * @flow        Dito sine-save ang emergency alert at ina-attempt ang hotline at Parent notifications.
+     * @uses        resources/js/pages/AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage.vue; routes/attendance-console.php: EmergencyController::storeAlert
+     * @related     Clinic open-alert queue, dispatch, cases, at reports.
+     * @disable     1) Needs developer check: walang nakumpirmang delivery-only switch; tukuyin ang hotline SMS at specific-student Parent email/SMS calls sa storeAlert.
+     * @disable     2) Magdagdag ng guard sa sending calls lamang; panatilihin ang emergency_alerts save, storeAlert route, Console action, at Clinic queue/dispatch.
+     * @disable     3) I-test ang alert save at Clinic response kahit walang notifications; i-check ang sent/failure logs at reports.
+     * @sideEffects Gumagawa ng emergency_alert at metadata; ina-attempt ang hotline SMS at specific-student Parent email/SMS.
+     * @dependsOn   Clinic open-alert queue, dispatch, cases, at reports.
+     * @performance Minimal na bawas sa provider calls kung delivery lang ang naka-off; Needs developer check: sukatin ang live request time.
+     * @dataImpact  Nananatili ang existing at bagong emergency alerts; walang deletion sa delivery-only steps.
+     * @reEnable    1) Ibalik ang delivery guard sa sending state. 2) I-test ang hotline at Parent delivery. 3) I-check ang alert save, Clinic queue, logs, at reports.
+     * @editable    Clinic Hotlines at Admin SMS Settings: contact/number/provider; message construction ay code.
      */
     public function storeAlert(Request $request, SmsService $sms): JsonResponse
     {
@@ -115,14 +121,20 @@ class EmergencyController
     // @function hotlines: Ibinabalik ang Clinic/EmergencyHotlines page at data para sa request.
     // @useIn hotlines: routes/web.php:480 (emergency-hotlines.index)
     /**
-     * @feature   Emergency Types and Hotlines
-     * @actor     Clinic
-     * @flow      Dito sine-set ang emergency types at matching hotlines.
-     * @uses      resources/js/pages/Clinic/EmergencyHotlines/EmergencyHotlinesPage.vue; routes/web.php: EmergencyController::hotlines, EmergencyController::storeHotline, EmergencyController::updateHotline, EmergencyController::destroyHotline, EmergencyController::storeType, EmergencyController::updateType, EmergencyController::destroyType
-     * @related   Clinic workspace
-     * @disable   1) I-comment out ang routes/web.php: EmergencyController::hotlines, EmergencyController::storeHotline, EmergencyController::updateHotline, EmergencyController::destroyHotline, EmergencyController::storeType, EmergencyController::updateType, EmergencyController::destroyType.
-     * @disable   2) Itago ang action sa resources/js/pages/Clinic/EmergencyHotlines/EmergencyHotlinesPage.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
-     * @disable   3) Ihinto ang app/Http/Controllers/Shared/Emergency/EmergencyController.php: EmergencyController::hotlines matapos alisin ang routes. Side effect: mawawala ang emergency types and hotlines.
+     * @feature     Emergency Types and Hotlines
+     * @actor       Clinic
+     * @flow        Dito sine-set ang emergency types at matching hotlines.
+     * @uses        resources/js/pages/Clinic/EmergencyHotlines/EmergencyHotlinesPage.vue; routes/clinic.php: EmergencyController::hotlines, EmergencyController::storeHotline, EmergencyController::updateHotline, EmergencyController::destroyHotline, EmergencyController::storeType, EmergencyController::updateType, EmergencyController::destroyType
+     * @related     Console emergency choices, hotline SMS routing, at Clinic dashboard.
+     * @disable     1) Suriin ang Emergency Types and Hotlines callers, pending work, at dependent screens; Needs developer check: exact shared routes at background consumers.
+     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Clinic/EmergencyHotlines/EmergencyHotlinesPage.vue`.
+     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     * @sideEffects Nagbabago ang emergency_types at emergency_hotlines.
+     * @dependsOn   Console emergency choices, hotline SMS routing, at Clinic dashboard.
+     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     * @editable    Clinic Emergency Types/Hotlines: name, category, number, SMS at active flags.
      */
     public function hotlines()
     {
@@ -272,14 +284,20 @@ class EmergencyController
     // @function dispatchAlert: Ipinapadala ang alert sa Emergency flow.
     // @useIn dispatchAlert: routes/web.php:496 (emergency-alerts.dispatch)
     /**
-     * @feature   Emergency Alert Response and Dispatch
-     * @actor     Clinic
-     * @flow      Dito ina-assign ang Clinic responder at gumagawa ng linked case.
-     * @uses      resources/js/pages/Clinic/Dashboard/DashboardPage.vue; routes/web.php: EmergencyController::dispatchAlert, EmergencyController::updateAlertStatus
-     * @related   Clinic workspace
-     * @disable   1) I-comment out ang routes/web.php: EmergencyController::dispatchAlert, EmergencyController::updateAlertStatus.
-     * @disable   2) Itago ang action sa resources/js/pages/Clinic/Dashboard/DashboardPage.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
-     * @disable   3) Ihinto ang app/Http/Controllers/Shared/Emergency/EmergencyController.php: EmergencyController::dispatchAlert matapos alisin ang routes. Side effect: mawawala ang emergency alert response and dispatch.
+     * @feature     Emergency Alert Response and Dispatch
+     * @actor       Clinic
+     * @flow        Dito ina-assign ang Clinic responder at gumagawa ng linked case.
+     * @uses        resources/js/pages/Clinic/Dashboard/DashboardPage.vue; routes/clinic.php: EmergencyController::dispatchAlert, EmergencyController::updateAlertStatus
+     * @related     Open-alert queue, Clinic assignments, cases, at reports.
+     * @disable     1) Suriin ang Emergency Alert Response and Dispatch callers, pending work, at dependent screens; Needs developer check: exact shared routes at background consumers.
+     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Clinic/Dashboard/DashboardPage.vue`.
+     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     * @sideEffects Ina-update ang emergency_alerts, clinic_cases, activity logs, at responder email attempt.
+     * @dependsOn   Open-alert queue, Clinic assignments, cases, at reports.
+     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     * @editable    Clinic dashboard: responder selection at alert status.
      */
     public function dispatchAlert(Request $request, int $id)
     {

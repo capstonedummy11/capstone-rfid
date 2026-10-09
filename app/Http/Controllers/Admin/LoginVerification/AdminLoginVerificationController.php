@@ -14,14 +14,20 @@ class AdminLoginVerificationController extends Controller
     // @function show: Ibinabalik ang Auth/AdminLoginVerification page at data para sa request.
     // @useIn show: routes/web.php:112 (show)
     /**
-     * @feature   Admin Login Email OTP
-     * @actor     Shared / Core
-     * @flow      Bawat tunay na Admin password login ay may bagong email OTP challenge.
-     * @uses      resources/js/pages/Admin/LoginVerification/AdminLoginVerificationPage.vue; routes/web.php: AdminLoginVerificationController::show, AdminLoginVerificationController::verify, AdminLoginVerificationController::resend
-     * @related   Authentication, Attendance, Reports
-     * @disable   1) I-comment out ang routes/web.php: AdminLoginVerificationController::show, AdminLoginVerificationController::verify, AdminLoginVerificationController::resend.
-     * @disable   2) Itago ang action sa resources/js/pages/Admin/LoginVerification/AdminLoginVerificationPage.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
-     * @disable   3) Ihinto ang app/Http/Controllers/Admin/LoginVerification/AdminLoginVerificationController.php: AdminLoginVerificationController::show matapos alisin ang routes. Side effect: mawawala ang admin login email otp.
+     * @feature     Admin Login Email OTP
+     * @actor       Shared / Core
+     * @flow        Bawat tunay na Admin password login ay may bagong email OTP challenge.
+     * @uses        resources/js/pages/Admin/LoginVerification/AdminLoginVerificationPage.vue; routes/admin.php: AdminLoginVerificationController::show, AdminLoginVerificationController::verify, AdminLoginVerificationController::resend
+     * @related     Lahat ng protected Admin pages.
+     * @disable     1) Suriin ang Admin Login Email OTP callers, pending work, at dependent screens; Needs developer check: huwag alisin ang OTP routes habang EnsureAdminLoginOtpVerified ay nagre-redirect dito; i-test muna ang kapalit na access policy.
+     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Admin/LoginVerification/AdminLoginVerificationPage.vue`.
+     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     * @sideEffects Nag-iisyu ng hashed session-bound challenge at OTP email attempt; verification ay nagbabago ng session state.
+     * @dependsOn   Lahat ng protected Admin pages.
+     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     * @editable    Needs developer check: walang no-code OTP email template editor; timing ay server config.
      */
     public function show(Request $request, AdminLoginOtpService $otp)
     {

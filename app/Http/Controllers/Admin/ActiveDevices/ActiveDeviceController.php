@@ -18,14 +18,20 @@ class ActiveDeviceController
     // @function index: Ibinabalik ang Auth/Admin/ActiveDevices page at data para sa request.
     // @useIn index: routes/web.php:374 (active-devices.index)
     /**
-     * @feature   Laboratories and Devices
-     * @actor     Admin
-     * @flow      Dito kino-configure ang rooms, panel devices, PIN, at remote logout.
-     * @uses      resources/js/pages/Admin/ActiveDevices/ActiveDevicesPage.vue; routes/web.php: ActiveDeviceController::index, ActiveDeviceController::store, ActiveDeviceController::update, ActiveDeviceController::destroy, ActiveDeviceController::updatePanelAccess, ActiveDeviceController::updatePanelDevicePin, ActiveDeviceController::forceLogout
-     * @related   Admin workspace
-     * @disable   1) I-comment out ang routes/web.php: ActiveDeviceController::index/store/update/destroy/updatePanelAccess/updatePanelDevicePin/forceLogout at LaboratoryController::indexAdmin/store/update/destroy.
-     * @disable   2) Itago ang action sa resources/js/pages/Admin/ActiveDevices/ActiveDevicesPage.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
-     * @disable   3) Itago rin ang resources/js/pages/Admin/Laboratories/LaboratoriesPage.vue; ihinto ang app/Http/Controllers/Admin/ActiveDevices/ActiveDeviceController.php: index at app/Http/Controllers/Admin/Laboratories/LaboratoryController.php: indexAdmin matapos alisin ang routes. Side effect: hindi na ma-manage ang rooms at PIN; maaapektuhan ang Console access.
+     * @feature     Laboratories and Devices
+     * @actor       Admin
+     * @flow        Dito kino-configure ang rooms, panel devices, PIN, at remote logout.
+     * @uses        resources/js/pages/Admin/ActiveDevices/ActiveDevicesPage.vue; routes/admin.php: ActiveDeviceController::index, ActiveDeviceController::store, ActiveDeviceController::update, ActiveDeviceController::destroy, ActiveDeviceController::updatePanelAccess, ActiveDeviceController::updatePanelDevicePin, ActiveDeviceController::forceLogout
+     * @related     Console sign-in, room schedule matching, at attendance.
+     * @disable     1) Suriin ang Laboratories and Devices callers, pending work, at dependent screens; Needs developer check: exact shared routes at background consumers.
+     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Admin/ActiveDevices/ActiveDevicesPage.vue`.
+     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     * @sideEffects Nagbabago ang laboratories, panel_devices, PIN hashes, at panel-session state.
+     * @dependsOn   Console sign-in, room schedule matching, at attendance.
+     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     * @editable    Laboratories & Devices page: room, device assignment, enable state, at PIN.
      */
     public function index()
     {

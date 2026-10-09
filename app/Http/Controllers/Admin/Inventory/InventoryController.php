@@ -16,14 +16,20 @@ class InventoryController
     // @function indexAdmin: Ibinabalik ang Auth/Admin/Inventory page at data para sa request.
     // @useIn indexAdmin: routes/web.php:339 (inventory.index)
     /**
-     * @feature   Inventory Management
-     * @actor     Admin
-     * @flow      Dito nililista at ina-update ang inventory records at item status.
-     * @uses      resources/js/pages/Admin/Inventory/InventoryPage.vue; routes/web.php: InventoryController::indexAdmin, InventoryController::store, InventoryController::update, InventoryController::destroy
-     * @related   Admin workspace
-     * @disable   1) I-comment out ang routes/web.php: InventoryController::indexAdmin, InventoryController::store, InventoryController::update, InventoryController::destroy.
-     * @disable   2) Itago ang action sa resources/js/pages/Admin/Inventory/InventoryPage.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
-     * @disable   3) Ihinto ang app/Http/Controllers/Admin/Inventory/InventoryController.php: InventoryController::indexAdmin matapos alisin ang routes. Side effect: mawawala ang inventory management.
+     * @feature     Inventory Management
+     * @actor       Admin
+     * @flow        Dito nililista at ina-update ang inventory records at item status.
+     * @uses        resources/js/pages/Admin/Inventory/InventoryPage.vue; routes/admin.php: InventoryController::indexAdmin, InventoryController::store, InventoryController::update, InventoryController::destroy
+     * @related     Borrowing availability, returns, at inventory reports.
+     * @disable     1) Suriin ang Inventory Management callers, pending work, at dependent screens; Needs developer check: exact shared routes at background consumers.
+     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Admin/Inventory/InventoryPage.vue`.
+     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     * @sideEffects Nagbabago ang inventory_items at activity logs.
+     * @dependsOn   Borrowing availability, returns, at inventory reports.
+     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     * @editable    Admin Inventory: item name, barcode, SKU, description, at status.
      */
     public function indexAdmin(Request $request)
     {

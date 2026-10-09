@@ -79,14 +79,20 @@ class ClinicController
     // @function caseLogs: Ibinabalik ang Clinic/CaseLogs page at data para sa request.
     // @useIn caseLogs: routes/web.php:460 (case-logs)
     /**
-     * @feature   Case Logs and Patient History
-     * @actor     Clinic
-     * @flow      Dito ini-record ang clinic cases at patient history.
-     * @uses      resources/js/pages/Clinic/CaseLogs/CaseLogsPage.vue; routes/web.php: ClinicController::caseLogs, ClinicController::storeCase, ClinicController::updateCase, ClinicController::createHistoryFromCase, ClinicController::patientHistory, ClinicController::storeHistory, ClinicController::updateHistory, ClinicController::destroyHistory
-     * @related   Clinic workspace
-     * @disable   1) I-comment out ang routes/web.php: ClinicController::caseLogs, ClinicController::storeCase, ClinicController::updateCase, ClinicController::createHistoryFromCase, ClinicController::patientHistory, ClinicController::storeHistory, ClinicController::updateHistory, ClinicController::destroyHistory.
-     * @disable   2) Itago ang action sa resources/js/pages/Clinic/CaseLogs/CaseLogsPage.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
-     * @disable   3) Ihinto ang app/Http/Controllers/Clinic/Records/ClinicController.php: ClinicController::caseLogs matapos alisin ang routes. Side effect: mawawala ang case logs and patient history.
+     * @feature     Case Logs and Patient History
+     * @actor       Clinic
+     * @flow        Dito ini-record ang clinic cases at patient history.
+     * @uses        resources/js/pages/Clinic/CaseLogs/CaseLogsPage.vue; routes/clinic.php: ClinicController::caseLogs, ClinicController::storeCase, ClinicController::updateCase, ClinicController::createHistoryFromCase, ClinicController::patientHistory, ClinicController::storeHistory, ClinicController::updateHistory, ClinicController::destroyHistory
+     * @related     Clinic dispatch follow-up at Clinic reports.
+     * @disable     1) Suriin ang Case Logs and Patient History callers, pending work, at dependent screens; Needs developer check: exact shared routes at background consumers.
+     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Clinic/CaseLogs/CaseLogsPage.vue`.
+     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     * @sideEffects Nagbabago ang clinic_cases, patient_histories, at activity logs.
+     * @dependsOn   Clinic dispatch follow-up at Clinic reports.
+     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     * @editable    Clinic Case Logs/Patient History: case, summary, notes, at status.
      */
     public function caseLogs()
     {
@@ -119,14 +125,20 @@ class ClinicController
     // @function reports: Ibinabalik ang Clinic/Reports page at data para sa request.
     // @useIn reports: routes/web.php:476 (reports)
     /**
-     * @feature   Clinic Reports
-     * @actor     Clinic
-     * @flow      Dito fina-filter at ine-export ang clinic activity.
-     * @uses      resources/js/pages/Clinic/Reports/ReportsPage.vue; routes/web.php: ClinicController::reports, ClinicController::exportReports
-     * @related   Clinic workspace
-     * @disable   1) I-comment out ang routes/web.php: ClinicController::reports, ClinicController::exportReports.
-     * @disable   2) Itago ang action sa resources/js/pages/Clinic/Reports/ReportsPage.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
-     * @disable   3) Ihinto ang app/Http/Controllers/Clinic/Records/ClinicController.php: ClinicController::reports matapos alisin ang routes. Side effect: mawawala ang clinic reports.
+     * @feature     Clinic Reports
+     * @actor       Clinic
+     * @flow        Dito fina-filter at ine-export ang clinic activity.
+     * @uses        resources/js/pages/Clinic/Reports/ReportsPage.vue; routes/clinic.php: ClinicController::reports, ClinicController::exportReports
+     * @related     Clinic monitoring and review.
+     * @disable     1) Suriin ang Clinic Reports callers, pending work, at dependent screens; Needs developer check: exact shared routes at background consumers.
+     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Clinic/Reports/ReportsPage.vue`.
+     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     * @sideEffects Nagbabasa ng Clinic records at nag-e-export ng CSV; maaaring ma-audit ang export.
+     * @dependsOn   Clinic monitoring and review.
+     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     * @editable    Clinic Reports: filters; walang no-code report-formula editor na nakumpirma.
      */
     public function reports(Request $request)
     {

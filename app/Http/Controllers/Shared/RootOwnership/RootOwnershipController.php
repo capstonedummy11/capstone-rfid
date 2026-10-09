@@ -17,15 +17,20 @@ class RootOwnershipController extends Controller
     // @function store: Pinoproseso ang bagong Root Ownership record.
     // @useIn store: routes/web.php:362 (root-ownership.transfers.store)
     /**
-     * @feature   Ownership Transfer and Override
-     * @actor     Root Admin
-     * @flow      Dito sinisimulan o kina-cancel ang Root ownership transfer at emergency override.
-     * @uses      resources/js/pages/Admin/UserManagement/components/RootOwnershipPanel.vue; routes/web.php: RootOwnershipController::store, RootOwnershipController::cancel, RootOwnershipController::accept, RootOwnershipController::cancelFromLink
-     * @related   Root Admin workspace
-     * @disable   1) I-comment out ang routes/web.php: RootOwnershipController::store/cancel/acceptShow/accept/cancelShow/cancelFromLink at RootOverrideController::store/decide.
-     * @disable   2) Itago ang action sa resources/js/pages/Admin/UserManagement/components/RootOwnershipPanel.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
-     * @disable   3) Alisin ang routes/console.php: root-ownership:process schedule.
-     * @disable   4) Ihinto ang app/Http/Controllers/Shared/RootOwnership/RootOwnershipController.php: store at app/Http/Controllers/Shared/RootOwnership/RootOverrideController.php: store matapos alisin ang routes. Side effect: mananatili ang dating Root owner.
+     * @feature     Ownership Transfer and Override
+     * @actor       Root Admin
+     * @flow        Dito sinisimulan o kina-cancel ang Root ownership transfer at emergency override.
+     * @uses        resources/js/pages/Admin/UserManagement/components/RootOwnershipPanel.vue; routes/admin.php, routes/web.php, routes/console.php: RootOwnershipController::store, RootOwnershipController::cancel, RootOwnershipController::accept, RootOwnershipController::cancelFromLink
+     * @related     Root Admin ownership at account access revocation.
+     * @disable     1) Suriin ang Ownership Transfer and Override callers, pending work, at dependent screens; Needs developer check: i-resolve muna ang pending transfer/override at queued mail bago ihinto ang root-ownership:process; huwag iwan ang accepted request na walang processor.
+     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Admin/UserManagement/components/RootOwnershipPanel.vue`.
+     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     * @sideEffects Gumagawa/nag-a-update ng transfer/override at immutable root audit; scheduler at queued mail ang kasunod.
+     * @dependsOn   Root Admin ownership at account access revocation.
+     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     * @editable    Needs developer check: alin sa delay/approval settings ang may Admin UI; huwag baguhin ang pending records bilang template.
      */
     public function store(StoreRootTransferRequest $request, RootTransferService $service)
     {

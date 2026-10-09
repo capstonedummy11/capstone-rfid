@@ -22,14 +22,20 @@ class AcademicYearController
     // @function index: Ibinabalik ang Auth/Admin/AcademicYears page at data para sa request.
     // @useIn index: routes/web.php:295 (academic-years.index)
     /**
-     * @feature   Academic Year Lifecycle and Rollover
-     * @actor     Admin
-     * @flow      Dito ina-activate, kino-close, at niro-rollover ang academic year.
-     * @uses      resources/js/pages/Admin/AcademicYears/AcademicYearsPage.vue; routes/web.php: AcademicYearController::index, AcademicYearController::store, AcademicYearController::update, AcademicYearController::activate, AcademicYearController::close, AcademicYearController::archive, AcademicYearController::reopen, AcademicYearController::rolloverPreview, AcademicYearController::rolloverExecute
-     * @related   Admin workspace
-     * @disable   1) I-comment out ang routes/web.php: AcademicYearController::index, AcademicYearController::store, AcademicYearController::update, AcademicYearController::activate, AcademicYearController::close, AcademicYearController::archive, AcademicYearController::reopen, AcademicYearController::rolloverPreview, AcademicYearController::rolloverExecute.
-     * @disable   2) Itago ang action sa resources/js/pages/Admin/AcademicYears/AcademicYearsPage.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
-     * @disable   3) Ihinto ang app/Http/Controllers/Admin/AcademicYears/AcademicYearController.php: AcademicYearController::index matapos alisin ang routes. Side effect: mawawala ang academic year lifecycle and rollover.
+     * @feature     Academic Year Lifecycle and Rollover
+     * @actor       Admin
+     * @flow        Dito ina-activate, kino-close, at niro-rollover ang academic year.
+     * @uses        resources/js/pages/Admin/AcademicYears/AcademicYearsPage.vue; routes/admin.php: AcademicYearController::index, AcademicYearController::store, AcademicYearController::update, AcademicYearController::activate, AcademicYearController::close, AcademicYearController::archive, AcademicYearController::reopen, AcademicYearController::rolloverPreview, AcademicYearController::rolloverExecute
+     * @related     Current-year schedules, attendance, reports, at historical views.
+     * @disable     1) Suriin ang Academic Year Lifecycle and Rollover callers, pending work, at dependent screens; Needs developer check: exact shared routes at background consumers.
+     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Admin/AcademicYears/AcademicYearsPage.vue`.
+     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     * @sideEffects Nagbabago ang academic years, destination sections/offerings/enrollments, at rollover audit.
+     * @dependsOn   Current-year schedules, attendance, reports, at historical views.
+     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     * @editable    Academic Years page: dates, active semester, at reviewed rollover mapping.
      */
     public function index()
     {

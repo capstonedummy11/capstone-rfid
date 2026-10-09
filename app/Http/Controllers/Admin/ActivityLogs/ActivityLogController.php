@@ -25,14 +25,20 @@ class ActivityLogController
     // @function indexAdmin: Ibinabalik ang Auth/Admin/ActivityLogs page at data para sa request.
     // @useIn indexAdmin: routes/web.php:347 (activity-logs.index)
     /**
-     * @feature   Activity and Online Class Logs
-     * @actor     Admin
-     * @flow      Dito nire-review at ine-export ang system activity; may hiwalay ding online-class logs.
-     * @uses      resources/js/pages/Admin/ActivityLogs/ActivityLogsPage.vue; routes/web.php: ActivityLogController::indexAdmin, ActivityLogController::export
-     * @related   Admin workspace
-     * @disable   1) I-comment out ang routes/web.php: ActivityLogController::indexAdmin/export at OnlineClassController::logs/exportLogs.
-     * @disable   2) Itago ang action sa resources/js/pages/Admin/ActivityLogs/ActivityLogsPage.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
-     * @disable   3) Itago rin ang resources/js/pages/Admin/OnlineClassLogs/OnlineClassLogsPage.vue; ihinto ang app/Http/Controllers/Admin/ActivityLogs/ActivityLogController.php: indexAdmin at app/Http/Controllers/Shared/OnlineClasses/OnlineClassController.php: logs matapos alisin ang routes. Side effect: hindi na makikita ang dalawang log views; tuloy pa rin ang audit writes.
+     * @feature     Activity and Online Class Logs
+     * @actor       Admin
+     * @flow        Dito nire-review at ine-export ang system activity; may hiwalay ding online-class logs.
+     * @uses        resources/js/pages/Admin/ActivityLogs/ActivityLogsPage.vue; routes/admin.php: ActivityLogController::indexAdmin, ActivityLogController::export
+     * @related     Admin investigation; automatic audit writing ay hiwalay.
+     * @disable     1) Suriin ang Activity and Online Class Logs callers, pending work, at dependent screens; Needs developer check: exact shared routes at background consumers.
+     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Admin/ActivityLogs/ActivityLogsPage.vue`.
+     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     * @sideEffects Nagbabasa at nag-e-export ng existing logs; ang pag-open/export ay maaaring ma-audit.
+     * @dependsOn   Admin investigation; automatic audit writing ay hiwalay.
+     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     * @editable    Admin log screens: filters lamang; walang no-code log-template editor na nakumpirma.
      */
     public function indexAdmin(Request $request)
     {

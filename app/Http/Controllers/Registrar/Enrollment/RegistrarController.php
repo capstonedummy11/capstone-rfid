@@ -164,14 +164,20 @@ class RegistrarController
     // @function updateStudentRfid: Ina-update ang student rfid sa Registrar flow.
     // @useIn updateStudentRfid: routes/web.php:234 (students.rfid)
     /**
-     * @feature   Student RFID Enrollment
-     * @actor     Registrar
-     * @flow      Dito nililink ang scanned RFID tag sa student record.
-     * @uses      resources/js/pages/Registrar/BiometricEnrollment/BiometricEnrollmentPage.vue; routes/web.php: RegistrarController::updateStudentRfid
-     * @related   Registrar workspace
-     * @disable   1) I-comment out ang routes/web.php: RegistrarController::updateStudentRfid.
-     * @disable   2) Itago ang action sa resources/js/pages/Registrar/BiometricEnrollment/BiometricEnrollmentPage.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
-     * @disable   3) Ihinto ang app/Http/Controllers/Registrar/Enrollment/RegistrarController.php: RegistrarController::updateStudentRfid matapos alisin ang routes. Side effect: mawawala ang student rfid enrollment.
+     * @feature     Student RFID Enrollment
+     * @actor       Registrar
+     * @flow        Dito nililink ang scanned RFID tag sa student record.
+     * @uses        resources/js/pages/Registrar/BiometricEnrollment/BiometricEnrollmentPage.vue; routes/registrar.php: RegistrarController::updateStudentRfid
+     * @related     Console Student lookup at attendance.
+     * @disable     1) Suriin ang Student RFID Enrollment callers, pending work, at dependent screens; Needs developer check: exact shared routes at background consumers.
+     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Registrar/BiometricEnrollment/BiometricEnrollmentPage.vue`.
+     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     * @sideEffects Ina-update ang Student RFID at Registrar enrollment audit.
+     * @dependsOn   Console Student lookup at attendance.
+     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     * @editable    Registrar Student Biometric Enrollment: RFID assignment.
      */
     public function updateStudentRfid(Request $request, Students $student)
     {
@@ -194,14 +200,20 @@ class RegistrarController
     // @function updateFacultyRfid: Ina-update ang faculty rfid sa Registrar flow.
     // @useIn updateFacultyRfid: routes/web.php:240 (faculty.rfid)
     /**
-     * @feature   Instructor RFID and Face Enrollment
-     * @actor     Registrar
-     * @flow      Dito nililink ang Instructor RFID at face images sa account.
-     * @uses      resources/js/pages/Registrar/InstructorFaceEnrollment/InstructorFaceEnrollmentPage.vue; routes/web.php: RegistrarController::updateFacultyRfid, RegistrarController::uploadFacultyFace, RegistrarController::deleteFacultyFace
-     * @related   Registrar workspace
-     * @disable   1) I-comment out ang routes/web.php: RegistrarController::updateFacultyRfid, RegistrarController::uploadFacultyFace, RegistrarController::deleteFacultyFace.
-     * @disable   2) Itago ang action sa resources/js/pages/Registrar/InstructorFaceEnrollment/InstructorFaceEnrollmentPage.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
-     * @disable   3) Ihinto ang app/Http/Controllers/Registrar/Enrollment/RegistrarController.php: RegistrarController::updateFacultyRfid matapos alisin ang routes. Side effect: mawawala ang instructor rfid and face enrollment.
+     * @feature     Instructor RFID and Face Enrollment
+     * @actor       Registrar
+     * @flow        Dito nililink ang Instructor RFID at face images sa account.
+     * @uses        resources/js/pages/Registrar/InstructorFaceEnrollment/InstructorFaceEnrollmentPage.vue; routes/registrar.php: RegistrarController::updateFacultyRfid, RegistrarController::uploadFacultyFace, RegistrarController::deleteFacultyFace
+     * @related     Instructor verification at Console class/movement actions.
+     * @disable     1) Suriin ang Instructor RFID and Face Enrollment callers, pending work, at dependent screens; Needs developer check: exact shared routes at background consumers.
+     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Registrar/InstructorFaceEnrollment/InstructorFaceEnrollmentPage.vue`.
+     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     * @sideEffects Ina-update ang Instructor RFID/face records at Registrar enrollment audit.
+     * @dependsOn   Instructor verification at Console class/movement actions.
+     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     * @editable    Registrar Instructor Faces: RFID at face capture/upload/remove.
      */
     public function updateFacultyRfid(Request $request, User $user)
     {
@@ -226,14 +238,20 @@ class RegistrarController
     // @function uploadStudentFace: Ina-upload ang student face sa Registrar flow.
     // @useIn uploadStudentFace: routes/web.php:236 (students.face)
     /**
-     * @feature   Student Face Enrollment
-     * @actor     Registrar
-     * @flow      Dito sine-save at tinatanggal ang enrolled student face images.
-     * @uses      resources/js/pages/Registrar/BiometricEnrollment/BiometricEnrollmentPage.vue; routes/web.php: RegistrarController::uploadStudentFace, RegistrarController::deleteStudentFace
-     * @related   Registrar workspace
-     * @disable   1) I-comment out ang routes/web.php: RegistrarController::uploadStudentFace, RegistrarController::deleteStudentFace.
-     * @disable   2) Itago ang action sa resources/js/pages/Registrar/BiometricEnrollment/BiometricEnrollmentPage.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
-     * @disable   3) Ihinto ang app/Http/Controllers/Registrar/Enrollment/RegistrarController.php: RegistrarController::uploadStudentFace matapos alisin ang routes. Side effect: mawawala ang student face enrollment.
+     * @feature     Student Face Enrollment
+     * @actor       Registrar
+     * @flow        Dito sine-save at tinatanggal ang enrolled student face images.
+     * @uses        resources/js/pages/Registrar/BiometricEnrollment/BiometricEnrollmentPage.vue; routes/registrar.php: RegistrarController::uploadStudentFace, RegistrarController::deleteStudentFace
+     * @related     Attendance face comparison at optional liveness follow-up.
+     * @disable     1) Suriin ang Student Face Enrollment callers, pending work, at dependent screens; Needs developer check: exact shared routes at background consumers.
+     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Registrar/BiometricEnrollment/BiometricEnrollmentPage.vue`.
+     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     * @sideEffects Ina-update ang Student face-image paths/files at Registrar enrollment audit.
+     * @dependsOn   Attendance face comparison at optional liveness follow-up.
+     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     * @editable    Registrar Student Biometric Enrollment: face capture/upload/remove.
      */
     public function uploadStudentFace(Request $request, Students $student)
     {

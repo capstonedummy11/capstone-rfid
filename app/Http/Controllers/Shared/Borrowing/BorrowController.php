@@ -25,14 +25,20 @@ class BorrowController
   // @function index: Ibinabalik ang Borrow page at data para sa request.
   // @useIn index: routes/web.php:317 (borrow)
   /**
-   * @feature   Borrowing Oversight and Returns
-   * @actor     Admin
-   * @flow      Dito tinitingnan ang borrowing history at pinoproseso ang returns.
-   * @uses      resources/js/pages/Admin/Borrow/BorrowPage.vue; routes/web.php: BorrowController::index, BorrowController::returnItems
-   * @related   Admin workspace
-   * @disable   1) I-comment out ang routes/web.php: BorrowController::index, BorrowController::returnItems.
-   * @disable   2) Itago ang action sa resources/js/pages/Admin/Borrow/BorrowPage.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
-   * @disable   3) Ihinto ang app/Http/Controllers/Shared/Borrowing/BorrowController.php: BorrowController::index matapos alisin ang routes. Side effect: mawawala ang borrowing oversight and returns.
+   * @feature     Borrowing Oversight and Returns
+   * @actor       Admin
+   * @flow        Dito tinitingnan ang borrowing history at pinoproseso ang returns.
+   * @uses        resources/js/pages/Admin/Borrow/BorrowPage.vue; routes/admin.php: BorrowController::index, BorrowController::returnItems
+   * @related     Console loans, item availability, at borrowing reports.
+   * @disable     1) Suriin ang Borrowing Oversight and Returns callers, pending work, at dependent screens; Needs developer check: exact shared routes at background consumers.
+   * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Admin/Borrow/BorrowPage.vue`.
+   * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+   * @sideEffects Nagbabago ang borrowings, borrowing_items, inventory item status, at audit.
+   * @dependsOn   Console loans, item availability, at borrowing reports.
+   * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+   * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+   * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+   * @editable    Admin Borrowing: borrower/item selection at return actions.
    */
   public function index(Request $request)
   {
@@ -318,14 +324,20 @@ public function returnItems(Request $request): JsonResponse
   // @function borrowItemsOnly: Pinoproseso ang borrow items only sa database transaction.
   // @useIn borrowItemsOnly: routes/web.php:178 (attendanceControlPanel.borrowItemsOnly)
   /**
-   * @feature   Console Borrowing
-   * @actor     Shared / Core
-   * @flow      Kinukuha ng reader ang borrower RFID at item barcode sa panel. Sine-save ang borrowing at borrowing_items at ina-update ang item status kapag valid ang borrower at item.
-   * @uses      resources/js/pages/AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage.vue; routes/web.php: BorrowController::borrowItemsOnly
-   * @related   Authentication, Attendance, Reports
-   * @disable   1) I-comment out ang routes/web.php: BorrowController::borrowItemsOnly.
-   * @disable   2) Itago ang action sa resources/js/pages/AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
-   * @disable   3) Ihinto ang app/Http/Controllers/Shared/Borrowing/BorrowController.php: BorrowController::borrowItemsOnly matapos alisin ang routes. Side effect: mawawala ang console borrowing.
+   * @feature     Console Borrowing
+   * @actor       Shared / Core
+   * @flow        Kinukuha ng reader ang borrower RFID at item barcode sa panel. Sine-save ang borrowing at borrowing_items at ina-update ang item status kapag valid ang borrower at item.
+   * @uses        resources/js/pages/AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage.vue; routes/attendance-console.php: BorrowController::borrowItemsOnly
+   * @related     Admin returns, inventory availability, at borrowing reports.
+   * @disable     1) Suriin ang Console Borrowing callers, pending work, at dependent screens; Needs developer check: exact shared routes at background consumers.
+   * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage.vue`.
+   * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+   * @sideEffects Gumagawa ng borrowing header/items at nag-a-update ng item status.
+   * @dependsOn   Admin returns, inventory availability, at borrowing reports.
+   * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+   * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+   * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+   * @editable    Console: borrower RFID at item barcode/quantity; provider settings ay hindi saklaw.
    */
   public function borrowItemsOnly(Request $request): JsonResponse
   {

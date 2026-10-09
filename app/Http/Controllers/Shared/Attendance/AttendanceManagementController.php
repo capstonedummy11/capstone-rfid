@@ -51,14 +51,20 @@ class AttendanceManagementController extends Controller
     // @function index: Ibinabalik ang Attendance/SubjectSelection page at data para sa request.
     // @useIn index: routes/web.php:256 (attendance.logs)
     /**
-     * @feature   Assigned Attendance and Corrections
-     * @actor     Instructor
-     * @flow      Dito nire-review ang assigned attendance at nilolog ang allowed manual corrections.
-     * @uses      resources/js/pages/Shared/Attendance/SessionDetails/SessionDetailsPage.vue; routes/web.php: AttendanceManagementController::index, AttendanceManagementController::dashboard, AttendanceManagementController::summary, AttendanceManagementController::student, AttendanceManagementController::session, AttendanceManagementController::updateOnlineAttendanceStatus, AttendanceManagementController::exportSummary, AttendanceManagementController::exportSession
-     * @related   Instructor workspace
-     * @disable   1) I-comment out ang routes/web.php: AttendanceManagementController::index, AttendanceManagementController::dashboard, AttendanceManagementController::summary, AttendanceManagementController::student, AttendanceManagementController::session, AttendanceManagementController::updateOnlineAttendanceStatus, AttendanceManagementController::exportSummary, AttendanceManagementController::exportSession.
-     * @disable   2) Itago ang action sa resources/js/pages/Shared/Attendance/SessionDetails/SessionDetailsPage.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
-     * @disable   3) Ihinto ang app/Http/Controllers/Shared/Attendance/AttendanceManagementController.php: AttendanceManagementController::index matapos alisin ang routes. Side effect: mawawala ang assigned attendance and corrections.
+     * @feature     Assigned Attendance and Corrections
+     * @actor       Instructor
+     * @flow        Dito nire-review ang assigned attendance at nilolog ang allowed manual corrections.
+     * @uses        resources/js/pages/Shared/Attendance/SessionDetails/SessionDetailsPage.vue; routes/admin-instructor.php: AttendanceManagementController::index, AttendanceManagementController::dashboard, AttendanceManagementController::summary, AttendanceManagementController::student, AttendanceManagementController::session, AttendanceManagementController::updateOnlineAttendanceStatus, AttendanceManagementController::exportSummary, AttendanceManagementController::exportSession
+     * @related     Student/Parent history, attendance summaries, at reports.
+     * @disable     1) Suriin ang Assigned Attendance and Corrections callers, pending work, at dependent screens; Needs developer check: exact shared routes at background consumers.
+     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Shared/Attendance/SessionDetails/SessionDetailsPage.vue`.
+     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     * @sideEffects Manual correction ay nagbabago ng attendance at nagsusulat ng tap/activity audit; exports ay read-only.
+     * @dependsOn   Student/Parent history, attendance summaries, at reports.
+     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     * @editable    Instructor session view: status at required Excused reason sa allowed window.
      */
     public function index(Request $request): Response|SymfonyResponse
     {

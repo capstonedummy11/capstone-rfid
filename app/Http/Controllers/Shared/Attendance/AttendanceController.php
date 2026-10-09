@@ -179,14 +179,20 @@ class AttendanceController
     // @function recordStudentTap: Nagtatala ng ang student tap sa Attendance flow.
     // @useIn recordStudentTap: routes/web.php:174 (attendanceControlPanel.studentTap)
     /**
-     * @feature   RFID Attendance Console
-     * @actor     Shared / Core
-     * @flow      Kinukuha ng reader ang RFID string sa panel; lookup ang student at active roster, saka kailangan ng face o Instructor grant. Ang valid tap ay Check-in, movement, o Check-out depende sa session state at oras.
-     * @uses      resources/js/pages/AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage.vue; routes/web.php: AttendanceController::verifyPanelPin, AttendanceController::lookupRfid, AttendanceController::updatePanelSessionState, AttendanceController::recordStudentTap, AttendanceController::attendanceLogSnapshot
-     * @related   Authentication, Attendance, Reports
-     * @disable   1) I-comment out ang routes/web.php: AttendanceController::verifyPanelPin, AttendanceController::lookupRfid, AttendanceController::updatePanelSessionState, AttendanceController::recordStudentTap, AttendanceController::attendanceLogSnapshot.
-     * @disable   2) Itago ang action sa resources/js/pages/AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
-     * @disable   3) Ihinto ang app/Http/Controllers/Shared/Attendance/AttendanceController.php: AttendanceController::recordStudentTap matapos alisin ang routes. Side effect: mawawala ang rfid attendance console.
+     * @feature     RFID Attendance Console
+     * @actor       Shared / Core
+     * @flow        Kinukuha ng reader ang RFID string sa panel; lookup ang student at active roster, saka kailangan ng face o Instructor grant. Ang valid tap ay Check-in, movement, o Check-out depende sa session state at oras.
+     * @uses        resources/js/pages/AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage.vue; routes/attendance-console.php: AttendanceController::verifyPanelPin, AttendanceController::lookupRfid, AttendanceController::updatePanelSessionState, AttendanceController::recordStudentTap, AttendanceController::attendanceLogSnapshot
+     * @related     Attendance review, portal history, at reports.
+     * @disable     1) Suriin ang RFID Attendance Console callers, pending work, at dependent screens; Needs developer check: exact shared routes at background consumers.
+     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage.vue`.
+     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     * @sideEffects Nagbabago ang panel session, official attendance, tap logs/evidence, at maaaring magsimula ng emergency/borrowing action.
+     * @dependsOn   Attendance review, portal history, at reports.
+     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     * @editable    Admin System Settings: attendance threshold; Console: room at available session controls.
      */
     public function recordStudentTap(Request $request): JsonResponse
     {

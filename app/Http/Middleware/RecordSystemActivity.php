@@ -25,19 +25,20 @@ class RecordSystemActivity
     // @function handle: Pinoproseso ang request o event para sa Record System Activity.
     // @useIn handle: Laravel web middleware pipeline
     /**
-     * @feature   Audit Logging
-     *
-     * @actor     Shared / Core
-     *
-     * @flow      Dito nilolog ang mutating requests at selected exports kahit may audit storage error.
-     *
-     * @uses      resources/js/pages/Admin/ActivityLogs/ActivityLogsPage.vue; app/Http/Middleware/RecordSystemActivity.php: RecordSystemActivity::handle
-     *
-     * @related   Authentication, Attendance, Reports
-     *
-     * @disable   1) Alisin ang RecordSystemActivity::class registration sa bootstrap/app.php.
-     * @disable   2) Itago ang activity-log link sa resources/js/layouts/AuthNavbar.vue.
-     * @disable   3) Ihinto ang app/Http/Middleware/RecordSystemActivity.php: handle. Side effect: mawawala ang automatic system activity trail; may module-specific logs pa rin.
+     * @feature     Audit Logging
+     * @actor       Shared / Core
+     * @flow        Dito nilolog ang mutating requests at selected exports kahit may audit storage error.
+     * @uses        resources/js/pages/Admin/ActivityLogs/ActivityLogsPage.vue; app/Http/Middleware/RecordSystemActivity.php: RecordSystemActivity::handle
+     * @related     Admin System Activity Logs at investigations.
+     * @disable     1) Suriin ang Audit Logging callers, pending work, at dependent screens; Needs developer check: tiyakin ang retention/alternative audit bago alisin ang RecordSystemActivity middleware registration.
+     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Admin/ActivityLogs/ActivityLogsPage.vue`.
+     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     * @sideEffects Best-effort write sa activity_logs; audit failure ay nirereport nang hindi pinapalitan ang business response.
+     * @dependsOn   Admin System Activity Logs at investigations.
+     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     * @editable    Admin log filters; walang no-code audit event policy editor na nakumpirma.
      */
     public function handle(Request $request, Closure $next): Response
     {

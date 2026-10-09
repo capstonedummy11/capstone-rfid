@@ -102,14 +102,20 @@ class AwsFaceLivenessService
     // @function completeSession: Kinukuha ang complete session result para sa Aws Face Liveness.
     // @useIn completeSession: app/Http/Controllers/Shared/FaceLiveness/FaceLivenessController.php
     /**
-     * @feature   Face Liveness
-     * @actor     Shared / Core
-     * @flow      AWS Face Liveness session ang nagsusuri ng video. Pass lang kung SUCCEEDED, confidence >= services.aws_rekognition.liveness.confidence_threshold (default 90), at may reference image; kung fail, walang single-use face token.
-     * @uses      resources/js/lib/faceLiveness.tsx; app/Services/AwsFaceLivenessService.php: AwsFaceLivenessService::completeSession
-     * @related   Authentication, Attendance, Reports
-     * @disable   1) I-off ang services.aws_rekognition.liveness.enabled sa config/services.php.
-     * @disable   2) Itago ang liveness UI sa resources/js/lib/faceLiveness.tsx.
-     * @disable   3) Alisin ang FaceLivenessController::store/show routes sa routes/web.php at calls sa AttendanceController::studentFaceCheck, InstructorVerificationController::verifyFace, OnlineClassController::join bago ihinto ang app/Services/AwsFaceLivenessService.php: completeSession. Side effect: still-image face check na lang ang matitira.
+     * @feature     Face Liveness
+     * @actor       Shared / Core
+     * @flow        AWS Face Liveness session ang nagsusuri ng video. Pass lang kung SUCCEEDED, confidence >= services.aws_rekognition.liveness.confidence_threshold (default 90), at may reference image; kung fail, walang single-use face token.
+     * @uses        resources/js/lib/faceLiveness.tsx; app/Services/AwsFaceLivenessService.php: AwsFaceLivenessService::completeSession
+     * @related     Face-required attendance, Instructor verification, at online-class joining kapag enabled.
+     * @disable     1) Suriin ang Face Liveness callers, pending work, at dependent screens; Needs developer check: i-verify muna ang still-image fallback at bawat caller bago i-off ang liveness server setting.
+     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/lib/faceLiveness.tsx`.
+     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     * @sideEffects Tumatawag sa AWS liveness; single-use token/session state ay hinahawakan ng callers.
+     * @dependsOn   Face-required attendance, Instructor verification, at online-class joining kapag enabled.
+     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     * @editable    Server environment/config: liveness enable, region, threshold; walang Admin template editor na nakumpirma.
      */
     public function completeSession(Request $request, string $sessionId): array
     {

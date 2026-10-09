@@ -43,15 +43,20 @@ class OnlineClassController
     // @function index: Ibinabalik ang Auth/Admin/OnlineClasses page at data para sa request.
     // @useIn index: routes/web.php:278 (online-classes.index)
     /**
-     * @feature   Online Class Management
-     * @actor     Instructor
-     * @flow      Dito ginagawa, ina-update, at kina-cancel ang assigned online classes.
-     * @uses      resources/js/pages/Shared/OnlineClasses/OnlineClassesPage.vue; routes/web.php: OnlineClassController::index, OnlineClassController::store, OnlineClassController::update, OnlineClassController::cancel, OnlineClassController::destroy
-     * @related   Instructor workspace
-     * @disable   1) I-comment out ang routes/web.php: OnlineClassController::index, OnlineClassController::store, OnlineClassController::update, OnlineClassController::cancel, OnlineClassController::destroy.
-     * @disable   2) Itago ang action sa resources/js/pages/Shared/OnlineClasses/OnlineClassesPage.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
-     * @disable   3) Kung pati auto-absence ay off, alisin ang routes/console.php: online-classes:finalize-attendance schedule.
-     * @disable   4) Ihinto ang app/Http/Controllers/Shared/OnlineClasses/OnlineClassController.php: index matapos alisin ang routes. Side effect: mawawala ang online class management; puwede pa ring manatili ang existing class records.
+     * @feature     Online Class Management
+     * @actor       Instructor
+     * @flow        Dito ginagawa, ina-update, at kina-cancel ang assigned online classes.
+     * @uses        resources/js/pages/Shared/OnlineClasses/OnlineClassesPage.vue; routes/admin-instructor.php: OnlineClassController::index, OnlineClassController::store, OnlineClassController::update, OnlineClassController::cancel, OnlineClassController::destroy
+     * @related     Student joining, automatic absence finalization, at reports.
+     * @disable     1) Suriin ang Online Class Management callers, pending work, at dependent screens; Needs developer check: i-review muna ang existing classes at finalizer bago ihinto ang management routes o online-classes:finalize-attendance schedule.
+     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Shared/OnlineClasses/OnlineClassesPage.vue`.
+     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     * @sideEffects Nagbabago ang online classes/attachments/audit; gumagawa ng notifications at email attempts.
+     * @dependsOn   Student joining, automatic absence finalization, at reports.
+     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     * @editable    Online Classes page: title, schedule, link, details, attachment, at face option.
      */
     public function index(Request $request)
     {
@@ -228,14 +233,20 @@ class OnlineClassController
     // @function join: Kinukuha ang join result para sa Online Class.
     // @useIn join: routes/web.php:536 (online-classes.join)
     /**
-     * @feature   Online Class Viewing and Joining
-     * @actor     Student
-     * @flow      Dito sumasali ang eligible student sa class at nalolog ang attendance.
-     * @uses      resources/js/pages/StudentParent/OnlineClasses/OnlineClassesPage.vue; routes/web.php: OnlineClassController::studentIndex, OnlineClassController::join
-     * @related   Student workspace
-     * @disable   1) I-comment out ang routes/web.php: OnlineClassController::studentIndex, OnlineClassController::join.
-     * @disable   2) Itago ang action sa resources/js/pages/StudentParent/OnlineClasses/OnlineClassesPage.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
-     * @disable   3) Ihinto ang app/Http/Controllers/Shared/OnlineClasses/OnlineClassController.php: OnlineClassController::join matapos alisin ang routes. Side effect: mawawala ang online class viewing and joining.
+     * @feature     Online Class Viewing and Joining
+     * @actor       Student
+     * @flow        Dito sumasali ang eligible student sa class at nalolog ang attendance.
+     * @uses        resources/js/pages/StudentParent/OnlineClasses/OnlineClassesPage.vue; routes/student-parent.php: OnlineClassController::studentIndex, OnlineClassController::join
+     * @related     Online-class notifications, finalizer, at reports.
+     * @disable     1) Suriin ang Online Class Viewing and Joining callers, pending work, at dependent screens; Needs developer check: exact shared routes at background consumers.
+     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/StudentParent/OnlineClasses/OnlineClassesPage.vue`.
+     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     * @sideEffects Nagbabago ang online_class_attendances sa valid join; maaaring gumamit ng face verification.
+     * @dependsOn   Online-class notifications, finalizer, at reports.
+     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     * @editable    Student Online Classes: eligible meeting link at available join action; walang no-code rule editor.
      */
     public function join(Request $request, OnlineClass $onlineClass)
     {

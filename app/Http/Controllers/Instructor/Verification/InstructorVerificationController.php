@@ -17,14 +17,20 @@ class InstructorVerificationController
     // @function show: Ibinabalik ang Auth/InstructorVerify page at data para sa request.
     // @useIn show: routes/web.php:213 (verify)
     /**
-     * @feature   Login Verification
-     * @actor     Instructor
-     * @flow      Pagkatapos ng login, dito kinukumpleto ang face, email OTP, o security-question check.
-     * @uses      resources/js/pages/Instructor/Verification/InstructorVerifyPage.vue; routes/web.php: InstructorVerificationController::show, InstructorVerificationController::verifyFace, InstructorVerificationController::sendOtp, InstructorVerificationController::verifyOtp, InstructorVerificationController::setupSecurity, InstructorVerificationController::verifySecurity
-     * @related   Instructor workspace
-     * @disable   1) I-comment out ang routes/web.php: InstructorVerificationController::show, InstructorVerificationController::verifyFace, InstructorVerificationController::sendOtp, InstructorVerificationController::verifyOtp, InstructorVerificationController::setupSecurity, InstructorVerificationController::verifySecurity.
-     * @disable   2) Itago ang action sa resources/js/pages/Instructor/Verification/InstructorVerifyPage.vue; kung may menu link, alisin ito sa resources/js/layouts/AuthNavbar.vue.
-     * @disable   3) Ihinto ang app/Http/Controllers/Instructor/Verification/InstructorVerificationController.php: InstructorVerificationController::show matapos alisin ang routes. Side effect: mawawala ang login verification.
+     * @feature     Login Verification
+     * @actor       Instructor
+     * @flow        Pagkatapos ng login, dito kinukumpleto ang face, email OTP, o security-question check.
+     * @uses        resources/js/pages/Instructor/Verification/InstructorVerifyPage.vue; routes/instructor.php: InstructorVerificationController::show, InstructorVerificationController::verifyFace, InstructorVerificationController::sendOtp, InstructorVerificationController::verifyOtp, InstructorVerificationController::setupSecurity, InstructorVerificationController::verifySecurity
+     * @related     Instructor protected pages.
+     * @disable     1) Suriin ang Login Verification callers, pending work, at dependent screens; Needs developer check: huwag alisin ang verification routes habang EnsureInstructorVerified ay nagre-redirect dito; i-test muna ang kapalit na access policy.
+     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Instructor/Verification/InstructorVerifyPage.vue`.
+     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     * @sideEffects Nagbabago ang Instructor session verification; maaaring magpadala ng OTP email.
+     * @dependsOn   Instructor protected pages.
+     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     * @editable    Instructor Verification: pumili ng available face, OTP, o security-question method; mail template ay code/config.
      */
     public function show(Request $request)
     {
