@@ -109,6 +109,8 @@ The deployed web-server account must have write access to `storage` and `bootstr
 
 The Instructor excuse-letter review migration uses short explicit foreign-key names because MySQL limits identifiers to 64 characters. It also detects existing columns and keys, so rerunning `php artisan migrate --force` safely resumes an earlier attempt that stopped at the foreign-key creation step. Do not manually remove the partially added columns before retrying.
 
+The 2026-10-09 Instructor-sync migration makes upcoming online-class assignments nullable and reconciles Schedules and unfinished Online Classes linked to draft/active Subject Offerings. Run `php artisan migrate --force` before using the updated Subject Instructor actions. Completed and cancelled Online Classes keep their original Instructor attribution. Rolling this migration back requires assigning an Instructor to every online class with a null `instructor_id` first.
+
 ### Attendance panel and face services
 
 | Variable | Purpose |

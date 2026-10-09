@@ -292,7 +292,7 @@ class AttendanceManagementController extends Controller
             ->firstOrFail();
         $context = $this->authorizeSubject($request, $subject);
         if ($context['role'] === 'instructor') {
-            abort_unless((int) $onlineClass->instructor_id === (int) $context['instructor_id'], 403);
+            abort_unless((int) $onlineClass->schedule?->instructor_id === (int) $context['instructor_id'], 403);
         }
 
         $student = $this->studentsFor($subject, $context['instructor_id'], $onlineClass)->whereKey($validated['student_id'])->firstOrFail();
@@ -495,7 +495,7 @@ class AttendanceManagementController extends Controller
         return OnlineClass::query()
             ->where('subject_code', $subject->subject_code)
             ->where('status', '!=', 'cancelled')
-            ->when($instructorId, fn ($query) => $query->where('instructor_id', $instructorId))
+            ->when($instructorId, fn ($query) => $query->whereHas('schedule', fn ($schedule) => $schedule->where('instructor_id', $instructorId)))
             ->orderByDesc('scheduled_date')
             ->orderByDesc('start_time');
     }
@@ -774,7 +774,7 @@ class AttendanceManagementController extends Controller
             return $attendance->is_late ? 'Late' : 'Present';
         }
 
-        return $this->onlineClassEnded($onlineClass) ? 'Absent' : 'Pending';
+        return $onlineClass->instructor_id && $this->onlineClassEnded($onlineClass) ? 'Absent' : 'Pending';
     }
 
     // @function onlineClassEnded: Sinusuri ang online class ended condition para sa Attendance Management.

@@ -67,8 +67,8 @@ class OnlineClassController
 
         $faceAvailability = $this->onlineClassFaceAvailability();
         $classes = OnlineClass::query()
-            ->with(['section', 'subject', 'instructor.user', 'attachments'])
-            ->when($role === 'instructor', fn ($query) => $query->where('instructor_id', $instructorId ?: 0))
+            ->with(['section', 'subject', 'schedule', 'instructor.user', 'attachments'])
+            ->when($role === 'instructor', fn ($query) => $query->whereHas('schedule', fn ($schedule) => $schedule->where('instructor_id', $instructorId ?: 0)))
             ->orderByDesc('scheduled_date')
             ->orderByDesc('start_time')
             ->get()
@@ -197,7 +197,7 @@ class OnlineClassController
         }
 
         $classes = OnlineClass::query()
-            ->with(['section', 'subject', 'instructor.user', 'attachments', 'attendances' => fn ($query) => $query->where('student_id', $student->student_id)])
+            ->with(['section', 'subject', 'schedule', 'instructor.user', 'attachments', 'attendances' => fn ($query) => $query->where('student_id', $student->student_id)])
             ->where(function ($query) use ($student) {
                 $enrollments = $student->enrollments()->get(['academic_year_id', 'section_id']);
                 foreach ($enrollments as $enrollment) {
@@ -262,6 +262,7 @@ class OnlineClassController
         abort_unless($onlineClass->academic_year_id ? $eligibleEnrollment : (int) $student->section_id === (int) $onlineClass->section_id, 403);
         abort_if($onlineClass->academicYear && $onlineClass->academicYear->status !== \App\Models\AcademicYear::STATUS_ACTIVE, 422, 'Only classes in the active academic year can be joined.');
         abort_if($onlineClass->status === 'cancelled', 422, 'This online class is cancelled.');
+        abort_if(! $onlineClass->schedule?->instructor_id, 422, 'This online class has no assigned instructor.');
         $scheduledStart = Carbon::parse($onlineClass->scheduled_date->format('Y-m-d').' '.$onlineClass->start_time);
         $scheduledEnd = Carbon::parse($onlineClass->scheduled_date->format('Y-m-d').' '.$onlineClass->end_time);
         abort_if(now()->lessThan($scheduledStart), 422, 'Online attendance opens at the scheduled class start time.');
@@ -421,6 +422,7 @@ class OnlineClassController
         if ($role === 'instructor') {
             abort_unless((int) $schedule->instructor_id === (int) $this->instructorId($request->user()->user_id), 403);
         }
+        abort_if(! $schedule->instructor_id, 422, 'Assign an instructor to the schedule before creating or updating an online class.');
 
         abort_if($schedule->academicYear && ! $schedule->academicYear->isWritable(), 422, 'Online classes cannot be created for a closed or archived academic year.');
 
@@ -438,7 +440,7 @@ class OnlineClassController
             return;
         }
 
-        abort_unless((int) $onlineClass->instructor_id === (int) $this->instructorId($request->user()->user_id), 403);
+        abort_unless((int) $onlineClass->schedule?->instructor_id === (int) $this->instructorId($request->user()->user_id), 403);
     }
 
     // @function scheduleOptions: Binubuo ang schedule options value.
@@ -474,7 +476,7 @@ class OnlineClassController
         $hasEnded = Carbon::parse($onlineClass->scheduled_date->format('Y-m-d').' '.$onlineClass->end_time)->isPast();
         $attendanceStatus = $attendance?->joined_at
             ? ($attendance->is_late ? 'late' : 'present')
-            : ($hasEnded && $onlineClass->status !== 'cancelled' ? 'absent' : null);
+            : ($hasEnded && $onlineClass->status !== 'cancelled' && $onlineClass->instructor_id ? 'absent' : null);
 
         return [
             'online_class_id' => $onlineClass->online_class_id,
@@ -497,7 +499,7 @@ class OnlineClassController
             'require_face_recognition' => $onlineClass->require_face_recognition,
             'status' => $onlineClass->status === 'cancelled' ? 'cancelled' : ($hasEnded ? 'completed' : $onlineClass->status),
             'has_ended' => $hasEnded,
-            'can_join' => ! $hasEnded && $onlineClass->status !== 'cancelled'
+            'can_join' => ! $hasEnded && $onlineClass->status !== 'cancelled' && (bool) $onlineClass->schedule?->instructor_id
                 && (! $onlineClass->academicYear || $onlineClass->academicYear->status === \App\Models\AcademicYear::STATUS_ACTIVE),
             'attendance_status' => $attendanceStatus,
             'joined_late' => (bool) $attendance?->is_late,

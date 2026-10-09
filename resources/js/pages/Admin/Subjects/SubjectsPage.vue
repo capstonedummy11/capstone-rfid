@@ -1145,7 +1145,7 @@ const removeInstructor = async (offering: SubjectOffering) => {
     const result = await Swal.fire({
         icon: 'warning',
         title: 'Remove instructor?',
-        text: 'The subject offering and section assignment will remain. Only the instructor will be removed.',
+        text: 'The instructor will be cleared from this offering, its schedules, and upcoming online classes. Completed class history will keep the original instructor.',
         showCancelButton: true,
         confirmButtonText: 'Remove Instructor',
         confirmButtonColor: '#e11d48',

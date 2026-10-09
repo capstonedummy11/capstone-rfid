@@ -167,6 +167,7 @@ Panel PIN behavior:
 - `schedules.academic_year_id` and `schedules.subject_offering_id` preserve the schedule's year, semester, subject, section, and instructor context.
 - `schedules.subject_code` links schedules to subjects.
 - `schedules.instructor_id` links schedules to instructor profiles.
+- Changing a writable Subject Offering's Instructor synchronizes its linked `schedules.instructor_id` and the `instructor_id` of scheduled online classes that have not ended. Removing the Instructor sets these current assignments to null. Completed/cancelled online classes retain historical Instructor attribution; Instructor access to online classes and their attendance history follows the schedule's current assignment.
 - `schedules.laboratory_id` links schedules to laboratories.
 - `instructors.user_id` links instructor profiles to user accounts.
 - `attendances.student_id` links main attendance rows to students.

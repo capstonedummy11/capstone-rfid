@@ -287,12 +287,9 @@ class SubjectController
             if ($subjectOffering->instructor_id === $instructor->instructor_id) {
                 return back()->withErrors(['user_id' => 'This instructor is already assigned to the offering.']);
             }
-            if (DB::table('schedules')->where('subject_offering_id', $subjectOffering->subject_offering_id)->exists()) {
-                return back()->withErrors(['offering' => 'This offering already has a schedule. Move or remove that schedule before assigning an instructor.']);
-            }
-
             DB::transaction(function () use ($subjectOffering, $instructor) {
                 $subjectOffering->update(['instructor_id' => $instructor->instructor_id]);
+                $this->syncLinkedInstructor($subjectOffering, $instructor->instructor_id);
                 $this->log('update', 'subject_offerings', "Assigned instructor to {$subjectOffering->subject?->subject_code} offering.");
             });
         } catch (\Throwable $exception) {
@@ -312,11 +309,44 @@ class SubjectController
         if (! $subjectOffering->isWritable()) {
             return back()->withErrors(['offering' => 'A closed or archived subject offering cannot be changed.']);
         }
+        try {
+            DB::transaction(function () use ($subjectOffering) {
+                $subjectOffering->update(['instructor_id' => null]);
+                $this->syncLinkedInstructor($subjectOffering, null);
+                $this->log('update', 'subject_offerings', "Removed instructor from {$subjectOffering->subject?->subject_code} offering.");
+            });
+        } catch (\Throwable $exception) {
+            report($exception);
 
-        $subjectOffering->update(['instructor_id' => null]);
-        $this->log('update', 'subject_offerings', "Removed instructor from {$subjectOffering->subject?->subject_code} offering.");
+            return back()->withErrors(['offering' => 'The instructor could not be removed. Please try again.']);
+        }
 
         return back()->with('success', 'Instructor removed from the subject offering.');
+    }
+
+    private function syncLinkedInstructor(SubjectOffering $offering, ?int $instructorId): void
+    {
+        $scheduleIds = DB::table('schedules')
+            ->where('subject_offering_id', $offering->subject_offering_id)
+            ->select('scheduled_id');
+        $now = now();
+
+        DB::table('online_classes')
+            ->whereIn('schedule_id', $scheduleIds)
+            ->where('status', 'scheduled')
+            ->whereNull('deleted_at')
+            ->where(function ($query) use ($now) {
+                $query->whereDate('scheduled_date', '>', $now->toDateString())
+                    ->orWhere(function ($today) use ($now) {
+                        $today->whereDate('scheduled_date', $now->toDateString())
+                            ->where('end_time', '>', $now->format('H:i:s'));
+                    });
+            })
+            ->update(['instructor_id' => $instructorId, 'updated_at' => $now]);
+
+        DB::table('schedules')
+            ->where('subject_offering_id', $offering->subject_offering_id)
+            ->update(['instructor_id' => $instructorId]);
     }
 
     // @function syncOfferingFromLegacyFields: Sini-sync ang offering from legacy fields sa Subject flow.

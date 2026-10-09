@@ -677,6 +677,13 @@ test('online class finalization uses its historical enrollment roster', function
         'start_time' => '08:00:00', 'end_time' => '09:00:00', 'status' => 'scheduled',
     ]);
 
+    $class->update(['instructor_id' => null]);
+    expect(app(OnlineClassAttendanceFinalizer::class)->finalize($class))->toBe(0);
+    $this->assertDatabaseMissing('online_class_attendances', [
+        'online_class_id' => $class->online_class_id, 'student_id' => $historicalStudent->student_id,
+    ]);
+
+    $class->update(['instructor_id' => $instructor->instructor_id]);
     app(OnlineClassAttendanceFinalizer::class)->finalize($class);
 
     $this->assertDatabaseHas('online_class_attendances', [

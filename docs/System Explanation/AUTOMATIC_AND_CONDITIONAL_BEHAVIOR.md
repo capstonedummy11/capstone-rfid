@@ -55,6 +55,8 @@ Admin controls the switches on **System Settings**. The application shares their
 
 ## Online-class automation
 
+- Subject Offering Instructor changes synchronize linked Schedules and online classes that have not ended. Completed/cancelled classes keep their original Instructor attribution, but only the Schedule's current Instructor sees them in the Instructor workspace. Admins can still see them.
+- An online class without a currently assigned Schedule Instructor cannot be joined or create automatic absent results until an Instructor is assigned.
 - Creating, updating, rescheduling, or cancelling a class creates per-student portal notifications and attempts email delivery.
 - Students may join only from the scheduled start through the scheduled end. Joining again returns the existing success state instead of adding a duplicate.
 - The normal late threshold also determines whether an online join is Present or Late.

@@ -354,19 +354,10 @@ test('admin can assign an active instructor to an unassigned writable offering',
         ->assertInertia(fn (Assert $page) => $page
             ->where('subjects.0.offerings.0.instructor_id', $replacement->instructor_id)
             ->where('subjects.0.offerings.0.instructor_name', null));
-    $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.assign', $offering), [
-        'user_id' => $instructorUser->user_id,
-    ])->assertRedirect()->assertSessionHas('success');
-    $this->assertDatabaseHas('subject_offerings', [
-        'subject_offering_id' => $offering->subject_offering_id,
-        'instructor_id' => $instructor->instructor_id,
-    ]);
-
-    $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.remove', $offering))
-        ->assertRedirect()->assertSessionHas('success');
     $schedule = Schedule::create([
         'academic_year_id' => $year->academic_year_id,
         'subject_offering_id' => $offering->subject_offering_id,
+        'instructor_id' => $replacement->instructor_id,
         'section_id' => $section->section_id,
         'subject_code' => $subject->subject_code,
         'semester' => '1st Semester',
@@ -375,10 +366,99 @@ test('admin can assign an active instructor to an unassigned writable offering',
         'time_end' => '09:00:00',
         'room' => 'Assignment Room',
     ]);
+    $futureClass = OnlineClass::create([
+        'schedule_id' => $schedule->scheduled_id,
+        'instructor_id' => $replacement->instructor_id,
+        'section_id' => $section->section_id,
+        'subject_code' => $subject->subject_code,
+        'title' => 'Upcoming assignment class',
+        'meeting_link' => 'https://example.test/upcoming',
+        'scheduled_date' => now()->addDays(2)->toDateString(),
+        'start_time' => '08:00:00',
+        'end_time' => '09:00:00',
+        'status' => 'scheduled',
+    ]);
+    $completedClass = OnlineClass::create([
+        'schedule_id' => $schedule->scheduled_id,
+        'instructor_id' => $replacement->instructor_id,
+        'section_id' => $section->section_id,
+        'subject_code' => $subject->subject_code,
+        'title' => 'Completed assignment class',
+        'meeting_link' => 'https://example.test/completed',
+        'scheduled_date' => now()->subDays(2)->toDateString(),
+        'start_time' => '08:00:00',
+        'end_time' => '09:00:00',
+        'status' => 'scheduled',
+    ]);
     $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.assign', $offering), [
         'user_id' => $instructorUser->user_id,
-    ])->assertSessionHasErrors('offering');
+    ])->assertRedirect()->assertSessionHas('success');
+    $this->assertDatabaseHas('subject_offerings', [
+        'subject_offering_id' => $offering->subject_offering_id,
+        'instructor_id' => $instructor->instructor_id,
+    ]);
+    $this->assertDatabaseHas('schedules', [
+        'scheduled_id' => $schedule->scheduled_id,
+        'instructor_id' => $instructor->instructor_id,
+    ]);
+    $this->assertDatabaseHas('online_classes', [
+        'online_class_id' => $futureClass->online_class_id,
+        'instructor_id' => $instructor->instructor_id,
+    ]);
+    $this->assertDatabaseHas('online_classes', [
+        'online_class_id' => $completedClass->online_class_id,
+        'instructor_id' => $replacement->instructor_id,
+    ]);
+
+    $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.remove', $offering))
+        ->assertRedirect()->assertSessionHas('success');
+    $this->assertDatabaseHas('subject_offerings', [
+        'subject_offering_id' => $offering->subject_offering_id,
+        'instructor_id' => null,
+    ]);
+    $this->assertDatabaseHas('schedules', [
+        'scheduled_id' => $schedule->scheduled_id,
+        'instructor_id' => null,
+    ]);
+    $this->assertDatabaseHas('online_classes', [
+        'online_class_id' => $futureClass->online_class_id,
+        'instructor_id' => null,
+    ]);
+    $this->assertDatabaseHas('online_classes', [
+        'online_class_id' => $completedClass->online_class_id,
+        'instructor_id' => $replacement->instructor_id,
+    ]);
+    $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.assign', $offering), [
+        'user_id' => $instructorUser->user_id,
+    ])->assertRedirect()->assertSessionHas('success');
+    $this->assertDatabaseHas('schedules', [
+        'scheduled_id' => $schedule->scheduled_id,
+        'instructor_id' => $instructor->instructor_id,
+    ]);
+    $this->assertDatabaseHas('online_classes', [
+        'online_class_id' => $futureClass->online_class_id,
+        'instructor_id' => $instructor->instructor_id,
+    ]);
+    DB::table('schedules')->where('scheduled_id', $schedule->scheduled_id)
+        ->update(['instructor_id' => null]);
+    DB::table('online_classes')->where('online_class_id', $futureClass->online_class_id)
+        ->update(['instructor_id' => null]);
+    (require database_path('migrations/2026_10_09_000001_allow_unassigned_online_classes.php'))->up();
+    $this->assertDatabaseHas('schedules', [
+        'scheduled_id' => $schedule->scheduled_id,
+        'instructor_id' => $instructor->instructor_id,
+    ]);
+    $this->assertDatabaseHas('online_classes', [
+        'online_class_id' => $futureClass->online_class_id,
+        'instructor_id' => $instructor->instructor_id,
+    ]);
+    $this->assertDatabaseHas('online_classes', [
+        'online_class_id' => $completedClass->online_class_id,
+        'instructor_id' => $replacement->instructor_id,
+    ]);
     $schedule->delete();
+    $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.remove', $offering))
+        ->assertRedirect()->assertSessionHas('success');
     $year->update(['status' => AcademicYear::STATUS_CLOSED]);
 
     $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.assign', $offering), [
@@ -388,6 +468,94 @@ test('admin can assign an active instructor to an unassigned writable offering',
         'subject_offering_id' => $offering->subject_offering_id,
         'instructor_id' => null,
     ]);
+});
+
+test('completed online classes retain attribution but follow current schedule instructor visibility', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    ['strand' => $strand, 'section' => $section] = controllerEntityAcademicContext();
+    $oldUser = User::factory()->create(['role' => 'instructor']);
+    $newUser = User::factory()->create(['role' => 'instructor']);
+    $oldInstructor = Instructor::create([
+        'user_id' => $oldUser->user_id,
+        'strand_id' => $strand->strand_id,
+        'instructor_number' => 'INS-OLD-CLASS',
+        'status' => 'active',
+    ]);
+    $newInstructor = Instructor::create([
+        'user_id' => $newUser->user_id,
+        'strand_id' => $strand->strand_id,
+        'instructor_number' => 'INS-NEW-CLASS',
+        'status' => 'active',
+    ]);
+    $subject = Subject::create(['subject_name' => 'Class Ownership', 'subject_code' => 'CLASS-OWN', 'unit' => 3]);
+    $offering = SubjectOffering::create([
+        'academic_year_id' => $section->academic_year_id,
+        'subject_id' => $subject->subject_id,
+        'section_id' => $section->section_id,
+        'instructor_id' => $oldInstructor->instructor_id,
+        'semester' => '1st Semester',
+        'status' => 'active',
+    ]);
+    $schedule = Schedule::create([
+        'academic_year_id' => $section->academic_year_id,
+        'subject_offering_id' => $offering->subject_offering_id,
+        'section_id' => $section->section_id,
+        'instructor_id' => $oldInstructor->instructor_id,
+        'subject_code' => $subject->subject_code,
+        'semester' => '1st Semester',
+        'weekdays' => 'Mon',
+        'time_start' => '08:00:00',
+        'time_end' => '09:00:00',
+        'room' => 'Class Ownership Room',
+    ]);
+    $completedClass = OnlineClass::create([
+        'schedule_id' => $schedule->scheduled_id,
+        'instructor_id' => $oldInstructor->instructor_id,
+        'section_id' => $section->section_id,
+        'subject_code' => $subject->subject_code,
+        'title' => 'Completed class',
+        'meeting_link' => 'https://example.test/completed',
+        'scheduled_date' => now()->subDays(2)->toDateString(),
+        'start_time' => '08:00:00',
+        'end_time' => '09:00:00',
+        'status' => 'scheduled',
+    ]);
+
+    $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.assign', $offering), [
+        'user_id' => $newUser->user_id,
+    ])->assertSessionHas('success');
+    $this->assertDatabaseHas('online_classes', [
+        'online_class_id' => $completedClass->online_class_id,
+        'instructor_id' => $oldInstructor->instructor_id,
+    ]);
+
+    $this->actingAs($oldUser)->withSession(['instructor_verified' => true])
+        ->get(route('admin.online-classes.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->missing('onlineClasses.0'));
+    $this->actingAs($newUser)->withSession(['instructor_verified' => true])
+        ->get(route('admin.online-classes.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('onlineClasses.0.title', 'Completed class')
+            ->where('onlineClasses.0.instructor_name', $oldUser->name));
+
+    $this->actingAs($oldUser)->withSession(['instructor_verified' => true])
+        ->put(route('admin.online-classes.update', $completedClass), [])
+        ->assertForbidden();
+    $this->actingAs($oldUser)->withSession(['instructor_verified' => true])
+        ->get(route('admin.attendance.subject', $subject))
+        ->assertForbidden();
+    $this->actingAs($newUser)->withSession(['instructor_verified' => true])
+        ->get(route('admin.attendance.subject', $subject))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('overview.total_sessions', 1));
+    $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.remove', $offering))
+        ->assertSessionHas('success');
+    $this->actingAs($newUser)->withSession(['instructor_verified' => true])
+        ->get(route('admin.online-classes.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->missing('onlineClasses.0'));
 });
 
 test('instructor assignment rolls back and shows a form error when auditing fails', function () {

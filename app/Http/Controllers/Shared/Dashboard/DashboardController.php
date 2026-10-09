@@ -60,7 +60,7 @@ class DashboardController extends Controller
             'onlineClasses' => OnlineClass::query()
                 ->when($academicYearId, fn ($query) => $query->where('academic_year_id', $academicYearId))
                 ->when($semester !== '', fn ($query) => $query->whereHas('schedule', fn ($schedule) => $schedule->where('semester', $semester)))
-                ->when($isInstructor, fn ($query) => $query->where('instructor_id', $instructorId ?: 0))
+                ->when($isInstructor, fn ($query) => $query->whereHas('schedule', fn ($schedule) => $schedule->where('instructor_id', $instructorId ?: 0)))
                 ->whereDate('scheduled_date', '>=', now()->toDateString())
                 ->where('status', '!=', 'cancelled')
                 ->count(),
@@ -78,7 +78,7 @@ class DashboardController extends Controller
 
         $schedules = Schedule::query()
             ->with(['laboratory', 'section', 'subject', 'instructor.user'])
-            ->when($isInstructor, fn ($query) => $query->where('instructor_id', $instructorId ?: 0))
+            ->when($isInstructor, fn ($query) => $query->whereHas('schedule', fn ($schedule) => $schedule->where('instructor_id', $instructorId ?: 0)))
             ->when($academicYearId, fn ($query) => $query->where('academic_year_id', $academicYearId))
             ->when($semester !== '', fn ($query) => $query->where('semester', $semester))
             ->orderBy('weekdays')

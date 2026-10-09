@@ -71,7 +71,7 @@ Admin form -> Academic/Strand/Section/Subject/Schedule controller
   -> redirect with success or field errors -> page reloads filtered records
 ```
 
-The permanent `subjects` table is a catalog. `subject_offerings` owns year/semester/section/Instructor assignment. `schedules` reference the offering but retain compatibility columns. Closed/archived years are immutable through normal controllers. No schedule-overlap algorithm exists.
+The permanent `subjects` table is a catalog; its legacy `user_id` is not the current Instructor assignment. `subject_offerings` owns year/semester/section/Instructor assignment. Assignment changes update the offering, every schedule linked by `subject_offering_id`, and unfinished scheduled online classes in one transaction. Completed or cancelled online classes retain their original Instructor attribution, while Instructor visibility follows the linked schedule's current Instructor. A one-time migration reconciles existing draft/active-year schedule and unfinished-class mismatches. Closed/archived years are immutable through normal controllers. No schedule-overlap algorithm exists.
 
 ## Student and Parent provisioning flow
 
