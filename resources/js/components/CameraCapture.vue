@@ -1,6 +1,10 @@
 <!-- FEATURE:face-recognition - UI para sa face recognition. -->
 <script setup>
 import { onMounted, onUnmounted, ref } from 'vue';
+import {
+    cameraAvailabilityMessage,
+    registerCameraPreview,
+} from '@/lib/cameraAccess';
 
 defineOptions({ name: 'CameraCapture' });
 
@@ -16,13 +20,22 @@ const cameraError = ref(null);
 const cameraReady = ref(false);
 
 let stream = null;
+let generation = 0;
+let pendingStart = null;
+let unregisterPreview = null;
 
 // @function startCamera: Sinisimulan ang camera sa Camera Capture flow.
 // @useIn startCamera: resources/js/components/CameraCapture.vue:77
 async function startCamera() {
+    const currentGeneration = ++generation;
     cameraError.value = null;
+    const unavailable = cameraAvailabilityMessage();
+    if (unavailable) {
+        cameraError.value = unavailable;
+        return;
+    }
     try {
-        stream = await navigator.mediaDevices.getUserMedia({
+        const acquiredStream = await navigator.mediaDevices.getUserMedia({
             video: {
                 width: { ideal: 640 },
                 height: { ideal: 480 },
@@ -30,11 +43,20 @@ async function startCamera() {
             },
             audio: false,
         });
+        if (currentGeneration !== generation) {
+            acquiredStream.getTracks().forEach((track) => track.stop());
+            return;
+        }
+        stream = acquiredStream;
         if (videoRef.value) {
             videoRef.value.srcObject = stream;
+            await videoRef.value.play();
         }
+        if (currentGeneration !== generation) return;
         cameraReady.value = true;
     } catch (err) {
+        if (currentGeneration !== generation) return;
+        stopCamera();
         cameraError.value =
             err?.name === 'NotAllowedError'
                 ? 'Camera access denied. Please allow camera permissions.'
@@ -45,8 +67,10 @@ async function startCamera() {
 // @function stopCamera: Itinitigil ang camera sa Camera Capture flow.
 // @useIn stopCamera: resources/js/components/CameraCapture.vue:78
 function stopCamera() {
+    generation++;
     stream?.getTracks().forEach((t) => t.stop());
     stream = null;
+    if (videoRef.value) videoRef.value.srcObject = null;
     cameraReady.value = false;
 }
 
@@ -82,8 +106,20 @@ function resetCapture() {
     capturedDataUrl.value = null;
 }
 
-onMounted(() => startCamera());
-onUnmounted(() => stopCamera());
+onMounted(() => {
+    unregisterPreview = registerCameraPreview((paused) => {
+        if (paused) {
+            stopCamera();
+            // A permission request may still resolve after the preview stops.
+            return pendingStart;
+        }
+        pendingStart = startCamera();
+    });
+});
+onUnmounted(() => {
+    unregisterPreview?.();
+    stopCamera();
+});
 </script>
 
 <template>

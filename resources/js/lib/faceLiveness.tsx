@@ -4,6 +4,7 @@ import '@aws-amplify/ui-react/styles.css';
 import { Amplify } from 'aws-amplify';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import { cameraAvailabilityMessage, pauseCameraPreviews } from './cameraAccess';
 
 type LivenessPurpose =
     | 'attendance_student'
@@ -108,26 +109,35 @@ function LivenessDialog({
         completing.current = true;
         setMessage('Confirming liveness securely...');
 
-        const { response, payload } = await requestJson(
-            `/face-liveness/sessions/${encodeURIComponent(session.session_id)}/result`,
-            {},
-        );
+        try {
+            const { response, payload } = await requestJson(
+                `/face-liveness/sessions/${encodeURIComponent(session.session_id)}/result`,
+                {},
+            );
 
-        if (!response.ok || !payload?.token) {
+            if (!response.ok || !payload?.token) {
+                finish(
+                    undefined,
+                    new FaceLivenessError(
+                        livenessFailureMessage(
+                            payload,
+                            response.status,
+                            diagnosticMode,
+                        ),
+                    ),
+                );
+                return;
+            }
+
+            finish(payload.token);
+        } catch {
             finish(
                 undefined,
                 new FaceLivenessError(
-                    livenessFailureMessage(
-                        payload,
-                        response.status,
-                        diagnosticMode,
-                    ),
+                    'Could not retrieve the liveness result. Please check your connection and try again.',
                 ),
             );
-            return;
         }
-
-        finish(payload.token);
     };
 
     return (
@@ -266,6 +276,8 @@ export async function runFaceLiveness({
     }
 
     const session = payload as SessionResponse;
+    const unavailable = cameraAvailabilityMessage();
+    if (unavailable) throw new FaceLivenessError(unavailable);
     Amplify.configure({
         Auth: {
             Cognito: {
@@ -274,33 +286,40 @@ export async function runFaceLiveness({
             },
         },
     });
-    const host = document.createElement('div');
-    document.body.appendChild(host);
-    const root = createRoot(host);
+    const resumePreviews = await pauseCameraPreviews();
+    try {
+        const host = document.createElement('div');
+        document.body.appendChild(host);
+        const root = createRoot(host);
 
-    return new Promise<string>((resolve, reject) => {
-        let finished = false;
-        // @function finish: Kinukuha ang finish result para sa face Liveness.
-        // @useIn finish: resources/js/lib/faceLiveness.tsx:107
-        const finish = (token?: string, error?: Error) => {
-            if (finished) return;
-            finished = true;
-            root.unmount();
-            host.remove();
-            if (token) resolve(token);
-            else
-                reject(
-                    error ??
-                        new FaceLivenessError('Liveness verification failed.'),
-                );
-        };
+        return await new Promise<string>((resolve, reject) => {
+            let finished = false;
+            // @function finish: Kinukuha ang finish result para sa face Liveness.
+            // @useIn finish: resources/js/lib/faceLiveness.tsx:107
+            const finish = (token?: string, error?: Error) => {
+                if (finished) return;
+                finished = true;
+                root.unmount();
+                host.remove();
+                if (token) resolve(token);
+                else
+                    reject(
+                        error ??
+                            new FaceLivenessError(
+                                'Liveness verification failed.',
+                            ),
+                    );
+            };
 
-        root.render(
-            <LivenessDialog
-                session={session}
-                finish={finish}
-                diagnosticMode={diagnosticMode}
-            />,
-        );
-    });
+            root.render(
+                <LivenessDialog
+                    session={session}
+                    finish={finish}
+                    diagnosticMode={diagnosticMode}
+                />,
+            );
+        });
+    } finally {
+        resumePreviews();
+    }
 }
