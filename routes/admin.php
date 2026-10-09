@@ -131,8 +131,12 @@ Route::prefix('admin')
         Route::get('/settings', [SystemSettingsController::class, 'edit'])->name('settings.edit');
         Route::put('/settings', [SystemSettingsController::class, 'update'])->name('settings.update');
         Route::post('/settings/sms/providers/{provider}/check', [SystemSettingsController::class, 'checkSmsProvider'])
-            ->whereIn('provider', ['semaphore', 'iprog'])
+            ->whereIn('provider', ['semaphore', 'iprog', 'philsms'])
             ->name('settings.sms.providers.check');
+        Route::post('/settings/sms/providers/{provider}/test', [SystemSettingsController::class, 'testSmsProvider'])
+            ->whereIn('provider', ['semaphore', 'iprog', 'philsms'])
+            ->middleware('throttle:6,1')
+            ->name('settings.sms.providers.test');
         Route::post('/settings/emergency-sounds', [SystemSettingsController::class, 'storeEmergencySound'])->name('settings.emergency-sounds.store');
         Route::put('/settings/emergency-sounds/{id}/select', [SystemSettingsController::class, 'selectEmergencySound'])->name('settings.emergency-sounds.select');
         Route::delete('/settings/emergency-sounds/{id}', [SystemSettingsController::class, 'destroyEmergencySound'])->name('settings.emergency-sounds.destroy');

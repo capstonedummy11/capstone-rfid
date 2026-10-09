@@ -1,4 +1,5 @@
 <?php
+
 // FEATURE:emergency-alerts - konektadong model, service, route, o UI para sa feature na ito.
 
 namespace App\Services;
@@ -11,6 +12,41 @@ use App\Models\User;
 
 class SmsService
 {
+    private array $deliveryResults = [];
+
+    public function resetDeliveryResults(): void
+    {
+        $this->deliveryResults = [];
+    }
+
+    public function deliverySummary(int $missingPhones = 0): array
+    {
+        $succeeded = count(array_filter($this->deliveryResults, fn ($result) => $result['sent'] ?? false));
+        $total = count($this->deliveryResults) + $missingPhones;
+        $reasons = collect($this->deliveryResults)
+            ->flatMap(fn ($result) => collect($result['attempts'] ?? [])->pluck('reason')
+                ->push(($result['sent'] ?? false) ? null : ($result['reason'] ?? 'provider_rejected')))
+            ->filter()->unique()->values()->all();
+        if ($missingPhones) {
+            $reasons[] = 'missing_parent_phone';
+        }
+
+        return [
+            'total_recipients' => $total, 'succeeded' => $succeeded, 'failed' => $total - $succeeded,
+            'providers' => collect($this->deliveryResults)->pluck('provider')->filter()->unique()->values()->all(),
+            'attempted_providers' => collect($this->deliveryResults)->flatMap(fn ($result) => collect($result['attempts'] ?? [])->pluck('provider'))->unique()->values()->all(),
+            'fallback_used' => collect($this->deliveryResults)->contains(fn ($result) => count($result['attempts'] ?? []) > 1),
+            'reasons' => $reasons,
+        ];
+    }
+
+    private function track(array $result): array
+    {
+        $this->deliveryResults[] = $result;
+
+        return $result;
+    }
+
     // @function __construct: Tinatanggap ang dependencies ng Sms sa pagbuo ng object.
     // @useIn __construct: Laravel dependency injection kapag ginagamit ang SmsService
     public function __construct(
@@ -25,22 +61,22 @@ class SmsService
             return ['sent' => false, 'reason' => 'hotline_sms_disabled'];
         }
 
-        return $this->sendWithFallback(
+        return $this->track($this->sendWithFallback(
             $alert,
             $this->emergencyMessage($hotline, $alert),
             $hotline->phone_number,
-        );
+        ));
     }
 
     // @function sendParentAlert: Ipinapadala ang parent alert sa Sms flow.
     // @useIn sendParentAlert: app/Http/Controllers/Shared/Emergency/EmergencyController.php
     public function sendParentAlert(User $parent, Students $student, EmergencyAlert $alert): array
     {
-        return $this->sendWithFallback(
+        return $this->track($this->sendWithFallback(
             $alert,
             $this->parentMessage($student, $alert),
             $parent->phone,
-        );
+        ));
     }
 
     // @function checkProvider: Sini-check ang provider sa Sms flow.
@@ -81,7 +117,7 @@ class SmsService
             $attempts[] = [
                 'provider' => $providerName,
                 'sent' => (bool) ($result['sent'] ?? false),
-                'reason' => $result['reason'] ?? null,
+                'reason' => $result['reason'] ?? (($result['sent'] ?? false) ? null : 'provider_rejected'),
             ];
 
             if ($result['sent'] ?? false) {

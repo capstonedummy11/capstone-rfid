@@ -62,6 +62,13 @@ return [
         'enabled' => env('SEMAPHORE_ENABLED', true),
     ],
 
+    'philsms' => [
+        'token' => env('PHILSMS_API_TOKEN'),
+        'sender_id' => env('PHILSMS_SENDER_ID', 'PhilSMS'),
+        'enabled' => env('PHILSMS_ENABLED', true),
+        'endpoint' => env('PHILSMS_ENDPOINT', 'https://dashboard.philsms.com/api/v3/sms/send'),
+    ],
+
     'iprog' => [
         'token' => env('IPROG_SMS_API_TOKEN'),
         'endpoint' => env('IPROG_SMS_ENDPOINT', 'https://www.iprogsms.com/api/v1/sms_messages'),

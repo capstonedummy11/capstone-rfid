@@ -85,12 +85,68 @@ const faceUnavailableMessage = computed(
 const smsProviderDefinitions = [
     { key: 'semaphore', label: 'Semaphore', field: 'sms_semaphore_available' },
     { key: 'iprog', label: 'IPROG SMS', field: 'sms_iprog_available' },
+    { key: 'philsms', label: 'PhilSMS', field: 'sms_philsms_available' },
 ];
 
 const smsCheckState = reactive({
     semaphore: { loading: false, success: null, message: '' },
     iprog: { loading: false, success: null, message: '' },
+    philsms: { loading: false, success: null, message: '' },
 });
+
+const smsTestState = reactive(
+    Object.fromEntries(
+        smsProviderDefinitions.map(({ key }) => [
+            key,
+            {
+                phone: '',
+                message: '',
+                loading: false,
+                success: null,
+                feedback: '',
+            },
+        ]),
+    ),
+);
+const sendTestSms = async (provider) => {
+    const state = smsTestState[provider];
+    if (state.loading) return;
+    state.loading = true;
+    state.feedback = '';
+    try {
+        const xsrfRaw = document.cookie
+            .split('; ')
+            .find((row) => row.startsWith('XSRF-TOKEN='))
+            ?.split('=')[1];
+        const response = await fetch(
+            route('admin.settings.sms.providers.test', { provider }),
+            {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-XSRF-TOKEN': xsrfRaw ? decodeURIComponent(xsrfRaw) : '',
+                },
+                body: JSON.stringify({
+                    ...form.sms_credentials[provider],
+                    phone: state.phone,
+                    message: state.message,
+                }),
+            },
+        );
+        const payload = await response.json().catch(() => ({}));
+        state.success = response.ok && payload.success === true;
+        state.feedback =
+            payload.message ??
+            'Test SMS failed: request could not be completed';
+    } catch {
+        state.success = false;
+        state.feedback = 'Test SMS failed: connection unavailable';
+    } finally {
+        state.loading = false;
+    }
+};
 
 // @function toggleParentPortal: Tina-toggle ang parent portal sa System Settings flow.
 // @useIn toggleParentPortal: resources/js/pages/Admin/SystemSettings/SystemSettingsPage.vue template @change
@@ -155,6 +211,20 @@ const form = useForm({
     ),
     sms_iprog_available: Boolean(props.smsSettings.providers?.iprog?.available),
     sms_primary_provider: props.smsSettings.primary ?? null,
+    sms_philsms_available: Boolean(
+        props.smsSettings.providers?.philsms?.available,
+    ),
+    sms_credentials: Object.fromEntries(
+        smsProviderDefinitions.map(({ key }) => [
+            key,
+            {
+                token: '',
+                sender_id:
+                    props.smsSettings.credentials?.[key]?.sender_id ??
+                    (key === 'philsms' ? 'PhilSMS' : ''),
+            },
+        ]),
+    ),
 });
 
 const soundUploadForm = useForm({
@@ -188,6 +258,9 @@ const saveSettings = () => {
     form.put(route('admin.settings.update'), {
         preserveScroll: true,
         onSuccess: () => {
+            smsProviderDefinitions.forEach(({ key }) => {
+                form.sms_credentials[key].token = '';
+            });
             Swal.fire({
                 toast: true,
                 position: 'top-end',
@@ -212,7 +285,9 @@ const showSmsPrimarySelector = computed(
 // @function normalizeSmsPrimary: Nino-normalize ang sms primary sa System Settings flow.
 // @useIn normalizeSmsPrimary: resources/js/pages/Admin/SystemSettings/SystemSettingsPage.vue:212
 const normalizeSmsPrimary = () => {
-    const available = availableSmsProviders.value.map((provider) => provider.key);
+    const available = availableSmsProviders.value.map(
+        (provider) => provider.key,
+    );
     if (!available.includes(form.sms_primary_provider)) {
         form.sms_primary_provider = available[0] ?? null;
     }
@@ -408,8 +483,8 @@ const toggleFaceSetting = (field) => {
                                 SMS Providers
                             </h3>
                             <p class="mt-1 text-sm text-slate-500">
-                                Mark configured providers as available for emergency
-                                and parent SMS notifications.
+                                Mark configured providers as available for
+                                emergency and parent SMS notifications.
                             </p>
                         </div>
 
@@ -417,6 +492,7 @@ const toggleFaceSetting = (field) => {
                             <div
                                 v-for="provider in smsProviderDefinitions"
                                 :key="provider.key"
+                                :data-testid="'sms-provider-' + provider.key"
                                 class="rounded-md border border-slate-200 bg-white p-3"
                             >
                                 <div
@@ -445,6 +521,7 @@ const toggleFaceSetting = (field) => {
                                         </span>
                                     </label>
                                     <button
+                                        v-if="provider.key !== 'philsms'"
                                         type="button"
                                         :disabled="
                                             smsCheckState[provider.key].loading
@@ -458,6 +535,141 @@ const toggleFaceSetting = (field) => {
                                                 : 'Check'
                                         }}
                                     </button>
+                                </div>
+                                <div class="mt-3 grid gap-3">
+                                    <label class="text-sm font-semibold">
+                                        API token / key
+                                        <input
+                                            v-model="
+                                                form.sms_credentials[
+                                                    provider.key
+                                                ].token
+                                            "
+                                            type="password"
+                                            autocomplete="new-password"
+                                            :placeholder="
+                                                props.smsSettings.credentials?.[
+                                                    provider.key
+                                                ]?.configured
+                                                    ? 'Configured — leave blank to keep'
+                                                    : 'Enter API token or key'
+                                            "
+                                            class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2"
+                                        />
+                                        <span
+                                            v-if="
+                                                form.errors[
+                                                    'sms_credentials.' +
+                                                        provider.key +
+                                                        '.token'
+                                                ]
+                                            "
+                                            class="text-xs text-red-600"
+                                            >{{
+                                                form.errors[
+                                                    'sms_credentials.' +
+                                                        provider.key +
+                                                        '.token'
+                                                ]
+                                            }}</span
+                                        >
+                                    </label>
+                                    <label
+                                        v-if="provider.key !== 'iprog'"
+                                        class="text-sm font-semibold"
+                                    >
+                                        Sender ID / name
+                                        <input
+                                            v-model="
+                                                form.sms_credentials[
+                                                    provider.key
+                                                ].sender_id
+                                            "
+                                            maxlength="11"
+                                            class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2"
+                                        />
+                                        <span
+                                            v-if="
+                                                form.errors[
+                                                    'sms_credentials.' +
+                                                        provider.key +
+                                                        '.sender_id'
+                                                ]
+                                            "
+                                            class="text-xs text-red-600"
+                                            >{{
+                                                form.errors[
+                                                    'sms_credentials.' +
+                                                        provider.key +
+                                                        '.sender_id'
+                                                ]
+                                            }}</span
+                                        >
+                                    </label>
+                                    <div class="rounded-md bg-slate-50 p-3">
+                                        <h4 class="text-sm font-bold">
+                                            Send Test SMS
+                                        </h4>
+                                        <label class="mt-2 block text-sm"
+                                            >Test phone number
+                                            <input
+                                                v-model="
+                                                    smsTestState[provider.key]
+                                                        .phone
+                                                "
+                                                type="tel"
+                                                placeholder="09XXXXXXXXX"
+                                                class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2"
+                                            />
+                                        </label>
+                                        <label class="mt-2 block text-sm"
+                                            >Test message (optional)
+                                            <textarea
+                                                v-model="
+                                                    smsTestState[provider.key]
+                                                        .message
+                                                "
+                                                maxlength="1000"
+                                                placeholder="Leave blank for the default test message"
+                                                class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2"
+                                            />
+                                        </label>
+                                        <button
+                                            type="button"
+                                            :disabled="
+                                                smsTestState[provider.key]
+                                                    .loading
+                                            "
+                                            class="mt-2 rounded-md bg-brand px-3 py-2 text-sm font-bold text-white disabled:opacity-50"
+                                            @click="sendTestSms(provider.key)"
+                                        >
+                                            {{
+                                                smsTestState[provider.key]
+                                                    .loading
+                                                    ? 'Sending…'
+                                                    : 'Send Test SMS'
+                                            }}
+                                        </button>
+                                        <p
+                                            v-if="
+                                                smsTestState[provider.key]
+                                                    .feedback
+                                            "
+                                            class="mt-2 text-sm"
+                                            :class="
+                                                smsTestState[provider.key]
+                                                    .success
+                                                    ? 'text-emerald-700'
+                                                    : 'text-red-700'
+                                            "
+                                            role="status"
+                                        >
+                                            {{
+                                                smsTestState[provider.key]
+                                                    .feedback
+                                            }}
+                                        </p>
+                                    </div>
                                 </div>
                                 <p
                                     v-if="
@@ -506,10 +718,7 @@ const toggleFaceSetting = (field) => {
                             SMS is disabled because no provider is marked
                             available.
                         </p>
-                        <p
-                            v-else
-                            class="mt-3 text-xs text-slate-500"
-                        >
+                        <p v-else class="mt-3 text-xs text-slate-500">
                             The available provider will be used automatically.
                         </p>
                         <p

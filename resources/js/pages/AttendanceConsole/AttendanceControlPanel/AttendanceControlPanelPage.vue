@@ -1518,7 +1518,17 @@ const processBorrowerMode = (student) => {
 
 // @function triggerEmergencyCall: Kinukuha ang trigger emergency call result para sa Attendance Control Panel.
 // @useIn triggerEmergencyCall: resources/js/pages/AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage.vue:1905
-const triggerEmergencyCall = async (
+const emergencySending = ref(false);
+const triggerEmergencyCall = async (...args) => {
+    if (emergencySending.value) return;
+    emergencySending.value = true;
+    try {
+        await performEmergencyCall(...args);
+    } finally {
+        emergencySending.value = false;
+    }
+};
+const performEmergencyCall = async (
     selectedType = null,
     selectedHotline = null,
 ) => {
@@ -1847,6 +1857,13 @@ const triggerEmergencyCall = async (
 
     if (confirmationResult.dismiss !== Swal.DismissReason.timer) return;
 
+    Swal.fire({
+        title: 'Sending emergency text…',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        didOpen: () => Swal.showLoading(),
+    });
     let alertResult = null;
     try {
         const xsrfRaw = document.cookie
@@ -1904,6 +1921,7 @@ const triggerEmergencyCall = async (
         }
         alertResult = await response.json();
     } catch {
+        Swal.close();
         showToast('error', 'Emergency alert could not be saved');
         return;
     }
@@ -1917,13 +1935,12 @@ const triggerEmergencyCall = async (
         emergency_hotline: emergencyHotline?.name ?? null,
         emergency_called_at: new Date().toISOString(),
     });
+    const summary = alertResult?.sms_summary ?? { succeeded: 0, failed: 0 };
     const smsStatus = alertResult?.duplicate
         ? 'Duplicate alert suppressed; the existing open alert remains active.'
-        : alertResult?.sms?.sent
-          ? 'Hotline SMS: sent successfully.'
-          : emergencyHotline
-            ? `Hotline SMS: not sent (${String(alertResult?.sms?.reason ?? 'unavailable').replaceAll('_', ' ')}).`
-            : 'Hotline SMS: not attempted because no hotline was selected.';
+        : summary.succeeded > 0
+          ? `Emergency text sent: ${summary.succeeded} succeeded, ${summary.failed} failed`
+          : `Emergency text failed: 0 sent, ${summary.failed} failed`;
     const parentNotifications = alertResult?.parent_notifications;
     const parentStatus = parentNotifications?.students_found
         ? `Parent notifications: ${parentNotifications.email_sent ?? 0} email(s) and ${parentNotifications.sms_sent ?? 0} SMS sent to ${parentNotifications.parents_found ?? 0} linked parent(s).`

@@ -5,13 +5,19 @@ namespace App\Http\Controllers\Shared\SystemSettings;
 use App\Models\ActivityLog;
 use App\Models\SystemSetting;
 use App\Services\AwsFaceRecognitionService;
+use App\Services\PhilSmsService;
+use App\Services\SmsActivityLogger;
+use App\Services\SmsProviderRegistry;
 use App\Services\SmsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 // Used by roles: Admin for system settings; Admin and Clinic for emergency-sound access.
@@ -80,8 +86,35 @@ class SystemSettingsController
             'security_questions.*' => ['required_with:security_questions', 'string', 'min:8', 'max:255', 'distinct'],
             'sms_semaphore_available' => ['sometimes', 'boolean'],
             'sms_iprog_available' => ['sometimes', 'boolean'],
-            'sms_primary_provider' => ['nullable', 'string', 'in:semaphore,iprog'],
+            'sms_primary_provider' => ['nullable', 'string', 'in:semaphore,iprog,philsms'],
+            'sms_philsms_available' => ['sometimes', 'boolean'],
+            'sms_credentials' => ['sometimes', 'array:semaphore,iprog,philsms'],
+            'sms_credentials.*' => ['array:token,sender_id'],
+            'sms_credentials.*.token' => ['nullable', 'string', 'max:2000'],
+            'sms_credentials.*.sender_id' => ['nullable', 'string', 'max:11'],
         ]);
+
+        $oldPrimary = SystemSetting::smsProviderSettings()['primary'];
+        $oldPhil = SystemSetting::smsCredentials('philsms');
+        $hadPhilConfig = SystemSetting::query()->whereIn('key', [
+            'sms.philsms.token', 'sms.philsms.sender_id', SystemSetting::SMS_PHILSMS_AVAILABLE,
+        ])->exists();
+        $philInput = $validated['sms_credentials']['philsms'] ?? [];
+        $philToken = trim((string) ($philInput['token'] ?? '')) ?: $oldPhil['token'];
+        $philSender = array_key_exists('sender_id', $philInput) ? trim((string) $philInput['sender_id']) : $oldPhil['sender_id'];
+        $philAvailable = (bool) ($validated['sms_philsms_available'] ?? SystemSetting::boolean(SystemSetting::SMS_PHILSMS_AVAILABLE, false));
+        if ($philAvailable || ($validated['sms_primary_provider'] ?? null) === 'philsms') {
+            $errors = [];
+            if ($philToken === '') {
+                $errors['sms_credentials.philsms.token'] = 'An API token is required.';
+            }
+            if ($philSender === '') {
+                $errors['sms_credentials.philsms.sender_id'] = 'A sender ID is required.';
+            }
+            if ($errors) {
+                throw ValidationException::withMessages($errors);
+            }
+        }
 
         $faceAvailability = (new AwsFaceRecognitionService)->availability();
         if (! $faceAvailability['available'] && ((bool) $validated['face_recognition_enabled'] || (bool) $validated['online_class_face_recognition_default'])) {
@@ -142,6 +175,7 @@ class SystemSettingsController
         $availableSmsProviders = collect([
             'semaphore' => $smsSemaphoreAvailable,
             'iprog' => $smsIprogAvailable,
+            'philsms' => $philAvailable,
         ])->filter()->keys();
         $smsPrimary = in_array($requestedSmsPrimary, $availableSmsProviders->all(), true)
             ? $requestedSmsPrimary
@@ -150,6 +184,26 @@ class SystemSettingsController
         SystemSetting::setBoolean(SystemSetting::SMS_SEMAPHORE_AVAILABLE, $smsSemaphoreAvailable);
         SystemSetting::setBoolean(SystemSetting::SMS_IPROG_AVAILABLE, $smsIprogAvailable);
         SystemSetting::setString(SystemSetting::SMS_PRIMARY_PROVIDER, (string) ($smsPrimary ?? ''));
+        $oldPhilAvailable = SystemSetting::boolean(SystemSetting::SMS_PHILSMS_AVAILABLE, false);
+        SystemSetting::setBoolean(SystemSetting::SMS_PHILSMS_AVAILABLE, $philAvailable);
+        foreach ($validated['sms_credentials'] ?? [] as $name => $credentials) {
+            $token = trim((string) ($credentials['token'] ?? ''));
+            if ($token !== '') {
+                SystemSetting::setString('sms.'.$name.'.token', Crypt::encryptString($token));
+            }
+            if (array_key_exists('sender_id', $credentials)) {
+                SystemSetting::setString('sms.'.$name.'.sender_id', trim((string) $credentials['sender_id']));
+            }
+        }
+        if (! $hadPhilConfig || $oldPhil !== SystemSetting::smsCredentials('philsms') || $oldPhilAvailable !== $philAvailable) {
+            SmsActivityLogger::record($request, $hadPhilConfig ? 'sms_config_updated' : 'sms_config_created', [
+                'provider' => 'philsms', 'enabled' => $philAvailable,
+                'credentials_changed' => $oldPhil !== SystemSetting::smsCredentials('philsms'),
+            ]);
+        }
+        if ($oldPrimary !== $smsPrimary) {
+            SmsActivityLogger::record($request, 'sms_provider_changed', ['old_provider' => $oldPrimary, 'new_provider' => $smsPrimary]);
+        }
 
         ActivityLog::query()->create([
             'user_id' => Auth::id(),
@@ -159,6 +213,55 @@ class SystemSettingsController
         ]);
 
         return back()->with('success', $warning ?? 'System settings updated.');
+    }
+
+    public function testSmsProvider(Request $request, string $provider, SmsProviderRegistry $providers): JsonResponse
+    {
+        abort_unless(in_array($provider, SystemSetting::SMS_PROVIDER_NAMES, true), 404);
+        $validator = Validator::make($request->all(), [
+            'phone' => ['required', 'string', 'max:30'],
+            'message' => ['nullable', 'string', 'max:1000'],
+            'token' => ['nullable', 'string', 'max:2000'],
+            'sender_id' => ['nullable', 'string', 'max:11'],
+        ]);
+        $number = is_string($request->input('phone')) ? PhilSmsService::normalizeNumber($request->input('phone')) : '';
+        $credentials = SystemSetting::smsCredentials($provider);
+        if (is_string($request->input('token')) && trim($request->input('token')) !== '') {
+            $credentials['token'] = trim($request->input('token'));
+        }
+        if ($request->exists('sender_id') && ($request->input('sender_id') === null || is_string($request->input('sender_id')))) {
+            $credentials['sender_id'] = trim((string) $request->input('sender_id'));
+        }
+        $errors = $validator->errors()->toArray();
+        if ($number === '') {
+            $errors['phone'] = ['Enter a valid Philippine mobile number.'];
+        }
+        if ($credentials['token'] === '') {
+            $errors['token'] = ['An API token is required.'];
+        }
+        if ($provider === 'philsms' && $credentials['sender_id'] === '') {
+            $errors['sender_id'] = ['A sender ID is required.'];
+        }
+        if ($errors) {
+            SmsActivityLogger::record($request, 'sms_test_failed', ['provider' => $provider, 'recipient' => $number ? substr($number, 0, 3).'*****'.substr($number, -4) : 'invalid', 'reason' => 'validation_failed'], false);
+
+            return response()->json(['success' => false, 'message' => 'Test SMS failed: '.collect($errors)->flatten()->first(), 'errors' => $errors], 422);
+        }
+        $message = trim((string) $request->input('message')) ?: 'Test message from '.config('app.name').'. Your SMS setup is working.';
+        try {
+            $result = $providers->get($provider, $credentials)->send($number, $message);
+        } catch (\Throwable $exception) {
+            Log::warning('Test SMS request failed.', ['provider' => $provider, 'exception' => $exception::class]);
+            $result = ['sent' => false, 'reason' => 'request_failed'];
+        }
+        $sent = (bool) ($result['sent'] ?? false);
+        $reason = $result['reason'] ?? 'provider_rejected';
+        SmsActivityLogger::record($request, $sent ? 'sms_test_sent' : 'sms_test_failed', [
+            'provider' => $provider, 'recipient' => substr($number, 0, 3).'*****'.substr($number, -4),
+            'success' => $sent, 'reason' => $sent ? null : $reason,
+        ], $sent);
+
+        return response()->json(['success' => $sent, 'message' => $sent ? 'Test SMS sent successfully' : 'Test SMS failed: '.str_replace('_', ' ', $reason)]);
     }
 
     // @function checkSmsProvider: Sini-check ang sms provider sa System Settings flow.
@@ -178,7 +281,7 @@ class SystemSettingsController
             Log::warning('SMS provider check failed unexpectedly.', [
                 'provider' => $provider,
                 'user_id' => Auth::id(),
-                'message' => $exception->getMessage(),
+                'exception' => $exception::class,
             ]);
 
             return response()->json([

@@ -1,4 +1,5 @@
 <?php
+
 // File purpose: Emergency alerts, hotline setup, at Clinic dispatch para sa Console at Clinic.
 
 namespace App\Http\Controllers\Shared\Emergency;
@@ -13,8 +14,9 @@ use App\Models\Students;
 use App\Models\User;
 use App\Notifications\ClinicDispatchAssigned;
 use App\Notifications\EmergencyParentAlert;
-use App\Services\SmsService;
 use App\Services\ClinicCaseAlertService;
+use App\Services\SmsActivityLogger;
+use App\Services\SmsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -97,8 +99,20 @@ class EmergencyController
             'Emergency alert '.$alert->emergency_alert_id.' triggered from attendance panel for '.$type->name.'.',
         );
 
+        $sms->resetDeliveryResults();
         $smsResult = $this->sendHotlineSms($validated['metadata'] ?? [], $alert, $sms);
         $parentResult = $this->notifyParents($alert, $validated['metadata'] ?? [], $sms);
+        $summary = $sms->deliverySummary(count(array_filter($parentResult['failures'], fn ($reason) => $reason === 'missing_parent_phone')));
+        if ($summary['total_recipients'] === 0) {
+            $summary['reasons'] = [$smsResult['reason'] ?? 'no_recipients'];
+        }
+        SmsActivityLogger::record($request, $summary['failed'] > 0 || $summary['succeeded'] === 0 ? 'emergency_text_failed' : 'emergency_text_sent', [
+            ...$summary, 'alert_id' => $alert->emergency_alert_id,
+            'schedule_id' => $alert->schedule_id,
+            'section_ids' => $parentResult['section_ids'] ?? [],
+            'scope' => ($validated['metadata']['emergency_scope'] ?? null) === 'all' ? 'all' : 'specific_students',
+            'message_length' => mb_strlen($alert->message),
+        ], $summary['failed'] === 0 && $summary['succeeded'] > 0);
 
         $alert->update([
             'metadata' => array_merge($alert->metadata ?? [], [
@@ -116,6 +130,7 @@ class EmergencyController
             'ok' => true,
             'alert' => $alert->load('type'),
             'sms' => $smsResult,
+            'sms_summary' => collect($summary)->only(['total_recipients', 'succeeded', 'failed'])->all(),
             'parent_notifications' => $parentResult,
         ]);
     }
@@ -517,6 +532,7 @@ class EmergencyController
 
         $result = [
             'students_found' => $students->count(),
+            'section_ids' => $students->pluck('section_id')->filter()->unique()->values()->all(),
             'parents_found' => 0,
             'email_sent' => 0,
             'sms_sent' => 0,
@@ -569,11 +585,19 @@ class EmergencyController
     // @useIn logActivity: EmergencyController::storeAlert (app/Http/Controllers/Shared/Emergency/EmergencyController.php)
     private function logActivity(Request $request, string $action, string $tableName, string $description): void
     {
-        ActivityLog::query()->create([
-            'user_id' => $request->user()?->user_id ?? Auth::id(),
-            'action' => $action,
-            'table_name' => $tableName,
-            'description' => $description,
-        ]);
+        try {
+            ActivityLog::query()->create([
+                'user_id' => $request->user()?->user_id ?? Auth::id(),
+                'action' => $action,
+                'table_name' => $tableName,
+                'description' => $description,
+            ]);
+        } catch (\Throwable $exception) {
+            try {
+                report($exception);
+            } catch (\Throwable) {
+                // Audit failure must not prevent the emergency send.
+            }
+        }
     }
 }

@@ -60,7 +60,9 @@ class SystemSetting extends Model
 
     public const DEFAULT_CLINIC_EMERGENCY_SOUND_ID = 'default';
 
-    public const SMS_PROVIDER_NAMES = ['semaphore', 'iprog'];
+    public const SMS_PROVIDER_NAMES = ['semaphore', 'iprog', 'philsms'];
+
+    public const SMS_PHILSMS_AVAILABLE = 'sms.philsms_available';
 
     public const DEFAULT_SECURITY_QUESTIONS = [
         'What was the name of your first school?',
@@ -92,6 +94,20 @@ class SystemSetting extends Model
         ];
     }
 
+    // Credentials stay server-side; saved tokens are encrypted using the application key.
+    public static function smsCredentials(string $provider): array
+    {
+        $encrypted = static::string('sms.'.$provider.'.token', '');
+        $token = $encrypted !== ''
+            ? \Illuminate\Support\Facades\Crypt::decryptString($encrypted)
+            : (string) config('services.'.$provider.($provider === 'semaphore' ? '.key' : '.token'), '');
+
+        return [
+            'token' => trim($token),
+            'sender_id' => static::string('sms.'.$provider.'.sender_id', (string) config('services.'.$provider.($provider === 'semaphore' ? '.sender_name' : '.sender_id'), '')),
+        ];
+    }
+
     // @function smsProviderSettings: Kinukuha ang sms provider settings result para sa System Setting.
     // @useIn smsProviderSettings: app/Services/SmsService.php
     public static function smsProviderSettings(): array
@@ -99,6 +115,7 @@ class SystemSetting extends Model
         $availability = [
             'semaphore' => static::boolean(static::SMS_SEMAPHORE_AVAILABLE, false),
             'iprog' => static::boolean(static::SMS_IPROG_AVAILABLE, false),
+            'philsms' => static::boolean(static::SMS_PHILSMS_AVAILABLE, false),
         ];
         $savedPrimary = static::string(static::SMS_PRIMARY_PROVIDER, '');
         $primary = in_array($savedPrimary, static::SMS_PROVIDER_NAMES, true)
@@ -119,7 +136,12 @@ class SystemSetting extends Model
                     'label' => 'IPROG SMS',
                     'available' => $availability['iprog'],
                 ],
+                'philsms' => ['label' => 'PhilSMS', 'available' => $availability['philsms']],
             ],
+            'credentials' => collect(static::SMS_PROVIDER_NAMES)->mapWithKeys(fn ($name) => [$name => [
+                'configured' => static::smsCredentials($name)['token'] !== '',
+                'sender_id' => static::smsCredentials($name)['sender_id'],
+            ]])->all(),
             'primary' => $primary,
         ];
     }
