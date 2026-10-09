@@ -107,7 +107,7 @@ class StudentsController
                 ->value('instructor_id');
 
             $handledSectionIds = Section::query()
-                ->wherehas('schedules', fn ($scheduleQuery) => $scheduleQuery->where('instructor_id', $instructorId ?: 0))
+                ->whereHas('schedules', fn ($scheduleQuery) => $scheduleQuery->where('instructor_id', $instructorId ?: 0))
                 ->pluck('section_id');
         }
 
@@ -115,13 +115,13 @@ class StudentsController
             'section',
             'strand',
             'parentUsers',
-            'enrollments.academicYear',
-            'enrollments.section',
-            'enrollments.strand',
+            'enrollment.academicYear',
+            'enrollment.section',
+            'enrollment.strand',
         ]);
 
         if ($selectedAcademicYear) {
-            $query->whereHas('enrollments', fn ($enrollment) => $enrollment->where('academic_year_id', $selectedAcademicYear->academic_year_id)->when($filters['semester'] !== '', fn ($term) => $term->where('semester', $filters['semester'])));
+            $query->whereHas('enrollment', fn ($enrollment) => $enrollment->where('academic_year_id', $selectedAcademicYear->academic_year_id)->when($filters['semester'] !== '', fn ($term) => $term->where('semester', $filters['semester'])));
         }
 
         if ($isInstructor) {
