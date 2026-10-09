@@ -115,13 +115,13 @@ class StudentsController
             'section',
             'strand',
             'parentUsers',
-            'enrollment.academicYear',
-            'enrollment.section',
-            'enrollment.strand',
+            'enrollments.academicYear',
+            'enrollments.section',
+            'enrollments.strand',
         ]);
 
         if ($selectedAcademicYear) {
-            $query->whereHas('enrollment', fn ($enrollment) => $enrollment->where('academic_year_id', $selectedAcademicYear->academic_year_id)->when($filters['semester'] !== '', fn ($term) => $term->where('semester', $filters['semester'])));
+            $query->whereHas('enrollments', fn ($enrollment) => $enrollment->where('academic_year_id', $selectedAcademicYear->academic_year_id)->when($filters['semester'] !== '', fn ($term) => $term->where('semester', $filters['semester'])));
         }
 
         if ($isInstructor) {
