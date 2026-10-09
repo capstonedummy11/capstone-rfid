@@ -162,6 +162,7 @@ Panel PIN behavior:
 - `sections.academic_year_id` links each migrated/new section to its academic year. Section names are unique within an academic year and semester, allowing the same name to be reused in another year.
 - `subjects.section_id` links subjects to sections.
 - `subject_offerings.subject_id` links an offering to its reusable catalog subject.
+- Archiving a subject sets `subjects.deleted_at` without deleting `subject_offerings`, schedules, or attendance. Active catalog/selection queries exclude archived subjects; historical offering, schedule, online-class, and attendance relationships can still load the archived subject. A current-year schedule blocks archiving until removed; historical schedules do not.
 - `subject_offerings.academic_year_id`, `section_id`, and `instructor_id` preserve the year-specific class assignment.
 - `schedules.section_id` links schedules to sections.
 - `schedules.academic_year_id` and `schedules.subject_offering_id` preserve the schedule's year, semester, subject, section, and instructor context.

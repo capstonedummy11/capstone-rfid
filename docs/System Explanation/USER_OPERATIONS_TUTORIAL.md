@@ -164,6 +164,10 @@ The Section and Instructor fields support autosuggestion. Click the field and ty
 
 An instructor belongs to a specific subject offering (academic year, semester, and section), not to the reusable subject record. Open **Edit** to see each offering's instructor and use **Assign Instructor**, **Change Instructor**, or **Remove Instructor** for a writable offering. These actions update the offering, its linked schedules, and online classes that have not ended in one transaction. Removing an instructor does not delete the instructor account, schedule, or class. An upcoming online class without an instructor cannot be joined and does not generate automatic absences. Completed classes keep their original instructor attribution, but only the schedule's current instructor can see them and their attendance history in the Instructor workspace; Admins retain access. A stored assignment whose account is unavailable appears as **Instructor unavailable** and can be replaced or removed. Closed and archived offerings are locked. The instructor-sync migration also repairs existing mismatches in draft and active academic years; completed class attribution is preserved.
 
+Use **Archive Subject** when a catalog subject should no longer be used. Remove any schedule in a draft or active academic year first; an offering by itself does not block archiving. The subject is soft-deleted, not erased: its offerings and historical records stay in the database. Use the read-only **Archived** tab on Subjects to review it. Archived subjects cannot be edited, offered again, or chosen for new schedules; historical schedules and online classes can still show their subject name. No migration is needed for this action because Subjects already have a `deleted_at` column.
+
+Use the calendar icon in a subject's Actions column to view that subject's recorded schedules. The read-only modal lists each offering's section, academic year, semester, weekdays, time, and room; it is also available in the Archived tab for historical review. To change a schedule, use the Schedules page.
+
 Examples:
 
 - CP101 - Computer Programming

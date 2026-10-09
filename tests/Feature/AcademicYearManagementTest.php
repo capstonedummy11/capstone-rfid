@@ -476,10 +476,10 @@ test('closed year subject offerings are locked and protect the catalog', functio
         ->assertSessionHasErrors('offering');
     $this->actingAs($admin)
         ->delete(route('admin.subjects.destroy', $subject->subject_id))
-        ->assertSessionHasErrors('subject');
+        ->assertSessionHas('success');
 
     $this->assertDatabaseHas('subject_offerings', ['subject_offering_id' => $offering->subject_offering_id]);
-    $this->assertDatabaseHas('subjects', ['subject_id' => $subject->subject_id]);
+    $this->assertSoftDeleted('subjects', ['subject_id' => $subject->subject_id]);
 });
 
 test('schedule derives academic context from its selected subject offering', function () {

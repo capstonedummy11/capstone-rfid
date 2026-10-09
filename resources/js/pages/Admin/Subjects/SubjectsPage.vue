@@ -14,6 +14,7 @@
                         </p>
                     </div>
                     <button
+                        v-if="view === 'active'"
                         @click="openAddModal"
                         class="rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
                     >
@@ -23,6 +24,40 @@
             </section>
 
             <section class="mb-6 rounded-lg bg-white p-6 shadow-lg">
+                <div
+                    class="mb-4 flex gap-4 border-b border-slate-200"
+                    role="tablist"
+                    aria-label="Subject records"
+                >
+                    <button
+                        type="button"
+                        role="tab"
+                        :aria-selected="view === 'active'"
+                        :class="
+                            view === 'active'
+                                ? 'border-blue-600 text-blue-700'
+                                : 'border-transparent text-slate-600'
+                        "
+                        class="border-b-2 px-2 py-2 text-sm font-semibold"
+                        @click="setView('active')"
+                    >
+                        Active
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        :aria-selected="view === 'archived'"
+                        :class="
+                            view === 'archived'
+                                ? 'border-blue-600 text-blue-700'
+                                : 'border-transparent text-slate-600'
+                        "
+                        class="border-b-2 px-2 py-2 text-sm font-semibold"
+                        @click="setView('archived')"
+                    >
+                        Archived
+                    </button>
+                </div>
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
                     <div>
                         <label
@@ -131,7 +166,11 @@
                                 <th
                                     class="border border-gray-300 px-4 py-3 text-left"
                                 >
-                                    Actions
+                                    {{
+                                        view === 'archived'
+                                            ? 'Archived On'
+                                            : 'Actions'
+                                    }}
                                 </th>
                             </tr>
                         </thead>
@@ -204,24 +243,50 @@
                                 <td class="border border-gray-300 px-4 py-3">
                                     <div class="flex items-center gap-2">
                                         <button
-                                            @click="openEditModal(subject)"
-                                            class="rounded-md bg-indigo-600 px-3 py-1 text-sm text-white hover:bg-indigo-700"
+                                            type="button"
+                                            :aria-label="`View schedule for ${subject.subject_code}`"
+                                            :title="`View schedule for ${subject.subject_code}`"
+                                            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-slate-300 text-slate-700 hover:bg-slate-100"
+                                            @click="
+                                                selectedScheduleSubject =
+                                                    subject
+                                            "
                                         >
-                                            Edit
+                                            <CalendarDays
+                                                :size="18"
+                                                aria-hidden="true"
+                                            />
                                         </button>
-                                        <button
-                                            @click="openOfferingModal(subject)"
-                                            class="rounded-md bg-sky-600 px-3 py-1 text-sm text-white hover:bg-sky-700"
+                                        <template v-if="view === 'active'">
+                                            <button
+                                                @click="openEditModal(subject)"
+                                                class="rounded-md bg-indigo-600 px-3 py-1 text-sm text-white hover:bg-indigo-700"
+                                            >
+                                                Edit
+                                            </button>
+                                            <button
+                                                @click="
+                                                    openOfferingModal(subject)
+                                                "
+                                                class="rounded-md bg-sky-600 px-3 py-1 text-sm text-white hover:bg-sky-700"
+                                            >
+                                                Add Offering
+                                            </button>
+                                            <button
+                                                data-testid="delete-subject"
+                                                @click="deleteSubject(subject)"
+                                                class="rounded-md bg-rose-500 px-3 py-1 text-sm text-white hover:bg-rose-600"
+                                            >
+                                                Archive Subject
+                                            </button>
+                                        </template>
+                                        <span
+                                            v-else
+                                            class="text-sm text-slate-600"
+                                            >{{
+                                                subject.deleted_at || 'Archived'
+                                            }}</span
                                         >
-                                            Add Offering
-                                        </button>
-                                        <button
-                                            data-testid="delete-subject"
-                                            @click="deleteSubject(subject)"
-                                            class="rounded-md bg-rose-500 px-3 py-1 text-sm text-white hover:bg-rose-600"
-                                        >
-                                            Delete Subject
-                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -232,10 +297,82 @@
                         v-if="props.subjects.length === 0"
                         class="py-8 text-center text-gray-500"
                     >
-                        No subject records found.
+                        No
+                        {{ view === 'archived' ? 'archived' : 'active' }}
+                        subjects found.
                     </div>
                 </div>
             </section>
+
+            <div
+                v-if="selectedScheduleSubject"
+                class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+                @click.self="selectedScheduleSubject = null"
+            >
+                <div
+                    class="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 shadow-lg"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="subject-schedule-title"
+                >
+                    <div
+                        class="flex items-start justify-between gap-4 border-b border-slate-200 pb-4"
+                    >
+                        <div>
+                            <h2
+                                id="subject-schedule-title"
+                                class="text-xl font-semibold text-slate-900"
+                            >
+                                {{ selectedScheduleSubject.subject_code }}
+                                Schedule
+                            </h2>
+                            <p class="text-sm text-slate-600">
+                                {{ selectedScheduleSubject.subject_name }}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            aria-label="Close schedule"
+                            title="Close schedule"
+                            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100"
+                            @click="selectedScheduleSubject = null"
+                        >
+                            <X :size="20" aria-hidden="true" />
+                        </button>
+                    </div>
+                    <div
+                        v-if="selectedScheduleRows.length"
+                        class="divide-y divide-slate-200"
+                    >
+                        <div
+                            v-for="row in selectedScheduleRows"
+                            :key="row.scheduled_id"
+                            class="grid gap-2 py-4 text-sm md:grid-cols-[minmax(0,1fr)_auto] md:items-center"
+                        >
+                            <div class="min-w-0">
+                                <p class="font-semibold text-slate-900">
+                                    {{ row.section_name }}
+                                    <span class="font-normal text-slate-500"
+                                        >{{ row.academic_year }} ·
+                                        {{ row.semester }}</span
+                                    >
+                                </p>
+                                <p class="mt-1 text-slate-700">
+                                    {{ row.weekdays }} · {{ row.time_start }}–{{
+                                        row.time_end
+                                    }}
+                                </p>
+                            </div>
+                            <p class="text-slate-600 md:text-right">
+                                {{ row.room || 'Room not set' }}
+                            </p>
+                        </div>
+                    </div>
+                    <p v-else class="py-8 text-center text-sm text-slate-500">
+                        No schedules recorded for this subject.
+                    </p>
+                </div>
+            </div>
 
             <div
                 v-if="showModal"
@@ -734,12 +871,14 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
+import { CalendarDays, X } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
 import SearchableSelect from '@/components/SearchableSelect.vue';
 import { confirmActionModal, showAlertModal } from '@/lib/feedbackModal';
 
 interface Subject {
     subject_id: string | number;
+    deleted_at: string | null;
     section_id: string | number | null;
     section_name: string | null;
     user_id: string | number | null;
@@ -762,6 +901,15 @@ interface SubjectOffering {
     instructor_id: string | number | null;
     instructor_name: string | null;
     is_writable: boolean;
+    schedules: SubjectSchedule[];
+}
+
+interface SubjectSchedule {
+    scheduled_id: number;
+    weekdays: string;
+    time_start: string;
+    time_end: string;
+    room: string | null;
 }
 
 interface SectionOption {
@@ -815,6 +963,18 @@ const props = defineProps({
 const search = ref(props.filters.search ?? '');
 const selectedSemester = ref(props.filters.semester ?? '');
 const selectedAcademicYear = ref(props.filters.academic_year_id ?? '');
+const view = ref(props.filters.view === 'archived' ? 'archived' : 'active');
+const selectedScheduleSubject = ref<Subject | null>(null);
+const selectedScheduleRows = computed(() =>
+    (selectedScheduleSubject.value?.offerings ?? []).flatMap((offering) =>
+        (offering.schedules ?? []).map((schedule) => ({
+            ...schedule,
+            academic_year: offering.academic_year,
+            semester: offering.semester,
+            section_name: offering.section_name,
+        })),
+    ),
+);
 const showModal = ref(false);
 const isEditing = ref(false);
 const selectedSubject = ref<Subject | null>(null);
@@ -1005,6 +1165,7 @@ const onFilterChange = () => {
             search: search.value,
             semester: selectedSemester.value,
             academic_year_id: selectedAcademicYear.value,
+            view: view.value,
         },
         {
             preserveState: true,
@@ -1014,16 +1175,29 @@ const onFilterChange = () => {
     );
 };
 
+const setView = (nextView: 'active' | 'archived') => {
+    view.value = nextView;
+    selectedSemester.value = '';
+    selectedAcademicYear.value =
+        nextView === 'archived'
+            ? 'all'
+            : (props.academicYears.find((year) => year.status === 'active')
+                  ?.academic_year_id ?? 'all');
+    onFilterChange();
+};
+
 // @function resetFilters: Nire-reset ang filters sa Subjects flow.
 // @useIn resetFilters: resources/js/pages/Admin/Subjects/SubjectsPage.vue template @click
 const resetFilters = () => {
     search.value = '';
     selectedSemester.value = '';
     selectedAcademicYear.value =
-        props.academicYears.find((year) => year.status === 'active')
-            ?.academic_year_id ??
-        props.academicYears[0]?.academic_year_id ??
-        '';
+        view.value === 'archived'
+            ? 'all'
+            : (props.academicYears.find((year) => year.status === 'active')
+                  ?.academic_year_id ??
+              props.academicYears[0]?.academic_year_id ??
+              '');
     onFilterChange();
 };
 
@@ -1226,8 +1400,8 @@ const submitForm = () => {
 // @useIn deleteSubject: resources/js/pages/Admin/Subjects/SubjectsPage.vue template @click
 const deleteSubject = async (subject: Subject) => {
     const confirmed = await confirmActionModal({
-        title: 'Delete subject?',
-        text: `Are you sure you want to delete ${subject.subject_code}?`,
+        title: 'Archive subject?',
+        text: `${subject.subject_code} will leave active lists. Its offerings and attendance history will remain.`,
     });
 
     if (!confirmed) {
@@ -1242,9 +1416,9 @@ const deleteSubject = async (subject: Subject) => {
             onSuccess: () => router.reload({ only: ['subjects'] }),
             onError: (errors) =>
                 showAlertModal(
-                    'Subject not deleted',
+                    'Subject not archived',
                     Object.values(errors).join(' ') ||
-                        'The subject could not be deleted.',
+                        'The subject could not be archived.',
                     'error',
                 ),
         },

@@ -1,1 +1,0 @@
-import{x as t,c as o,e as s,o as a}from"./app-BPFPhERw.js";const c={},l={class:"mx-auto w-full max-w-md p-6"};function n(r,e){return a(),o("section",l,[...e[0]||(e[0]=[s("h1",{class:"text-xl font-semibold text-slate-900"}," Two-Factor Challenge ",-1)])])}const f=t(c,[["render",n]]);export{f as default};

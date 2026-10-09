@@ -206,7 +206,7 @@ test('section subject and student delete actions display server errors', functio
         ->and($subjects)
         ->toContain("route('admin.subjects.destroy', { id: subject.subject_id })")
         ->toContain('onError: (errors) =>')
-        ->toContain('Subject not deleted')
+        ->toContain('Subject not archived')
         ->and($students)
         ->toContain("route('admin.students.destroy', { id: student.student_id })")
         ->toContain('onError: (errors) =>')

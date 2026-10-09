@@ -28,20 +28,26 @@ class SubjectController
             'search' => trim((string) $request->input('search', '')),
             'semester' => trim((string) $request->input('semester', '')),
             'academic_year_id' => $request->input('academic_year_id'),
+            'view' => $request->input('view') === 'archived' ? 'archived' : 'active',
         ];
         $defaultYearId = AcademicYear::currentOrLatest()?->academic_year_id;
-        $yearId = $filters['academic_year_id'] === 'all' ? null : ($request->integer('academic_year_id') ?: $defaultYearId);
-        $filters['academic_year_id'] = $filters['academic_year_id'] === 'all' ? 'all' : $yearId;
+        $yearId = $filters['academic_year_id'] === 'all' || ($filters['view'] === 'archived' && ! $filters['academic_year_id'])
+            ? null : ($request->integer('academic_year_id') ?: $defaultYearId);
+        $filters['academic_year_id'] = $filters['academic_year_id'] === 'all' || ($filters['view'] === 'archived' && ! $yearId)
+            ? 'all' : $yearId;
         $selectedAcademicYear = $yearId ? AcademicYear::find($yearId) : null;
         if ($filters['semester'] === '' && $yearId) {
             $filters['semester'] = $selectedAcademicYear?->active_semester ?: '';
         }
         $offeringAcademicYearIds = $this->writableOfferingAcademicYearIds();
 
-        $query = Subject::query()->with(['section', 'user', 'offerings' => fn ($offerings) => $offerings
+        $query = Subject::query()
+            ->when($filters['view'] === 'archived', fn ($subjects) => $subjects->onlyTrashed())
+            ->with(['section', 'user', 'offerings' => fn ($offerings) => $offerings
             ->when($yearId, fn ($yearQuery) => $yearQuery->where('academic_year_id', $yearId))
             ->when($filters['semester'] !== '', fn ($termQuery) => $termQuery->where('semester', $filters['semester']))
-            ->with(['academicYear', 'section', 'instructor.user'])]);
+            ->with(['academicYear', 'section', 'instructor.user', 'schedules' => fn ($schedules) => $schedules
+                ->orderBy('weekdays')->orderBy('time_start')])]);
 
         if ($filters['search'] !== '') {
             $term = strtolower($filters['search']);
@@ -64,6 +70,7 @@ class SubjectController
             'title' => 'Subjects',
             'subjects' => $query->orderBy('subject_code')->get()->map(fn (Subject $subject) => [
                 'subject_id' => $subject->subject_id,
+                'deleted_at' => $subject->deleted_at?->toDateTimeString(),
                 'section_id' => $subject->section_id,
                 'section_name' => $subject->section?->section_name,
                 'user_id' => $subject->user_id,
@@ -87,6 +94,13 @@ class SubjectController
                         'instructor_name' => $offering->instructor?->user?->name,
                         'status' => $offering->status,
                         'is_writable' => $offering->isWritable(),
+                        'schedules' => $offering->schedules->map(fn ($schedule) => [
+                            'scheduled_id' => $schedule->scheduled_id,
+                            'weekdays' => $schedule->weekdays,
+                            'time_start' => substr((string) $schedule->time_start, 0, 5),
+                            'time_end' => substr((string) $schedule->time_end, 0, 5),
+                            'room' => $schedule->room,
+                        ])->values(),
                     ])->values(),
                 'has_locked_offerings' => $subject->offerings->contains(fn (SubjectOffering $offering) => ! $offering->isWritable()),
             ])->values(),
@@ -185,14 +199,22 @@ class SubjectController
     public function destroy(int $id)
     {
         $subject = Subject::findOrFail($id);
-        if ($subject->offerings()->exists() || $subject->schedules()->exists()) {
-            return back()->withErrors(['subject' => 'This subject has offering or schedule history and cannot be deleted.']);
+        $activeSchedule = DB::table('schedules')
+            ->whereIn('subject_offering_id', $subject->offerings()->select('subject_offering_id'))
+            ->whereIn('academic_year_id', AcademicYear::query()
+                ->whereIn('status', ['draft', 'active'])
+                ->select('academic_year_id'))
+            ->exists();
+        if ($activeSchedule) {
+            return back()->withErrors(['subject' => 'Remove current-year schedules before archiving this subject. Historical schedules may remain.']);
         }
         $code = $subject->subject_code;
-        $subject->delete();
-        $this->log('delete', 'subjects', 'Deleted subject '.$code);
+        DB::transaction(function () use ($subject, $code) {
+            $subject->delete();
+            $this->log('delete', 'subjects', 'Archived subject '.$code);
+        });
 
-        return back()->with('success', 'Subject deleted successfully.');
+        return back()->with('success', 'Subject archived. Its offerings and history remain available in historical records.');
     }
 
     // @function storeOffering: Sine-save ang offering sa Subject flow.

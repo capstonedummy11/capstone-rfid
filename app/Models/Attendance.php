@@ -68,7 +68,7 @@ class Attendance extends Model
     // @useIn subjectRecord: Eloquent relationship property at eager loading
     public function subjectRecord(): BelongsTo
     {
-        return $this->belongsTo(Subject::class, 'subject_id', 'subject_id');
+        return $this->belongsTo(Subject::class, 'subject_id', 'subject_id')->withTrashed();
     }
 
     // @function schedule: Ibinabalik ang schedule Eloquent belongsTo relationship.

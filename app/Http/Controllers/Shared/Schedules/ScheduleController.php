@@ -77,7 +77,7 @@ class ScheduleController
             $semester = AcademicYear::find($academicYearId)?->active_semester ?: '';
         }
 
-        $query = Schedule::query()->with(['laboratory', 'instructor.user', 'section', 'subject', 'academicYear', 'subjectOffering']);
+        $query = Schedule::query()->with(['laboratory', 'instructor.user', 'section', 'subject', 'academicYear', 'subjectOffering.subject']);
         $query->when($academicYearId, fn ($yearQuery) => $yearQuery->where('academic_year_id', $academicYearId));
         $query->when($semester !== '', fn ($termQuery) => $termQuery->where('semester', $semester));
 
@@ -109,7 +109,7 @@ class ScheduleController
                     'section_id' => $schedule->section_id,
                     'section_name' => $schedule->section?->section_name,
                     'subject_code' => $schedule->subject_code,
-                    'subject_name' => $schedule->subject?->subject_name,
+                    'subject_name' => $schedule->subjectOffering?->subject?->subject_name ?? $schedule->subject?->subject_name,
                     'weekdays' => $schedule->weekdays,
                     'time_start' => $schedule->time_start,
                     'time_end' => $schedule->time_end,
@@ -147,6 +147,7 @@ class ScheduleController
             'subjectOfferingOptions' => $isAdmin
                 ? SubjectOffering::query()
                     ->with(['academicYear', 'subject', 'section', 'instructor.user'])
+                    ->whereHas('subject', fn ($query) => $query->whereNull('subjects.deleted_at'))
                     ->whereHas('academicYear', fn ($query) => $query->whereIn('status', ['draft', 'active']))
                     ->when($defaultYearId, fn ($query) => $query->where('academic_year_id', $defaultYearId))
                     ->when($currentSemester, fn ($query) => $query->where('semester', $currentSemester))
@@ -300,7 +301,7 @@ class ScheduleController
             ->findOrFail($validated['subject_offering_id']);
         if (! $offering->isWritable()) {
             throw ValidationException::withMessages([
-                'subject_offering_id' => 'Schedules can only use offerings from a draft or active academic year.',
+                'subject_offering_id' => 'Schedules can only use active subjects in a draft or active academic year.',
             ]);
         }
         $this->assertCurrentAcademicContext($offering->academic_year_id, $offering->semester);

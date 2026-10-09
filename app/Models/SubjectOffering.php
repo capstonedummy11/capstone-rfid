@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SubjectOffering extends Model
 {
@@ -32,7 +33,7 @@ class SubjectOffering extends Model
     // @useIn subject: Eloquent relationship property at eager loading
     public function subject(): BelongsTo
     {
-        return $this->belongsTo(Subject::class, 'subject_id', 'subject_id');
+        return $this->belongsTo(Subject::class, 'subject_id', 'subject_id')->withTrashed();
     }
 
     // @function section: Ibinabalik ang section Eloquent belongsTo relationship.
@@ -49,10 +50,16 @@ class SubjectOffering extends Model
         return $this->belongsTo(Instructor::class, 'instructor_id', 'instructor_id')->withTrashed();
     }
 
+    public function schedules(): HasMany
+    {
+        return $this->hasMany(Schedule::class, 'subject_offering_id', 'subject_offering_id');
+    }
+
     // @function isWritable: Sinusuri kung writable para sa Subject Offering.
     // @useIn isWritable: app/Http/Controllers/Admin/Subjects/SubjectController.php
     public function isWritable(): bool
     {
-        return $this->academicYear?->isWritable() ?? false;
+        return $this->subject !== null && ! $this->subject->trashed()
+            && ($this->academicYear?->isWritable() ?? false);
     }
 }

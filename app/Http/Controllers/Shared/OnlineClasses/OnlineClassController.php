@@ -67,7 +67,7 @@ class OnlineClassController
 
         $faceAvailability = $this->onlineClassFaceAvailability();
         $classes = OnlineClass::query()
-            ->with(['section', 'subject', 'schedule', 'instructor.user', 'attachments'])
+            ->with(['section', 'subject', 'subjectOffering.subject', 'schedule', 'instructor.user', 'attachments'])
             ->when($role === 'instructor', fn ($query) => $query->whereHas('schedule', fn ($schedule) => $schedule->where('instructor_id', $instructorId ?: 0)))
             ->orderByDesc('scheduled_date')
             ->orderByDesc('start_time')
@@ -197,7 +197,7 @@ class OnlineClassController
         }
 
         $classes = OnlineClass::query()
-            ->with(['section', 'subject', 'schedule', 'instructor.user', 'attachments', 'attendances' => fn ($query) => $query->where('student_id', $student->student_id)])
+            ->with(['section', 'subject', 'subjectOffering.subject', 'schedule', 'instructor.user', 'attachments', 'attendances' => fn ($query) => $query->where('student_id', $student->student_id)])
             ->where(function ($query) use ($student) {
                 $enrollments = $student->enrollments()->get(['academic_year_id', 'section_id']);
                 foreach ($enrollments as $enrollment) {
@@ -423,6 +423,7 @@ class OnlineClassController
             abort_unless((int) $schedule->instructor_id === (int) $this->instructorId($request->user()->user_id), 403);
         }
         abort_if(! $schedule->instructor_id, 422, 'Assign an instructor to the schedule before creating or updating an online class.');
+        abort_if($schedule->subjectOffering?->subject?->trashed(), 422, 'Archived subjects cannot be used for new online classes.');
 
         abort_if($schedule->academicYear && ! $schedule->academicYear->isWritable(), 422, 'Online classes cannot be created for a closed or archived academic year.');
 
@@ -488,7 +489,7 @@ class OnlineClassController
             'academic_year_id' => $onlineClass->academic_year_id,
             'academic_year' => $onlineClass->academicYear?->name,
             'section_name' => $onlineClass->section?->section_name,
-            'subject_name' => $onlineClass->subject?->subject_name ?? $onlineClass->subject_code,
+            'subject_name' => $onlineClass->subjectOffering?->subject?->subject_name ?? $onlineClass->subject?->subject_name ?? $onlineClass->subject_code,
             'instructor_name' => $onlineClass->instructor?->user?->name,
             'title' => $onlineClass->title,
             'description' => $onlineClass->description,

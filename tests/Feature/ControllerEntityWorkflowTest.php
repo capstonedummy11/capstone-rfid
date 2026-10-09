@@ -280,6 +280,113 @@ test('subject controller creates catalog subject offering then updates removes o
         ->assertNotFound();
 });
 
+test('subject archives with an offering after its current schedule is removed', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    ['year' => $year, 'section' => $section] = controllerEntityAcademicContext();
+    $subject = Subject::create(['subject_name' => 'Archive Subject', 'subject_code' => 'ARCH-101', 'unit' => 3]);
+    $offering = SubjectOffering::create([
+        'academic_year_id' => $year->academic_year_id,
+        'subject_id' => $subject->subject_id,
+        'section_id' => $section->section_id,
+        'semester' => '1st Semester',
+        'status' => 'active',
+    ]);
+    $schedule = Schedule::create([
+        'academic_year_id' => $year->academic_year_id,
+        'subject_offering_id' => $offering->subject_offering_id,
+        'section_id' => $section->section_id,
+        'subject_code' => $subject->subject_code,
+        'semester' => '1st Semester',
+        'weekdays' => 'Mon',
+        'time_start' => '08:00:00',
+        'time_end' => '09:00:00',
+        'room' => 'Archive Room',
+    ]);
+
+    $this->actingAs($admin)->delete(route('admin.subjects.destroy', $subject->subject_id))
+        ->assertSessionHasErrors('subject');
+    $schedule->delete();
+    $this->actingAs($admin)->delete(route('admin.subjects.destroy', $subject->subject_id))
+        ->assertSessionHas('success');
+
+    $this->assertSoftDeleted('subjects', ['subject_id' => $subject->subject_id]);
+    $this->assertDatabaseHas('subject_offerings', ['subject_offering_id' => $offering->subject_offering_id]);
+    expect($offering->fresh()->subject->subject_name)->toBe('Archive Subject')
+        ->and($offering->fresh()->isWritable())->toBeFalse();
+    $this->actingAs($admin)->get(route('admin.subjects.index', ['academic_year_id' => 'all']))
+        ->assertInertia(fn (Assert $page) => $page->missing('subjects.0'));
+    $this->actingAs($admin)->get(route('admin.subjects.index', ['view' => 'archived']))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('subjects.0.subject_id', $subject->subject_id)
+            ->where('subjects.0.offerings.0.subject_offering_id', $offering->subject_offering_id)
+            ->where('subjects.0.offerings.0.schedules', []));
+    $this->actingAs($admin)->get(route('admin.schedules.index'))
+        ->assertInertia(fn (Assert $page) => $page->missing('subjectOfferingOptions.0'));
+    $this->actingAs($admin)->post(route('admin.schedules.store'), [
+        'subject_offering_id' => $offering->subject_offering_id,
+        'weekdays' => 'Mon',
+        'time_start' => '08:00',
+        'time_end' => '09:00',
+        'room' => 'Archive Room',
+    ])->assertSessionHasErrors('subject_offering_id');
+});
+
+test('archived subject remains named in historical schedules when its code is reused', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    ['year' => $year, 'section' => $section] = controllerEntityAcademicContext();
+    $subject = Subject::create(['subject_name' => 'Original Subject', 'subject_code' => 'HIST-CODE', 'unit' => 3]);
+    $offering = SubjectOffering::create([
+        'academic_year_id' => $year->academic_year_id,
+        'subject_id' => $subject->subject_id,
+        'section_id' => $section->section_id,
+        'semester' => '1st Semester',
+        'status' => 'active',
+    ]);
+    $schedule = Schedule::create([
+        'academic_year_id' => $year->academic_year_id,
+        'subject_offering_id' => $offering->subject_offering_id,
+        'section_id' => $section->section_id,
+        'subject_code' => $subject->subject_code,
+        'semester' => '1st Semester',
+        'weekdays' => 'Tue',
+        'time_start' => '10:00:00',
+        'time_end' => '11:00:00',
+        'room' => 'History Room',
+    ]);
+    $year->update(['status' => AcademicYear::STATUS_CLOSED]);
+
+    $this->actingAs($admin)->delete(route('admin.subjects.destroy', $subject->subject_id))
+        ->assertSessionHas('success');
+    Subject::create(['subject_name' => 'Replacement Subject', 'subject_code' => 'HIST-CODE', 'unit' => 3]);
+    $onlineClass = OnlineClass::create([
+        'schedule_id' => $schedule->scheduled_id,
+        'section_id' => $section->section_id,
+        'subject_code' => $subject->subject_code,
+        'title' => 'Historical online class',
+        'meeting_link' => 'https://example.test/history',
+        'scheduled_date' => now()->subDays(2)->toDateString(),
+        'start_time' => '10:00:00',
+        'end_time' => '11:00:00',
+        'status' => 'scheduled',
+    ]);
+
+    $this->actingAs($admin)->get(route('admin.schedules.index', ['academic_year_id' => 'all']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('schedules.0.scheduled_id', $schedule->scheduled_id)
+            ->where('schedules.0.subject_name', 'Original Subject'));
+    $this->actingAs($admin)->get(route('admin.subjects.index', ['view' => 'archived']))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('subjects.0.offerings.0.schedules.0.scheduled_id', $schedule->scheduled_id)
+            ->where('subjects.0.offerings.0.schedules.0.room', 'History Room')
+            ->where('subjects.0.offerings.0.schedules.0.time_start', '10:00'));
+    $this->actingAs($admin)->get(route('admin.online-classes.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('onlineClasses.0.online_class_id', $onlineClass->online_class_id)
+            ->where('onlineClasses.0.subject_name', 'Original Subject'));
+});
+
 test('admin can assign an active instructor to an unassigned writable offering', function () {
     $admin = User::factory()->create(['role' => 'admin']);
     ['year' => $year, 'strand' => $strand, 'section' => $section] = controllerEntityAcademicContext();
