@@ -162,6 +162,8 @@ For each subject, prepare:
 
 The Section and Instructor fields support autosuggestion. Click the field and type part of a section or instructor name to narrow a large list. Use the clear button to leave an optional assignment unassigned.
 
+An instructor belongs to a specific subject offering (academic year, semester, and section), not to the reusable subject record. Open **Edit** to see each offering's instructor and use **Assign Instructor** or **Change Instructor** for a writable offering. A stored assignment whose account is unavailable appears as **Instructor unavailable** and can be replaced. Offerings with schedules must have their schedule moved or removed before changing instructors; closed and archived offerings are locked.
+
 Examples:
 
 - CP101 - Computer Programming

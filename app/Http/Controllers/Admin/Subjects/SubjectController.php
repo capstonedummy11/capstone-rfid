@@ -276,10 +276,6 @@ class SubjectController
             if (! $subjectOffering->isWritable()) {
                 return back()->withErrors(['offering' => 'A closed or archived subject offering cannot be changed.']);
             }
-            if ($subjectOffering->instructor_id !== null) {
-                return back()->withErrors(['offering' => 'This offering already has an instructor. Remove that assignment first.']);
-            }
-
             $instructor = Instructor::query()
                 ->where('user_id', $validated['user_id'])
                 ->where('status', 'active')
@@ -287,6 +283,9 @@ class SubjectController
                 ->first();
             if (! $instructor) {
                 return back()->withErrors(['user_id' => 'Select an active instructor with an instructor profile.']);
+            }
+            if ($subjectOffering->instructor_id === $instructor->instructor_id) {
+                return back()->withErrors(['user_id' => 'This instructor is already assigned to the offering.']);
             }
             if (DB::table('schedules')->where('subject_offering_id', $subjectOffering->subject_offering_id)->exists()) {
                 return back()->withErrors(['offering' => 'This offering already has a schedule. Move or remove that schedule before assigning an instructor.']);

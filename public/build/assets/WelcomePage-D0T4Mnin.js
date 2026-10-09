@@ -1,1 +1,0 @@
-import{x as e,c as n,o}from"./app-nokWtOdY.js";const t={};function c(r,a){return o(),n("h1",null,"Welcome to RFID - Attendance Monitoring/Borrowing and Inventory System")}const l=e(t,[["render",c]]);export{l as default};

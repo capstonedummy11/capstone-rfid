@@ -331,7 +331,36 @@ test('admin can assign an active instructor to an unassigned writable offering',
 
     $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.assign', $offering), [
         'user_id' => $instructorUser->user_id,
-    ])->assertSessionHasErrors('offering');
+    ])->assertSessionHasErrors('user_id');
+
+    $replacementUser = User::factory()->create(['role' => 'instructor']);
+    $replacement = Instructor::create([
+        'user_id' => $replacementUser->user_id,
+        'strand_id' => $strand->strand_id,
+        'instructor_number' => 'INS-REPLACE-101',
+        'status' => 'active',
+    ]);
+    $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.assign', $offering), [
+        'user_id' => $replacementUser->user_id,
+    ])->assertRedirect()->assertSessionHas('success');
+    $this->assertDatabaseHas('subject_offerings', [
+        'subject_offering_id' => $offering->subject_offering_id,
+        'instructor_id' => $replacement->instructor_id,
+    ]);
+
+    $replacementUser->delete();
+    $this->actingAs($admin)->get(route('admin.subjects.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('subjects.0.offerings.0.instructor_id', $replacement->instructor_id)
+            ->where('subjects.0.offerings.0.instructor_name', null));
+    $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.assign', $offering), [
+        'user_id' => $instructorUser->user_id,
+    ])->assertRedirect()->assertSessionHas('success');
+    $this->assertDatabaseHas('subject_offerings', [
+        'subject_offering_id' => $offering->subject_offering_id,
+        'instructor_id' => $instructor->instructor_id,
+    ]);
 
     $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.remove', $offering))
         ->assertRedirect()->assertSessionHas('success');

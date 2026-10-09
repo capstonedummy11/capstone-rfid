@@ -193,7 +193,9 @@
                                         >
                                             <span>{{
                                                 offering.instructor_name ||
-                                                'Unassigned'
+                                                (offering.instructor_id
+                                                    ? 'Instructor unavailable'
+                                                    : 'Unassigned')
                                             }}</span>
                                             <span
                                                 v-if="!offering.is_writable"
@@ -201,9 +203,7 @@
                                                 >Locked</span
                                             >
                                             <button
-                                                v-else-if="
-                                                    !offering.instructor_id
-                                                "
+                                                v-else
                                                 type="button"
                                                 @click="
                                                     openAssignInstructorModal(
@@ -212,10 +212,17 @@
                                                 "
                                                 class="text-sky-700 hover:underline"
                                             >
-                                                Assign Instructor
+                                                {{
+                                                    offering.instructor_id
+                                                        ? 'Change Instructor'
+                                                        : 'Assign Instructor'
+                                                }}
                                             </button>
                                             <button
-                                                v-else
+                                                v-if="
+                                                    offering.is_writable &&
+                                                    offering.instructor_name
+                                                "
                                                 type="button"
                                                 @click="
                                                     removeInstructor(offering)
@@ -456,6 +463,62 @@
                             />
                         </div>
 
+                        <div
+                            v-if="
+                                isEditing && selectedSubject?.offerings?.length
+                            "
+                        >
+                            <h3
+                                class="mb-2 text-sm font-semibold text-slate-800"
+                            >
+                                Instructor by offering
+                            </h3>
+                            <div
+                                class="divide-y rounded border border-slate-200"
+                            >
+                                <div
+                                    v-for="offering in selectedSubject.offerings"
+                                    :key="offering.subject_offering_id"
+                                    class="flex flex-wrap items-center justify-between gap-3 px-3 py-2 text-sm"
+                                >
+                                    <div>
+                                        <div class="font-medium text-slate-800">
+                                            {{ offering.section_name }} ·
+                                            {{ offering.academic_year }} ·
+                                            {{ offering.semester }}
+                                        </div>
+                                        <div class="text-slate-600">
+                                            {{
+                                                offering.instructor_name ||
+                                                (offering.instructor_id
+                                                    ? 'Instructor unavailable'
+                                                    : 'Unassigned')
+                                            }}
+                                        </div>
+                                    </div>
+                                    <span
+                                        v-if="!offering.is_writable"
+                                        class="text-slate-500"
+                                        >Locked</span
+                                    >
+                                    <button
+                                        v-else
+                                        type="button"
+                                        class="text-sky-700 hover:underline"
+                                        @click="
+                                            openAssignmentFromEdit(offering)
+                                        "
+                                    >
+                                        {{
+                                            offering.instructor_id
+                                                ? 'Change Instructor'
+                                                : 'Assign Instructor'
+                                        }}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="flex justify-end gap-2 border-t pt-4">
                             <button
                                 type="button"
@@ -616,7 +679,13 @@
                 @click.self="closeAssignInstructorModal"
             >
                 <div class="w-full max-w-lg rounded-lg bg-white p-6">
-                    <h2 class="text-xl font-semibold">Assign Instructor</h2>
+                    <h2 class="text-xl font-semibold">
+                        {{
+                            selectedOffering.instructor_id
+                                ? 'Change Instructor'
+                                : 'Assign Instructor'
+                        }}
+                    </h2>
                     <p class="mt-1 text-sm text-slate-500">
                         {{ selectedOffering.section_name }} ·
                         {{ selectedOffering.academic_year }} ·
@@ -666,7 +735,11 @@
                                 "
                                 class="rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                             >
-                                Assign Instructor
+                                {{
+                                    selectedOffering.instructor_id
+                                        ? 'Change Instructor'
+                                        : 'Assign Instructor'
+                                }}
                             </button>
                         </div>
                     </form>
@@ -1036,6 +1109,11 @@ const openAssignInstructorModal = (offering: SubjectOffering) => {
     assignmentForm.reset();
     assignmentForm.clearErrors();
     showAssignInstructorModal.value = true;
+};
+
+const openAssignmentFromEdit = (offering: SubjectOffering) => {
+    closeModal();
+    openAssignInstructorModal(offering);
 };
 
 const closeAssignInstructorModal = () => {
