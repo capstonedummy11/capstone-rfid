@@ -91,7 +91,7 @@ const statusClass = (status) => {
 </script>
 
 <template>
-    <div class="mx-auto max-w-7xl px-4 py-6">
+    <div class="mx-auto w-full min-w-0 max-w-7xl px-4 py-6">
         <section
             class="mb-5 flex flex-col gap-3 rounded-md bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"
         >
@@ -110,9 +110,9 @@ const statusClass = (status) => {
             </p>
         </section>
 
-        <section class="grid gap-5 xl:grid-cols-[390px_1fr]">
+        <section class="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-[390px_minmax(0,1fr)]">
             <form
-                class="rounded-md bg-white p-5 shadow-sm"
+                class="min-w-0 rounded-md bg-white p-5 shadow-sm"
                 @submit.prevent="submitCase"
             >
                 <div class="mb-4 flex items-center justify-between">
@@ -227,8 +227,8 @@ const statusClass = (status) => {
                 </div>
             </form>
 
-            <section class="rounded-md bg-white p-5 shadow-sm">
-                <div class="overflow-x-auto">
+            <section class="min-w-0 rounded-md bg-white p-5 shadow-sm">
+                <div class="w-full overflow-x-auto">
                     <table class="w-full min-w-[980px] text-left text-sm">
                         <thead
                             class="bg-slate-50 text-xs text-slate-500 uppercase"
