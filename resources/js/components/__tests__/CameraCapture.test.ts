@@ -20,6 +20,7 @@ beforeEach(() => {
     });
     getUserMedia.mockReset();
     vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
+    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
 });
 
 afterEach(() => {
@@ -44,6 +45,7 @@ describe('camera handoff to liveness', () => {
 
         resume = await pauseCameraPreviews();
         expect(first.stop).toHaveBeenCalledOnce();
+        expect(wrapper.find('video').element.pause).toHaveBeenCalled();
         expect(wrapper.find('video').element.srcObject).toBeNull();
         resume();
         resume = undefined;

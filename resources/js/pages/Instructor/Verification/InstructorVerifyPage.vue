@@ -30,6 +30,7 @@ const props = defineProps({
 
 const page = usePage();
 const cameraRef = ref(null);
+const verifyingFace = ref(false);
 const mode = ref(props.hasSecurityQuestion ? 'face' : 'setup');
 const flashSuccess = computed(() => page.props.flash?.success || props.status);
 
@@ -110,6 +111,8 @@ const setupQuestionError = (index, field) =>
 // @function verifyFace: Vini-verify ang face sa Instructor Verify flow.
 // @useIn verifyFace: resources/js/pages/Instructor/Verification/InstructorVerifyPage.vue template @click
 const verifyFace = async () => {
+    if (verifyingFace.value || faceForm.processing) return;
+    verifyingFace.value = true;
     faceForm.clearErrors();
 
     try {
@@ -139,6 +142,8 @@ const verifyFace = async () => {
                 ? error.message
                 : 'Live-face verification could not be completed.',
         );
+    } finally {
+        verifyingFace.value = false;
     }
 };
 
@@ -492,12 +497,14 @@ const logout = () => {
                                 <div class="flex flex-col justify-center gap-3">
                                     <button
                                         type="button"
-                                        :disabled="faceForm.processing"
+                                        :disabled="
+                                            verifyingFace || faceForm.processing
+                                        "
                                         class="inline-flex h-12 items-center justify-center gap-3 rounded-md bg-blue-600 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-60"
                                         @click="verifyFace"
                                     >
                                         {{
-                                            faceForm.processing
+                                            verifyingFace || faceForm.processing
                                                 ? 'Verifying...'
                                                 : 'Verify Face'
                                         }}
@@ -512,7 +519,7 @@ const logout = () => {
                                     </button>
                                     <p
                                         v-if="faceForm.errors.face"
-                                        class="text-sm text-red-600"
+                                        class="max-h-80 overflow-auto text-sm break-words whitespace-pre-wrap text-red-600"
                                     >
                                         {{ faceForm.errors.face }}
                                     </p>

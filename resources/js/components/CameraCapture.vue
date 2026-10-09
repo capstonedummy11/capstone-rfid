@@ -70,7 +70,10 @@ function stopCamera() {
     generation++;
     stream?.getTracks().forEach((t) => t.stop());
     stream = null;
-    if (videoRef.value) videoRef.value.srcObject = null;
+    if (videoRef.value) {
+        videoRef.value.pause();
+        videoRef.value.srcObject = null;
+    }
     cameraReady.value = false;
 }
 

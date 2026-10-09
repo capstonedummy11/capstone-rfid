@@ -5,6 +5,7 @@ import { Amplify } from 'aws-amplify';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { cameraAvailabilityMessage, pauseCameraPreviews } from './cameraAccess';
+import { livenessErrorMessage } from './faceLivenessErrors';
 
 type LivenessPurpose =
     | 'attendance_student'
@@ -130,11 +131,11 @@ function LivenessDialog({
             }
 
             finish(payload.token);
-        } catch {
+        } catch (error) {
             finish(
                 undefined,
                 new FaceLivenessError(
-                    'Could not retrieve the liveness result. Please check your connection and try again.',
+                    livenessErrorMessage(error, diagnosticMode),
                 ),
             );
         }
@@ -200,12 +201,22 @@ function LivenessDialog({
                             ),
                         )
                     }
-                    onError={(error) =>
+                    onError={(error, deviceInfo) =>
                         finish(
                             undefined,
                             new FaceLivenessError(
-                                error?.message ??
-                                    'The liveness camera could not complete verification.',
+                                livenessErrorMessage(
+                                    {
+                                        ...error,
+                                        device: deviceInfo,
+                                        browser: navigator.userAgent,
+                                        viewport: {
+                                            width: window.innerWidth,
+                                            height: window.innerHeight,
+                                        },
+                                    },
+                                    diagnosticMode,
+                                ),
                             ),
                         )
                     }
@@ -254,72 +265,101 @@ function LivenessDialog({
 export async function runFaceLiveness({
     purpose,
     subjectKey,
-    diagnosticMode = false,
+    diagnosticMode = true,
 }: {
     purpose: LivenessPurpose;
     subjectKey: string | number;
     diagnosticMode?: boolean;
 }): Promise<string | null> {
-    const { response, payload } = await requestJson('/face-liveness/sessions', {
-        purpose,
-        subject_key: String(subjectKey),
-    });
-
-    if (response.status === 409 && payload?.enabled === false) {
-        return null;
-    }
-
-    if (!response.ok) {
-        throw new FaceLivenessError(
-            payload?.message ?? 'AWS Face Liveness is unavailable.',
-        );
-    }
-
-    const session = payload as SessionResponse;
-    const unavailable = cameraAvailabilityMessage();
-    if (unavailable) throw new FaceLivenessError(unavailable);
-    Amplify.configure({
-        Auth: {
-            Cognito: {
-                identityPoolId: session.identity_pool_id,
-                allowGuestAccess: true,
-            },
-        },
-    });
-    const resumePreviews = await pauseCameraPreviews();
     try {
-        const host = document.createElement('div');
-        document.body.appendChild(host);
-        const root = createRoot(host);
+        const { response, payload } = await requestJson(
+            '/face-liveness/sessions',
+            {
+                purpose,
+                subject_key: String(subjectKey),
+            },
+        );
 
-        return await new Promise<string>((resolve, reject) => {
-            let finished = false;
-            // @function finish: Kinukuha ang finish result para sa face Liveness.
-            // @useIn finish: resources/js/lib/faceLiveness.tsx:107
-            const finish = (token?: string, error?: Error) => {
-                if (finished) return;
-                finished = true;
-                root.unmount();
-                host.remove();
-                if (token) resolve(token);
-                else
-                    reject(
-                        error ??
-                            new FaceLivenessError(
-                                'Liveness verification failed.',
-                            ),
-                    );
-            };
+        if (response.status === 409 && payload?.enabled === false) {
+            return null;
+        }
 
-            root.render(
-                <LivenessDialog
-                    session={session}
-                    finish={finish}
-                    diagnosticMode={diagnosticMode}
-                />,
+        if (!response.ok) {
+            throw new FaceLivenessError(
+                livenessFailureMessage(
+                    payload,
+                    response.status,
+                    diagnosticMode,
+                ),
             );
+        }
+
+        const session = payload as SessionResponse;
+        const unavailable = cameraAvailabilityMessage();
+        if (unavailable) throw new FaceLivenessError(unavailable);
+        Amplify.configure({
+            Auth: {
+                Cognito: {
+                    identityPoolId: session.identity_pool_id,
+                    allowGuestAccess: true,
+                },
+            },
         });
-    } finally {
-        resumePreviews();
+        const resumePreviews = await pauseCameraPreviews();
+        try {
+            const host = document.createElement('div');
+            document.body.appendChild(host);
+            const root = createRoot(host);
+
+            return await new Promise<string>((resolve, reject) => {
+                let finished = false;
+                // @function finish: Kinukuha ang finish result para sa face Liveness.
+                // @useIn finish: resources/js/lib/faceLiveness.tsx:107
+                const finish = (token?: string, error?: Error) => {
+                    if (finished) return;
+                    finished = true;
+                    // SDK callbacks can run inside a React effect. Finish after it
+                    // returns, and release the detector camera before Vue resumes
+                    // its preview, avoiding overlapping owners on iPad Safari.
+                    queueMicrotask(() => {
+                        host.querySelectorAll('video').forEach((video) => {
+                            video.pause();
+                            const stream = video.srcObject;
+                            if (stream instanceof MediaStream) {
+                                stream
+                                    .getTracks()
+                                    .forEach((track) => track.stop());
+                            }
+                            video.srcObject = null;
+                        });
+                        root.unmount();
+                        host.remove();
+                        if (token) resolve(token);
+                        else
+                            reject(
+                                error ??
+                                    new FaceLivenessError(
+                                        'Liveness verification failed.',
+                                    ),
+                            );
+                    });
+                };
+
+                root.render(
+                    <LivenessDialog
+                        session={session}
+                        finish={finish}
+                        diagnosticMode={diagnosticMode}
+                    />,
+                );
+            });
+        } finally {
+            resumePreviews();
+        }
+    } catch (error) {
+        if (error instanceof FaceLivenessError) throw error;
+        throw new FaceLivenessError(
+            livenessErrorMessage(error, diagnosticMode),
+        );
     }
 }
