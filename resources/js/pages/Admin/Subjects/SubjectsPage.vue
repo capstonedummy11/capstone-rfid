@@ -189,7 +189,7 @@
                                         <div
                                             v-for="offering in subject.offerings"
                                             :key="offering.subject_offering_id"
-                                            class="flex items-center justify-between gap-2 text-xs"
+                                            class="text-xs"
                                         >
                                             <span>{{
                                                 offering.instructor_name ||
@@ -197,40 +197,6 @@
                                                     ? 'Instructor unavailable'
                                                     : 'Unassigned')
                                             }}</span>
-                                            <span
-                                                v-if="!offering.is_writable"
-                                                class="text-slate-400"
-                                                >Locked</span
-                                            >
-                                            <button
-                                                v-else
-                                                type="button"
-                                                @click="
-                                                    openAssignInstructorModal(
-                                                        offering,
-                                                    )
-                                                "
-                                                class="text-sky-700 hover:underline"
-                                            >
-                                                {{
-                                                    offering.instructor_id
-                                                        ? 'Change Instructor'
-                                                        : 'Assign Instructor'
-                                                }}
-                                            </button>
-                                            <button
-                                                v-if="
-                                                    offering.is_writable &&
-                                                    offering.instructor_name
-                                                "
-                                                type="button"
-                                                @click="
-                                                    removeInstructor(offering)
-                                                "
-                                                class="text-rose-600 hover:underline"
-                                            >
-                                                Remove Instructor
-                                            </button>
                                         </div>
                                     </div>
                                     <span v-else>Unassigned</span>
@@ -254,7 +220,7 @@
                                             @click="deleteSubject(subject)"
                                             class="rounded-md bg-rose-500 px-3 py-1 text-sm text-white hover:bg-rose-600"
                                         >
-                                            Delete
+                                            Delete Subject
                                         </button>
                                     </div>
                                 </td>
@@ -501,22 +467,38 @@
                                         class="text-slate-500"
                                         >Locked</span
                                     >
-                                    <button
-                                        v-else
-                                        type="button"
-                                        class="text-sky-700 hover:underline"
-                                        @click="
-                                            openAssignmentFromEdit(offering)
-                                        "
-                                    >
-                                        {{
-                                            offering.instructor_id
-                                                ? 'Change Instructor'
-                                                : 'Assign Instructor'
-                                        }}
-                                    </button>
+                                    <div v-else class="flex items-center gap-3">
+                                        <button
+                                            type="button"
+                                            class="text-sky-700 hover:underline"
+                                            @click="
+                                                openAssignmentFromEdit(offering)
+                                            "
+                                        >
+                                            {{
+                                                offering.instructor_id
+                                                    ? 'Change Instructor'
+                                                    : 'Assign Instructor'
+                                            }}
+                                        </button>
+                                        <button
+                                            v-if="offering.instructor_id"
+                                            type="button"
+                                            class="text-rose-600 hover:underline disabled:opacity-50"
+                                            :disabled="removalForm.processing"
+                                            @click="removeInstructor(offering)"
+                                        >
+                                            Remove Instructor
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
+                            <p
+                                v-if="removalForm.errors.offering"
+                                class="mt-2 text-sm text-rose-600"
+                            >
+                                {{ removalForm.errors.offering }}
+                            </p>
                         </div>
 
                         <div class="flex justify-end gap-2 border-t pt-4">
@@ -1063,6 +1045,7 @@ const openEditModal = (subject: Subject) => {
     isEditing.value = true;
     selectedSubject.value = subject;
     form.reset();
+    removalForm.clearErrors();
     form.subject_name = subject.subject_name;
     form.subject_code = subject.subject_code;
     form.subject_description = subject.subject_description ?? '';
@@ -1103,6 +1086,7 @@ const closeOfferingModal = () => {
 };
 
 const assignmentForm = useForm({ user_id: '' });
+const removalForm = useForm({});
 
 const openAssignInstructorModal = (offering: SubjectOffering) => {
     selectedOffering.value = offering;
@@ -1168,12 +1152,13 @@ const removeInstructor = async (offering: SubjectOffering) => {
     });
     if (!result.isConfirmed) return;
 
-    useForm({}).patch(
+    removalForm.patch(
         route('admin.subjects.offerings.instructor.remove', {
             subjectOffering: offering.subject_offering_id,
         }),
         {
             preserveScroll: true,
+            onSuccess: closeModal,
         },
     );
 };
