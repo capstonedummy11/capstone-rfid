@@ -4,6 +4,7 @@
 
 namespace App\Models;
 
+use App\Services\ClinicCaseHistoryService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -32,6 +33,13 @@ class ClinicCase extends Model
     protected $casts = [
         'occurred_at' => 'datetime',
     ];
+
+    protected static function booted(): void
+    {
+        static::saved(function (ClinicCase $case) {
+            app(ClinicCaseHistoryService::class)->sync($case);
+        });
+    }
 
     // @function alert: Ibinabalik ang alert Eloquent belongsTo relationship.
     // @useIn alert: Eloquent relationship property at eager loading

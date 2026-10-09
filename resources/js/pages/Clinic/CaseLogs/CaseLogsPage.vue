@@ -1,12 +1,13 @@
 <!-- FEATURE:clinic-records - UI para sa case logs and patient history. -->
 <script setup>
-import { router, useForm, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
-import { ClipboardPlus, FileClock, Save } from 'lucide-vue-next';
+import { Link, useForm, usePage } from '@inertiajs/vue3';
+import { computed, ref, watch } from 'vue';
+import { ClipboardPlus, Save } from 'lucide-vue-next';
 
 const props = defineProps({
     cases: { type: Array, default: () => [] },
     emergencyTypes: { type: Array, default: () => [] },
+    selectedCaseId: { type: Number, default: null },
 });
 
 const page = usePage();
@@ -53,6 +54,15 @@ const editCase = (clinicCase) => {
     form.user_id = clinicCase.user_id || '';
 };
 
+watch(
+    () => props.selectedCaseId,
+    (id) => {
+        const clinicCase = props.cases.find((entry) => entry.id === id);
+        if (clinicCase) editCase(clinicCase);
+    },
+    { immediate: true },
+);
+
 // @function submitCase: Isinusumite ang case sa Case Logs flow.
 // @useIn submitCase: resources/js/pages/Clinic/CaseLogs/CaseLogsPage.vue template
 const submitCase = () => {
@@ -68,16 +78,6 @@ const submitCase = () => {
         preserveScroll: true,
         onSuccess: resetForm,
     });
-};
-
-// @function createHistory: Gumagawa ng ang history sa Case Logs flow.
-// @useIn createHistory: resources/js/pages/Clinic/CaseLogs/CaseLogsPage.vue template @click
-const createHistory = (clinicCase) => {
-    router.post(
-        route('clinic.case-logs.history', clinicCase.id),
-        {},
-        { preserveScroll: true },
-    );
 };
 
 // @function statusClass: Kinukuha ang status class result para sa Case Logs.
@@ -98,8 +98,8 @@ const statusClass = (status) => {
             <div>
                 <h1 class="text-2xl font-black text-slate-950">Case Logs</h1>
                 <p class="text-sm text-slate-500">
-                    Create clinic cases, update treatment notes, and send
-                    records to patient history.
+                    Create clinic cases and update treatment notes. Patient
+                    history is saved automatically with each case.
                 </p>
             </div>
             <p
@@ -255,6 +255,13 @@ const statusClass = (status) => {
                                     <div class="text-xs text-slate-400">
                                         {{ clinicCase.patient_type || 'N/A' }}
                                     </div>
+                                    <Link
+                                        v-if="clinicCase.emergency_alert_id"
+                                        :href="route('clinic.dashboard')"
+                                        class="mt-1 block text-xs font-semibold text-blue-700 hover:underline"
+                                    >
+                                        Emergency notification #{{ clinicCase.emergency_alert_id }}
+                                    </Link>
                                     <div class="mt-1 text-xs font-semibold text-blue-600">
                                         Responder sent:
                                         {{ clinicCase.assigned_responder_name || 'Not assigned' }}
@@ -291,12 +298,6 @@ const statusClass = (status) => {
                                             @click="editCase(clinicCase)"
                                         >
                                             <ClipboardPlus class="h-4 w-4" />
-                                        </button>
-                                        <button
-                                            class="rounded-md border border-brand/30 p-2 text-brand"
-                                            @click="createHistory(clinicCase)"
-                                        >
-                                            <FileClock class="h-4 w-4" />
                                         </button>
                                     </div>
                                 </td>

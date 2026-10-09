@@ -32,7 +32,7 @@ class EmergencyParentAlert extends Notification
     {
         $studentName = trim($this->student->first_name.' '.$this->student->last_name);
 
-        return (new MailMessage)
+        $message = (new MailMessage)
             ->subject('Emergency alert for '.$studentName)
             ->greeting('Hello '.$notifiable->name.',')
             ->line('An emergency was reported for your linked student.')
@@ -40,7 +40,13 @@ class EmergencyParentAlert extends Notification
             ->line('Student number: '.($this->student->student_number ?: 'Not provided'))
             ->line('Emergency: '.($this->alert->type?->name ?? 'Emergency'))
             ->line('Location: '.($this->alert->room ?: 'Not provided'))
-            ->line('Details: '.($this->alert->message ?: 'No additional details were provided.'))
-            ->line('Please contact the school or clinic immediately for further information.');
+            ->line('Details: '.($this->alert->message ?: 'No additional details were provided.'));
+
+        $symptoms = trim((string) ($this->alert->metadata['symptoms'] ?? ''));
+        if ($symptoms !== '') {
+            $message->line('Symptoms / notes: '.$symptoms);
+        }
+
+        return $message->line('Please contact the school or clinic immediately for further information.');
     }
 }

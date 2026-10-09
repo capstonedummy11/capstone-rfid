@@ -30,6 +30,9 @@ This is the canonical reference for emergency alerts sent from the Attendance Co
 7. The final confirmation modal starts a five-second countdown.
 8. Unless cancelled, the system saves the in-app alert and attempts hotline SMS when configured.
 9. For a **Specific person(s)** alert, the system loads the linked parent accounts for each identified student and attempts both parent email and parent SMS notification. Delivery results are recorded with the alert; a missing contact method or provider failure does not discard the emergency alert.
+    - A linked parent with a valid email address receives email even when they have no phone number or SMS is unavailable.
+    - The email includes the student's name and number, emergency type, room, emergency message, and entered symptoms or notes.
+    - If email delivery fails, the panel warns the instructor to contact the parent directly. The Clinic alert remains saved.
 10. Clinic receives the Open alert on `/clinic/dashboard`.
 11. Clinic selects an available Clinic responder and selects **Dispatch**.
 12. Dispatch acknowledges the alert, records response metrics, creates the necessary Clinic Case records, assigns the responder, and attempts the responder notification.

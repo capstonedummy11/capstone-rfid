@@ -119,7 +119,6 @@ const verifyFace = async () => {
         const livenessToken = await runFaceLiveness({
             purpose: 'instructor_login',
             subjectKey: page.props.auth?.user?.user_id,
-            diagnosticMode: true,
         });
 
         if (livenessToken) {
@@ -519,7 +518,8 @@ const logout = () => {
                                     </button>
                                     <p
                                         v-if="faceForm.errors.face"
-                                        class="max-h-80 overflow-auto text-sm break-words whitespace-pre-wrap text-red-600"
+                                        role="alert"
+                                        class="text-sm text-red-600"
                                     >
                                         {{ faceForm.errors.face }}
                                     </p>

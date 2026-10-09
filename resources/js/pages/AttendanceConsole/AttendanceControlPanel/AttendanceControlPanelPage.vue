@@ -2594,17 +2594,17 @@ watch(
         class="min-h-screen w-full bg-[#f5f6fa] p-4 sm:p-5 lg:p-6"
     >
         <div
-            class="grid min-h-[calc(100vh-2rem)] w-full gap-4 sm:min-h-[calc(100vh-2.5rem)] lg:min-h-[calc(100vh-3rem)] lg:grid-rows-[auto_1fr_auto]"
+            class="grid min-h-[calc(100vh-2rem)] w-full gap-4 sm:min-h-[calc(100vh-2.5rem)] md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] md:grid-rows-[auto_1fr] lg:min-h-[calc(100vh-3rem)]"
             :class="
                 attendeesSlideVisible
-                    ? 'lg:grid-cols-[1.3fr_0.9fr_0.85fr]'
-                    : 'lg:grid-cols-[1.45fr_0.9fr]'
+                    ? 'xl:grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)_minmax(0,0.85fr)]'
+                    : 'xl:grid-cols-[minmax(0,1.45fr)_minmax(0,0.9fr)]'
             "
         >
             <section
                 class="rounded-[18px] bg-white px-5 py-3 shadow-sm ring-1 ring-slate-200/70"
                 :class="
-                    attendeesSlideVisible ? 'lg:col-span-3' : 'lg:col-span-2'
+                    attendeesSlideVisible ? 'md:col-span-2 xl:col-span-3' : 'md:col-span-2'
                 "
             >
                 <div class="flex flex-wrap items-center justify-between gap-3">
@@ -2726,7 +2726,7 @@ watch(
             </section>
 
             <section
-                class="flex min-h-165 flex-col rounded-[22px] bg-white p-5 shadow-sm ring-1 ring-slate-200/70 lg:row-span-1"
+                class="flex min-h-165 min-w-0 flex-col rounded-[22px] bg-white p-5 shadow-sm ring-1 ring-slate-200/70"
             >
                 <div class="flex items-center justify-between">
                     <div>
@@ -2881,7 +2881,7 @@ watch(
             </section>
 
             <section
-                class="flex min-h-165 flex-col rounded-[22px] bg-white p-5 shadow-sm ring-1 ring-slate-200/70 lg:row-span-2"
+                class="flex min-h-165 min-w-0 flex-col rounded-[22px] bg-white p-5 shadow-sm ring-1 ring-slate-200/70"
             >
                 <div
                     class="text-[11px] font-bold tracking-[0.28em] text-slate-400 uppercase"
@@ -2963,7 +2963,7 @@ watch(
 
             <section
                 v-if="attendeesSlideVisible"
-                class="flex min-h-165 flex-col rounded-[22px] bg-white p-5 shadow-sm ring-1 ring-slate-200/70 lg:row-span-2"
+                class="flex min-h-165 min-w-0 flex-col rounded-[22px] bg-white p-5 shadow-sm ring-1 ring-slate-200/70 md:col-span-2 xl:col-span-1"
             >
                 <div class="border-b border-slate-200 pb-4">
                     <div class="flex items-center justify-between">

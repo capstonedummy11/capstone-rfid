@@ -14,9 +14,11 @@ use App\Models\User;
 use App\Notifications\ClinicDispatchAssigned;
 use App\Notifications\EmergencyParentAlert;
 use App\Services\SmsService;
+use App\Services\ClinicCaseAlertService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\Rule;
@@ -271,10 +273,14 @@ class EmergencyController
             'status' => ['required', 'in:open,acknowledged,resolved,cancelled'],
         ]);
 
-        $alert->update([
-            'status' => $validated['status'],
-            'resolved_at' => $validated['status'] === 'resolved' ? now() : $alert->resolved_at,
-        ]);
+        DB::transaction(function () use ($alert, $validated) {
+            $alert->update([
+                'status' => $validated['status'],
+                'resolved_at' => $validated['status'] === 'resolved' ? ($alert->resolved_at ?? now()) : null,
+                'acknowledged_at' => $validated['status'] === 'acknowledged' ? ($alert->acknowledged_at ?? now()) : $alert->acknowledged_at,
+            ]);
+            app(ClinicCaseAlertService::class)->syncFromAlert($alert);
+        });
 
         $this->logActivity($request, 'update', 'emergency_alerts', 'Updated emergency alert '.$alert->emergency_alert_id.' status to '.$validated['status'].'.');
 
@@ -530,6 +536,7 @@ class EmergencyController
                         $result['email_sent']++;
                     } catch (\Throwable $exception) {
                         $result['failures'][] = 'email';
+                        $result['warnings'][] = 'Emergency email to '.$parentName.' for '.$studentName.' could not be sent. Please contact the parent directly.';
                         Log::warning('Emergency parent email could not be sent.', [
                             'alert_id' => $alert->emergency_alert_id,
                             'parent_user_id' => $parent->user_id,

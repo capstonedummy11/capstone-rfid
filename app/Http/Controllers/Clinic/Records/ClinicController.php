@@ -12,7 +12,10 @@ use App\Models\Section;
 use App\Models\Students;
 use App\Models\SystemSetting;
 use App\Models\User;
+use App\Services\ClinicCaseAlertService;
+use App\Services\ClinicCaseHistoryService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -94,12 +97,13 @@ class ClinicController
      * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
      * @editable    Clinic Case Logs/Patient History: case, summary, notes, at status.
      */
-    public function caseLogs()
+    public function caseLogs(Request $request)
     {
         return Inertia::render('Clinic/CaseLogs/CaseLogsPage', [
             'title' => 'Clinic Case Logs',
             'cases' => ClinicCase::with(['alert.type', 'assignedResponder'])->latest('clinic_case_id')->get()->map(fn (ClinicCase $case) => $this->casePayload($case))->values(),
             'emergencyTypes' => $this->emergencyTypes(),
+            'selectedCaseId' => $request->integer('case') ?: null,
         ]);
     }
 
@@ -238,9 +242,15 @@ class ClinicController
     // Gumagawa ng Clinic Case mula sa validated patient at incident fields.
     public function storeCase(Request $request)
     {
-        $case = ClinicCase::query()->create($this->validatedCase($request) + [
-            'handled_by_user_id' => $request->user()?->user_id,
-        ]);
+        $validated = $this->validatedCase($request);
+        $case = DB::transaction(function () use ($validated, $request) {
+            $case = ClinicCase::query()->create($validated + [
+                'handled_by_user_id' => $request->user()?->user_id,
+            ]);
+            app(ClinicCaseAlertService::class)->syncFromCase($case);
+
+            return $case;
+        });
 
         $this->logActivity($request, 'create', 'clinic_cases', 'Created clinic case '.$case->clinic_case_id.' for '.$case->patient_name.'.');
 
@@ -253,7 +263,11 @@ class ClinicController
     public function updateCase(Request $request, int $id)
     {
         $case = ClinicCase::query()->findOrFail($id);
-        $case->update($this->validatedCase($request));
+        $validated = $this->validatedCase($request);
+        DB::transaction(function () use ($case, $validated) {
+            $case->update($validated);
+            app(ClinicCaseAlertService::class)->syncFromCase($case);
+        });
 
         $this->logActivity($request, 'update', 'clinic_cases', 'Updated clinic case '.$case->clinic_case_id.'.');
 
@@ -267,25 +281,9 @@ class ClinicController
     {
         $case = ClinicCase::query()->findOrFail($id);
 
-        PatientHistory::query()->create([
-            'student_id' => $case->student_id,
-            'user_id' => $case->user_id,
-            'recorded_by_user_id' => $request->user()?->user_id,
-            'patient_type' => $case->patient_type,
-            'patient_name' => $case->patient_name,
-            'summary' => substr(trim(($case->case_type ?: 'Clinic case').': '.($case->symptoms ?: 'No symptoms recorded')), 0, 255),
-            'notes' => trim(implode("\n\n", array_filter([
-                $case->action_taken ? 'Action: '.$case->action_taken : null,
-                $case->notes,
-            ]))),
-            'occurred_at' => $case->occurred_at ?: now(),
-        ]);
+        app(ClinicCaseHistoryService::class)->sync($case);
 
-        $case->update(['status' => $case->status === 'open' ? 'monitoring' : $case->status]);
-
-        $this->logActivity($request, 'create', 'patient_histories', 'Created patient history from clinic case '.$case->clinic_case_id.'.');
-
-        return back()->with('success', 'Patient history created from case.');
+        return back()->with('success', 'Patient history is up to date.');
     }
 
     // @function storeHistory: Sine-save ang history sa Clinic flow.
@@ -359,6 +357,11 @@ class ClinicController
             'sub_type' => $alert->sub_type,
             'status' => $alert->status,
             'created_at' => optional($alert->created_at)->format('Y-m-d H:i'),
+            'cases' => $alert->cases->map(fn (ClinicCase $case) => [
+                'id' => $case->clinic_case_id,
+                'patient_name' => $case->patient_name,
+                'status' => $case->status,
+            ])->values(),
         ])->values();
     }
 

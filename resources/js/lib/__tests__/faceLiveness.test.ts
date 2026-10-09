@@ -23,6 +23,7 @@ vi.mock('../cameraAccess', () => ({
 import { runFaceLiveness } from '../faceLiveness';
 
 beforeEach(() => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
     mocks.pause.mockResolvedValue(mocks.resume);
     vi.stubGlobal(
         'fetch',
@@ -46,6 +47,22 @@ afterEach(() => {
 });
 
 describe('liveness camera lifecycle', () => {
+    it('does not display backend configuration errors to users', async () => {
+        vi.mocked(fetch).mockResolvedValueOnce({
+            ok: false,
+            status: 503,
+            json: async () => ({
+                message: 'AWS backend credentials are missing.',
+                confidence: 12,
+            }),
+        } as Response);
+        await expect(
+            runFaceLiveness({ purpose: 'instructor_login', subjectKey: 1 }),
+        ).rejects.toThrow(
+            'Face verification is temporarily unavailable. Please try again shortly.',
+        );
+        expect(mocks.detector).not.toHaveBeenCalled();
+    });
     it('blocks landscape iPad verification before mounting AWS or pausing previews', async () => {
         vi.stubGlobal('navigator', {
             userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
@@ -76,7 +93,7 @@ describe('liveness camera lifecycle', () => {
         });
         // Attach the rejection handler before triggering the SDK callback.
         const rejected = expect(verification).rejects.toThrow(
-            'CAMERA_ACCESS_ERROR: NotReadableError: Camera is in use',
+            'The camera is in use. Close other apps or tabs using it, then try again.',
         );
         await vi.waitFor(() => expect(mocks.detector).toHaveBeenCalled());
         const props = mocks.detector.mock.calls[0][0] as unknown as {

@@ -1,5 +1,5 @@
 export const LIVENESS_PORTRAIT_MESSAGE =
-    'Live face verification requires portrait orientation on iPad and other mobile devices. Rotate your device upright, turn off Rotation Lock if needed, and tap Verify Face again. Keep it upright until verification finishes.';
+    'Rotate your device upright to continue face verification. If the screen does not rotate, turn off Rotation Lock. Keep it upright until verification finishes.';
 
 export function livenessOrientationMessage(): string | null {
     // iPad Safari's desktop mode identifies itself as Macintosh.

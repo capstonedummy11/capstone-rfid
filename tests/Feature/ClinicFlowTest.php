@@ -20,6 +20,109 @@ use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
 
+test('dashboard notifications link to case logs and follow case resolution and reopening', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    $fixture = clinicFixture();
+    $alert = EmergencyAlert::query()->create([
+        'emergency_type_id' => $fixture['type']->emergency_type_id,
+        'room' => 'Clinic Room',
+        'status' => 'acknowledged',
+        'message' => 'Needs treatment.',
+        'dispatched_at' => now(),
+    ]);
+    $case = ClinicCase::query()->create([
+        'emergency_alert_id' => $alert->emergency_alert_id,
+        'handled_by_user_id' => $fixture['clinic']->user_id,
+        'patient_name' => 'Test Patient',
+        'status' => 'monitoring',
+    ]);
+
+    $this->actingAs($fixture['clinic'])->get(route('clinic.dashboard'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('alerts.0.cases.0.id', $case->clinic_case_id)
+            ->where('alerts.0.cases.0.patient_name', 'Test Patient')
+            ->where('alerts.0.cases.0.status', 'monitoring'));
+    $this->get(route('clinic.case-logs', ['case' => $case->clinic_case_id]))
+        ->assertInertia(fn (Assert $page) => $page->where('selectedCaseId', $case->clinic_case_id));
+
+    $payload = [
+        'patient_name' => 'Test Patient',
+        'emergency_alert_id' => $alert->emergency_alert_id,
+        'status' => 'resolved',
+    ];
+    $this->put(route('clinic.case-logs.update', $case->clinic_case_id), $payload)
+        ->assertSessionHasNoErrors()->assertRedirect();
+    expect($alert->fresh()->status)->toBe('resolved');
+    expect($alert->fresh()->resolved_at)->not->toBeNull();
+    $this->get(route('clinic.dashboard'))->assertInertia(fn (Assert $page) => $page
+        ->where('alerts.0.status', 'resolved')
+        ->where('alerts.0.cases.0.status', 'resolved')
+        ->has('assignedDispatches', 0));
+
+    $payload['status'] = 'monitoring';
+    $this->put(route('clinic.case-logs.update', $case->clinic_case_id), $payload)
+        ->assertSessionHasNoErrors()->assertRedirect();
+    expect($alert->fresh()->status)->toBe('acknowledged');
+    expect($alert->fresh()->resolved_at)->toBeNull();
+});
+
+test('an emergency remains active until every linked patient case is resolved', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    $fixture = clinicFixture();
+    $alert = EmergencyAlert::query()->create([
+        'emergency_type_id' => $fixture['type']->emergency_type_id,
+        'status' => 'acknowledged',
+        'message' => 'Two patients need treatment.',
+    ]);
+    $first = ClinicCase::query()->create([
+        'emergency_alert_id' => $alert->emergency_alert_id,
+        'patient_name' => 'First Patient',
+        'status' => 'monitoring',
+    ]);
+    ClinicCase::query()->create([
+        'emergency_alert_id' => $alert->emergency_alert_id,
+        'patient_name' => 'Second Patient',
+        'status' => 'monitoring',
+    ]);
+    $this->actingAs($fixture['clinic'])
+        ->put(route('clinic.case-logs.update', $first->clinic_case_id), [
+            'emergency_alert_id' => $alert->emergency_alert_id,
+            'patient_name' => 'First Patient',
+            'status' => 'resolved',
+        ])->assertSessionHasNoErrors();
+    expect($alert->fresh()->status)->toBe('acknowledged');
+    expect($alert->fresh()->resolved_at)->toBeNull();
+});
+
+test('dashboard status changes update linked cases without touching unrelated cases', function (string $status, string $caseStatus) {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    $fixture = clinicFixture();
+    $alert = EmergencyAlert::query()->create([
+        'emergency_type_id' => $fixture['type']->emergency_type_id,
+        'status' => 'resolved',
+        'resolved_at' => now(),
+        'message' => 'Patient needs treatment.',
+    ]);
+    $case = ClinicCase::query()->create([
+        'emergency_alert_id' => $alert->emergency_alert_id,
+        'patient_name' => 'Linked Patient',
+        'status' => 'resolved',
+    ]);
+    $unrelated = ClinicCase::query()->create(['patient_name' => 'Unrelated', 'status' => 'open']);
+
+    $this->actingAs($fixture['clinic'])
+        ->put(route('clinic.emergency-alerts.update', $alert->emergency_alert_id), ['status' => $status])
+        ->assertSessionHasNoErrors()->assertRedirect();
+    expect($case->fresh()->status)->toBe($caseStatus);
+    expect($unrelated->fresh()->status)->toBe('open');
+    expect($alert->fresh()->resolved_at !== null)->toBe($status === 'resolved');
+})->with([
+    ['open', 'open'],
+    ['acknowledged', 'monitoring'],
+    ['resolved', 'resolved'],
+    ['cancelled', 'resolved'],
+]);
+
 function clinicFixture(): array
 {
     $clinic = User::factory()->create([
@@ -464,6 +567,7 @@ test('attendance panel notifies linked parents by email and sms for identified s
             'message' => 'The student passed out.',
             'metadata' => [
                 'emergency_scope' => 'specific',
+                'symptoms' => 'Dizziness and fainting during class.',
                 'students' => [['student_id' => $student->student_id]],
             ],
         ])
@@ -472,10 +576,57 @@ test('attendance panel notifies linked parents by email and sms for identified s
         ->assertJsonPath('parent_notifications.email_sent', 1)
         ->assertJsonPath('parent_notifications.sms_sent', 1);
 
-    Notification::assertSentTo($parent, EmergencyParentAlert::class);
+    Notification::assertSentTo($parent, EmergencyParentAlert::class, function ($notification, $channels) use ($parent) {
+        $mail = $notification->toMail($parent);
+        expect($channels)->toBe(['mail']);
+        expect($mail->subject)->toBe('Emergency alert for Fainting Student');
+        expect($mail->introLines)->toContain('Location: B202');
+        expect($mail->introLines)->toContain('Symptoms / notes: Dizziness and fainting during class.');
+
+        return true;
+    });
     Http::assertSent(fn ($request) => $request->url() === 'https://api.semaphore.co/api/v4/messages'
         && $request['number'] === '09171234567'
         && str_contains($request['message'], 'Fainting Student'));
+});
+
+test('attendance panel keeps the emergency and reports parent email delivery failure', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    $fixture = clinicFixture();
+    $student = Students::query()->create([
+        'first_name' => 'Email',
+        'last_name' => 'Student',
+        'student_number' => 'EMAIL-001',
+        'gender' => 'female',
+        'status' => 'active',
+    ]);
+    $parent = User::factory()->create([
+        'name' => 'Linked Parent',
+        'email' => 'linked.parent@example.test',
+        'role' => 'parent',
+        'phone' => null,
+    ]);
+    $student->parentUsers()->attach($parent->user_id, ['relationship' => 'Mother']);
+    Notification::shouldReceive('send')->once()->andThrow(new RuntimeException('Mail transport unavailable.'));
+
+    $response = $this->actingAs($fixture['console'])
+        ->postJson(route('attendanceControlPanel.emergencyAlert'), [
+            'emergency_type_id' => $fixture['type']->emergency_type_id,
+            'room' => 'B202',
+            'message' => 'Needs medical assistance.',
+            'metadata' => [
+                'emergency_scope' => 'people',
+                'students' => [['student_id' => $student->student_id]],
+            ],
+        ])->assertOk()
+        ->assertJsonPath('ok', true)
+        ->assertJsonPath('parent_notifications.parents_found', 1)
+        ->assertJsonPath('parent_notifications.email_sent', 0);
+
+    expect($response->json('parent_notifications.warnings'))->toContain(
+        'Emergency email to Linked Parent for Email Student could not be sent. Please contact the parent directly.',
+    );
+    $this->assertDatabaseHas('emergency_alerts', ['emergency_alert_id' => $response->json('alert.emergency_alert_id')]);
 });
 
 test('attendance panel warns about each missing parent contact method and still uses the other method', function () {
@@ -750,7 +901,7 @@ test('clinic can ignore emergency detail card by cancelling alert', function () 
     ]);
 });
 
-test('clinic can create update and convert case logs into patient history', function () {
+test('clinic case saves automatically create and update one linked patient history', function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
     $fixture = clinicFixture();
 
@@ -769,6 +920,9 @@ test('clinic can create update and convert case logs into patient history', func
         ->assertSessionHas('success', 'Clinic case created.');
 
     $case = ClinicCase::query()->where('patient_name', 'Juan Dela Cruz')->firstOrFail();
+    $history = PatientHistory::query()->where('clinic_case_id', $case->clinic_case_id)->firstOrFail();
+    expect($history->notes)->toContain('Given water and monitored in clinic.');
+    expect(PatientHistory::query()->where('clinic_case_id', $case->clinic_case_id)->count())->toBe(1);
 
     $this->actingAs($fixture['clinic'])
         ->put(route('clinic.case-logs.update', $case->clinic_case_id), [
@@ -790,12 +944,21 @@ test('clinic can create update and convert case logs into patient history', func
         'action_taken' => 'Observed for 20 minutes and released.',
     ]);
 
+    expect($history->fresh()->notes)->toBe('Action: Observed for 20 minutes and released.' . "\n\n" . 'Stable before leaving clinic.');
+    expect(PatientHistory::query()->where('clinic_case_id', $case->clinic_case_id)->count())->toBe(1);
+
     $this->actingAs($fixture['clinic'])
         ->post(route('clinic.case-logs.history', $case->clinic_case_id))
         ->assertRedirect()
-        ->assertSessionHas('success', 'Patient history created from case.');
+        ->assertSessionHas('success', 'Patient history is up to date.');
+
+    $this->post(route('clinic.case-logs.history', $case->clinic_case_id))->assertRedirect();
+    expect(PatientHistory::query()->where('clinic_case_id', $case->clinic_case_id)->count())->toBe(1);
+    expect($history->fresh()->notes)->toBe('Action: Observed for 20 minutes and released.' . "\n\n" . 'Stable before leaving clinic.');
 
     $this->assertDatabaseHas('patient_histories', [
+        'patient_history_id' => $history->patient_history_id,
+        'clinic_case_id' => $case->clinic_case_id,
         'recorded_by_user_id' => $fixture['clinic']->user_id,
         'patient_name' => 'Juan Dela Cruz',
         'summary' => 'Fainting: Dizziness during class',

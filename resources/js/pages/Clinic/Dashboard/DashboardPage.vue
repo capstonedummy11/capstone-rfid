@@ -1,6 +1,6 @@
 <!-- FEATURE:clinic-dispatch - UI para sa emergency alert response and dispatch. -->
 <script setup>
-import { router, useForm, usePage } from '@inertiajs/vue3';
+import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
     AlertTriangle,
@@ -359,6 +359,7 @@ onMounted(() => {
                 'counts',
                 'calendarEvents',
                 'emergencySound',
+                'assignedDispatches',
             ],
             preserveScroll: true,
             preserveState: true,
@@ -525,6 +526,16 @@ onBeforeUnmount(() => {
                                     {{ alert.room || 'No room' }} |
                                     {{ alert.created_at }}
                                 </p>
+                                <div v-if="alert.cases?.length" class="mt-2 space-y-1">
+                                    <Link
+                                        v-for="clinicCase in alert.cases"
+                                        :key="clinicCase.id"
+                                        :href="route('clinic.case-logs', { case: clinicCase.id })"
+                                        class="block text-xs font-semibold text-blue-700 hover:underline"
+                                    >
+                                        View case: {{ clinicCase.patient_name }} · {{ clinicCase.status }}
+                                    </Link>
+                                </div>
                             </div>
                             <select
                                 v-model="alert.status"
@@ -587,6 +598,12 @@ onBeforeUnmount(() => {
                             <p class="mt-1 text-sm text-slate-600">
                                 {{ assignment.symptoms }}
                             </p>
+                            <Link
+                                :href="route('clinic.case-logs', { case: assignment.case_id })"
+                                class="mt-2 inline-block text-sm font-semibold text-blue-700 hover:underline"
+                            >
+                                Update Case Log
+                            </Link>
                             <div
                                 v-if="
                                     assignment.history.length ||

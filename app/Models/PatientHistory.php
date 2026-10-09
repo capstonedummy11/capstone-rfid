@@ -12,6 +12,7 @@ class PatientHistory extends Model
     protected $primaryKey = 'patient_history_id';
 
     protected $fillable = [
+        'clinic_case_id',
         'student_id',
         'user_id',
         'recorded_by_user_id',

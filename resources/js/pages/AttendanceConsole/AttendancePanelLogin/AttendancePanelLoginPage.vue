@@ -239,6 +239,13 @@ onMounted(() => {
                 </div>
 
                 <div v-else>
+                    <Link
+                        :href="route('staff.login')"
+                        class="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 transition hover:text-slate-900 focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#123456]"
+                    >
+                        <span aria-hidden="true">&larr;</span>
+                        Back to Secure Login
+                    </Link>
                     <div
                         class="text-[10px] font-bold tracking-[0.28em] text-slate-400 uppercase"
                     >
