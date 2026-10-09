@@ -107,7 +107,7 @@ class StudentsController
                 ->value('instructor_id');
 
             $handledSectionIds = Section::query()
-                ->where('schedules', fn ($scheduleQuery) => $scheduleQuery->where('instructor_id', $instructorId ?: 0))
+                ->wherehas('schedules', fn ($scheduleQuery) => $scheduleQuery->where('instructor_id', $instructorId ?: 0))
                 ->pluck('section_id');
         }
 
