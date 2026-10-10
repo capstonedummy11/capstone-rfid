@@ -33,18 +33,29 @@ class EmergencyController
     // @useIn storeAlert: routes/web.php:181 (attendanceControlPanel.emergencyAlert)
     /**
      * @feature     Emergency Alerts and Delivery
+     *
      * @actor       Console user; Clinic staff respond afterward
+     *
      * @flow        Dito sine-save ang emergency alert at ina-attempt ang hotline at Parent notifications.
+     *
      * @uses        resources/js/pages/AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage.vue; routes/attendance-console.php: EmergencyController::storeAlert
+     *
      * @related     Clinic open-alert queue, dispatch, cases, at reports.
+     *
      * @disable     1) Needs developer check: walang nakumpirmang delivery-only switch; tukuyin ang hotline SMS at specific-student Parent email/SMS calls sa storeAlert.
      * @disable     2) Magdagdag ng guard sa sending calls lamang; panatilihin ang emergency_alerts save, storeAlert route, Console action, at Clinic queue/dispatch.
      * @disable     3) I-test ang alert save at Clinic response kahit walang notifications; i-check ang sent/failure logs at reports.
+     *
      * @sideEffects Gumagawa ng emergency_alert at metadata; ina-attempt ang hotline SMS at specific-student Parent email/SMS.
+     *
      * @dependsOn   Clinic open-alert queue, dispatch, cases, at reports.
+     *
      * @performance Minimal na bawas sa provider calls kung delivery lang ang naka-off; Needs developer check: sukatin ang live request time.
+     *
      * @dataImpact  Nananatili ang existing at bagong emergency alerts; walang deletion sa delivery-only steps.
+     *
      * @reEnable    1) Ibalik ang delivery guard sa sending state. 2) I-test ang hotline at Parent delivery. 3) I-check ang alert save, Clinic queue, logs, at reports.
+     *
      * @editable    Clinic Hotlines at Admin SMS Settings: contact/number/provider; message construction ay code.
      */
     public function storeAlert(Request $request, SmsService $sms): JsonResponse
@@ -139,18 +150,29 @@ class EmergencyController
     // @useIn hotlines: routes/web.php:480 (emergency-hotlines.index)
     /**
      * @feature     Emergency Types and Hotlines
+     *
      * @actor       Clinic
+     *
      * @flow        Dito sine-set ang emergency types at matching hotlines.
+     *
      * @uses        resources/js/pages/Clinic/EmergencyHotlines/EmergencyHotlinesPage.vue; routes/clinic.php: EmergencyController::hotlines, EmergencyController::storeHotline, EmergencyController::updateHotline, EmergencyController::destroyHotline, EmergencyController::storeType, EmergencyController::updateType, EmergencyController::destroyType
+     *
      * @related     Console emergency choices, hotline SMS routing, at Clinic dashboard.
+     *
      * @disable     1) Suriin ang Emergency Types and Hotlines callers, pending work, at dependent screens; Needs developer check: exact shared routes at background consumers.
      * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Clinic/EmergencyHotlines/EmergencyHotlinesPage.vue`.
      * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     *
      * @sideEffects Nagbabago ang emergency_types at emergency_hotlines.
+     *
      * @dependsOn   Console emergency choices, hotline SMS routing, at Clinic dashboard.
+     *
      * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     *
      * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     *
      * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     *
      * @editable    Clinic Emergency Types/Hotlines: name, category, number, SMS at active flags.
      */
     public function hotlines()
@@ -222,13 +244,7 @@ class EmergencyController
     // @useIn storeType: routes/web.php:488 (emergency-types.store)
     public function storeType(Request $request)
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'category' => ['required', 'string', 'max:255'],
-            'default_message' => ['nullable', 'string'],
-            'is_active' => ['nullable', 'boolean'],
-            'sort_order' => ['nullable', 'integer', 'min:0'],
-        ]);
+        $validated = $this->validateType($request);
 
         $type = EmergencyType::create([
             ...$validated,
@@ -246,13 +262,7 @@ class EmergencyController
     public function updateType(Request $request, int $id)
     {
         $type = EmergencyType::findOrFail($id);
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'category' => ['required', 'string', 'max:255'],
-            'default_message' => ['nullable', 'string'],
-            'is_active' => ['nullable', 'boolean'],
-            'sort_order' => ['nullable', 'integer', 'min:0'],
-        ]);
+        $validated = $this->validateType($request, $type);
 
         $type->update([
             ...$validated,
@@ -277,6 +287,31 @@ class EmergencyController
         $this->logActivity($request, 'delete', 'emergency_types', 'Deleted emergency type '.$name.'.');
 
         return back()->with('success', 'Emergency type deleted.');
+    }
+
+    /**
+     * Validate an emergency type and keep each non-deleted sort position unambiguous.
+     *
+     * @return array<string, mixed>
+     */
+    private function validateType(Request $request, ?EmergencyType $type = null): array
+    {
+        $sortOrderRule = Rule::unique('emergency_types', 'sort_order')
+            ->whereNull('deleted_at');
+
+        if ($type) {
+            $sortOrderRule->ignore($type->emergency_type_id, 'emergency_type_id');
+        }
+
+        return $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'category' => ['required', 'string', 'max:255'],
+            'default_message' => ['nullable', 'string'],
+            'is_active' => ['nullable', 'boolean'],
+            'sort_order' => ['nullable', 'integer', 'min:0', $sortOrderRule],
+        ], [
+            'sort_order.unique' => 'This sort order is already used by another emergency type.',
+        ]);
     }
 
     // @function updateAlertStatus: Ina-update ang alert status sa Emergency flow.
@@ -306,18 +341,29 @@ class EmergencyController
     // @useIn dispatchAlert: routes/web.php:496 (emergency-alerts.dispatch)
     /**
      * @feature     Emergency Alert Response and Dispatch
+     *
      * @actor       Clinic
+     *
      * @flow        Dito ina-assign ang Clinic responder at gumagawa ng linked case.
+     *
      * @uses        resources/js/pages/Clinic/Dashboard/DashboardPage.vue; routes/clinic.php: EmergencyController::dispatchAlert, EmergencyController::updateAlertStatus
+     *
      * @related     Open-alert queue, Clinic assignments, cases, at reports.
+     *
      * @disable     1) Suriin ang Emergency Alert Response and Dispatch callers, pending work, at dependent screens; Needs developer check: exact shared routes at background consumers.
      * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Clinic/Dashboard/DashboardPage.vue`.
      * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     *
      * @sideEffects Ina-update ang emergency_alerts, clinic_cases, activity logs, at responder email attempt.
+     *
      * @dependsOn   Open-alert queue, Clinic assignments, cases, at reports.
+     *
      * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     *
      * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     *
      * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     *
      * @editable    Clinic dashboard: responder selection at alert status.
      */
     public function dispatchAlert(Request $request, int $id)

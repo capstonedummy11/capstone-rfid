@@ -9,6 +9,31 @@ use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
 
+test('managed user passwords use the shared twelve character policy', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+
+    $root = User::factory()->create([
+        'role' => 'admin',
+        'is_root_admin' => true,
+    ]);
+
+    $this->actingAs($root)
+        ->post(route('admin.users.store'), [
+            'name' => 'Policy Test Clinic',
+            'email' => 'policy.test.clinic@example.com',
+            'password' => 'Short1!',
+            'password_confirmation' => 'Short1!',
+            'role' => 'clinic',
+        ])
+        ->assertSessionHasErrors([
+            'password' => 'Password must be at least 12 characters long.',
+        ]);
+
+    $this->assertDatabaseMissing('users', [
+        'email' => 'policy.test.clinic@example.com',
+    ]);
+});
+
 test('root admin can view and manage admin clinic and registrar accounts', function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
 
@@ -31,8 +56,8 @@ test('root admin can view and manage admin clinic and registrar accounts', funct
         ->post(route('admin.users.store'), [
             'name' => 'Managed Admin',
             'email' => 'managed.admin@example.com',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
+            'password' => 'StrongPass123!',
+            'password_confirmation' => 'StrongPass123!',
             'role' => 'admin',
             'is_root_admin' => false,
         ])
@@ -98,8 +123,8 @@ test('standard admin can create clinic and registrar users but cannot manage adm
         ->post(route('admin.users.store'), [
             'name' => 'Clinic Managed',
             'email' => 'clinic.managed@example.com',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
+            'password' => 'StrongPass123!',
+            'password_confirmation' => 'StrongPass123!',
             'role' => 'clinic',
         ])
         ->assertRedirect()
@@ -115,8 +140,8 @@ test('standard admin can create clinic and registrar users but cannot manage adm
         ->post(route('admin.users.store'), [
             'name' => 'Registrar Managed',
             'email' => 'registrar.managed@example.com',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
+            'password' => 'StrongPass123!',
+            'password_confirmation' => 'StrongPass123!',
             'role' => 'registrar',
         ])
         ->assertRedirect()
@@ -169,8 +194,8 @@ test('standard admin can create clinic and registrar users but cannot manage adm
         ->post(route('admin.users.store'), [
             'name' => 'Blocked Admin',
             'email' => 'blocked.admin@example.com',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
+            'password' => 'StrongPass123!',
+            'password_confirmation' => 'StrongPass123!',
             'role' => 'admin',
         ])
         ->assertForbidden();
@@ -274,8 +299,8 @@ test('user management cannot create or promote a root admin', function () {
         ->post(route('admin.users.store'), [
             'name' => 'Blocked Root',
             'email' => 'blocked.root@example.com',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
+            'password' => 'StrongPass123!',
+            'password_confirmation' => 'StrongPass123!',
             'role' => 'admin',
             'is_root_admin' => true,
         ])
@@ -312,7 +337,7 @@ test('managed account password must be confirmed', function () {
         ->post(route('admin.users.store'), [
             'name' => 'Unconfirmed Registrar',
             'email' => 'unconfirmed.registrar@example.com',
-            'password' => 'password123',
+            'password' => 'StrongPass123!',
             'password_confirmation' => 'different-password',
             'role' => 'registrar',
         ])

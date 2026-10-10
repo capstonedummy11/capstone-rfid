@@ -507,8 +507,8 @@ test('admin managed clinic account is reused by clinic dashboard case logs and p
         ->post(route('admin.users.store'), [
             'name' => 'Clinic Cross Page',
             'email' => 'clinic.cross.page@example.test',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
+            'password' => 'StrongPass123!',
+            'password_confirmation' => 'StrongPass123!',
             'role' => 'clinic',
             'phone' => '09170000002',
         ])

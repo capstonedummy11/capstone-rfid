@@ -1,7 +1,7 @@
 <!-- FEATURE:reports - UI para sa reports and exports. -->
 <script setup>
 import { router } from '@inertiajs/vue3';
-import { BarChart3, Download, RefreshCcw } from 'lucide-vue-next';
+import { BarChart3, Download, FileText, RefreshCcw } from 'lucide-vue-next';
 import { computed, reactive } from 'vue';
 
 const props = defineProps({
@@ -12,6 +12,7 @@ const props = defineProps({
     charts: { type: Array, default: () => [] },
     tableRows: { type: Array, default: () => [] },
     exportUrl: { type: String, default: '' },
+    pdfExportUrl: { type: String, default: '' },
     academicYears: { type: Array, default: () => [] },
     selectedAcademicYear: { type: Object, default: null },
     allowAllYears: { type: Boolean, default: false },
@@ -133,7 +134,9 @@ const applyFilters = () => {
 // @function resetFilters: Nire-reset ang filters sa Index flow.
 // @useIn resetFilters: resources/js/pages/Shared/Reports/Index/IndexPage.vue template @click
 const resetFilters = () => {
-    form.academic_year_id = props.academicYears.find((year) => year.status === 'active')?.academic_year_id || (props.allowAllYears ? 'all' : '');
+    form.academic_year_id =
+        props.academicYears.find((year) => year.status === 'active')
+            ?.academic_year_id || (props.allowAllYears ? 'all' : '');
     form.date_from = '';
     form.date_to = '';
     form.semester = '';
@@ -158,29 +161,56 @@ const resetFilters = () => {
                         {{ pageDescription }}
                     </p>
                 </div>
-                <a
-                    :href="exportUrl"
-                    class="inline-flex items-center justify-center gap-2 rounded-md bg-brand px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-brand/90"
-                >
-                    <Download class="h-4 w-4" />
-                    Download CSV
-                </a>
+                <div class="flex flex-col gap-2 sm:flex-row">
+                    <a
+                        :href="exportUrl"
+                        class="inline-flex items-center justify-center gap-2 rounded-md bg-brand px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-brand/90"
+                    >
+                        <Download class="h-4 w-4" />
+                        Download CSV
+                    </a>
+                    <a
+                        :href="pdfExportUrl"
+                        class="inline-flex items-center justify-center gap-2 rounded-md bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-slate-800"
+                    >
+                        <FileText class="h-4 w-4" />
+                        Download PDF
+                    </a>
+                </div>
             </section>
 
             <section class="rounded-md bg-white p-5 shadow-sm">
-                <div class="grid gap-3 md:grid-cols-[1fr_1fr_1fr_1fr_auto_auto]">
-                    <label class="grid gap-1 text-sm font-semibold text-slate-700">
+                <div
+                    class="grid gap-3 md:grid-cols-[1fr_1fr_1fr_1fr_auto_auto]"
+                >
+                    <label
+                        class="grid gap-1 text-sm font-semibold text-slate-700"
+                    >
                         Academic Year
-                        <select v-model="form.academic_year_id" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
-                            <option v-if="allowAllYears" value="all">All years</option>
-                            <option v-for="year in academicYears" :key="year.academic_year_id" :value="year.academic_year_id">
+                        <select
+                            v-model="form.academic_year_id"
+                            class="rounded-md border border-slate-300 px-3 py-2 text-sm"
+                        >
+                            <option v-if="allowAllYears" value="all">
+                                All years
+                            </option>
+                            <option
+                                v-for="year in academicYears"
+                                :key="year.academic_year_id"
+                                :value="year.academic_year_id"
+                            >
                                 {{ year.name }} ({{ year.status }})
                             </option>
                         </select>
                     </label>
-                    <label class="grid gap-1 text-sm font-semibold text-slate-700">
+                    <label
+                        class="grid gap-1 text-sm font-semibold text-slate-700"
+                    >
                         Semester
-                        <select v-model="form.semester" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
+                        <select
+                            v-model="form.semester"
+                            class="rounded-md border border-slate-300 px-3 py-2 text-sm"
+                        >
                             <option value="">All semesters</option>
                             <option value="1st Semester">1st Semester</option>
                             <option value="2nd Semester">2nd Semester</option>

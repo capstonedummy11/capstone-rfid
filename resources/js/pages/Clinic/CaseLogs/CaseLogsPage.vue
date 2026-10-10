@@ -1,8 +1,8 @@
 <!-- FEATURE:clinic-records - UI para sa case logs and patient history. -->
-<script setup>
+<script setup lang="ts">
 import { Link, useForm, usePage } from '@inertiajs/vue3';
+import { ClipboardPlus, Download, Save } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
-import { ClipboardPlus, Save } from 'lucide-vue-next';
 
 const props = defineProps({
     cases: { type: Array, default: () => [] },
@@ -86,12 +86,13 @@ const statusClass = (status) => {
     if (status === 'resolved') return 'bg-emerald-50 text-emerald-700';
     if (status === 'monitoring') return 'bg-sky-50 text-sky-700';
     if (status === 'referred') return 'bg-amber-50 text-amber-700';
+    if (status === 'cancelled') return 'bg-slate-100 text-slate-600';
     return 'bg-rose-50 text-rose-700';
 };
 </script>
 
 <template>
-    <div class="mx-auto w-full min-w-0 max-w-7xl px-4 py-6">
+    <div class="mx-auto w-full max-w-7xl min-w-0 px-4 py-6">
         <section
             class="mb-5 flex flex-col gap-3 rounded-md bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"
         >
@@ -102,15 +103,26 @@ const statusClass = (status) => {
                     history is saved automatically with each case.
                 </p>
             </div>
-            <p
-                v-if="flashSuccess"
-                class="rounded-md bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700"
-            >
-                {{ flashSuccess }}
-            </p>
+            <div class="flex flex-col items-stretch gap-2 sm:items-end">
+                <p
+                    v-if="flashSuccess"
+                    class="rounded-md bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700"
+                >
+                    {{ flashSuccess }}
+                </p>
+                <a
+                    :href="route('clinic.case-logs.export')"
+                    class="inline-flex items-center justify-center gap-2 rounded-md bg-brand px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-brand/90"
+                >
+                    <Download class="h-4 w-4" />
+                    Export CSV
+                </a>
+            </div>
         </section>
 
-        <section class="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-[390px_minmax(0,1fr)]">
+        <section
+            class="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-[390px_minmax(0,1fr)]"
+        >
             <form
                 class="min-w-0 rounded-md bg-white p-5 shadow-sm"
                 @submit.prevent="submitCase"
@@ -161,6 +173,7 @@ const statusClass = (status) => {
                                 <option value="monitoring">Monitoring</option>
                                 <option value="resolved">Resolved</option>
                                 <option value="referred">Referred</option>
+                                <option value="cancelled">Cancelled</option>
                             </select>
                         </label>
                     </div>
@@ -260,11 +273,18 @@ const statusClass = (status) => {
                                         :href="route('clinic.dashboard')"
                                         class="mt-1 block text-xs font-semibold text-blue-700 hover:underline"
                                     >
-                                        Emergency notification #{{ clinicCase.emergency_alert_id }}
+                                        Emergency notification #{{
+                                            clinicCase.emergency_alert_id
+                                        }}
                                     </Link>
-                                    <div class="mt-1 text-xs font-semibold text-blue-600">
+                                    <div
+                                        class="mt-1 text-xs font-semibold text-blue-600"
+                                    >
                                         Responder sent:
-                                        {{ clinicCase.assigned_responder_name || 'Not assigned' }}
+                                        {{
+                                            clinicCase.assigned_responder_name ||
+                                            'Not assigned'
+                                        }}
                                     </div>
                                 </td>
                                 <td class="px-3 py-3 text-slate-700">

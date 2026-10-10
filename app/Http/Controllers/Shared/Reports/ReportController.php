@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Shared\Reports;
 
 use App\Models\AcademicYear;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Closure;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
@@ -18,18 +19,29 @@ class ReportController
     // @useIn index: routes/web.php:141 (reports.index)
     /**
      * @feature     Reports and Exports
+     *
      * @actor       Shared / Core
+     *
      * @flow        Dito fina-filter at ine-export ang role-scoped reports.
+     *
      * @uses        resources/js/pages/Shared/Reports/Index/IndexPage.vue; routes/shared.php: ReportController::index, ReportController::export
+     *
      * @related     Admin/Instructor/Clinic/Registrar/Student/Parent review.
+     *
      * @disable     1) Suriin ang Reports and Exports callers, pending work, at dependent screens; Needs developer check: exact shared routes at background consumers.
      * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Shared/Reports/Index/IndexPage.vue`.
      * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     *
      * @sideEffects Nagbabasa ng role-scoped records at nag-e-export ng CSV; export ay maaaring ma-audit.
+     *
      * @dependsOn   Admin/Instructor/Clinic/Registrar/Student/Parent review.
+     *
      * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     *
      * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     *
      * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     *
      * @editable    Reports page: date at permitted academic filters; walang no-code report-formula editor.
      */
     public function index(Request $request)
@@ -46,26 +58,65 @@ class ReportController
 
         return response()->streamDownload(function () use ($payload) {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['Report', $payload['title']]);
-            fputcsv($handle, ['Generated At', now()->format('Y-m-d H:i:s')]);
-            fputcsv($handle, ['Date From', $payload['filters']['date_from'] ?: 'All']);
-            fputcsv($handle, ['Date To', $payload['filters']['date_to'] ?: 'All']);
-            fputcsv($handle, ['Academic Year', $payload['selectedAcademicYear']['name'] ?? 'All years']);
-            fputcsv($handle, ['Semester', $payload['filters']['semester'] ?: 'All semesters']);
-            fputcsv($handle, []);
-            fputcsv($handle, ['Category', 'Metric', 'Value', 'Group']);
+            fwrite($handle, "\xEF\xBB\xBF");
+
+            $metadata = [
+                $payload['title'],
+                now()->toIso8601String(),
+                $payload['filters']['date_from'] ?: 'All dates',
+                $payload['filters']['date_to'] ?: 'All dates',
+                $payload['selectedAcademicYear']['name'] ?? 'All years',
+                $payload['filters']['semester'] ?: 'All semesters',
+            ];
+
+            fputcsv($handle, [
+                'Report',
+                'Generated At',
+                'Date From',
+                'Date To',
+                'Academic Year',
+                'Semester',
+                'Category',
+                'Metric',
+                'Value',
+                'Group',
+            ]);
+
+            foreach ($payload['summaryCards'] as $card) {
+                fputcsv($handle, [
+                    ...$metadata,
+                    'Summary',
+                    $this->csvText($card['label']),
+                    $card['value'],
+                    $card['detail'] ?: 'Count',
+                ]);
+            }
 
             foreach ($payload['tableRows'] as $row) {
                 fputcsv($handle, [
-                    $row['category'],
-                    $row['metric'],
+                    ...$metadata,
+                    $this->csvText($row['category']),
+                    $this->csvText($row['metric']),
                     $row['value'],
-                    $row['group'],
+                    $this->csvText($row['group']),
                 ]);
             }
 
             fclose($handle);
-        }, $filename, ['Content-Type' => 'text/csv']);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    // @function exportPdf: Exports the same filtered report with printable chart diagrams.
+    // @useIn exportPdf: routes/shared.php (reports.export.pdf)
+    public function exportPdf(Request $request)
+    {
+        $payload = $this->reportPayload($request);
+        $generatedAt = now();
+        $filename = $payload['role'].'-report-'.$generatedAt->format('Y-m-d-His').'.pdf';
+
+        return Pdf::loadView('reports.summary', compact('payload', 'generatedAt'))
+            ->setPaper('a4', 'portrait')
+            ->download($filename);
     }
 
     // @function reportPayload: Binubuo ang report payload value.
@@ -262,10 +313,19 @@ class ReportController
             'charts' => array_values($charts),
             'tableRows' => $this->tableRows($charts),
             'exportUrl' => route('reports.export', array_filter($filters)),
+            'pdfExportUrl' => route('reports.export.pdf', array_filter($filters)),
             'academicYears' => AcademicYear::query()->orderByDesc('starts_on')->get(['academic_year_id', 'name', 'status', 'active_semester']),
             'selectedAcademicYear' => $filters['academic_year_id'] === 'all' ? null : AcademicYear::query()->find($filters['academic_year_id']),
             'allowAllYears' => ! in_array($role, ['student', 'parent'], true),
         ];
+    }
+
+    /** Prevent spreadsheet applications from executing database text as a formula. */
+    private function csvText(mixed $value): string
+    {
+        $text = (string) $value;
+
+        return preg_match('/^[=+\-@\t\r]/', $text) ? "'".$text : $text;
     }
 
     // @function card: Kinukuha ang card result para sa Report.

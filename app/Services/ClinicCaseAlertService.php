@@ -14,16 +14,17 @@ class ClinicCaseAlertService
         }
 
         $alert = EmergencyAlert::query()->lockForUpdate()->find($case->emergency_alert_id);
-        if (! $alert || $alert->status === 'cancelled') {
+        if (! $alert) {
             return;
         }
 
         $cases = $alert->cases()->get();
-        $status = $cases->every(fn (ClinicCase $linkedCase) => $linkedCase->status === 'resolved')
-            ? 'resolved'
-            : ($cases->contains(fn (ClinicCase $linkedCase) => $linkedCase->status !== 'open') || $alert->dispatched_at
-                ? 'acknowledged'
-                : 'open');
+        $status = match (true) {
+            $cases->every(fn (ClinicCase $linkedCase) => $linkedCase->status === 'resolved') => 'resolved',
+            $cases->every(fn (ClinicCase $linkedCase) => $linkedCase->status === 'cancelled') => 'cancelled',
+            $cases->every(fn (ClinicCase $linkedCase) => $linkedCase->status === 'open') => 'open',
+            default => 'acknowledged',
+        };
 
         $alert->update([
             'status' => $status,
@@ -34,17 +35,11 @@ class ClinicCaseAlertService
 
     public function syncFromAlert(EmergencyAlert $alert): void
     {
-        // Cancellation has no equivalent case status; keep the treatment record intact.
-        if ($alert->status === 'cancelled') {
-            return;
-        }
+        $caseStatus = match ($alert->status) {
+            'acknowledged' => 'monitoring',
+            default => $alert->status,
+        };
 
-        $cases = $alert->cases();
-        if ($alert->status === 'acknowledged') {
-            $cases->whereIn('status', ['open', 'resolved'])->update(['status' => 'monitoring']);
-            return;
-        }
-
-        $cases->update(['status' => $alert->status]);
+        $alert->cases()->update(['status' => $caseStatus]);
     }
 }

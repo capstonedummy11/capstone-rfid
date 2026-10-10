@@ -186,5 +186,15 @@ test('report academic year filter matches the exported dataset', function () {
 
     $export = $this->actingAs($admin)->get(route('reports.export', ['academic_year_id' => $yearA->academic_year_id]));
     $export->assertOk();
-    expect($export->streamedContent())->toContain($yearA->name);
+    $csv = $export->streamedContent();
+    expect($csv)
+        ->toStartWith("\xEF\xBB\xBFReport,Generated At,Date From,Date To,Academic Year,Semester,Category,Metric,Value,Group")
+        ->toContain($yearA->name)
+        ->toContain(',Summary,');
+
+    $this->actingAs($admin)
+        ->get(route('reports.export.pdf', ['academic_year_id' => $yearA->academic_year_id]))
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf')
+        ->assertDownload();
 });

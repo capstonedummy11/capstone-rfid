@@ -239,6 +239,19 @@ Symptoms/details: submitted incident details or default emergency message
 
 Current implementation note: acknowledgement and dispatch are recorded together when Clinic selects **Dispatch**. A separate acknowledgement-only action is not currently implemented.
 
+### Dashboard and Case Log status synchronization
+
+Emergency Notification status and every linked Clinic Case status are synchronized in both directions:
+
+| Emergency Notification | Linked Clinic Case |
+| --- | --- |
+| Open | Open |
+| Acknowledged | Monitoring |
+| Resolved | Resolved |
+| Cancelled | Cancelled |
+
+Changing the notification status updates all linked cases. In the reverse direction, all linked cases being Open, Resolved, or Cancelled sets the notification to that equivalent status. A mixture of patient-case states, or a Monitoring/Referred case, keeps the notification Acknowledged so one patient's completion cannot prematurely close a multi-patient emergency.
+
 ```mermaid
 stateDiagram-v2
     [*] --> Open: Panel sends alert

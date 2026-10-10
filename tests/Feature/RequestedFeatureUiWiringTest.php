@@ -85,6 +85,7 @@ test('password change and reset forms explain the twelve character minimum', fun
     $resetPassword = file_get_contents(resource_path('js/pages/Shared/Auth/ResetPassword/ResetPasswordPage.vue'));
     $firstLoginPassword = file_get_contents(resource_path('js/pages/Shared/Auth/FirstLoginPassword/FirstLoginPasswordPage.vue'));
     $portalProfile = file_get_contents(resource_path('js/pages/StudentParent/Profile/ProfilePage.vue'));
+    $userManagement = file_get_contents(resource_path('js/pages/Admin/UserManagement/UserManagementPage.vue'));
 
     expect($passwordPolicy)
         ->toContain('MIN_PASSWORD_LENGTH = 12')
@@ -103,7 +104,13 @@ test('password change and reset forms explain the twelve character minimum', fun
         ->and($portalProfile)
         ->toContain(':minlength="MIN_PASSWORD_LENGTH"')
         ->toContain('PASSWORD_LENGTH_HELPER')
-        ->toContain('PASSWORD_LENGTH_ERROR');
+        ->toContain('PASSWORD_LENGTH_ERROR')
+        ->and($userManagement)
+        ->toContain(':minlength="MIN_PASSWORD_LENGTH"')
+        ->toContain('evaluatePasswordRequirements')
+        ->toContain('Password strength')
+        ->toContain('Password must contain:')
+        ->toContain('passwordFormInvalid');
 });
 
 test('first-login password page is standalone and provides sign out', function () {

@@ -30,6 +30,7 @@ Route::middleware(['auth', 'role:admin,instructor,clinic,registrar,student,paren
     // Reports and Exports
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('/reports/export', [ReportController::class, 'export'])->name('reports.export');
+    Route::get('/reports/export/pdf', [ReportController::class, 'exportPdf'])->name('reports.export.pdf');
 });
 
 Route::middleware('auth')->group(function () {

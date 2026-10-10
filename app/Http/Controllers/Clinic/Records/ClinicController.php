@@ -83,18 +83,29 @@ class ClinicController
     // @useIn caseLogs: routes/web.php:460 (case-logs)
     /**
      * @feature     Case Logs and Patient History
+     *
      * @actor       Clinic
+     *
      * @flow        Dito ini-record ang clinic cases at patient history.
+     *
      * @uses        resources/js/pages/Clinic/CaseLogs/CaseLogsPage.vue; routes/clinic.php: ClinicController::caseLogs, ClinicController::storeCase, ClinicController::updateCase, ClinicController::createHistoryFromCase, ClinicController::patientHistory, ClinicController::storeHistory, ClinicController::updateHistory, ClinicController::destroyHistory
+     *
      * @related     Clinic dispatch follow-up at Clinic reports.
+     *
      * @disable     1) Suriin ang Case Logs and Patient History callers, pending work, at dependent screens; Needs developer check: exact shared routes at background consumers.
      * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Clinic/CaseLogs/CaseLogsPage.vue`.
      * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     *
      * @sideEffects Nagbabago ang clinic_cases, patient_histories, at activity logs.
+     *
      * @dependsOn   Clinic dispatch follow-up at Clinic reports.
+     *
      * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     *
      * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     *
      * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     *
      * @editable    Clinic Case Logs/Patient History: case, summary, notes, at status.
      */
     public function caseLogs(Request $request)
@@ -104,6 +115,59 @@ class ClinicController
             'cases' => ClinicCase::with(['alert.type', 'assignedResponder'])->latest('clinic_case_id')->get()->map(fn (ClinicCase $case) => $this->casePayload($case))->values(),
             'emergencyTypes' => $this->emergencyTypes(),
             'selectedCaseId' => $request->integer('case') ?: null,
+        ]);
+    }
+
+    // @function exportCaseLogs: Exports all clinic case logs as an Excel-compatible CSV.
+    // @useIn exportCaseLogs: routes/clinic.php (clinic.case-logs.export)
+    public function exportCaseLogs(): StreamedResponse
+    {
+        $cases = ClinicCase::query()
+            ->with('assignedResponder')
+            ->latest('clinic_case_id')
+            ->get();
+
+        return response()->streamDownload(function () use ($cases) {
+            $handle = fopen('php://output', 'w');
+            fwrite($handle, "\xEF\xBB\xBF");
+
+            fputcsv($handle, [
+                'Case ID',
+                'Emergency Alert ID',
+                'Patient Name',
+                'Patient Type',
+                'Case Type',
+                'Status',
+                'Symptoms',
+                'Action Taken',
+                'Notes',
+                'Occurred At',
+                'Assigned Responder',
+                'Created At',
+                'Updated At',
+            ]);
+
+            foreach ($cases as $case) {
+                fputcsv($handle, [
+                    $case->clinic_case_id,
+                    $case->emergency_alert_id,
+                    $this->csvText($case->patient_name),
+                    $this->csvText($case->patient_type),
+                    $this->csvText($case->case_type),
+                    $this->csvText($case->status),
+                    $this->csvText($case->symptoms),
+                    $this->csvText($case->action_taken),
+                    $this->csvText($case->notes),
+                    optional($case->occurred_at)->toIso8601String(),
+                    $this->csvText($case->assignedResponder?->name),
+                    optional($case->created_at)->toIso8601String(),
+                    optional($case->updated_at)->toIso8601String(),
+                ]);
+            }
+
+            fclose($handle);
+        }, 'clinic-case-logs-'.now()->format('Y-m-d-His').'.csv', [
+            'Content-Type' => 'text/csv; charset=UTF-8',
         ]);
     }
 
@@ -130,18 +194,29 @@ class ClinicController
     // @useIn reports: routes/web.php:476 (reports)
     /**
      * @feature     Clinic Reports
+     *
      * @actor       Clinic
+     *
      * @flow        Dito fina-filter at ine-export ang clinic activity.
+     *
      * @uses        resources/js/pages/Clinic/Reports/ReportsPage.vue; routes/clinic.php: ClinicController::reports, ClinicController::exportReports
+     *
      * @related     Clinic monitoring and review.
+     *
      * @disable     1) Suriin ang Clinic Reports callers, pending work, at dependent screens; Needs developer check: exact shared routes at background consumers.
      * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Clinic/Reports/ReportsPage.vue`.
      * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
+     *
      * @sideEffects Nagbabasa ng Clinic records at nag-e-export ng CSV; maaaring ma-audit ang export.
+     *
      * @dependsOn   Clinic monitoring and review.
+     *
      * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
+     *
      * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
+     *
      * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
+     *
      * @editable    Clinic Reports: filters; walang no-code report-formula editor na nakumpirma.
      */
     public function reports(Request $request)
@@ -542,7 +617,7 @@ class ClinicController
             'symptoms' => ['nullable', 'string'],
             'action_taken' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
-            'status' => ['required', 'in:open,monitoring,resolved,referred'],
+            'status' => ['required', 'in:open,monitoring,resolved,referred,cancelled'],
             'occurred_at' => ['nullable', 'date'],
         ]);
     }
@@ -586,6 +661,14 @@ class ClinicController
             'notes' => $case->notes,
             'alert' => $case->alert?->type?->name,
         ];
+    }
+
+    /** Prevent spreadsheet applications from executing case-log text as a formula. */
+    private function csvText(mixed $value): string
+    {
+        $text = (string) ($value ?? '');
+
+        return preg_match('/^[=+\-@\t\r]/', $text) ? "'".$text : $text;
     }
 
     // @function historyPayload: Binubuo ang history payload value.

@@ -19,6 +19,7 @@ Route::prefix('clinic')
 
         // Case Logs
         Route::get('/case-logs', [ClinicController::class, 'caseLogs'])->name('case-logs');
+        Route::get('/case-logs/export', [ClinicController::class, 'exportCaseLogs'])->name('case-logs.export');
         Route::post('/case-logs', [ClinicController::class, 'storeCase'])->name('case-logs.store');
         Route::put('/case-logs/{id}', [ClinicController::class, 'updateCase'])->name('case-logs.update');
         Route::post('/case-logs/{id}/history', [ClinicController::class, 'createHistoryFromCase'])->name('case-logs.history');

@@ -1630,8 +1630,8 @@ test('admin user controller creates managed user then updates indexes and delete
     $this->actingAs($root)->post(route('admin.users.store'), [
         'name' => 'Managed Registrar',
         'email' => 'managed.registrar@example.test',
-        'password' => 'password123',
-        'password_confirmation' => 'password123',
+        'password' => 'StrongPass123!',
+        'password_confirmation' => 'StrongPass123!',
         'role' => 'registrar',
         'phone' => '09170000007',
         'is_root_admin' => false,

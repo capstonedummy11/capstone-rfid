@@ -5,6 +5,8 @@
 | Need | Source of truth |
 | --- | --- |
 | Plain-language system overview | [System Explanation](System%20Explanation/README.md) |
+| Compact whole-system context | [System Context Memo](SYSTEM_CONTEXT_MEMO.md) |
+| UML actors and industry-style use cases | [System Use-Case Model](System%20Architecture/USE_CASE_MODEL.md) |
 | Every page, action, condition, and result | [Pages and Features](System%20Explanation/PAGES_AND_FEATURES.md) |
 | Role capabilities and boundaries | [Roles and Functionality](System%20Explanation/ROLES_AND_FUNCTIONALITY.md) |
 | Human operating steps | [User Operations Tutorial](System%20Explanation/USER_OPERATIONS_TUTORIAL.md) |

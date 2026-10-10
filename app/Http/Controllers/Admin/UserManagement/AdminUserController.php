@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Admin\UserManagement;
 
+use App\Concerns\PasswordValidationRules;
 use App\Http\Controllers\Controller;
-
 use App\Http\Resources\RootAuditLogResource;
 use App\Http\Resources\RootOverrideResource;
 use App\Http\Resources\RootTransferResource;
@@ -22,6 +22,8 @@ use Inertia\Inertia;
 
 class AdminUserController extends Controller
 {
+    use PasswordValidationRules;
+
     private const MANAGED_ROLES = ['admin', 'clinic', 'registrar'];
 
     // @function index: Ibinabalik ang Auth/Admin/UserManagement page at data para sa request.
@@ -201,10 +203,10 @@ class AdminUserController extends Controller
         ];
 
         $rules['password'] = $user
-            ? ['nullable', 'string', 'min:8', 'max:255', 'confirmed']
-            : ['required', 'string', 'min:8', 'max:255', 'confirmed'];
+            ? ['nullable', ...array_slice($this->passwordRules(), 1), 'max:255']
+            : [...$this->passwordRules(), 'max:255'];
 
-        return $request->validate($rules);
+        return $request->validate($rules, $this->passwordValidationMessages());
     }
 
     // @function rejectRootAdminAssignment: Pinoproseso ang reject root admin assignment para sa Admin User.

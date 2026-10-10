@@ -1,7 +1,8 @@
 <!-- FEATURE:user-management - UI para sa user and role management. -->
-<script setup>
+<script setup lang="ts">
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import {
+    Check,
     Edit3,
     Eye,
     EyeOff,
@@ -13,6 +14,13 @@ import {
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { confirmActionModal } from '@/lib/feedbackModal';
+import {
+    MIN_PASSWORD_LENGTH,
+    PASSWORD_LENGTH_ERROR,
+    evaluatePasswordRequirements,
+    isPasswordTooShort,
+    meetsPasswordRequirements,
+} from '@/lib/passwordPolicy';
 import RootOwnershipPanel from '@/pages/Admin/UserManagement/components/RootOwnershipPanel.vue';
 
 const props = defineProps({
@@ -30,6 +38,8 @@ const passwordResetUser = ref(null);
 const passwordResetSuccess = ref(null);
 const showPassword = ref(false);
 const showPasswordConfirmation = ref(false);
+const passwordTouched = ref(false);
+const confirmationTouched = ref(false);
 
 const form = useForm({
     name: '',
@@ -40,6 +50,87 @@ const form = useForm({
     password_confirmation: '',
 });
 const passwordResetForm = useForm({});
+const passwordRequirements = computed(() =>
+    evaluatePasswordRequirements(form.password),
+);
+const passwordRequirementsMet = computed(() =>
+    meetsPasswordRequirements(form.password),
+);
+const passwordRequired = computed(
+    () => !editingId.value || form.password.length > 0,
+);
+const passwordFeedback = computed(() => {
+    if (form.errors.password) return form.errors.password;
+    if (!passwordTouched.value || !form.password) return '';
+
+    return isPasswordTooShort(form.password)
+        ? PASSWORD_LENGTH_ERROR
+        : passwordRequirementsMet.value
+          ? ''
+          : 'Password must meet all requirements below.';
+});
+const confirmationMismatch = computed(
+    () =>
+        form.password_confirmation.length > 0 &&
+        form.password_confirmation !== form.password,
+);
+const confirmationFeedback = computed(() => {
+    if (form.errors.password_confirmation)
+        return form.errors.password_confirmation;
+    if (!confirmationTouched.value || !passwordRequired.value) return '';
+
+    return !form.password_confirmation
+        ? 'Confirm the password.'
+        : confirmationMismatch.value
+          ? 'Passwords do not match yet.'
+          : '';
+});
+const passwordStrength = computed(() => {
+    if (!form.password) {
+        return {
+            label: 'Enter a password',
+            widthClass: 'w-0',
+            colorClass: 'bg-slate-300',
+            value: 0,
+        };
+    }
+
+    const metCount = passwordRequirements.value.filter(
+        (requirement) => requirement.met,
+    ).length;
+    const levels = [
+        { label: 'Weak', widthClass: 'w-1/4', colorClass: 'bg-red-500' },
+        { label: 'Fair', widthClass: 'w-2/4', colorClass: 'bg-amber-500' },
+        { label: 'Strong', widthClass: 'w-3/4', colorClass: 'bg-blue-500' },
+        {
+            label: 'Very strong',
+            widthClass: 'w-full',
+            colorClass: 'bg-emerald-600',
+        },
+    ];
+
+    return {
+        ...levels[Math.max(0, metCount - 1)],
+        value: metCount,
+    };
+});
+const passwordFormInvalid = computed(
+    () =>
+        passwordRequired.value &&
+        (!passwordRequirementsMet.value ||
+            !form.password_confirmation ||
+            confirmationMismatch.value),
+);
+
+const onPasswordInput = () => {
+    passwordTouched.value = true;
+    form.clearErrors('password', 'password_confirmation');
+};
+
+const onConfirmationInput = () => {
+    confirmationTouched.value = true;
+    form.clearErrors('password_confirmation');
+};
 
 const statCards = computed(() => [
     {
@@ -85,6 +176,8 @@ const resetForm = () => {
     form.role = props.roleOptions[0]?.value || 'clinic';
     showPassword.value = false;
     showPasswordConfirmation.value = false;
+    passwordTouched.value = false;
+    confirmationTouched.value = false;
 };
 
 // @function editUser: Pinoproseso ang edit user para sa User Management.
@@ -99,17 +192,39 @@ const editUser = (user) => {
     form.password_confirmation = '';
     showPassword.value = false;
     showPasswordConfirmation.value = false;
+    passwordTouched.value = false;
+    confirmationTouched.value = false;
 };
 
 // @function submit: Isinusumite ang user management sa User Management flow.
 // @useIn submit: resources/js/pages/Admin/UserManagement/UserManagementPage.vue template
 const submit = () => {
-    form.clearErrors('password_confirmation');
+    if (passwordRequired.value) {
+        passwordTouched.value = true;
+        confirmationTouched.value = true;
+    }
 
-    if (form.password !== form.password_confirmation) {
+    form.clearErrors('password', 'password_confirmation');
+
+    if (passwordRequired.value && !passwordRequirementsMet.value) {
+        form.setError(
+            'password',
+            isPasswordTooShort(form.password)
+                ? PASSWORD_LENGTH_ERROR
+                : 'Password must meet all requirements below.',
+        );
+        return;
+    }
+
+    if (
+        passwordRequired.value &&
+        (!form.password_confirmation || confirmationMismatch.value)
+    ) {
         form.setError(
             'password_confirmation',
-            'The password confirmation does not match.',
+            !form.password_confirmation
+                ? 'Confirm the password.'
+                : 'Passwords do not match.',
         );
         return;
     }
@@ -282,7 +397,11 @@ const deleteUser = async (user) => {
                                 }}
                             </h2>
                             <p class="text-sm text-slate-500">
-                                Password is required for new accounts.
+                                {{
+                                    editingId
+                                        ? 'Leave the password blank to keep the current one.'
+                                        : 'Create a secure temporary password for the new account.'
+                                }}
                             </p>
                         </div>
                         <UserPlus class="h-5 w-5 text-brand" />
@@ -373,8 +492,18 @@ const deleteUser = async (user) => {
                                     id="managed-user-password"
                                     v-model="form.password"
                                     :type="showPassword ? 'text' : 'password'"
-                                    class="w-full rounded-md border border-slate-200 px-3 py-2 pr-10 text-sm outline-none focus:border-brand"
+                                    :required="!editingId"
+                                    :minlength="MIN_PASSWORD_LENGTH"
+                                    aria-describedby="managed-user-password-requirements managed-user-password-error"
+                                    :aria-invalid="Boolean(passwordFeedback)"
+                                    class="w-full rounded-md border px-3 py-2 pr-10 text-sm outline-none focus:ring-2"
+                                    :class="
+                                        passwordFeedback
+                                            ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-100'
+                                            : 'border-slate-200 focus:border-brand focus:ring-blue-100'
+                                    "
                                     autocomplete="new-password"
+                                    @input="onPasswordInput"
                                 />
                                 <button
                                     type="button"
@@ -399,12 +528,83 @@ const deleteUser = async (user) => {
                                     />
                                 </button>
                             </div>
-                            <span
-                                v-if="form.errors.password"
-                                class="mt-1 block text-xs font-semibold text-rose-600"
+                            <div
+                                v-if="passwordRequired"
+                                id="managed-user-password-requirements"
+                                class="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3"
                             >
-                                {{ form.errors.password }}
-                            </span>
+                                <div
+                                    class="flex items-center justify-between gap-3 text-xs font-semibold"
+                                >
+                                    <span class="text-slate-600"
+                                        >Password strength</span
+                                    >
+                                    <span
+                                        :class="
+                                            passwordStrength.value === 4
+                                                ? 'text-emerald-700'
+                                                : 'text-slate-700'
+                                        "
+                                        aria-live="polite"
+                                    >
+                                        {{ passwordStrength.label }}
+                                    </span>
+                                </div>
+                                <div
+                                    class="mt-2 h-2 overflow-hidden rounded-full bg-slate-200"
+                                    role="progressbar"
+                                    aria-label="Password strength"
+                                    :aria-valuenow="passwordStrength.value"
+                                    aria-valuemin="0"
+                                    aria-valuemax="4"
+                                >
+                                    <div
+                                        class="h-full rounded-full transition-all duration-300"
+                                        :class="[
+                                            passwordStrength.widthClass,
+                                            passwordStrength.colorClass,
+                                        ]"
+                                    ></div>
+                                </div>
+                                <p
+                                    class="mt-3 text-xs font-semibold text-slate-700"
+                                >
+                                    Password must contain:
+                                </p>
+                                <ul class="mt-2 space-y-1.5">
+                                    <li
+                                        v-for="requirement in passwordRequirements"
+                                        :key="requirement.key"
+                                        class="flex items-center gap-2 text-xs"
+                                        :class="
+                                            requirement.met
+                                                ? 'text-emerald-700'
+                                                : 'text-slate-600'
+                                        "
+                                    >
+                                        <span
+                                            class="flex h-4 w-4 shrink-0 items-center justify-center rounded-full"
+                                            :class="
+                                                requirement.met
+                                                    ? 'bg-emerald-600 text-white'
+                                                    : 'border border-slate-300 bg-white text-transparent'
+                                            "
+                                            aria-hidden="true"
+                                        >
+                                            <Check class="h-3 w-3" />
+                                        </span>
+                                        {{ requirement.label }}
+                                    </li>
+                                </ul>
+                            </div>
+                            <div
+                                v-if="passwordFeedback"
+                                id="managed-user-password-error"
+                                class="mt-2 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700"
+                                role="alert"
+                            >
+                                {{ passwordFeedback }}
+                            </div>
                         </div>
 
                         <div class="block">
@@ -429,6 +629,12 @@ const deleteUser = async (user) => {
                                     "
                                     class="w-full rounded-md border border-slate-200 px-3 py-2 pr-10 text-sm outline-none focus:border-brand"
                                     autocomplete="new-password"
+                                    :required="passwordRequired"
+                                    :aria-invalid="
+                                        Boolean(confirmationFeedback)
+                                    "
+                                    aria-describedby="managed-user-password-confirmation-error"
+                                    @input="onConfirmationInput"
                                 />
                                 <button
                                     type="button"
@@ -457,10 +663,12 @@ const deleteUser = async (user) => {
                                 </button>
                             </div>
                             <span
-                                v-if="form.errors.password_confirmation"
+                                v-if="confirmationFeedback"
+                                id="managed-user-password-confirmation-error"
                                 class="mt-1 block text-xs font-semibold text-rose-600"
+                                role="alert"
                             >
-                                {{ form.errors.password_confirmation }}
+                                {{ confirmationFeedback }}
                             </span>
                         </div>
                     </div>
@@ -468,7 +676,7 @@ const deleteUser = async (user) => {
                     <div class="mt-5 flex gap-2">
                         <button
                             type="submit"
-                            :disabled="form.processing"
+                            :disabled="form.processing || passwordFormInvalid"
                             class="inline-flex flex-1 items-center justify-center gap-2 rounded-md bg-brand px-3 py-2 text-sm font-black text-white shadow-sm disabled:opacity-60"
                         >
                             <UserPlus class="h-4 w-4" />

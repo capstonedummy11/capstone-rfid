@@ -56,6 +56,8 @@ Password-reset links and other application website links included in emails use 
 
 Accounts created for Admin, Instructor, Registrar, Clinic, Student, or Parent receive `must_change_password = true`.
 
+Admin User Management uses the same live strength meter and checklist for its temporary password field: at least 12 characters, lowercase and uppercase letters, at least one number, and at least one symbol. The Create/Save action remains unavailable until the entered password and confirmation satisfy the displayed rules. When editing an existing managed user, leaving both password fields blank preserves the current password.
+
 After successful authentication:
 
 - The user is redirected to **Create your private password** before any dashboard or role feature.

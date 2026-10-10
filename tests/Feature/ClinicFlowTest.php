@@ -64,6 +64,17 @@ test('dashboard notifications link to case logs and follow case resolution and r
         ->assertSessionHasNoErrors()->assertRedirect();
     expect($alert->fresh()->status)->toBe('acknowledged');
     expect($alert->fresh()->resolved_at)->toBeNull();
+
+    $payload['status'] = 'open';
+    $this->put(route('clinic.case-logs.update', $case->clinic_case_id), $payload)
+        ->assertSessionHasNoErrors()->assertRedirect();
+    expect($alert->fresh()->status)->toBe('open');
+
+    $payload['status'] = 'cancelled';
+    $this->put(route('clinic.case-logs.update', $case->clinic_case_id), $payload)
+        ->assertSessionHasNoErrors()->assertRedirect();
+    expect($alert->fresh()->status)->toBe('cancelled');
+    expect($alert->fresh()->resolved_at)->toBeNull();
 });
 
 test('an emergency remains active until every linked patient case is resolved', function () {
@@ -120,8 +131,37 @@ test('dashboard status changes update linked cases without touching unrelated ca
     ['open', 'open'],
     ['acknowledged', 'monitoring'],
     ['resolved', 'resolved'],
-    ['cancelled', 'resolved'],
+    ['cancelled', 'cancelled'],
 ]);
+
+test('mixed linked case states keep the emergency acknowledged', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    $fixture = clinicFixture();
+    $alert = EmergencyAlert::query()->create([
+        'emergency_type_id' => $fixture['type']->emergency_type_id,
+        'status' => 'acknowledged',
+        'message' => 'Multiple patients need treatment.',
+    ]);
+    $first = ClinicCase::query()->create([
+        'emergency_alert_id' => $alert->emergency_alert_id,
+        'patient_name' => 'First Patient',
+        'status' => 'monitoring',
+    ]);
+    ClinicCase::query()->create([
+        'emergency_alert_id' => $alert->emergency_alert_id,
+        'patient_name' => 'Second Patient',
+        'status' => 'monitoring',
+    ]);
+
+    $this->actingAs($fixture['clinic'])
+        ->put(route('clinic.case-logs.update', $first->clinic_case_id), [
+            'emergency_alert_id' => $alert->emergency_alert_id,
+            'patient_name' => 'First Patient',
+            'status' => 'cancelled',
+        ])->assertSessionHasNoErrors();
+
+    expect($alert->fresh()->status)->toBe('acknowledged');
+});
 
 function clinicFixture(): array
 {
@@ -254,6 +294,88 @@ test('clinic can manage emergency types from dashboard tools', function () {
         'user_id' => $fixture['clinic']->user_id,
         'action' => 'create',
         'table_name' => 'emergency_types',
+    ]);
+});
+
+test('clinic can export all case logs as an Excel-compatible CSV', function () {
+    $fixture = clinicFixture();
+    ClinicCase::query()->create([
+        'patient_name' => '=Case Log Patient',
+        'patient_type' => 'student',
+        'case_type' => 'Fainting',
+        'status' => 'resolved',
+        'symptoms' => 'Dizziness',
+        'action_taken' => 'Observed and released',
+        'occurred_at' => '2026-10-10 17:25:00',
+    ]);
+
+    $response = $this->actingAs($fixture['clinic'])
+        ->get(route('clinic.case-logs.export'));
+
+    $response->assertOk()->assertDownload();
+    expect($response->streamedContent())
+        ->toStartWith("\xEF\xBB\xBFCase ID,Emergency Alert ID,Patient Name,Patient Type,Case Type,Status")
+        ->toContain("'=Case Log Patient")
+        ->toContain('Fainting')
+        ->toContain('resolved')
+        ->toContain('2026-10-10T17:25:00');
+});
+
+test('emergency type sort order must be unique among existing types', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    $fixture = clinicFixture();
+
+    $this->actingAs($fixture['clinic'])
+        ->post(route('clinic.emergency-types.store'), [
+            'name' => 'Duplicate Position',
+            'category' => 'clinic',
+            'default_message' => 'This type should not be created.',
+            'is_active' => true,
+            'sort_order' => 1,
+        ])
+        ->assertRedirect()
+        ->assertSessionHasErrors([
+            'sort_order' => 'This sort order is already used by another emergency type.',
+        ]);
+
+    $this->assertDatabaseMissing('emergency_types', ['name' => 'Duplicate Position']);
+
+    $otherType = EmergencyType::query()->create([
+        'name' => 'High Fever',
+        'category' => 'clinic',
+        'default_message' => 'Clinic emergency: high fever reported.',
+        'is_active' => true,
+        'sort_order' => 2,
+    ]);
+
+    $this->actingAs($fixture['clinic'])
+        ->put(route('clinic.emergency-types.update', $otherType->emergency_type_id), [
+            'name' => 'High Fever',
+            'category' => 'clinic',
+            'default_message' => 'Clinic emergency: high fever reported.',
+            'is_active' => true,
+            'sort_order' => 1,
+        ])
+        ->assertRedirect()
+        ->assertSessionHasErrors('sort_order');
+
+    expect($otherType->fresh()->sort_order)->toBe(2);
+
+    $this->actingAs($fixture['clinic'])
+        ->put(route('clinic.emergency-types.update', $otherType->emergency_type_id), [
+            'name' => 'High Fever Updated',
+            'category' => 'clinic',
+            'default_message' => 'Clinic emergency: updated high fever report.',
+            'is_active' => true,
+            'sort_order' => 2,
+        ])
+        ->assertRedirect()
+        ->assertSessionDoesntHaveErrors();
+
+    $this->assertDatabaseHas('emergency_types', [
+        'emergency_type_id' => $otherType->emergency_type_id,
+        'name' => 'High Fever Updated',
+        'sort_order' => 2,
     ]);
 });
 
@@ -944,7 +1066,7 @@ test('clinic case saves automatically create and update one linked patient histo
         'action_taken' => 'Observed for 20 minutes and released.',
     ]);
 
-    expect($history->fresh()->notes)->toBe('Action: Observed for 20 minutes and released.' . "\n\n" . 'Stable before leaving clinic.');
+    expect($history->fresh()->notes)->toBe('Action: Observed for 20 minutes and released.'."\n\n".'Stable before leaving clinic.');
     expect(PatientHistory::query()->where('clinic_case_id', $case->clinic_case_id)->count())->toBe(1);
 
     $this->actingAs($fixture['clinic'])
@@ -954,7 +1076,7 @@ test('clinic case saves automatically create and update one linked patient histo
 
     $this->post(route('clinic.case-logs.history', $case->clinic_case_id))->assertRedirect();
     expect(PatientHistory::query()->where('clinic_case_id', $case->clinic_case_id)->count())->toBe(1);
-    expect($history->fresh()->notes)->toBe('Action: Observed for 20 minutes and released.' . "\n\n" . 'Stable before leaving clinic.');
+    expect($history->fresh()->notes)->toBe('Action: Observed for 20 minutes and released.'."\n\n".'Stable before leaving clinic.');
 
     $this->assertDatabaseHas('patient_histories', [
         'patient_history_id' => $history->patient_history_id,

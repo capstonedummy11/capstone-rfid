@@ -48,12 +48,18 @@ const selectedEmergencySoundUrl = computed(
     () => props.emergencySound?.selected_url || '/sound/emergency-alert.mp3',
 );
 
+const nextTypeSortOrder = () =>
+    Math.max(
+        0,
+        ...props.emergencyTypes.map((type) => Number(type.sort_order) || 0),
+    ) + 1;
+
 const typeForm = useForm({
     name: '',
     category: 'clinic',
     default_message: '',
     is_active: true,
-    sort_order: 0,
+    sort_order: nextTypeSortOrder(),
 });
 
 const countCards = computed(() => [
@@ -127,7 +133,7 @@ const resetTypeForm = () => {
     typeForm.reset();
     typeForm.category = 'clinic';
     typeForm.is_active = true;
-    typeForm.sort_order = 0;
+    typeForm.sort_order = nextTypeSortOrder();
 };
 
 // @function editType: Pinoproseso ang edit type para sa Dashboard.
@@ -526,14 +532,23 @@ onBeforeUnmount(() => {
                                     {{ alert.room || 'No room' }} |
                                     {{ alert.created_at }}
                                 </p>
-                                <div v-if="alert.cases?.length" class="mt-2 space-y-1">
+                                <div
+                                    v-if="alert.cases?.length"
+                                    class="mt-2 space-y-1"
+                                >
                                     <Link
                                         v-for="clinicCase in alert.cases"
                                         :key="clinicCase.id"
-                                        :href="route('clinic.case-logs', { case: clinicCase.id })"
+                                        :href="
+                                            route('clinic.case-logs', {
+                                                case: clinicCase.id,
+                                            })
+                                        "
                                         class="block text-xs font-semibold text-blue-700 hover:underline"
                                     >
-                                        View case: {{ clinicCase.patient_name }} · {{ clinicCase.status }}
+                                        View case:
+                                        {{ clinicCase.patient_name }} ·
+                                        {{ clinicCase.status }}
                                     </Link>
                                 </div>
                             </div>
@@ -599,7 +614,11 @@ onBeforeUnmount(() => {
                                 {{ assignment.symptoms }}
                             </p>
                             <Link
-                                :href="route('clinic.case-logs', { case: assignment.case_id })"
+                                :href="
+                                    route('clinic.case-logs', {
+                                        case: assignment.case_id,
+                                    })
+                                "
                                 class="mt-2 inline-block text-sm font-semibold text-blue-700 hover:underline"
                             >
                                 Update Case Log
@@ -701,9 +720,7 @@ onBeforeUnmount(() => {
                                                     {{ patient.name }}
                                                 </p>
                                                 <p class="text-slate-500">
-                                                    {{
-                                                        patient.student_number
-                                                    }}
+                                                    {{ patient.student_number }}
                                                     ·
                                                     {{
                                                         patient.section ||
@@ -827,7 +844,8 @@ onBeforeUnmount(() => {
                                 v-model.number="typeForm.sort_order"
                                 type="number"
                                 min="0"
-                                placeholder="Sort"
+                                aria-label="Sort order"
+                                placeholder="Sort order"
                                 class="rounded-md border border-slate-300 px-3 py-2 text-sm"
                             />
                         </div>

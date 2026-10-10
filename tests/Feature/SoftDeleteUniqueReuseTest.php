@@ -207,8 +207,8 @@ test('strand code barcode and managed user email are reusable only after deletio
     $userPayload = [
         'name' => 'Reusable Registrar',
         'email' => 'reusable.registrar@example.test',
-        'password' => 'password123',
-        'password_confirmation' => 'password123',
+        'password' => 'StrongPass123!',
+        'password_confirmation' => 'StrongPass123!',
         'role' => 'registrar',
         'phone' => '09170000333',
         'is_root_admin' => false,
