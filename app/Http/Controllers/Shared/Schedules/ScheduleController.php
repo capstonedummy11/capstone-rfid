@@ -42,21 +42,10 @@ class ScheduleController
     // @function indexAdmin: Ibinabalik ang Auth/Admin/Schedules page at data para sa request.
     // @useIn indexAdmin: routes/web.php:290 (schedules.index)
     /**
-     * @feature     Academic Structure and Scheduling
-     * @actor       Admin
-     * @flow        Dito binubuo ang strands, sections, subjects, offerings, at class schedules.
-     * @uses        resources/js/pages/Shared/Schedules/SchedulesPage.vue; routes/admin.php, routes/admin-instructor.php: ScheduleController::indexAdmin, ScheduleController::store, ScheduleController::update, ScheduleController::destroy
-     * @related     Attendance roster, online classes, at reports.
-     * @disable     1) Suriin ang Academic Structure and Scheduling callers, pending work, at dependent screens; Needs developer check: exact shared routes at background consumers.
-     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Shared/Schedules/SchedulesPage.vue`.
-     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
-     * @sideEffects Nagbabago ang strands, sections, subjects, offerings, schedules, at audit logs.
-     * @dependsOn   Attendance roster, online classes, at reports.
-     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
-     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
-     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
-     * @editable    Admin academic pages: names, offerings, Instructor assignment, at schedule times.
-     */
+    * WHAT IT DOES: Binubuksan ang pamamahala ng strands, sections, subjects, at class schedules.
+    * WHO USES IT: Admin.
+    * WHAT HAPPENS: Makikita, madadagdag, at maa-update ang school structure at schedules.
+    */
     public function indexAdmin(Request $request)
     {
         $user = $request->user();

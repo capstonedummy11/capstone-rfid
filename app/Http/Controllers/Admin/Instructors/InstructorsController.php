@@ -30,21 +30,10 @@ class InstructorsController
     // @function indexAdmin: Ibinabalik ang Auth/Admin/Instructors page at data para sa request.
     // @useIn indexAdmin: routes/web.php:420 (instructors.index)
     /**
-     * @feature     Instructor Management
-     * @actor       Admin
-     * @flow        Dito minamanage ang Instructor records at account recovery.
-     * @uses        resources/js/pages/Admin/Instructors/InstructorsPage.vue; routes/admin.php: InstructorsController::indexAdmin, InstructorsController::store, InstructorsController::update, InstructorsController::destroy, InstructorsController::resetPassword
-     * @related     Schedules, Instructor verification, attendance review, at online classes.
-     * @disable     1) Suriin ang Instructor Management callers, pending work, at dependent screens; Needs developer check: exact shared routes at background consumers.
-     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Admin/Instructors/InstructorsPage.vue`.
-     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
-     * @sideEffects Nagbabago ang Instructor at linked User records; reset ay nagtatapos ng sessions.
-     * @dependsOn   Schedules, Instructor verification, attendance review, at online classes.
-     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
-     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
-     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
-     * @editable    Admin Instructor Management: profile at recovery actions.
-     */
+    * WHAT IT DOES: Binubuksan ang pamamahala ng Instructor records at accounts.
+    * WHO USES IT: Admin.
+    * WHAT HAPPENS: Maaaring gumawa, mag-update, mag-disable, o mag-reset ng Instructor account.
+    */
     public function indexAdmin(Request $request)
     {
         $search = $request->input('search', '');

@@ -29,21 +29,11 @@ class AdminUserController extends Controller
     // @function index: Ibinabalik ang Auth/Admin/UserManagement page at data para sa request.
     // @useIn index: routes/web.php:351 (users.index)
     /**
-     * @feature     User and Role Management
-     * @actor       Admin
-     * @flow        Dito minamanage ang staff accounts, roles, at password resets.
-     * @uses        resources/js/pages/Admin/UserManagement/UserManagementPage.vue; routes/admin.php: AdminUserController::index, AdminUserController::store, AdminUserController::update, AdminUserController::resetPassword, AdminUserController::destroy
-     * @related     Staff sign-in, role access, at account recovery.
-     * @disable     1) Suriin ang User and Role Management callers, pending work, at dependent screens; Needs developer check: exact shared routes at background consumers.
-     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Admin/UserManagement/UserManagementPage.vue`.
-     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
-     * @sideEffects Nagbabago ang users, password hashes/session access, at activity logs.
-     * @dependsOn   Staff sign-in, role access, at account recovery.
-     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
-     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
-     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
-     * @editable    Admin User Management: account fields at temporary password; walang no-code role-rule editor na nakumpirma.
-     */
+    * WHAT IT DOES: Binubuksan ang pamamahala ng staff accounts, roles, at passwords.
+    * WHO USES IT: Admin.
+    * WHAT HAPPENS: Maaaring gumawa, mag-update, mag-disable, o mag-reset ng staff account.
+    * WARNING: Ang role at account status ay direktang nakakaapekto sa access ng user.
+    */
     public function index(Request $request)
     {
         $actor = $request->user();

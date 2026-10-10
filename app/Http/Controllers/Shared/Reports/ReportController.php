@@ -18,32 +18,10 @@ class ReportController
     // @function index: Ibinabalik ang Reports/Index page at data para sa request.
     // @useIn index: routes/web.php:141 (reports.index)
     /**
-     * @feature     Reports and Exports
-     *
-     * @actor       Shared / Core
-     *
-     * @flow        Dito fina-filter at ine-export ang role-scoped reports.
-     *
-     * @uses        resources/js/pages/Shared/Reports/Index/IndexPage.vue; routes/shared.php: ReportController::index, ReportController::export
-     *
-     * @related     Admin/Instructor/Clinic/Registrar/Student/Parent review.
-     *
-     * @disable     1) Suriin ang Reports and Exports callers, pending work, at dependent screens; Needs developer check: exact shared routes at background consumers.
-     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Shared/Reports/Index/IndexPage.vue`.
-     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
-     *
-     * @sideEffects Nagbabasa ng role-scoped records at nag-e-export ng CSV; export ay maaaring ma-audit.
-     *
-     * @dependsOn   Admin/Instructor/Clinic/Registrar/Student/Parent review.
-     *
-     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
-     *
-     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
-     *
-     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
-     *
-     * @editable    Reports page: date at permitted academic filters; walang no-code report-formula editor.
-     */
+    * WHAT IT DOES: Ipinapakita ang reports na maaaring i-filter at i-download bilang CSV o PDF.
+    * WHO USES IT: Admin, Instructor, Clinic, Registrar, Student, at Parent.
+    * WHAT HAPPENS: Iba-iba ang report na makikita depende sa role at napiling filters.
+    */
     public function index(Request $request)
     {
         return Inertia::render('Shared/Reports/Index/IndexPage', $this->reportPayload($request));

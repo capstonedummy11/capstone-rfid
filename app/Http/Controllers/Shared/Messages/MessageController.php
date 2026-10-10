@@ -83,21 +83,10 @@ class MessageController
     // @function index: Ibinabalik ang Messages/Index page at data para sa request.
     // @useIn index: routes/web.php:126 (messages.index)
     /**
-     * @feature     Messenger and Attachments
-     * @actor       Shared / Core
-     * @flow        Dito nagpapalitan ng private messages at authorized attachments ang users.
-     * @uses        resources/js/pages/Shared/Messages/Index/IndexPage.vue; routes/shared.php, routes/admin-instructor.php, routes/student-parent.php: MessageController::index, MessageController::sendConversationMessage, MessageController::unreadStatus, MessageController::markRead, MessageController::downloadAttachment
-     * @related     Excuse-letter Instructor delivery/review at unread notifications.
-     * @disable     1) Suriin ang Messenger and Attachments callers, pending work, at dependent screens; Needs developer check: exact shared routes at background consumers.
-     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Shared/Messages/Index/IndexPage.vue`.
-     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
-     * @sideEffects Gumagawa ng encrypted message/file metadata, read state, optional attachment file, at cooldown-limited email attempt.
-     * @dependsOn   Excuse-letter Instructor delivery/review at unread notifications.
-     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
-     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
-     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
-     * @editable    Messenger: message text/attachment/recipient; email notification template ay code/config.
-     */
+    * WHAT IT DOES: Binubuksan ang private messages at mga pinadalang attachment.
+    * WHO USES IT: Admin, Instructor, Clinic, Registrar, Student, at Parent.
+    * WHAT HAPPENS: Maaaring magpadala, tumanggap, magbasa, at mag-download ng pinahintulutang files.
+    */
     public function index(Request $request)
     {
         $user = $request->user();
@@ -336,21 +325,10 @@ class MessageController
     // @function reviewExcuseLetter: Kinukuha ang review excuse letter result para sa Message.
     // @useIn reviewExcuseLetter: routes/web.php:133 (messages.excuse-letters.review)
     /**
-     * @feature     Excuse Letter Review
-     * @actor       Instructor
-     * @flow        Dito nagde-decide ang recipient Instructor sa delivered letter at nagpapadala ng email.
-     * @uses        resources/js/pages/Shared/Messages/Index/IndexPage.vue; routes/shared.php: MessageController::reviewExcuseLetter
-     * @related     Approved excuse-letter Messenger delivery at Student/Parent result notification.
-     * @disable     1) Suriin ang Excuse Letter Review callers, pending work, at dependent screens; Needs developer check: kung result email lamang ang ihihinto, kailangan ng hiwalay na guard at success/audit text update; kasalukuyang nauuna ang Mail::raw sa decision save.
-     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Shared/Messages/Index/IndexPage.vue`.
-     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
-     * @sideEffects Nagpapadala ng result email bago i-save ang per-message decision at review audit.
-     * @dependsOn   Approved excuse-letter Messenger delivery at Student/Parent result notification.
-     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
-     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
-     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
-     * @editable    Instructor Messenger review modal: recipient roles, email subject at body; sender name sa mail config.
-     */
+    * WHAT IT DOES: Tinatanggap o tinatanggihan ang excuse letter na ipinadala sa Instructor.
+    * WHO USES IT: Instructor.
+    * WHAT HAPPENS: Nase-save ang desisyon at ipinapadala ang resulta sa Student.
+    */
     public function reviewExcuseLetter(Request $request, StudentPortalMessage $message)
     {
         $instructor = $request->user();

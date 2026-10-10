@@ -19,21 +19,10 @@ class FirstLoginPasswordController extends Controller
     // @function edit: Ibinabalik ang Auth/FirstLoginPassword page at data para sa request.
     // @useIn edit: routes/web.php:101 (password.first-login)
     /**
-     * @feature     First-Login Password Setup
-     * @actor       Shared / Core
-     * @flow        Dito pinapalitan ang temporary password bago buksan ang ibang page.
-     * @uses        resources/js/pages/Shared/Auth/FirstLoginPassword/FirstLoginPasswordPage.vue; routes/web.php: FirstLoginPasswordController::edit, FirstLoginPasswordController::update
-     * @related     Protected pages ng bagong non-Console accounts.
-     * @disable     1) Suriin ang First-Login Password Setup callers, pending work, at dependent screens; Needs developer check: huwag alisin ang password-setup route habang EnsurePasswordIsChanged ay nagre-redirect dito.
-     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Shared/Auth/FirstLoginPassword/FirstLoginPasswordPage.vue`.
-     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
-     * @sideEffects Ina-update ang password hash at must_change_password flag; request ay naa-audit.
-     * @dependsOn   Protected pages ng bagong non-Console accounts.
-     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
-     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
-     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
-     * @editable    First-login page: bagong private password; requirement policy ay code/config.
-     */
+    * WHAT IT DOES: Binubuksan ang pagpapalit ng temporary password sa unang login.
+    * WHO USES IT: Admin, Instructor, Clinic, Registrar, Student, at Parent.
+    * WHAT HAPPENS: Kailangang gumawa ng bagong password bago mabuksan ang ibang pages.
+    */
     public function edit(Request $request)
     {
         abort_if(strtolower((string) $request->user()?->role) === 'console', 403);

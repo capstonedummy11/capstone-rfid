@@ -26,21 +26,11 @@ class SystemSettingsController
     // @function edit: Ibinabalik ang Auth/Admin/SystemSettings page at data para sa request.
     // @useIn edit: routes/web.php:388 (settings.edit)
     /**
-     * @feature     System Settings
-     * @actor       Admin
-     * @flow        Dito sine-set ang feature switches, attendance rules, SMS, at emergency sounds.
-     * @uses        resources/js/pages/Admin/SystemSettings/SystemSettingsPage.vue; routes/admin.php: SystemSettingsController::edit, SystemSettingsController::update, SystemSettingsController::checkSmsProvider, SystemSettingsController::storeEmergencySound, SystemSettingsController::selectEmergencySound, SystemSettingsController::destroyEmergencySound
-     * @related     Feature visibility, attendance rules, face checks, SMS, at emergency sound.
-     * @disable     1) Suriin ang System Settings callers, pending work, at dependent screens; Needs developer check: exact shared routes at background consumers.
-     * @disable     2) Magdagdag at subukan ng feature-specific server guard sa named actions; panatilihin ang shared route/method para sa ibang feature. Itago pagkatapos ang controls sa `resources/js/pages/Admin/SystemSettings/SystemSettingsPage.vue`.
-     * @disable     3) I-check ang affected user flow, reports, pending jobs, at historical read access; huwag burahin ang existing records/files bilang bahagi ng disable.
-     * @sideEffects Nagbabago ang system_settings at maaaring magdagdag/magtanggal ng emergency-sound files.
-     * @dependsOn   Feature visibility, attendance rules, face checks, SMS, at emergency sound.
-     * @performance Needs developer check: sukatin ang request/provider/worker work bago at pagkatapos; UI hide lang ay walang nakumpirmang bilis na dagdag.
-     * @dataImpact  Walang data deletion sa nakasaad na disable steps; mananatili ang records/files pero maaaring hindi mabuksan sa hidden UI.
-     * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
-     * @editable    Admin System Settings: available switches, thresholds, provider selection, at sounds.
-     */
+    * WHAT IT DOES: Binubuksan ang settings para sa attendance, text messages, at emergency alerts.
+    * WHO USES IT: Admin.
+    * WHAT HAPPENS: Makikita at mababago ng Admin ang mga setting, kasama ang emergency sounds.
+    * WARNING: Ang maling setting ay maaaring makaapekto sa paggamit ng buong system.
+    */
     public function edit()
     {
         $faceAvailability = (new AwsFaceRecognitionService)->availability();
