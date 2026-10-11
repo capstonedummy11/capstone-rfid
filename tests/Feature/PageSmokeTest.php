@@ -242,6 +242,32 @@ function pageSmokeFixture(): array
     );
 }
 
+test('instructor sees students through their academic-year enrollment section', function () {
+    $fixture = pageSmokeFixture();
+    $enrollment = $fixture['student']->enrollments()->with('section')->firstOrFail();
+    $legacySection = Section::query()->create([
+        'academic_year_id' => $enrollment->academic_year_id,
+        'strand_id' => $enrollment->strand_id,
+        'section_name' => 'SMK 11-B',
+        'year_level' => $enrollment->year_level,
+        'semester' => $enrollment->semester,
+        'school_year' => $enrollment->academicYear->name,
+        'status' => 'active',
+    ]);
+    $fixture['student']->update(['section_id' => $legacySection->section_id]);
+
+    $this->actingAs($fixture['instructorUser'])
+        ->withSession(['instructor_verified' => true])
+        ->get(route('admin.students.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Shared/Students/StudentsPage')
+            ->has('students', 1)
+            ->where('students.0.student_id', $fixture['student']->student_id)
+            ->where('students.0.section_id', $enrollment->section_id)
+            ->where('students.0.section_name', $enrollment->section->section_name));
+});
+
 test('application pages do not return server errors', function () {
     $fixture = pageSmokeFixture();
     $admin = $fixture['admin'];

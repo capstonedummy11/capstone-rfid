@@ -114,7 +114,19 @@ class StudentsController
         }
 
         if ($isInstructor) {
-            $query->whereIn('section_id', $handledSectionIds->all());
+            if ($selectedAcademicYear) {
+                $query->whereHas('enrollments', fn ($enrollment) => $enrollment
+                    ->where('academic_year_id', $selectedAcademicYear->academic_year_id)
+                    ->whereIn('section_id', $handledSectionIds->all())
+                    ->when($filters['semester'] !== '', fn ($term) => $term->where('semester', $filters['semester'])));
+            } else {
+                $query->where(function ($studentQuery) use ($handledSectionIds) {
+                    $studentQuery
+                        ->whereIn('section_id', $handledSectionIds->all())
+                        ->orWhereHas('enrollments', fn ($enrollment) => $enrollment
+                            ->whereIn('section_id', $handledSectionIds->all()));
+                });
+            }
         }
 
         if ($filters['search'] !== '') {
