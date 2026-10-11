@@ -82,7 +82,7 @@ const confirmationFeedback = computed(() => {
     return !form.password_confirmation
         ? 'Confirm the password.'
         : confirmationMismatch.value
-          ? 'Passwords do not match yet.'
+          ? 'The password confirmation does not match.'
           : '';
 });
 const passwordStrength = computed(() => {

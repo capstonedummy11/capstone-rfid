@@ -118,7 +118,7 @@ test('first-login password page is standalone and provides sign out', function (
     $firstLoginPassword = file_get_contents(resource_path('js/pages/Shared/Auth/FirstLoginPassword/FirstLoginPasswordPage.vue'));
 
     expect($app)
-        ->toContain("'Auth/FirstLoginPassword'")
+        ->toContain("'Shared/Auth/FirstLoginPassword/FirstLoginPasswordPage'")
         ->and($firstLoginPassword)
         ->toContain("router.post(")
         ->toContain("route('logout')")

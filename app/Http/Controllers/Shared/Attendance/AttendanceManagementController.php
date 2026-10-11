@@ -702,7 +702,7 @@ class AttendanceManagementController extends Controller
 
         $tapEvents = DB::table('attendance_logs')
             ->leftJoin('attendances', 'attendances.attendance_id', '=', 'attendance_logs.main_attendance_id')
-            ->where('attendance_id', $session->attendance_id)
+            ->where('attendance_logs.attendance_id', $session->attendance_id)
             ->where(function ($query) {
                 $query->whereNull('attendance_logs.main_attendance_id')
                     ->orWhereNull('attendances.deleted_at');

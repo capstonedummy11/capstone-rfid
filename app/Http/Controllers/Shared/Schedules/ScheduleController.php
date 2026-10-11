@@ -374,11 +374,12 @@ class ScheduleController
             return;
         }
 
-        $currentTime = $now->format('H:i:s');
         $startTime = substr((string) $schedule->time_start, 0, 8);
         $endTime = substr((string) $schedule->time_end, 0, 8);
+        $startsAt = $now->copy()->setTimeFromTimeString($startTime);
+        $endsAt = $now->copy()->setTimeFromTimeString($endTime);
 
-        if ($currentTime < $startTime || $currentTime >= $endTime) {
+        if ($now->lt($startsAt) || ! $now->lt($endsAt)) {
             return;
         }
 

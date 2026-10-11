@@ -1,6 +1,6 @@
 # System Context Memo
 
-This compact memo synthesizes the 44 Markdown files in this repository. It is
+This compact memo synthesizes the 48 Markdown files in this repository. It is
 an orientation aid, not a replacement for the canonical references in the
 [Documentation Index](DOCUMENTATION_INDEX.md). When sources disagree, current
 code and migrations take priority, followed by the canonical documentation.
@@ -75,7 +75,7 @@ mail, SMS providers, the scheduler, file storage, and the database.
 - The Online Classes switch does not block every direct route.
 - Student Management references missing Admin face routes.
 - Public registration and a legacy public message form remain enabled.
-- Database queue tables are absent from the current migration set.
+- Database queue support includes `jobs` and `failed_jobs`; `job_batches` is not created by the current migration set.
 - RFID, cameras, SMTP, SMS, AWS, and browser audio need environment acceptance
   testing beyond automated tests.
 

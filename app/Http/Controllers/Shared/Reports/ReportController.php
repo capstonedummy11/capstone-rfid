@@ -47,7 +47,7 @@ class ReportController
                 $payload['filters']['semester'] ?: 'All semesters',
             ];
 
-            fputcsv($handle, [
+            $headers = [
                 'Report',
                 'Generated At',
                 'Date From',
@@ -58,7 +58,8 @@ class ReportController
                 'Metric',
                 'Value',
                 'Group',
-            ]);
+            ];
+            fwrite($handle, implode(',', $headers)."\n");
 
             foreach ($payload['summaryCards'] as $card) {
                 fputcsv($handle, [

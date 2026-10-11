@@ -2,7 +2,7 @@ import { flushPromises, shallowMount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Sections from '../Sections/SectionsPage.vue';
-import Students from '../Students/StudentsPage.vue';
+import Students from '../../Shared/Students/StudentsPage.vue';
 import Subjects from '../Subjects/SubjectsPage.vue';
 
 const {

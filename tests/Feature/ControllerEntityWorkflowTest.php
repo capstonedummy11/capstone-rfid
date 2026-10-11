@@ -1207,8 +1207,10 @@ test('schedule update and delete guard is limited to the running time and matchi
     Carbon::setTestNow('2026-09-21 10:00:00');
 
     $this->actingAs($admin)
+        ->withSession([\App\Http\Middleware\EnforceIdleTimeout::LAST_ACTIVITY_AT => now()->timestamp])
         ->delete(route('admin.schedules.destroy', $schedule->scheduled_id))
         ->assertRedirect()
+        ->assertSessionHasNoErrors()
         ->assertSessionHas('success');
     $this->assertSoftDeleted('schedules', ['scheduled_id' => $schedule->scheduled_id]);
 

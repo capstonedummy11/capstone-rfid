@@ -156,7 +156,7 @@ const signOut = async () => {
         text: 'Your password has not been changed yet.',
         icon: 'question',
         showCancelButton: true,
-        confirmButtonText: 'Yes, sign out',
+        confirmButtonText: 'Sign out',
         cancelButtonText: 'Stay signed in',
         confirmButtonColor: '#2563eb',
         cancelButtonColor: '#64748b',

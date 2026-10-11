@@ -109,7 +109,7 @@ class ClinicController
             $handle = fopen('php://output', 'w');
             fwrite($handle, "\xEF\xBB\xBF");
 
-            fputcsv($handle, [
+            $headers = [
                 'Case ID',
                 'Emergency Alert ID',
                 'Patient Name',
@@ -123,7 +123,8 @@ class ClinicController
                 'Assigned Responder',
                 'Created At',
                 'Updated At',
-            ]);
+            ];
+            fwrite($handle, implode(',', $headers)."\n");
 
             foreach ($cases as $case) {
                 fputcsv($handle, [

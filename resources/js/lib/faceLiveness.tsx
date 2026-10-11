@@ -240,9 +240,11 @@ function LivenessDialog({
 export async function runFaceLiveness({
     purpose,
     subjectKey,
+    diagnosticMode = false,
 }: {
     purpose: LivenessPurpose;
     subjectKey: string | number;
+    diagnosticMode?: boolean;
 }): Promise<string | null> {
     try {
         const { response, payload } = await requestJson(
@@ -258,8 +260,11 @@ export async function runFaceLiveness({
         }
 
         if (!response.ok) {
+            const diagnosticDetails = diagnosticMode
+                ? ` Test details: reference_image_received=${String(payload?.reference_image_received ?? 'not reported')}`
+                : '';
             throw new FaceLivenessError(
-                livenessFailureMessage(payload, response.status),
+                `${livenessFailureMessage(payload, response.status)}${diagnosticDetails}`,
             );
         }
 

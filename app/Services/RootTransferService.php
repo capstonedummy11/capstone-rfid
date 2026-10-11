@@ -34,7 +34,12 @@ class RootTransferService
                 throw ValidationException::withMessages(['to_user_id' => 'Another Root Admin transfer is already pending.']);
             }
             $cooldown = (int) config('root_ownership.transfer_cooldown_days', 14);
-            if (RootTransferRequest::query()->where('status', 'completed')->where('completed_at', '>', now()->subDays($cooldown))->exists()) {
+            $lastCompletedTransfer = RootTransferRequest::query()
+                ->where('status', 'completed')
+                ->whereNotNull('completed_at')
+                ->latest('completed_at')
+                ->first();
+            if ($lastCompletedTransfer?->completed_at?->gt(now()->subDays($cooldown))) {
                 throw ValidationException::withMessages(['to_user_id' => "A new transfer is blocked for {$cooldown} days after completion."]);
             }
 

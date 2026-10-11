@@ -17,6 +17,7 @@
 | Error responses, exception reporting, and audit failures | [Error Handling Guide](System%20Architecture/ERROR_HANDLING.md) |
 | Instructor excuse-letter review contract | [Instructor Excuse-Letter Review](System%20Architecture/EXCUSE_LETTER_INSTRUCTOR_REVIEW.md) |
 | Tables, fields, and relationships | [Database Schema Reference](System%20Architecture/DATABASE_SCHEMA_REFERENCE.md) |
+| Every enforced and logical database connection | [Database Relationship Reference](System%20Architecture/DATABASE_RELATIONSHIPS.md) |
 | Install, configure, run, build, and deploy | [System Installation](System%20Installation/README.md) |
 | Tests and release checks | [Testing](System%20Architecture/TESTING.md) |
 
@@ -45,6 +46,7 @@
 - `ERROR_HANDLING.md` — validation, exceptions, application logs, and System Activity Logs.
 - `EXCUSE_LETTER_INSTRUCTOR_REVIEW.md` — discovered Instructor review flow, per-delivery authorization, email behavior, validation, and verification contract.
 - `DATABASE_SCHEMA_REFERENCE.md` — final migrated tables, fields, foreign keys, and storage boundary.
+- `DATABASE_RELATIONSHIPS.md` — exhaustive foreign-key/delete-action matrix and logical links that are not database constrained.
 - `DATABASE.md` — migration groups, seeders, attendance data, and compatibility notes.
 - `SYSTEM_FLOW.md` — detailed business/data flow.
 - `PAGE_DATABASE_IMPACT_MAP.md` — page-level read/write impact.

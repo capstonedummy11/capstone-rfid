@@ -106,9 +106,11 @@ test('completed transfer enforces the configured cooldown', function () {
     $this->travel((int) config('root_ownership.transfer_delay_days'))->days();
     app(RootTransferService::class)->processDue();
 
-    $this->actingAs($target->fresh())->post(route('admin.root-ownership.transfers.store'), [
-        'to_user_id' => $third->user_id, 'password' => 'password', 'confirmed' => true,
-    ])->assertSessionHasErrors('to_user_id');
+    $this->actingAs($target->fresh())
+        ->withSession([\App\Http\Middleware\EnforceIdleTimeout::LAST_ACTIVITY_AT => now()->timestamp])
+        ->post(route('admin.root-ownership.transfers.store'), [
+            'to_user_id' => $third->user_id, 'password' => 'password', 'confirmed' => true,
+        ])->assertSessionHasErrors('to_user_id');
 });
 
 test('unaccepted transfers expire at the effective date', function () {

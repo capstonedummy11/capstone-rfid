@@ -2,6 +2,16 @@
 
 This is the canonical guide for running automated tests and verifying the application after a feature update.
 
+## Mandatory database-change check
+
+After every database-related change—including migrations, schema, model relationships, factories, seeders, database configuration, queries, or persistence logic—run the complete backend suite:
+
+```bash
+php artisan test
+```
+
+This requirement is also recorded in the root `AGENTS.md` for AI coding agents. A focused test may be run first, but it does not replace the complete suite after a database-related change.
+
 ## Current Verification Snapshot (2026-09-21)
 
 - `npm run build`: passed; Vite compiled all 2,481 modules and Wayfinder generated route/action types.

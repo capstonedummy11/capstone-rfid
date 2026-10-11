@@ -153,6 +153,8 @@ Panel PIN behavior:
 
 `panel_devices.laboratory_id` links one managed device to one physical laboratory. See [Laboratories and Devices](../System%20Explanation/LABORATORIES_AND_DEVICES.md) for CRUD and operational ownership.
 
+For the exhaustive list of enforced foreign keys, delete rules, and logical links without constraints, see [Database Relationship Reference](DATABASE_RELATIONSHIPS.md). The bullets below explain business meaning and do not imply that every named link is a database foreign key.
+
 - `users.role` controls dashboard access and major account behavior.
 - `students.section_id` links students to `sections`.
 - `student_enrollments.student_id` links every historical enrollment to the permanent student identity.
@@ -179,9 +181,10 @@ Panel PIN behavior:
 - `borrowings.student_id` is used for student borrowers.
 - `borrowings.user_id` is used for instructor/user borrowers.
 - `borrowing_items.borrowing_id` links item lines to borrowing headers.
-- `borrowing_items.item_id` links borrowed lines to `inventory_items`.
+- `borrowing_items.item_id` logically links borrowed lines to `inventory_items`; the migration does not declare an FK, so application validation must preserve this connection.
 - `emergency_alerts.emergency_type_id` links alerts to emergency types.
 - `clinic_cases.emergency_alert_id` can link clinic cases to alerts.
+- `patient_histories.clinic_case_id` optionally and uniquely links one generated history row to its source Clinic Case.
 - `parent_student_links.parent_user_id` links parent users to students.
 - Parent portal accounts are stored in `users` with `role = parent`; Admin Student Management creates or links these accounts and stores the relationship label on `parent_student_links.relationship`.
 - `online_classes.schedule_id`, `instructor_id`, and `section_id` connect online classes to the academic setup.
