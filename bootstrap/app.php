@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnforceIdleTimeout;
 use App\Http\Middleware\EnsureAdminLoginOtpVerified;
 use App\Http\Middleware\EnsureAuthenticatedSessionIdentity;
 use App\Http\Middleware\HandleAppearance;
@@ -40,6 +41,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             EnsureAuthenticatedSessionIdentity::class,
+            EnforceIdleTimeout::class,
             EnsureAdminLoginOtpVerified::class,
             HandleAppearance::class,
             HandleInertiaRequests::class,

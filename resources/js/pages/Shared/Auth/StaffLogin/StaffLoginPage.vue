@@ -11,7 +11,7 @@ import {
     removeSavedStaffProfile,
     setStaffSavePreference,
 } from '@/composables/useSavedStudentParentProfiles';
-import { Link, useForm } from '@inertiajs/vue3';
+import { Link, useForm, usePage } from '@inertiajs/vue3';
 import { ArrowRight, Eye, EyeOff, ShieldCheck, Trash2 } from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
@@ -22,6 +22,8 @@ const saveOnDevice = ref(false);
 const showPassword = ref(false);
 const activeSlideIndex = ref(0);
 let carouselTimer = null;
+const page = usePage();
+const flashSuccess = computed(() => page.props.flash?.success);
 
 const carouselSlides = [
     {
@@ -155,6 +157,13 @@ onUnmounted(() => {
 
 <template>
     <div class="min-h-screen bg-white p-2">
+        <p
+            v-if="flashSuccess"
+            role="status"
+            class="fixed top-4 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-xl"
+        >
+            {{ flashSuccess }}
+        </p>
         <main
             class="grid min-h-[calc(100vh-1rem)] overflow-hidden bg-white lg:grid-cols-[42%_58%]"
         >

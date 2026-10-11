@@ -4,6 +4,7 @@ import { Bell, Menu } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
 import { computed, provide, ref, watch } from 'vue';
 import { useRealtimePolling } from '@/composables/useRealtimePolling';
+import { redirectOnExpiredSession } from '@/lib/idleSession';
 import {
     consumeStaffSavePreference,
     consumeStudentParentSavePreference,
@@ -63,7 +64,9 @@ const notificationRequestUrl = () => {
 };
 
 const mergeNotifications = (items) => {
-    const byId = new Map(notificationItems.value.map((item) => [item.id, item]));
+    const byId = new Map(
+        notificationItems.value.map((item) => [item.id, item]),
+    );
     items.forEach((item) => {
         byId.set(item.id, { ...byId.get(item.id), ...item });
         notificationCursor.value = Math.max(
@@ -175,11 +178,23 @@ const pollRealtime = async () => {
     if (!currentUserId.value) return;
 
     const messageResponse = await fetch(route('messages.unread-status'), {
-        headers: { Accept: 'application/json' },
+        headers: {
+            Accept: 'application/json',
+            'X-Background-Poll': '1',
+        },
         credentials: 'same-origin',
     });
+    if (
+        redirectOnExpiredSession(
+            messageResponse,
+            String(page.props.idleTimeout?.login_url || '/'),
+        )
+    )
+        return;
     if (!messageResponse.ok) {
-        throw new Error(`Unread-message poll failed (${messageResponse.status}).`);
+        throw new Error(
+            `Unread-message poll failed (${messageResponse.status}).`,
+        );
     }
 
     const status = await messageResponse.json();
@@ -211,9 +226,19 @@ const pollRealtime = async () => {
     if (!isStudentParent.value) return;
 
     const notificationResponse = await fetch(notificationRequestUrl(), {
-        headers: { Accept: 'application/json' },
+        headers: {
+            Accept: 'application/json',
+            'X-Background-Poll': '1',
+        },
         credentials: 'same-origin',
     });
+    if (
+        redirectOnExpiredSession(
+            notificationResponse,
+            String(page.props.idleTimeout?.login_url || '/'),
+        )
+    )
+        return;
     if (!notificationResponse.ok) {
         throw new Error(
             `Notification poll failed (${notificationResponse.status}).`,
@@ -397,7 +422,7 @@ watch(
                                                 }}</strong
                                             >
                                             <span
-                                                class="mt-1 block line-clamp-2 text-xs text-slate-500"
+                                                class="mt-1 line-clamp-2 block text-xs text-slate-500"
                                                 >{{ notification.text }}</span
                                             >
                                             <span

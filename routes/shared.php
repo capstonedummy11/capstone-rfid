@@ -3,6 +3,7 @@
 // Routes shared across roles; keep their existing middleware and permissions.
 
 use App\Http\Controllers\Shared\Attendance\AttendanceController;
+use App\Http\Controllers\Shared\Auth\IdleSessionController;
 use App\Http\Controllers\Shared\FaceLiveness\FaceLivenessController;
 use App\Http\Controllers\Shared\Messages\MessageController;
 use App\Http\Controllers\Shared\Reports\ReportController;
@@ -35,6 +36,10 @@ Route::middleware(['auth', 'role:admin,instructor,clinic,registrar,student,paren
 });
 
 Route::middleware('auth')->group(function () {
+    // Authenticated Session
+    Route::post('/session/keep-alive', [IdleSessionController::class, 'keepAlive'])->name('session.keep-alive');
+    Route::post('/session/idle-logout', [IdleSessionController::class, 'destroy'])->name('session.idle-logout');
+
     // Face Liveness
     Route::post('/face-liveness/sessions', [FaceLivenessController::class, 'store'])->name('faceLiveness.store');
     Route::post('/face-liveness/sessions/{sessionId}/result', [FaceLivenessController::class, 'show'])->name('faceLiveness.show');

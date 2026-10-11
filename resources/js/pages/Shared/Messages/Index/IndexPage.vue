@@ -16,6 +16,7 @@ import {
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
 import LinkedStudentSelector from '@/components/StudentPortal/LinkedStudentSelector.vue';
 import { useRealtimePolling } from '@/composables/useRealtimePolling';
+import { redirectOnExpiredSession } from '@/lib/idleSession';
 
 const props = defineProps({
     messages: { type: Array, default: () => [] },
@@ -148,85 +149,97 @@ const selectedConversation = computed(
         ) ?? null,
 );
 
-const isConversationOpen = computed(
-    () => Boolean(selectedConversation.value?.partner?.id),
+const isConversationOpen = computed(() =>
+    Boolean(selectedConversation.value?.partner?.id),
 );
 
-const { pollNow: pollConversation } = useRealtimePolling(
-    async () => {
-        const conversation = selectedConversation.value;
-        if (!conversation?.partner?.id) return;
-        const afterId = conversationCursors.get(conversation.key) || 0;
-        const params = {
-            conversation_user_id: conversation.partner.id,
-            after_id: afterId,
-            ...selectedStudentQuery.value,
-        };
-        const response = await fetch(route('messages.poll', params), {
-            headers: { Accept: 'application/json' },
-            credentials: 'same-origin',
-        });
-        if (!response.ok) {
-            throw new Error(`Conversation poll failed (${response.status}).`);
-        }
-        const result = await response.json();
-        unreadConversationCounts.value = result.unread_by_conversation || {};
-        if (!result.messages?.length) return;
+const { pollNow: pollConversation } = useRealtimePolling(async () => {
+    const conversation = selectedConversation.value;
+    if (!conversation?.partner?.id) return;
+    const afterId = conversationCursors.get(conversation.key) || 0;
+    const params = {
+        conversation_user_id: conversation.partner.id,
+        after_id: afterId,
+        ...selectedStudentQuery.value,
+    };
+    const response = await fetch(route('messages.poll', params), {
+        headers: {
+            Accept: 'application/json',
+            'X-Background-Poll': '1',
+        },
+        credentials: 'same-origin',
+    });
+    if (
+        redirectOnExpiredSession(
+            response,
+            String(page.props.idleTimeout?.login_url || '/'),
+        )
+    ) {
+        return;
+    }
+    if (!response.ok) {
+        throw new Error(`Conversation poll failed (${response.status}).`);
+    }
+    const result = await response.json();
+    unreadConversationCounts.value = result.unread_by_conversation || {};
+    if (!result.messages?.length) return;
 
-        const container = messageThread.value;
-        const shouldStickToBottom = container
-            ? container.scrollHeight -
-                  container.scrollTop -
-                  container.clientHeight <
-              80
-            : true;
-        const existingIds = new Set(
-            messageRows.value.map((message) => numericMessageId(message.id)),
+    const container = messageThread.value;
+    const shouldStickToBottom = container
+        ? container.scrollHeight -
+              container.scrollTop -
+              container.clientHeight <
+          80
+        : true;
+    const existingIds = new Set(
+        messageRows.value.map((message) => numericMessageId(message.id)),
+    );
+    result.messages.forEach((message) => {
+        conversationCursors.set(
+            conversation.key,
+            Math.max(
+                conversationCursors.get(conversation.key) || 0,
+                Number(message.id) || 0,
+            ),
         );
-        result.messages.forEach((message) => {
-            conversationCursors.set(
-                conversation.key,
-                Math.max(
-                    conversationCursors.get(conversation.key) || 0,
-                    Number(message.id) || 0,
-                ),
-            );
-            if (existingIds.has(Number(message.id))) return;
-            messageRows.value.push({
-                id: Number(message.id),
-                sender_user_id:
-                    message.direction === 'outgoing'
-                        ? currentUserId.value
-                        : conversation.partner.id,
-                recipient_user_id:
-                    message.direction === 'outgoing'
-                        ? conversation.partner.id
-                        : currentUserId.value,
-                sender: message.sender,
-                recipient: message.sender_user_id === currentUserId.value
+        if (existingIds.has(Number(message.id))) return;
+        messageRows.value.push({
+            id: Number(message.id),
+            sender_user_id:
+                message.direction === 'outgoing'
+                    ? currentUserId.value
+                    : conversation.partner.id,
+            recipient_user_id:
+                message.direction === 'outgoing'
+                    ? conversation.partner.id
+                    : currentUserId.value,
+            sender: message.sender,
+            recipient:
+                message.sender_user_id === currentUserId.value
                     ? conversation.partner.name
                     : page.props.auth?.user?.name,
-                subject: 'Conversation',
-                body: message.text,
-                preview: message.text,
-                read_at: message.read_at,
-                created_at: message.timestamp,
-                created_label: message.timestamp,
-                attachment_name: message.text === 'Attachment' ? 'Attachment' : null,
-            });
+            subject: 'Conversation',
+            body: message.text,
+            preview: message.text,
+            read_at: message.read_at,
+            created_at: message.timestamp,
+            created_label: message.timestamp,
+            attachment_name:
+                message.text === 'Attachment' ? 'Attachment' : null,
         });
-        await nextTick();
-        if (shouldStickToBottom && container) {
-            container.scrollTop = container.scrollHeight;
-        }
-    },
-    isConversationOpen,
-);
+    });
+    await nextTick();
+    if (shouldStickToBottom && container) {
+        container.scrollTop = container.scrollHeight;
+    }
+}, isConversationOpen);
 
 watch(
     () => props.messages,
     (messages) => {
-        const localIds = new Set(messageRows.value.map((message) => message.id));
+        const localIds = new Set(
+            messageRows.value.map((message) => message.id),
+        );
         messages.forEach((message) => {
             if (!localIds.has(message.id)) messageRows.value.push(message);
         });
@@ -238,8 +251,7 @@ watch(
     (conversation) => {
         if (!conversation) return;
         const maxId = conversation.messages.reduce(
-            (max, message) =>
-                Math.max(max, numericMessageId(message.id)),
+            (max, message) => Math.max(max, numericMessageId(message.id)),
             conversationCursors.get(conversation.key) || 0,
         );
         conversationCursors.set(conversation.key, maxId);
@@ -614,10 +626,18 @@ const reviewedStatusLabel = (status) => {
                             {{ conversation.latest.preview }}
                         </p>
                         <span
-                            v-if="unreadConversationCounts[conversation.partner.id]"
+                            v-if="
+                                unreadConversationCounts[
+                                    conversation.partner.id
+                                ]
+                            "
                             class="mt-1 inline-block rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-sky-800"
                         >
-                            {{ unreadConversationCounts[conversation.partner.id] }}
+                            {{
+                                unreadConversationCounts[
+                                    conversation.partner.id
+                                ]
+                            }}
                             unread
                         </span>
                     </button>

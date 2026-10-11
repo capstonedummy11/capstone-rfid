@@ -6,6 +6,7 @@ import { initializeTheme } from './composables/useAppearance';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import AuthLayout from './layouts/AuthLayout.vue';
 import AppVersionBadge from './components/AppVersionBadge.vue';
+import IdleTimeoutManager from './components/IdleTimeoutManager.vue';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
 
@@ -44,7 +45,12 @@ createInertiaApp({
     // @useIn setup: resources/js/app.js:42
     setup({ el, App, props, plugin }) {
         createApp({
-            render: () => h(Fragment, [h(App, props), h(AppVersionBadge)]),
+            render: () =>
+                h(Fragment, [
+                    h(App, props),
+                    h(AppVersionBadge),
+                    h(IdleTimeoutManager),
+                ]),
         })
             .use(plugin)
             .use(ZiggyVue)

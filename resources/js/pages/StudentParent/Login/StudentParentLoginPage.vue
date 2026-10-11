@@ -30,6 +30,7 @@ const useDifferentAccount = ref(true);
 const saveOnDevice = ref(false);
 const showPassword = ref(false);
 const page = usePage();
+const flashSuccess = computed(() => page.props.flash?.success);
 const parentPortalEnabled = computed(() =>
     Boolean(page.props.featureSettings?.parent_portal_enabled),
 );
@@ -408,6 +409,13 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+    <p
+        v-if="flashSuccess"
+        role="status"
+        class="fixed top-4 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-xl"
+    >
+        {{ flashSuccess }}
+    </p>
     <div class="min-h-screen bg-white font-raleway text-default">
         <header
             class="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur"

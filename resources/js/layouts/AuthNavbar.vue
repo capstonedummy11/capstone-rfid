@@ -34,6 +34,7 @@ import Dashboard from '@/components/Icon/Dashboard.vue';
 import Graduation from '@/components/Icon/Graduation.vue';
 import Instructor from '@/components/Icon/Instructor.vue';
 import LogoutIcon from '@/components/Icon/LogoutIcon.vue';
+import { broadcastIdleLogout } from '@/lib/idleSession';
 import Reports from '@/components/Icon/Reports.vue';
 // import RFID from '@/components/Icon/RFID.vue';
 import Schedule from '@/components/Icon/Schedule.vue';
@@ -334,7 +335,13 @@ const confirmLogout = async () => {
         return;
     }
 
-    router.post(route('logout'));
+    router.post(
+        route('logout'),
+        {},
+        {
+            onSuccess: () => broadcastIdleLogout(),
+        },
+    );
 };
 </script>
 
