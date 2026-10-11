@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Shared\Students;
 
 use App\Models\AcademicYear;
 use App\Models\ActivityLog;
+use App\Models\Attendance;
 use App\Models\Instructor;
 use App\Models\Message;
 use App\Models\OnlineClass;
@@ -22,6 +23,7 @@ use App\Services\CompreFaceService;
 use App\Services\ExcuseLetterPdfService;
 use App\Services\MessengerEmailNotificationService;
 use App\Services\OnlineClassAttendanceFinalizer;
+use App\Services\PhysicalAttendanceStatus;
 use App\Services\ProfilePhotoService;
 use App\Services\StudentEnrollmentService;
 use Illuminate\Http\Request;
@@ -46,6 +48,7 @@ class StudentsController
         private readonly OnlineClassAttendanceFinalizer $onlineAttendanceFinalizer,
         private readonly ProfilePhotoService $profilePhotos,
         private readonly StudentEnrollmentService $studentEnrollmentService,
+        private readonly PhysicalAttendanceStatus $physicalAttendanceStatus,
     ) {}
 
     // @function index: Wala pang implementasyon ang legacy index placeholder.
@@ -1689,9 +1692,9 @@ class StudentsController
 
     // @function attendancePayload: Binubuo ang attendance payload value.
     // @useIn attendancePayload: StudentsController::combinedAttendancePayloads (app/Http/Controllers/Shared/Students/StudentsController.php)
-    private function attendancePayload($attendance): array
+    private function attendancePayload(Attendance $attendance, ?object $session = null): array
     {
-        $sessionId = DB::table('attendance_sessions')
+        $sessionId = $session?->attendance_id ?? DB::table('attendance_sessions')
             ->where('schedule_id', $attendance->schedule_id)
             ->whereDate('date', $attendance->date)
             ->where('room', $attendance->room)
@@ -1740,7 +1743,9 @@ class StudentsController
                 $this->shortTime($attendance->time_end ?? $attendance->schedule?->time_end),
             ]))),
             'duration' => $this->durationLabel($attendance->time_in, $attendance->time_out),
-            'status' => $attendance->status,
+            'status' => $session
+                ? $this->physicalAttendanceStatus->forSession($attendance, $session)
+                : $attendance->status,
             'sort_time' => (string) ($attendance->time_in ?? $attendance->time_start ?? $attendance->schedule?->time_start ?? '00:00:00'),
             'time_in_image_url' => $timeInEvidence?->time_in_face_path ? route('attendance.evidence', ['attendanceLog' => $timeInEvidence->id, 'moment' => 'time-in']) : null,
             'time_out_image_url' => $timeOutEvidence?->time_out_face_path ? route('attendance.evidence', ['attendanceLog' => $timeOutEvidence->id, 'moment' => 'time-out']) : null,
@@ -1772,9 +1777,50 @@ class StudentsController
 
         $this->onlineAttendanceFinalizer->finalizeEnded();
 
-        $rfidAttendance = $this->attendanceQuery($student, $enrollment)
+        $yearEnrollments = $enrollment
+            ? $student->enrollments()->where('academic_year_id', $enrollment->academic_year_id)->get()
+            : collect();
+        $sessions = DB::table('attendance_sessions')
+            ->join('schedules', 'schedules.scheduled_id', '=', 'attendance_sessions.schedule_id')
+            ->whereNull('schedules.deleted_at')
+            ->when($enrollment,
+                fn ($query) => $query->where('schedules.academic_year_id', $enrollment->academic_year_id)
+                    ->where(function ($placements) use ($yearEnrollments) {
+                        foreach ($yearEnrollments as $placement) {
+                            $placements->orWhere(fn ($class) => $class
+                                ->where('schedules.section_id', $placement->section_id)
+                                ->when($placement->semester, fn ($term) => $term->where('schedules.semester', $placement->semester)));
+                        }
+                    }),
+                fn ($query) => $query->where('schedules.section_id', $student->section_id))
+            ->select('attendance_sessions.*', 'schedules.section_id')
+            ->get();
+        $sessionsByClass = $sessions->keyBy(fn ($session) => $session->schedule_id.'|'.$session->date);
+        $schedules = Schedule::query()->with('subject')
+            ->whereIn('scheduled_id', $sessions->pluck('schedule_id')->unique())
             ->get()
-            ->map(fn ($attendance) => $this->attendancePayload($attendance));
+            ->keyBy('scheduled_id');
+        $attendances = $this->attendanceQuery($student, $enrollment)->get();
+        $attendanceKeys = $attendances->mapWithKeys(fn (Attendance $attendance) => [
+            $attendance->schedule_id.'|'.$attendance->date->format('Y-m-d') => true,
+        ]);
+        $removedKeys = Attendance::onlyTrashed()
+            ->where('student_id', $student->student_id)
+            ->whereIn('schedule_id', $sessions->pluck('schedule_id')->unique())
+            ->get(['schedule_id', 'date'])
+            ->mapWithKeys(fn (Attendance $attendance) => [
+                $attendance->schedule_id.'|'.$attendance->date->format('Y-m-d') => true,
+            ]);
+        $rfidAttendance = $attendances
+            ->map(fn (Attendance $attendance) => $this->attendancePayload(
+                $attendance,
+                $sessionsByClass->get($attendance->schedule_id.'|'.$attendance->date->format('Y-m-d')),
+            ))
+            ->concat($sessions
+                ->unique(fn ($session) => $session->schedule_id.'|'.$session->date)
+                ->filter(fn ($session) => ! $attendanceKeys->has($session->schedule_id.'|'.$session->date)
+                    && ! $removedKeys->has($session->schedule_id.'|'.$session->date))
+                ->map(fn ($session) => $this->missingPhysicalAttendancePayload($session, $schedules->get($session->schedule_id))));
 
         $onlineAttendance = DB::table('online_classes')
             ->leftJoin('online_class_attendances', function ($join) use ($student) {
@@ -1815,6 +1861,30 @@ class StudentsController
             ->concat($onlineAttendance)
             ->sortByDesc(fn (array $attendance) => trim(($attendance['date'] ?? '').' '.($attendance['sort_time'] ?? '')))
             ->values();
+    }
+
+    private function missingPhysicalAttendancePayload(object $session, ?Schedule $schedule): array
+    {
+        return [
+            'attendance_id' => 'physical-session-'.$session->attendance_id,
+            'source' => 'rfid',
+            'date' => $session->date,
+            'subject' => $schedule?->subject?->subject_name ?? $session->subject_code,
+            'room' => $session->room,
+            'time_in' => null,
+            'time_out' => null,
+            'class_time' => trim(implode(' - ', array_filter([
+                $this->shortTime($session->time_start),
+                $this->shortTime($session->time_end),
+            ]))),
+            'duration' => null,
+            'status' => $this->physicalAttendanceStatus->forSession(null, $session),
+            'sort_time' => (string) ($session->time_start ?? '00:00:00'),
+            'time_in_image_url' => null,
+            'time_out_image_url' => null,
+            'verification_method' => null,
+            'evidence_events' => [],
+        ];
     }
 
     // @function onlineAttendancePayload: Binubuo ang online attendance payload value.

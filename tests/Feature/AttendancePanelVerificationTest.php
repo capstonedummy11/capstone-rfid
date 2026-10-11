@@ -169,6 +169,43 @@ test('instructor can manually change assigned student attendance inside configur
         'action' => 'attendance_status_changed',
         'table_name' => 'attendances',
     ]);
+
+    $studentUser = User::factory()->create([
+        'role' => 'student',
+        'email' => $fixture['student']->email,
+    ]);
+    $this->actingAs($studentUser)
+        ->get(route('student-parent.attendance'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('attendance.0.status', 'Excused'));
+});
+
+test('student and instructor see the same absence for a missed physical session', function () {
+    $fixture = attendanceVerificationFixture();
+    DB::table('attendance_sessions')
+        ->where('attendance_id', $fixture['attendanceSessionId'])
+        ->update(['status' => 'completed', 'time_end' => now()->subMinute()->format('H:i:s')]);
+    $subject = Subject::query()->where('subject_code', 'ATT-SEC-101')->firstOrFail();
+
+    $this->actingAs($fixture['instructorUser'])
+        ->withSession(['instructor_verified' => true])
+        ->get(route('admin.attendance.session', [$subject, $fixture['attendanceSessionId']]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('rows.0.status', 'Absent'));
+
+    $studentUser = User::factory()->create([
+        'role' => 'student',
+        'email' => $fixture['student']->email,
+    ]);
+    $this->actingAs($studentUser)
+        ->get(route('student-parent.attendance'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('StudentParent/Attendance/AttendancePage')
+            ->where('attendance.0.date', now()->toDateString())
+            ->where('attendance.0.status', 'Absent')
+            ->where('attendance.0.time_in', null)
+            ->where('attendance.0.time_out_image_url', null));
 });
 
 test('authorized instructor can soft delete attendance and it is excluded from session totals', function () {
@@ -205,6 +242,15 @@ test('authorized instructor can soft delete attendance and it is excluded from s
         ->assertInertia(fn (Assert $page) => $page
             ->component('Shared/Attendance/SessionDetails/SessionDetailsPage')
             ->has('rows', 0));
+
+    $studentUser = User::factory()->create([
+        'role' => 'student',
+        'email' => $fixture['student']->email,
+    ]);
+    $this->actingAs($studentUser)
+        ->get(route('student-parent.attendance'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->has('attendance', 0));
 });
 
 test('Sunday RFID lookup selects Sunday schedules and ignores them after soft deletion', function () {
@@ -418,8 +464,8 @@ test('online class participation is counted as online class and present attendan
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('StudentParent/Attendance/AttendancePage')
-            ->where('attendance.0.source', 'online')
-            ->where('attendance.0.status', 'present'));
+            ->where('attendance.1.source', 'online')
+            ->where('attendance.1.status', 'present'));
 });
 
 test('online class uses the configured late threshold', function () {
@@ -771,6 +817,36 @@ test('student without a face requires the active instructor rfid before attendan
     $this->assertDatabaseCount('attendance_logs', 1);
 });
 
+test('instructor approved camera captures are saved for official check-out', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    Carbon::setTestNow('2026-09-25 16:50:00');
+    Storage::fake('public');
+    $fixture = attendanceVerificationFixture();
+    $payload = [
+        'rfid' => $fixture['student']->rfid_tag,
+        'room' => 'COMLAB-ATT',
+        'subject_code' => 'ATT-SEC-101',
+        'schedule_id' => $fixture['schedule']->scheduled_id,
+        'instructor_rfid' => $fixture['instructorUser']->rfid_tag,
+        'image' => 'data:image/jpeg;base64,'.base64_encode('approved-camera-image'),
+    ];
+
+    $this->actingAs($fixture['console'])
+        ->postJson(route('attendanceControlPanel.studentFaceCheck'), $payload)
+        ->assertOk()->assertJsonPath('capture_recorded', true);
+    $this->postJson(route('attendanceControlPanel.studentTap'), $payload)
+        ->assertOk()->assertJsonPath('action', 'time_in');
+    $this->postJson(route('attendanceControlPanel.studentFaceCheck'), $payload)
+        ->assertOk()->assertJsonPath('capture_recorded', true);
+    $this->postJson(route('attendanceControlPanel.studentTap'), $payload)
+        ->assertOk()->assertJsonPath('action', 'time_out');
+
+    $checkoutLog = DB::table('attendance_logs')->where('tap_type', 'Check-out')->first();
+    expect($checkoutLog->time_out_face_path)->not->toBeNull();
+    Storage::disk('public')->assertExists($checkoutLog->time_out_face_path);
+    Carbon::setTestNow();
+});
+
 test('fallback verification keeps temporary exit and return rules before the checkout window', function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
     Carbon::setTestNow('2026-09-25 12:00:00');
@@ -896,10 +972,27 @@ test('aws unavailability stores evidence for both login and logout', function ()
         ->assertJsonPath('records.0.tap_count', 2);
 
     $log = DB::table('attendance_logs')->first();
+    $checkoutLog = DB::table('attendance_logs')->where('tap_type', 'Check-out')->firstOrFail();
     expect($log->time_in_face_path)->not->toBeNull()
         ->and($log->time_out_face_path)->not->toBeNull();
     Storage::disk('public')->assertExists($log->time_in_face_path);
     Storage::disk('public')->assertExists($log->time_out_face_path);
+
+    $studentUser = User::factory()->create([
+        'role' => 'student',
+        'email' => $fixture['student']->email,
+    ]);
+    $this->actingAs($studentUser)
+        ->get(route('student-parent.attendance'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('attendance.0.status', 'Late')
+            ->where('attendance.0.time_out_image_url', route('attendance.evidence', [
+                'attendanceLog' => $checkoutLog->id,
+                'moment' => 'time-out',
+            ])));
+    $this->get(route('attendance.evidence', ['attendanceLog' => $checkoutLog->id, 'moment' => 'time-out']))
+        ->assertOk();
 
     $this->assertDatabaseCount('attendances', 1);
     Carbon::setTestNow();

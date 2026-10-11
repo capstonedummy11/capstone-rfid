@@ -1513,7 +1513,10 @@ watch(
                                             "
                                         >
                                             <td class="px-3 py-2">
-                                                {{ item.student_id }}
+                                                {{
+                                                    item.student_name ||
+                                                    `Student ${item.student_id}`
+                                                }}
                                             </td>
                                             <td class="px-3 py-2">
                                                 Grade {{ item.year_level }}

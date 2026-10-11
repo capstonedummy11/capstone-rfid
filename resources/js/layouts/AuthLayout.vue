@@ -478,7 +478,7 @@ watch(
             <!-- Page Content -->
             <main class="flex-1 overflow-y-auto bg-gray-100">
                 <div
-                    class="mx-auto min-h-full w-full max-w-[1180px] p-4 sm:p-6"
+                    class="mx-auto min-h-full w-full max-w-7xl p-4 sm:p-6"
                 >
                     <slot />
                 </div>

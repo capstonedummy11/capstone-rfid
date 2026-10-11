@@ -91,7 +91,7 @@ const deleteHistory = async (history) => {
 </script>
 
 <template>
-    <div class="mx-auto max-w-7xl px-4 py-6">
+    <div class="mx-auto w-full max-w-7xl min-w-0 px-4 py-6">
         <section
             class="mb-5 flex flex-col gap-3 rounded-md bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"
         >
@@ -111,8 +111,10 @@ const deleteHistory = async (history) => {
             </p>
         </section>
 
-        <section class="grid gap-5 xl:grid-cols-[380px_1fr]">
-            <aside class="space-y-5">
+        <section
+            class="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-[380px_minmax(0,1fr)]"
+        >
+            <aside class="min-w-0 space-y-5">
                 <form
                     class="rounded-md bg-white p-5 shadow-sm"
                     @submit.prevent="submitHistory"
@@ -220,7 +222,7 @@ const deleteHistory = async (history) => {
                 </div>
             </aside>
 
-            <section class="rounded-md bg-white p-5 shadow-sm">
+            <section class="min-w-0 rounded-md bg-white p-5 shadow-sm">
                 <div class="overflow-x-auto">
                     <table class="w-full min-w-[860px] text-left text-sm">
                         <thead

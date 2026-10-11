@@ -15,6 +15,7 @@ use App\Models\Students;
 use App\Models\Subject;
 use App\Models\SystemSetting;
 use App\Services\OnlineClassAttendanceFinalizer;
+use App\Services\PhysicalAttendanceStatus;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -46,7 +47,10 @@ class AttendanceManagementController extends Controller
 
     // @function __construct: Tinatanggap ang dependencies ng Attendance Management sa pagbuo ng object.
     // @useIn __construct: Laravel dependency injection kapag ginagamit ang AttendanceManagementController
-    public function __construct(private readonly OnlineClassAttendanceFinalizer $attendanceFinalizer) {}
+    public function __construct(
+        private readonly OnlineClassAttendanceFinalizer $attendanceFinalizer,
+        private readonly PhysicalAttendanceStatus $physicalAttendanceStatus,
+    ) {}
 
     // @function index: Ibinabalik ang Attendance/SubjectSelection page at data para sa request.
     // @useIn index: routes/web.php:256 (attendance.logs)
@@ -166,7 +170,7 @@ class AttendanceManagementController extends Controller
                 'date_label' => Carbon::parse($session->date)->format('F j, Y'),
                 'schedule' => $this->timeRange($session->time_start, $session->time_end),
                 'room' => $session->room,
-                'status' => $attendance ? $this->displayStatus($attendance, $session) : $this->missingStatus($session),
+                'status' => $this->physicalAttendanceStatus->forSession($attendance, $session),
                 'time_in' => $this->formatTime($attendance?->time_in),
                 'time_out' => $this->formatTime($attendance?->time_out),
                 'remarks' => $attendance?->remarks,
@@ -656,7 +660,7 @@ class AttendanceManagementController extends Controller
                     continue;
                 }
                 $attendance = $physical->get($key);
-                $status = $attendance ? $this->displayStatus($attendance, $session) : $this->missingStatus($session);
+                $status = $this->physicalAttendanceStatus->forSession($attendance, $session);
                 $counts[$status] = ($counts[$status] ?? 0) + 1;
             }
             foreach ($onlineClasses as $onlineClass) {
@@ -751,7 +755,7 @@ class AttendanceManagementController extends Controller
                 'student_id' => $student->student_id,
                 'student_number' => $student->student_number,
                 'student_name' => trim($student->first_name.' '.$student->last_name),
-                'status' => $attendance ? $this->displayStatus($attendance, $session) : $this->missingStatus($session),
+                'status' => $this->physicalAttendanceStatus->forSession($attendance, $session),
                 'time_in' => $this->formatTime($attendance?->time_in),
                 'time_out' => $this->formatTime($attendance?->time_out),
                 'remarks' => $attendance?->remarks,
@@ -818,25 +822,6 @@ class AttendanceManagementController extends Controller
         return $onlineClass;
     }
 
-    // @function displayStatus: Binubuo ang display status string para sa Attendance Management.
-    // @useIn displayStatus: AttendanceManagementController::student (app/Http/Controllers/Shared/Attendance/AttendanceManagementController.php)
-    private function displayStatus(Attendance $attendance, object $session): string
-    {
-        $status = trim((string) $attendance->status);
-        if (strcasecmp($status, 'pending') === 0 && $this->sessionEnded($session)) {
-            return empty($attendance->time_out) ? 'Incomplete Attendance' : ucfirst((string) ($attendance->check_in_status ?: 'present'));
-        }
-
-        return $status === '' ? 'Pending' : ucwords(str_replace('_', ' ', strtolower($status)));
-    }
-
-    // @function missingStatus: Binubuo ang missing status string para sa Attendance Management.
-    // @useIn missingStatus: AttendanceManagementController::student (app/Http/Controllers/Shared/Attendance/AttendanceManagementController.php)
-    private function missingStatus(object $session): string
-    {
-        return $this->sessionEnded($session) ? 'Absent' : 'Pending';
-    }
-
     // @function onlineStudentStatus: Binubuo ang online student status string para sa Attendance Management.
     // @useIn onlineStudentStatus: AttendanceManagementController::student (app/Http/Controllers/Shared/Attendance/AttendanceManagementController.php)
     private function onlineStudentStatus(OnlineClass $onlineClass, ?OnlineClassAttendance $attendance): string
@@ -857,14 +842,6 @@ class AttendanceManagementController extends Controller
     private function onlineClassEnded(OnlineClass $onlineClass): bool
     {
         return Carbon::parse($onlineClass->scheduled_date->format('Y-m-d').' '.$onlineClass->end_time)->isPast();
-    }
-
-    // @function sessionEnded: Sinusuri ang session ended condition para sa Attendance Management.
-    // @useIn sessionEnded: AttendanceManagementController::displayStatus (app/Http/Controllers/Shared/Attendance/AttendanceManagementController.php)
-    private function sessionEnded(object $session): bool
-    {
-        return Carbon::parse($session->date.' '.$session->time_end)->isPast()
-            || in_array(strtolower((string) ($session->status ?? '')), ['completed', 'ended', 'closed'], true);
     }
 
     // @function statusNames: Kinukuha ang status names result para sa Attendance Management.

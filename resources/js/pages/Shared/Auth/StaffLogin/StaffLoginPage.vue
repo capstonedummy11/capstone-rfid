@@ -486,7 +486,7 @@ onUnmounted(() => {
                                 href="/"
                                 class="inline-flex h-9 items-center justify-center rounded-md border border-slate-300 px-4 text-xs font-black text-blue-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
                             >
-                                Student / Parent
+                                Student
                             </Link>
                         </div>
                     </div>

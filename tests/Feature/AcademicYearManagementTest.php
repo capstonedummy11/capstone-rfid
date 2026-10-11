@@ -770,7 +770,9 @@ test('academic rollover is transactional idempotent and preserves source history
 
     $service = app(AcademicYearRolloverService::class);
     $preview = $service->preview($source, $destination);
+    $studentPreviewItem = collect($preview['items'])->firstWhere('student_id', $student->student_id);
     expect($preview['counts']['students'])->toBe(3)
+        ->and($studentPreviewItem['student_name'])->toBe('Rollover Student')
         ->and($preview['counts']['sections'])->toBe(3)
         ->and($preview['counts']['offerings'])->toBe(2)
         ->and($preview['counts']['promote'])->toBe(2)
@@ -784,6 +786,7 @@ test('academic rollover is transactional idempotent and preserves source history
     ]))
         ->assertOk()
         ->assertJsonPath('counts.offerings', 2)
+        ->assertJsonFragment(['student_id' => $student->student_id, 'student_name' => 'Rollover Student'])
         ->assertJsonCount(2, 'source_offerings');
     expect(DB::table('academic_year_rollovers')->count())->toBe(0);
 

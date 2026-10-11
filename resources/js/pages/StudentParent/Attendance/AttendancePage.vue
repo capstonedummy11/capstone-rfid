@@ -275,7 +275,7 @@ const toggleEvidenceEvents = (record) => {
                                         />
                                     </button>
                                     <span v-else class="text-xs text-slate-400"
-                                        >Not captured</span
+                                        >{{ record.time_out ? 'Not captured' : 'No check-out' }}</span
                                     >
                                 </td>
                                 <td class="px-3 py-3">

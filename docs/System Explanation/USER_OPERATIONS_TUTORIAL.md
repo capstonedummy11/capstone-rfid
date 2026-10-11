@@ -442,6 +442,10 @@ After checkout:
 
 - Extra taps are ignored but still logged.
 
+The Instructor sheet and Student attendance history use the same physical-session status rule. Once a session ends, a student without a check-in appears as **Absent** in both views, even though no `attendances` row was written for that student. A check-in without an official check-out appears as **Incomplete Attendance** when its saved status is still Pending.
+
+Time-in and time-out images are separate evidence captures. The panel saves a time-out image only when an official check-out follows a camera-based verification with a saved capture. An absent student, an uncompleted check-out, or an approved camera-bypass flow has no time-out image. The portal loads saved images through the authenticated attendance-evidence route; a public storage symlink is not required for these images.
+
 ## 18. Dismiss or Continue a Class
 
 If the instructor dismisses the class before the normal checkout window:

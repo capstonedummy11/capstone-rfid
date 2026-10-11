@@ -622,12 +622,17 @@ class AttendanceController
                 ], 422);
             }
 
-            $this->grantAttendanceVerification($request, $attendanceSession, $student, 'instructor_rfid');
+            $capturePath = $this->storeApprovedOverrideCapture($validated, $attendanceSession, $student);
+            if (! empty($validated['image']) && ! $capturePath) {
+                return response()->json(['ok' => false, 'message' => 'Attendance photo could not be saved. Please retry the capture.'], 422);
+            }
+            $this->grantAttendanceVerification($request, $attendanceSession, $student, 'instructor_rfid', $capturePath);
 
             return response()->json([
                 'ok' => true,
                 'verified' => true,
                 'instructor_override' => true,
+                'capture_recorded' => $capturePath !== null,
                 'provider' => 'instructor_rfid',
                 'message' => 'Active instructor RFID verified. Attendance can continue.',
             ]);
@@ -653,12 +658,17 @@ class AttendanceController
                 ], 422);
             }
 
-            $this->grantAttendanceVerification($request, $attendanceSession, $student, 'face_recognition_disabled');
+            $capturePath = $this->storeApprovedOverrideCapture($validated, $attendanceSession, $student);
+            if (! empty($validated['image']) && ! $capturePath) {
+                return response()->json(['ok' => false, 'message' => 'Attendance photo could not be saved. Please retry the capture.'], 422);
+            }
+            $this->grantAttendanceVerification($request, $attendanceSession, $student, 'face_recognition_disabled', $capturePath);
 
             return response()->json([
                 'ok' => true,
                 'verified' => true,
                 'instructor_override' => true,
+                'capture_recorded' => $capturePath !== null,
                 'provider' => 'face_recognition_disabled',
                 'message' => 'Active instructor RFID verified. Attendance can continue while face recognition is disabled.',
             ]);
@@ -957,6 +967,13 @@ class AttendanceController
         );
 
         return Storage::disk('public')->put($path, $bytes) ? $path : null;
+    }
+
+    private function storeApprovedOverrideCapture(array $validated, object $attendanceSession, Students $student): ?string
+    {
+        return ! empty($validated['image'])
+            ? $this->storeAttendanceFaceCapture((string) $validated['image'], (int) $attendanceSession->attendance_id, $student)
+            : null;
     }
 
     // @function finalizeCuttingStudents: Pinoproseso ang finalize cutting students para sa Attendance.

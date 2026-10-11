@@ -3,8 +3,9 @@ defineOptions({
     layout: null,
 });
 
-import { computed, onMounted, ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
+import { ChevronLeft } from 'lucide-vue-next';
+import { computed, onMounted, ref } from 'vue';
 import logo from '@/assets/images/logo-only.jpg';
 
 const props = defineProps({
@@ -272,9 +273,9 @@ onMounted(() => {
                 <div v-else>
                     <Link
                         :href="route('staff.login')"
-                        class="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 transition hover:text-slate-900 focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#123456]"
+                        class="mb-3 inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-slate-900 transition hover:bg-slate-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#123456]"
                     >
-                        <span aria-hidden="true">&larr;</span>
+                        <ChevronLeft aria-hidden="true" class="h-4 w-4" />
                         Back to Secure Login
                     </Link>
                     <div
