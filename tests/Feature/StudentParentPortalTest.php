@@ -113,12 +113,33 @@ test('student and parent roles can open their portal pages', function () {
         'room' => 'ICT Lab',
     ]);
 
+    Attendance::query()->create([
+        'student_id' => $fixture['student']->student_id,
+        'date' => '2026-07-06',
+        'status' => 'absent',
+        'subject_code' => 'PROG2',
+        'room' => 'ICT Lab',
+    ]);
+
+    StudentExcuseLetter::query()->create([
+        'student_id' => $fixture['student']->student_id,
+        'submitted_by_user_id' => $fixture['studentUser']->user_id,
+        'submitted_by_role' => 'student',
+        'subject' => 'Medical absence',
+        'from_date' => '2026-07-06',
+        'to_date' => '2026-07-06',
+        'reason' => 'Medical appointment.',
+    ]);
+
     $this->actingAs($fixture['studentUser'])
         ->get(route('student-parent.dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('StudentParent/Dashboard/DashboardPage')
             ->where('student.student_number', 'SHS-ICT-TEST-01')
+            ->where('stats.present', 1)
+            ->where('stats.absent', 1)
+            ->where('stats.excuse_letters', 1)
         );
 
     $this->actingAs($fixture['parentUser'])
@@ -128,7 +149,7 @@ test('student and parent roles can open their portal pages', function () {
             ->component('StudentParent/Attendance/AttendancePage')
             ->where('student.student_number', 'SHS-ICT-TEST-01')
             ->has('linkedStudents', 1)
-            ->has('attendance', 1)
+            ->has('attendance', 2)
         );
 });
 

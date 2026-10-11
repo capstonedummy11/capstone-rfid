@@ -637,6 +637,7 @@ class StudentsController
             'stats' => [
                 'present' => $attendance->where('status', 'present')->count(),
                 'late' => $attendance->where('status', 'late')->count(),
+                'absent' => $attendance->where('status', 'absent')->count(),
                 'excuse_letters' => $student?->excuseLetters()->when($enrollment, fn ($query) => $query->where('academic_year_id', $enrollment->academic_year_id))->count() ?? 0,
                 'messages' => $student ? $this->messageQuery($request, $student)->count() : 0,
                 'online_classes' => $student

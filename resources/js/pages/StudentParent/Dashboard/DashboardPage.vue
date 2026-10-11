@@ -3,7 +3,14 @@
 import { Link } from '@inertiajs/vue3';
 import StatCard from '@/pages/StudentParent/Dashboard/components/StatCard.vue';
 import LinkedStudentSelector from '@/components/StudentPortal/LinkedStudentSelector.vue';
-import { Bell, Clock3, Search, Users } from 'lucide-vue-next';
+import {
+    Bell,
+    Clock3,
+    FileText,
+    Search,
+    Users,
+    UserX,
+} from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 
 const props = defineProps({
@@ -144,10 +151,16 @@ const statusClass = (status) => {
                     :icon="Clock3"
                 />
                 <StatCard
-                    :value="stats.excuse_letters || 0"
+                    :value="stats.absent || 0"
                     label="Total Absences"
-                    helper="Excuse letters filed"
-                    :icon="Users"
+                    helper="This school year"
+                    :icon="UserX"
+                />
+                <StatCard
+                    :value="stats.excuse_letters || 0"
+                    label="Excuse Letters Filed"
+                    helper="This school year"
+                    :icon="FileText"
                 />
                 <StatCard
                     :value="stats.online_classes || 0"
@@ -155,18 +168,6 @@ const statusClass = (status) => {
                     helper="Currently scheduled"
                     :icon="Users"
                 />
-                <div
-                    class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-100"
-                >
-                    <p class="text-sm font-bold text-slate-900">Today's Year</p>
-                    <p class="mt-2 text-2xl font-black text-[#172554]">
-                        {{ student?.school_year || 'Academic year not set' }}
-                    </p>
-                    <p class="mt-1 text-xs text-slate-500">
-                        {{ student?.strand || 'Academic Program' }} |
-                        {{ student?.semester || 'Semester' }}
-                    </p>
-                </div>
             </section>
 
             <section class="grid gap-4 xl:grid-cols-[330px_1fr]">
