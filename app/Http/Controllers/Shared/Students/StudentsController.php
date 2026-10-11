@@ -1046,6 +1046,7 @@ class StudentsController
                 ? OnlineClassNotification::query()
                     ->with('onlineClass')
                     ->where('student_id', $student->student_id)
+                    ->whereHas('onlineClass')
                     ->when($enrollment, fn ($query) => $query->where('academic_year_id', $enrollment->academic_year_id))
                     ->latest()
                     ->get()
@@ -1062,6 +1063,74 @@ class StudentsController
         ]);
     }
 
+    // @function pollPortalNotifications: Returns new online-class notifications for the selected portal student.
+    // @useIn pollPortalNotifications: routes/student-parent.php (notifications.poll)
+    public function pollPortalNotifications(Request $request)
+    {
+        $validated = $request->validate([
+            'student_id' => ['nullable', 'integer'],
+            'after_id' => ['nullable', 'integer', 'min:0'],
+        ]);
+        $student = $this->currentStudent($request);
+        $enrollment = $this->portalEnrollment($request, $student);
+
+        if (! $student) {
+            return response()->json(['unread_count' => 0, 'items' => []]);
+        }
+        if ($request->filled('student_id')) {
+            abort_unless((int) $student->student_id === (int) $request->input('student_id'), 403);
+        }
+
+        $notificationQuery = OnlineClassNotification::query()
+            ->where('student_id', $student->student_id)
+            ->whereHas('onlineClass')
+            ->when($enrollment, fn ($query) => $query->where('academic_year_id', $enrollment->academic_year_id));
+
+        if (isset($validated['after_id'])) {
+            $notifications = $notificationQuery
+                ->where('online_class_notification_id', '>', $validated['after_id'])
+                ->orderBy('online_class_notification_id')
+                ->limit(100);
+        } else {
+            $notifications = $notificationQuery
+                ->latest('online_class_notification_id')
+                ->limit(20);
+        }
+
+        $notifications = $notifications->get([
+                'online_class_notification_id',
+                'event',
+                'title',
+                'body',
+                'read_at',
+                'created_at',
+            ])
+            ->when(! isset($validated['after_id']), fn ($items) => $items->reverse())
+            ->values();
+
+        $unreadCount = OnlineClassNotification::query()
+            ->where('student_id', $student->student_id)
+            ->whereHas('onlineClass')
+            ->whereNull('read_at')
+            ->when($enrollment, fn ($query) => $query->where('academic_year_id', $enrollment->academic_year_id))
+            ->count();
+
+        return response()->json([
+            'unread_count' => $unreadCount,
+            'items' => $notifications->map(fn (OnlineClassNotification $notification) => [
+                'id' => $notification->online_class_notification_id,
+                'sender' => 'Online classes',
+                'title' => $notification->title,
+                'text' => $notification->body,
+                'body' => $notification->body,
+                'event' => $notification->event,
+                'timestamp' => $notification->created_at?->toDateTimeString(),
+                'created_at' => $notification->created_at?->toDateTimeString(),
+                'read_at' => $notification->read_at?->toDateTimeString(),
+            ])->values(),
+        ]);
+    }
+
     // @function markPortalNotificationRead: Minamark ang portal notification read sa Students flow.
     // @useIn markPortalNotificationRead: routes/web.php:532 (notifications.read)
     public function markPortalNotificationRead(Request $request, OnlineClassNotification $notification)
@@ -1072,6 +1141,31 @@ class StudentsController
         if (! $notification->read_at) {
             $notification->update(['read_at' => now()]);
             $this->logActivity('update', 'online_class_notifications', 'Marked online class notification '.$notification->online_class_notification_id.' as read for student '.$student->student_number);
+        }
+
+        return back();
+    }
+
+    // @function markAllPortalNotificationsRead: Marks all notifications for the selected student as read.
+    // @useIn markAllPortalNotificationsRead: routes/student-parent.php (notifications.read-all)
+    public function markAllPortalNotificationsRead(Request $request)
+    {
+        $student = $this->currentStudent($request);
+        abort_unless($student, 404);
+        if ($request->filled('student_id')) {
+            abort_unless((int) $student->student_id === (int) $request->input('student_id'), 403);
+        }
+        $enrollment = $this->portalEnrollment($request, $student);
+
+        $updated = OnlineClassNotification::query()
+            ->where('student_id', $student->student_id)
+            ->whereHas('onlineClass')
+            ->whereNull('read_at')
+            ->when($enrollment, fn ($query) => $query->where('academic_year_id', $enrollment->academic_year_id))
+            ->update(['read_at' => now(), 'updated_at' => now()]);
+
+        if ($updated > 0) {
+            $this->logActivity('update', 'online_class_notifications', 'Marked '.$updated.' online class notifications as read for student '.$student->student_number);
         }
 
         return back();

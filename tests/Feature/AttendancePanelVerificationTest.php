@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\AcademicYear;
+use App\Models\Attendance;
 use App\Models\Instructor;
 use App\Models\RfidPanelSession;
 use App\Models\Schedule;
@@ -12,6 +13,8 @@ use App\Models\Subject;
 use App\Models\SystemSetting;
 use App\Models\User;
 use App\Services\AwsFaceRecognitionService;
+use App\Services\AwsFaceLivenessService;
+use App\Services\FaceLivenessPolicy;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -166,6 +169,67 @@ test('instructor can manually change assigned student attendance inside configur
         'action' => 'attendance_status_changed',
         'table_name' => 'attendances',
     ]);
+});
+
+test('authorized instructor can soft delete attendance and it is excluded from session totals', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    $fixture = attendanceVerificationFixture();
+    $subject = Subject::query()->where('subject_code', 'ATT-SEC-101')->firstOrFail();
+
+    $this->actingAs($fixture['instructorUser'])
+        ->withSession(['instructor_verified' => true])
+        ->patch(route('admin.attendance.logs.status'), [
+            'session_id' => $fixture['attendanceSessionId'],
+            'student_id' => $fixture['student']->student_id,
+            'status' => 'present',
+        ])->assertRedirect();
+
+    $attendance = Attendance::query()->sole();
+
+    $this->actingAs($fixture['instructorUser'])
+        ->withSession(['instructor_verified' => true])
+        ->delete(route('admin.attendance.destroy', $attendance))
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    $this->assertSoftDeleted('attendances', ['attendance_id' => $attendance->attendance_id]);
+    $this->assertDatabaseHas('activity_logs', [
+        'action' => 'attendance_removed',
+        'subject_id' => (string) $attendance->attendance_id,
+    ]);
+
+    $this->actingAs($fixture['instructorUser'])
+        ->withSession(['instructor_verified' => true])
+        ->get(route('admin.attendance.session', [$subject, $fixture['attendanceSessionId']]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Shared/Attendance/SessionDetails/SessionDetailsPage')
+            ->has('rows', 0));
+});
+
+test('Sunday RFID lookup selects Sunday schedules and ignores them after soft deletion', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    Carbon::setTestNow('2026-10-11 09:00:00');
+    $fixture = attendanceVerificationFixture();
+
+    $payload = [
+        'rfid' => $fixture['instructorUser']->rfid_tag,
+        'room' => 'COMLAB-ATT',
+    ];
+
+    $this->actingAs($fixture['console'])
+        ->postJson(route('attendanceControlPanel.lookupRfid'), $payload)
+        ->assertOk()
+        ->assertJsonPath('has_valid_schedule', true)
+        ->assertJsonPath('profile.schedule_days', 'Sunday');
+
+    $fixture['schedule']->delete();
+
+    $this->postJson(route('attendanceControlPanel.lookupRfid'), $payload)
+        ->assertOk()
+        ->assertJsonPath('has_valid_schedule', false);
+
+    Carbon::setTestNow();
 });
 
 test('instructor cannot manually change attendance outside configured edit window', function () {
@@ -810,6 +874,45 @@ test('face comparison mismatch has a distinct message from aws unavailability', 
         ->assertJsonPath('message', 'Face recognition failed to match.');
 
     $this->assertDatabaseCount('attendances', 0);
+});
+
+test('instructor attendance verification consumes an instructor-bound liveness token', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    $fixture = attendanceVerificationFixture();
+    $fixture['instructorUser']->update(['face_images' => ['instructor_faces/reference.jpg']]);
+    config()->set('services.aws_rekognition.liveness.enabled', true);
+
+    $livenessService = Mockery::mock(AwsFaceLivenessService::class);
+    $livenessService->shouldReceive('consumeReferenceImage')
+        ->once()
+        ->withArgs(fn ($request, $token, $purpose, $subjectKey, $subjectRole) => $request->user()->is($fixture['console'])
+            && $token === str_repeat('l', 64)
+            && $purpose === 'attendance_instructor'
+            && $subjectKey === (string) $fixture['instructorUser']->user_id
+            && $subjectRole === FaceLivenessPolicy::INSTRUCTOR_ROLE)
+        ->andReturn('data:image/jpeg;base64,'.base64_encode('live-reference'));
+    $this->app->instance(AwsFaceLivenessService::class, $livenessService);
+
+    $faceService = Mockery::mock(AwsFaceRecognitionService::class);
+    $faceService->shouldReceive('compareBase64WithStoredImage')
+        ->once()
+        ->andReturn([
+            'verified' => true,
+            'similarity' => 95.0,
+            'threshold' => 90.0,
+            'provider' => 'aws_rekognition',
+        ]);
+    $this->app->instance(AwsFaceRecognitionService::class, $faceService);
+
+    $this->actingAs($fixture['console'])
+        ->postJson(route('attendanceControlPanel.instructorFaceCheck'), [
+            'instructor_rfid' => $fixture['instructorUser']->rfid_tag,
+            'active_instructor_user_id' => $fixture['instructorUser']->user_id,
+            'reason' => 'attendance_session_start',
+            'liveness_token' => str_repeat('l', 64),
+        ])
+        ->assertOk()
+        ->assertJsonPath('verified', true);
 });
 
 test('camera failure needs instructor rfid only once for the active class session', function () {

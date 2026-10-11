@@ -158,6 +158,11 @@ class FortifyServiceProvider extends ServiceProvider
      */
     private function configureRateLimiting(): void
     {
+        RateLimiter::for('realtime-poll', function (Request $request) {
+            return Limit::perMinute(60)
+                ->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip()));
+        });
+
         RateLimiter::for('root-ownership', function (Request $request) {
             return Limit::perMinute((int) config('root_ownership.rate_limit_per_minute', 5))
                 ->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip()));

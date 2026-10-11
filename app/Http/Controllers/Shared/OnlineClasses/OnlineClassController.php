@@ -19,6 +19,7 @@ use App\Models\Students;
 use App\Models\SystemSetting;
 use App\Services\AwsFaceRecognitionService;
 use App\Services\AwsFaceLivenessService;
+use App\Services\FaceLivenessPolicy;
 use App\Services\OnlineClassAttendanceFinalizer;
 use App\Services\OnlineClassAuditLogger;
 use App\Services\OnlineClassNotificationService;
@@ -26,6 +27,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 // Used by roles: Admin and Instructor for class management; Student and Parent for viewing and joining.
@@ -273,6 +275,7 @@ class OnlineClassController
                     (string) ($validated['liveness_token'] ?? ''),
                     'online_class_student',
                     (string) $student->student_number,
+                    FaceLivenessPolicy::STUDENT_ROLE,
                 ) ?? '';
             }
 
@@ -379,7 +382,7 @@ class OnlineClassController
     private function validatedClassData(Request $request): array
     {
         return $request->validate([
-            'schedule_id' => ['required', 'integer', 'exists:schedules,scheduled_id'],
+            'schedule_id' => ['required', 'integer', Rule::exists('schedules', 'scheduled_id')->whereNull('deleted_at')],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
             'meeting_link' => ['required', 'url', 'max:2048'],

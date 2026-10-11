@@ -3,7 +3,10 @@
 
 namespace App\Http\Controllers\Shared\FaceLiveness;
 
+use App\Models\Students;
+use App\Models\User;
 use App\Services\AwsFaceLivenessService;
+use App\Services\FaceLivenessPolicy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -30,8 +33,14 @@ class FaceLivenessController
 
         abort_unless(in_array($validated['purpose'], $allowedPurposes, true), 403);
 
+        [$subjectKey, $subjectRole] = $this->resolveSubjectBinding(
+            $request,
+            $validated['purpose'],
+            $validated['subject_key'],
+        );
+
         try {
-            $result = $service->createSession($request, $validated['purpose'], $validated['subject_key']);
+            $result = $service->createSession($request, $validated['purpose'], $subjectKey, $subjectRole);
         } catch (\Throwable $exception) {
             report($exception);
 
@@ -47,10 +56,15 @@ class FaceLivenessController
 
     // @function show: Ibinabalik ang detalye ng napiling record.
     // @useIn show: routes/web.php:154 (faceLiveness.show)
-    public function show(Request $request, string $sessionId, AwsFaceLivenessService $service): JsonResponse
+    public function show(
+        Request $request,
+        string $sessionId,
+        AwsFaceLivenessService $service,
+        FaceLivenessPolicy $policy,
+    ): JsonResponse
     {
         try {
-            $result = $service->completeSession($request, $sessionId);
+            $result = $service->completeSession($request, $sessionId, $policy);
         } catch (\Throwable $exception) {
             report($exception);
 
@@ -58,5 +72,41 @@ class FaceLivenessController
         }
 
         return response()->json($result, $result['ok'] ? 200 : 422);
+    }
+
+    private function resolveSubjectBinding(Request $request, string $purpose, string $requestedSubjectKey): array
+    {
+        if ($purpose === 'instructor_login') {
+            $user = $request->user();
+            abort_unless(strtolower((string) $user?->role) === FaceLivenessPolicy::INSTRUCTOR_ROLE, 403);
+
+            return [(string) $user->user_id, FaceLivenessPolicy::INSTRUCTOR_ROLE];
+        }
+
+        if ($purpose === 'attendance_instructor') {
+            $instructor = User::query()
+                ->whereKey((int) $requestedSubjectKey)
+                ->whereRaw('LOWER(role) = ?', [FaceLivenessPolicy::INSTRUCTOR_ROLE])
+                ->firstOrFail();
+
+            return [(string) $instructor->user_id, FaceLivenessPolicy::INSTRUCTOR_ROLE];
+        }
+
+        if ($purpose === 'attendance_student') {
+            $student = Students::query()
+                ->whereRaw('LOWER(rfid_tag) = ?', [strtolower(trim($requestedSubjectKey))])
+                ->firstOrFail();
+
+            return [(string) $student->rfid_tag, FaceLivenessPolicy::STUDENT_ROLE];
+        }
+
+        $studentQuery = strtolower((string) $request->user()?->role) === 'parent'
+            ? $request->user()->linkedStudents()
+            : Students::query()->where('email', $request->user()?->email);
+        $student = $studentQuery
+            ->where('student_number', $requestedSubjectKey)
+            ->firstOrFail();
+
+        return [(string) $student->student_number, FaceLivenessPolicy::STUDENT_ROLE];
     }
 }

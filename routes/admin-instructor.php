@@ -29,6 +29,7 @@ Route::prefix('admin')
         Route::get('/attendance/subjects/{subject}/sessions/{session}/export/{format}', [AttendanceManagementController::class, 'exportSession'])->name('attendance.session.export');
         Route::get('/attendance/logs/legacy', [AttendanceController::class, 'logs'])->name('attendance.logs.legacy');
         Route::patch('/attendance/logs/status', [AttendanceController::class, 'updateAttendanceStatus'])->name('attendance.logs.status');
+        Route::delete('/attendance/{attendance}', [AttendanceManagementController::class, 'destroyAttendance'])->name('attendance.destroy');
         Route::patch('/attendance/online/status', [AttendanceManagementController::class, 'updateOnlineAttendanceStatus'])->name('attendance.online.status');
         Route::post('/attendance/scan', [AttendanceController::class, 'scan'])->name('attendance.scan');
 

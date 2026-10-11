@@ -4,6 +4,8 @@ use App\Models\AcademicYear;
 use App\Models\Attendance;
 use App\Models\Instructor;
 use App\Models\Message;
+use App\Models\OnlineClass;
+use App\Models\OnlineClassNotification;
 use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\Strand;
@@ -189,6 +191,103 @@ test('student and parent only see portal messages where they are sender or recip
         'subject' => 'Encrypted message',
         'body' => 'Encrypted message',
     ]);
+});
+
+test('message polling returns only new messages from the authenticated conversation', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $clinic = User::factory()->create(['role' => 'clinic']);
+    $other = User::factory()->create(['role' => 'registrar']);
+
+    $first = StudentPortalMessage::query()->create([
+        'sender_user_id' => $admin->user_id,
+        'recipient_user_id' => $clinic->user_id,
+        'sender_role' => 'admin',
+        'subject' => 'First',
+        'body' => 'First secure message.',
+    ]);
+    $second = StudentPortalMessage::query()->create([
+        'sender_user_id' => $admin->user_id,
+        'recipient_user_id' => $clinic->user_id,
+        'sender_role' => 'admin',
+        'subject' => 'Second',
+        'body' => 'Second secure message.',
+    ]);
+    StudentPortalMessage::query()->create([
+        'sender_user_id' => $other->user_id,
+        'recipient_user_id' => $clinic->user_id,
+        'sender_role' => 'registrar',
+        'subject' => 'Other conversation',
+        'body' => 'This must stay private to its conversation.',
+    ]);
+
+    $this->actingAs($clinic)
+        ->getJson(route('messages.poll', [
+            'conversation_user_id' => $admin->user_id,
+            'after_id' => $first->student_portal_message_id,
+        ]))
+        ->assertOk()
+        ->assertJsonPath('unread_count', 3)
+        ->assertJsonPath('messages.0.id', $second->student_portal_message_id)
+        ->assertJsonPath('messages.0.sender', $admin->name)
+        ->assertJsonPath('messages.0.direction', 'incoming')
+        ->assertJsonPath('messages.0.text', 'Second secure message.')
+        ->assertJsonStructure([
+            'messages' => [['id', 'sender', 'direction', 'text', 'timestamp', 'read_at']],
+            'unread_count',
+            'unread_by_conversation',
+        ])
+        ->assertJsonMissingPath('messages.0.sender_user_id')
+        ->assertJsonMissingPath('messages.0.recipient_user_id')
+        ->assertJsonMissingPath('messages.0.attachment_path')
+        ->assertJsonMissingPath('messages.0.body_ciphertext');
+});
+
+test('student notification polling is scoped and mark all read updates the badge source', function () {
+    $fixture = portalFixture();
+    $onlineClass = OnlineClass::query()->create([
+        'schedule_id' => 999,
+        'instructor_id' => Instructor::query()
+            ->where('user_id', $fixture['instructorUser']->user_id)
+            ->value('instructor_id'),
+        'section_id' => $fixture['section']->section_id,
+        'subject_code' => 'POLL',
+        'title' => 'Polling class',
+        'meeting_link' => 'https://example.test/meeting',
+        'scheduled_date' => now()->toDateString(),
+        'start_time' => '09:00:00',
+        'end_time' => '10:00:00',
+        'require_face_recognition' => false,
+        'status' => 'scheduled',
+    ]);
+    $notification = OnlineClassNotification::query()->create([
+        'online_class_id' => $onlineClass->online_class_id,
+        'student_id' => $fixture['student']->student_id,
+        'event' => 'created',
+        'title' => 'New online class',
+        'body' => 'A class has been scheduled.',
+    ]);
+
+    $this->actingAs($fixture['studentUser'])
+        ->getJson(route('student-parent.notifications.poll'))
+        ->assertOk()
+        ->assertJsonPath('unread_count', 1)
+        ->assertJsonPath('items.0.id', $notification->online_class_notification_id)
+        ->assertJsonPath('items.0.title', 'New online class')
+        ->assertJsonMissingPath('items.0.email_error');
+
+    $this->actingAs($fixture['studentUser'])
+        ->put(route('student-parent.notifications.read-all'))
+        ->assertRedirect();
+
+    expect($notification->fresh()->read_at)->not->toBeNull();
+
+    $this->actingAs($fixture['studentUser'])
+        ->getJson(route('student-parent.notifications.poll', [
+            'after_id' => $notification->online_class_notification_id,
+        ]))
+        ->assertOk()
+        ->assertJsonPath('unread_count', 0)
+        ->assertJsonPath('items', []);
 });
 
 test('authenticated users can search recipients and exchange attachment messages', function () {

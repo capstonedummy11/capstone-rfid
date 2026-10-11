@@ -200,6 +200,7 @@ class SubjectController
     {
         $subject = Subject::findOrFail($id);
         $activeSchedule = DB::table('schedules')
+            ->whereNull('schedules.deleted_at')
             ->whereIn('subject_offering_id', $subject->offerings()->select('subject_offering_id'))
             ->whereIn('academic_year_id', AcademicYear::query()
                 ->whereIn('status', ['draft', 'active'])
@@ -273,6 +274,7 @@ class SubjectController
         }
 
         $hasSchedule = DB::table('schedules')
+            ->whereNull('schedules.deleted_at')
             ->where('section_id', $subjectOffering->section_id)
             ->where('subject_code', $subjectOffering->subject?->subject_code)
             ->exists();
@@ -349,6 +351,7 @@ class SubjectController
     private function syncLinkedInstructor(SubjectOffering $offering, ?int $instructorId): void
     {
         $scheduleIds = DB::table('schedules')
+            ->whereNull('schedules.deleted_at')
             ->where('subject_offering_id', $offering->subject_offering_id)
             ->select('scheduled_id');
         $now = now();
@@ -367,6 +370,7 @@ class SubjectController
             ->update(['instructor_id' => $instructorId, 'updated_at' => $now]);
 
         DB::table('schedules')
+            ->whereNull('schedules.deleted_at')
             ->where('subject_offering_id', $offering->subject_offering_id)
             ->update(['instructor_id' => $instructorId]);
     }

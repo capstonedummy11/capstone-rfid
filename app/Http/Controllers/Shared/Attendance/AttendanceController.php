@@ -25,6 +25,7 @@ use App\Models\SystemSetting;
 use App\Models\User;
 use App\Services\AwsFaceRecognitionService;
 use App\Services\AwsFaceLivenessService;
+use App\Services\FaceLivenessPolicy;
 use App\Services\CompreFaceService;
 use App\Support\AuthenticatedSession;
 use Illuminate\Http\JsonResponse;
@@ -104,8 +105,6 @@ class AttendanceController
             $session->ended_at = null;
         }
 
-        $session->save();
-
         $today = now()->toDateString();
         $nowTime = now()->format('H:i:s');
         $scheduleContext = $this->attendanceAcademicContext($validated['schedule_id'] ?? null);
@@ -115,6 +114,23 @@ class AttendanceController
                 'message' => 'The selected schedule is not linked to the current academic year.',
             ], 422);
         }
+        if ($status === 'attendance' && ($validated['schedule_id'] ?? null)) {
+            $selectedSchedule = Schedule::query()->forActiveAcademicYear()->find($validated['schedule_id']);
+            $scheduleRoom = strtolower(trim((string) ($selectedSchedule?->room ?? '')));
+            $requestedRoom = strtolower(trim($validated['room']));
+            $isScheduledNow = $selectedSchedule
+                && $this->matchesWeekday((string) $selectedSchedule->weekdays, now()->format('D'), now()->format('l'))
+                && $nowTime >= substr((string) $selectedSchedule->time_start, 0, 8)
+                && $nowTime < substr((string) $selectedSchedule->time_end, 0, 8)
+                && $scheduleRoom === $requestedRoom;
+            if (! $isScheduledNow) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'The selected schedule is not active for this room, day, and time.',
+                ], 422);
+            }
+        }
+        $session->save();
         $attendanceSession = DB::table('attendance_sessions')
             ->where('room', $validated['room'])
             ->whereDate('date', $today)
@@ -243,6 +259,12 @@ class AttendanceController
             return response()->json([
                 'ok' => false,
                 'message' => 'Current class schedule could not be resolved.',
+            ], 422);
+        }
+        if (! $this->matchesWeekday((string) $currentSchedule->weekdays, now()->format('D'), now()->format('l'))) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'This class is not scheduled for today.',
             ], 422);
         }
 
@@ -649,6 +671,7 @@ class AttendanceController
                 (string) ($validated['liveness_token'] ?? ''),
                 'attendance_student',
                 (string) $student->rfid_tag,
+                FaceLivenessPolicy::STUDENT_ROLE,
             ) ?? '';
 
             if ($capturedImage === '') {
@@ -766,7 +789,7 @@ class AttendanceController
         $validated = $request->validate([
             'instructor_rfid' => ['required', 'string', 'max:255'],
             'active_instructor_user_id' => ['required', 'integer'],
-            'student_rfid' => ['required', 'string', 'max:255'],
+            'student_rfid' => ['nullable', 'string', 'max:255'],
             'reason' => ['nullable', 'string', 'max:255'],
             'image' => ['nullable', 'string'],
             'liveness_token' => ['nullable', 'string', 'size:64'],
@@ -794,23 +817,6 @@ class AttendanceController
             ], 403);
         }
 
-        $faceImages = array_values(array_filter($instructor->face_images ?? []));
-        if (
-            ! SystemSetting::boolean(SystemSetting::FACE_RECOGNITION_ENABLED, true)
-            || count($faceImages) === 0
-        ) {
-            $this->logInstructorOverride($instructor, $validated['student_rfid'], (string) ($validated['reason'] ?? 'rfid_only'));
-
-            return response()->json([
-                'ok' => true,
-                'verified' => true,
-                'provider' => count($faceImages) === 0 ? 'instructor_rfid_only' : 'face_recognition_disabled',
-                'message' => count($faceImages) === 0
-                    ? 'Instructor RFID verified. No instructor face image is enrolled, so RFID authorization was accepted.'
-                    : 'Instructor RFID verified. Face recognition is disabled, so RFID authorization was accepted.',
-            ]);
-        }
-
         $capturedImage = (string) ($validated['image'] ?? '');
         if (config('services.aws_rekognition.liveness.enabled', false)) {
             $capturedImage = $livenessService->consumeReferenceImage(
@@ -818,6 +824,7 @@ class AttendanceController
                 (string) ($validated['liveness_token'] ?? ''),
                 'attendance_instructor',
                 (string) $instructor->user_id,
+                FaceLivenessPolicy::INSTRUCTOR_ROLE,
             ) ?? '';
 
             if ($capturedImage === '') {
@@ -827,6 +834,23 @@ class AttendanceController
                     'message' => 'A valid instructor live-face verification is required.',
                 ], 422);
             }
+        }
+
+        $faceImages = array_values(array_filter($instructor->face_images ?? []));
+        if (
+            ! SystemSetting::boolean(SystemSetting::FACE_RECOGNITION_ENABLED, true)
+            || count($faceImages) === 0
+        ) {
+            $this->logInstructorOverride($instructor, (string) ($validated['student_rfid'] ?? ''), (string) ($validated['reason'] ?? 'rfid_only'));
+
+            return response()->json([
+                'ok' => true,
+                'verified' => true,
+                'provider' => count($faceImages) === 0 ? 'instructor_rfid_only' : 'face_recognition_disabled',
+                'message' => count($faceImages) === 0
+                    ? 'Instructor RFID verified. No instructor face image is enrolled, so RFID authorization was accepted.'
+                    : 'Instructor RFID verified. Face recognition is disabled, so RFID authorization was accepted.',
+            ]);
         }
 
         if ($capturedImage === '') {
@@ -861,7 +885,7 @@ class AttendanceController
             ], 422);
         }
 
-        $this->logInstructorOverride($instructor, $validated['student_rfid'], (string) ($validated['reason'] ?? 'face_verified'));
+        $this->logInstructorOverride($instructor, (string) ($validated['student_rfid'] ?? ''), (string) ($validated['reason'] ?? 'face_verified'));
 
         return response()->json([
             'ok' => true,
@@ -993,12 +1017,24 @@ class AttendanceController
             ]);
         }
 
+        if ($attendanceSession->schedule_id && ! Schedule::query()->whereKey($attendanceSession->schedule_id)->exists()) {
+            return response()->json([
+                'ok' => true,
+                'records' => [],
+                'total_students' => 0,
+            ]);
+        }
+
         $records = DB::table('attendance_logs')
             ->join('students', 'students.student_id', '=', 'attendance_logs.student_id')
             ->leftJoin('attendances', 'attendances.attendance_id', '=', 'attendance_logs.main_attendance_id')
             ->leftJoin('strands', 'strands.strand_id', '=', 'students.strand_id')
             ->leftJoin('sections', 'sections.section_id', '=', 'students.section_id')
             ->whereNull('students.deleted_at')
+            ->where(function ($query) {
+                $query->whereNull('attendance_logs.main_attendance_id')
+                    ->orWhereNull('attendances.deleted_at');
+            })
             ->where('attendance_logs.attendance_id', $attendanceSession->attendance_id)
             ->orderByDesc('attendance_logs.tap_datetime')
             ->orderByDesc('attendance_logs.id')
@@ -1892,15 +1928,22 @@ class AttendanceController
     // @useIn logInstructorOverride: AttendanceController::instructorFaceCheck (app/Http/Controllers/Shared/Attendance/AttendanceController.php)
     private function logInstructorOverride(User $instructor, string $studentRfid, string $reason): void
     {
+        $description = $studentRfid !== ''
+            ? sprintf(
+                'Instructor override authorized attendance for student RFID %s because %s.',
+                $studentRfid,
+                str_replace('_', ' ', $reason),
+            )
+            : sprintf(
+                'Instructor identity verified for attendance session start because %s.',
+                str_replace('_', ' ', $reason),
+            );
+
         ActivityLog::query()->create([
             'user_id' => $instructor->user_id,
             'action' => 'verify',
             'table_name' => 'attendance_logs',
-            'description' => sprintf(
-                'Instructor override authorized attendance for student RFID %s because %s.',
-                $studentRfid,
-                str_replace('_', ' ', $reason),
-            ),
+            'description' => $description,
         ]);
     }
 
@@ -1991,6 +2034,7 @@ class AttendanceController
 
         $recentScans = AttendanceLog::query()
             ->with(['student.section.strand', 'student.strand', 'attendance.schedule.subject.user', 'attendance.schedule.instructor.user'])
+            ->whereHas('attendance')
             ->when($isInstructor, function ($attendanceLogQuery) use ($instructorId) {
                 $attendanceLogQuery->whereHas('attendance.schedule', fn ($scheduleQuery) => $scheduleQuery->where('instructor_id', $instructorId ?: 0));
             })
@@ -2135,6 +2179,7 @@ class AttendanceController
                 ->whereNull('instructor_users.deleted_at')
                 ->whereNull('sections.deleted_at')
                 ->whereNull('subjects.deleted_at');
+            $query->whereNull('schedules.deleted_at');
         };
 
         $query = DB::table('attendance_logs')
@@ -2145,6 +2190,10 @@ class AttendanceController
             ->leftJoin('strands', 'strands.strand_id', '=', 'students.strand_id');
 
         $query->whereNull('students.deleted_at');
+        $query->where(function ($attendanceQuery) {
+            $attendanceQuery->whereNull('attendance_logs.main_attendance_id')
+                ->orWhereNull('attendances.deleted_at');
+        });
 
         $sessionJoin($query);
 
@@ -2296,7 +2345,8 @@ class AttendanceController
             ->leftJoin('sections', 'sections.section_id', '=', 'subjects.section_id')
             ->leftJoin('schedules', function ($join) {
                 $join->on('schedules.section_id', '=', 'subjects.section_id')
-                    ->on('schedules.subject_code', '=', 'subjects.subject_code');
+                    ->on('schedules.subject_code', '=', 'subjects.subject_code')
+                    ->whereNull('schedules.deleted_at');
             })
             ->leftJoin('instructors', 'instructors.instructor_id', '=', 'schedules.instructor_id')
             ->leftJoin('users as subject_instructor_users', 'subject_instructor_users.user_id', '=', 'instructors.user_id')
@@ -2372,6 +2422,7 @@ class AttendanceController
 
         $session = DB::table('attendance_sessions')
             ->join('schedules', 'schedules.scheduled_id', '=', 'attendance_sessions.schedule_id')
+            ->whereNull('schedules.deleted_at')
             ->where('attendance_sessions.attendance_id', $validated['session_id'])
             ->when($editorRole === 'instructor', fn ($query) => $query->where('schedules.instructor_id', $instructorId))
             ->select([
@@ -2510,6 +2561,12 @@ class AttendanceController
         $record = DB::table('attendance_logs')
             ->join('attendance_sessions', 'attendance_sessions.attendance_id', '=', 'attendance_logs.attendance_id')
             ->leftJoin('schedules', 'schedules.scheduled_id', '=', 'attendance_sessions.schedule_id')
+            ->leftJoin('attendances', 'attendances.attendance_id', '=', 'attendance_logs.main_attendance_id')
+            ->whereNull('schedules.deleted_at')
+            ->where(function ($query) {
+                $query->whereNull('attendance_logs.main_attendance_id')
+                    ->orWhereNull('attendances.deleted_at');
+            })
             ->where('attendance_logs.id', $attendanceLog->id)
             ->select([
                 'attendance_logs.student_id',
@@ -2547,11 +2604,18 @@ class AttendanceController
             'rfid_tag' => 'required|string',
         ]);
 
+        $now = Carbon::now();
+        $weekday = $now->format('D');
+        $weekdayFull = $now->format('l');
+        $currentTime = $now->format('H:i:s');
         $schedule = Schedule::query()
             ->forActiveAcademicYear()
             ->with(['subject.user', 'section.strand'])
+            ->where('time_start', '<=', $currentTime)
+            ->where('time_end', '>', $currentTime)
             ->orderByDesc('scheduled_id')
-            ->first();
+            ->get()
+            ->first(fn (Schedule $candidate) => $this->matchesWeekday((string) $candidate->weekdays, $weekday, $weekdayFull));
 
         if (! $schedule || ! $schedule->subject) {
             return response()->json([
@@ -2572,7 +2636,6 @@ class AttendanceController
             ], 404);
         }
 
-        $now = Carbon::now();
         $status = $schedule->time_start && $now->format('H:i:s') > $schedule->time_start ? 'late' : 'present';
         $attendanceSessionId = DB::table('attendance_sessions')
             ->where('schedule_id', $schedule->scheduled_id)
@@ -2903,6 +2966,7 @@ class AttendanceController
             ->whereNull('instructor_users.deleted_at')
             ->whereNull('sections.deleted_at')
             ->whereNull('subjects.deleted_at')
+            ->whereNull('schedules.deleted_at')
             ->whereNotNull('schedules.section_id')
             ->where(function ($query) use ($today) {
                 $query->whereDate('attendance_sessions.date', '<', $today)
@@ -2966,7 +3030,12 @@ class AttendanceController
                 ->where('attendance_id', $session->session_id)
                 ->whereNotNull('student_id')
                 ->pluck('student_id')
+                ->merge(Attendance::onlyTrashed()
+                    ->where('schedule_id', $session->schedule_id)
+                    ->whereDate('date', $session->date)
+                    ->pluck('student_id'))
                 ->map(fn ($id) => (int) $id)
+                ->unique()
                 ->all();
 
             $students = Students::query()

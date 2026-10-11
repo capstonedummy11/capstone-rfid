@@ -129,7 +129,7 @@ import FeatureCard from '@/components/Cards/FeatureCard.vue';
 import FeatureImage from '@/assets/images/Container.png';
 import FeatureImage2 from '@/assets/images/Container 2.png';
 import FeatureImage3 from '@/assets/images/Container 3.png';
-import Container4 from '@/assets/images/Container 4.png';
+import Container4 from '@/assets/images/rfid-reader.jpg';
 import About_us_section from '@/components/LandingPage/about_us_section.vue';
 import CallToAction from '@/components/LandingPage/CallToAction.vue';
 import Showcase_section from '@/components/LandingPage/showcase_section.vue';

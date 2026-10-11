@@ -69,7 +69,9 @@ Admin controls the switches on **System Settings**. The application shares their
 
 - Signed-in non-Console roles can message permitted recipients. Conversation rows store sender and recipient IDs; only those users can open attachments.
 - Message subject/body have encrypted columns and compatibility fallback columns.
-- The layout checks unread messages every 10 seconds and shows an on-screen toast when a new message is detected.
+- The authenticated layout polls unread messages and Student/Parent online-class notifications every five seconds without reloading the page. Conversation pages fetch only messages newer than their current message ID and show per-conversation unread counts. The notification bell and dropdown update in place; new notifications produce a toast.
+- Polling pauses while the browser tab is hidden and immediately resumes when it becomes visible. Requests do not overlap; repeated failures back off to 10 and then 30 seconds before automatically returning to five seconds. Leaving a conversation/page or signing out stops its polling lifecycle.
+- Notification rows can be marked read individually or all at once, with the badge updated optimistically. Only the signed-in Student or a Parent's explicitly selected linked Student's online-class notifications are returned; notifications for soft-deleted Online Classes are omitted.
 - Email alerts for repeated messages from the same sender to the same recipient are limited by an atomic cache cooldown (five minutes by default). A failed email removes the cooldown key so a later message can retry.
 - Online-class notifications have read timestamps and email delivery/error fields.
 

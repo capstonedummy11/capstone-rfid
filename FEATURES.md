@@ -707,7 +707,7 @@ Ang mga entry sa ibaba ay dagdag na reference para sa bawat feature. Ang simplen
 ### Face Liveness
 
 - **Actor:** Shared / Core
-- **Description:** AWS Face Liveness session ang nagsusuri ng video. Pass lang kung SUCCEEDED, confidence >= services.aws_rekognition.liveness.confidence_threshold (default 90), at may reference image; kung fail, walang single-use face token.
+- **Description:** AWS Face Liveness session ang nagsusuri ng video. Pass lang kung SUCCEEDED, confidence meets the validated server-side role threshold (Student default 60, Instructor default 70), at may reference image; kung fail, walang single-use face token.
 - **Related / depends on:** Face-required attendance, Instructor verification, at online-class joining kapag enabled.
 - **How to disable:** 1) Suriin ang callers, pending work, at dependencies. Needs developer check: i-verify muna ang still-image fallback at bawat caller bago i-off ang liveness server setting. 2) Magdagdag at subukan ng feature-specific server guard; saka itago ang UI controls. 3) I-verify ang related flows, reports, at historical access.
 - **What stops:** Bagong face liveness action sa guarded entry points; Needs developer check: ibang caller na maaaring manatili.

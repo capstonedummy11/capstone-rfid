@@ -2,14 +2,16 @@
 import logo from '@/assets/images/logo.png';
 import heroImage from '@/assets/images/pasayCitysouth.png';
 import attendanceImage from '@/assets/images/Home/2.jpg';
-import onlineClassesImage from '@/assets/images/Home/4.jpeg';
+import onlineClassesImage from '@/assets/images/laizel.jpg';
 import messagesImage from '@/assets/images/Home/3.png';
 import aboutSystemImage from '@/assets/images/Home/1.jpg';
 import galleryImage1 from '@/assets/images/Container.png';
 import galleryImage2 from '@/assets/images/Container 2.png';
 import galleryImage3 from '@/assets/images/Container 3.png';
-import galleryImage4 from '@/assets/images/Container 4.png';
+import galleryImage4 from '@/assets/images/rfid-reader.jpg';
 import galleryItem5 from '@/assets/images/Item 5.png';
+import galleryImageLaizel from '@/assets/images/laizel (2).jpg';
+import galleryImageHome4 from '@/assets/images/Home/4.jpeg';
 import Footer from '@/components/LandingPage/Footer.vue';
 import {
     getSavedStudentParentProfiles,
@@ -288,6 +290,10 @@ const resumeGalleryAutoplay = (event) => {
 
 const galleryImages = [
     {
+        src: galleryImageLaizel,
+        alt: 'School community',
+    },
+    {
         src: galleryImage1,
         alt: 'Computer laboratory overview',
     },
@@ -306,6 +312,10 @@ const galleryImages = [
     {
         src: galleryItem5,
         alt: 'RFID item and equipment',
+    },
+    {
+        src: galleryImageHome4,
+        alt: 'Online classes',
     },
 ];
 

@@ -942,7 +942,8 @@ test('schedule controller creates from offering then updates indexes and deletes
     $this->actingAs($admin)->delete(route('admin.schedules.destroy', $quarterHourSchedule->scheduled_id))
         ->assertRedirect()
         ->assertSessionHas('success');
-    $this->assertDatabaseCount('schedules', 0);
+    $this->assertSoftDeleted('schedules', ['scheduled_id' => $quarterHourSchedule->scheduled_id]);
+    expect(Schedule::query()->count())->toBe(0);
 
     $this->actingAs($admin)->post(route('admin.schedules.store'), [
         'subject_offering_id' => $offering->subject_offering_id,
@@ -969,7 +970,7 @@ test('schedule controller creates from offering then updates indexes and deletes
         'time_end' => '13:00',
         'room' => 'A101',
     ])->assertRedirect()->assertSessionHasErrors('weekdays');
-    $this->assertDatabaseCount('schedules', 1);
+    expect(Schedule::query()->count())->toBe(1);
 
     $conflictResponse = $this->actingAs($admin)->post(route('admin.schedules.store'), [
         'subject_offering_id' => $offering->subject_offering_id,
@@ -989,7 +990,7 @@ test('schedule controller creates from offering then updates indexes and deletes
         ->toContain("Instructor \"{$instructorUser->name}\" is already assigned to the overlapping class")
         ->toContain('Laboratory "Schedule Lab" is already in use')
         ->toContain('Room "A101" is already in use');
-    $this->assertDatabaseCount('schedules', 1);
+    expect(Schedule::query()->count())->toBe(1);
 
     $this->actingAs($admin)->post(route('admin.schedules.store'), [
         'subject_offering_id' => $offering->subject_offering_id,
@@ -1011,19 +1012,16 @@ test('schedule controller creates from offering then updates indexes and deletes
         ->assertRedirect()
         ->assertSessionHas('success');
 
-    $sundaySchedule = Schedule::query()->create([
-        'academic_year_id' => $section->academic_year_id,
+    $this->actingAs($admin)->post(route('admin.schedules.store'), [
         'subject_offering_id' => $offering->subject_offering_id,
         'laboratory_id' => $laboratory->laboratory_id,
-        'instructor_id' => $instructor->instructor_id,
-        'section_id' => $section->section_id,
-        'subject_code' => $subject->subject_code,
-        'semester' => '1st Semester',
-        'weekdays' => 'Sun',
-        'time_start' => '08:00:00',
-        'time_end' => '12:00:00',
+        'weekdays' => 'Sunday',
+        'time_start' => '08:00',
+        'time_end' => '12:00',
         'room' => 'A101',
-    ]);
+    ])->assertRedirect()->assertSessionHas('success');
+
+    $sundaySchedule = Schedule::query()->where('weekdays', 'Sun')->firstOrFail();
 
     $this->actingAs($admin)->put(route('admin.schedules.update', $sundaySchedule->scheduled_id), [
         'subject_offering_id' => $offering->subject_offering_id,
@@ -1044,9 +1042,18 @@ test('schedule controller creates from offering then updates indexes and deletes
         'time_end' => '12:00:00',
     ]);
 
+    $this->actingAs($admin)->get(route('admin.schedules.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('schedules', fn ($schedules) => collect($schedules)->contains(
+                fn ($item) => $item['scheduled_id'] === $sundaySchedule->scheduled_id
+                    && $item['weekdays'] === 'Sun'
+            )));
+
     $this->actingAs($admin)->delete(route('admin.schedules.destroy', $sundaySchedule->scheduled_id))
         ->assertRedirect()
         ->assertSessionHas('success');
+    $this->assertSoftDeleted('schedules', ['scheduled_id' => $sundaySchedule->scheduled_id]);
 
     $this->actingAs($admin)->get(route('admin.schedules.index'))
         ->assertOk()
@@ -1109,15 +1116,9 @@ test('schedule controller creates from offering then updates indexes and deletes
 
     $this->actingAs($admin)->delete(route('admin.schedules.destroy', $schedule->scheduled_id))
         ->assertRedirect()
-        ->assertSessionHasErrors('schedule');
-    $this->assertDatabaseHas('schedules', ['scheduled_id' => $schedule->scheduled_id]);
-
-    DB::table('online_classes')->where('schedule_id', $schedule->scheduled_id)->delete();
-
-    $this->actingAs($admin)->delete(route('admin.schedules.destroy', $schedule->scheduled_id))
-        ->assertRedirect()
         ->assertSessionHas('success');
-    $this->assertDatabaseMissing('schedules', ['scheduled_id' => $schedule->scheduled_id]);
+    $this->assertSoftDeleted('schedules', ['scheduled_id' => $schedule->scheduled_id]);
+    $this->assertDatabaseHas('online_classes', ['schedule_id' => $schedule->scheduled_id]);
 });
 
 test('schedule update and delete guard is limited to the running time and matching room', function () {
@@ -1209,7 +1210,7 @@ test('schedule update and delete guard is limited to the running time and matchi
         ->delete(route('admin.schedules.destroy', $schedule->scheduled_id))
         ->assertRedirect()
         ->assertSessionHas('success');
-    $this->assertDatabaseMissing('schedules', ['scheduled_id' => $schedule->scheduled_id]);
+    $this->assertSoftDeleted('schedules', ['scheduled_id' => $schedule->scheduled_id]);
 
     Carbon::setTestNow();
 });

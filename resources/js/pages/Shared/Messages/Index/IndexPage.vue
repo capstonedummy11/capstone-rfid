@@ -1,9 +1,7 @@
 <!-- FEATURE:messenger - UI para sa messenger and attachments. -->
 <!-- FEATURE:excuse-letter-review - UI para sa excuse letter review. -->
-<script setup>
-import LinkedStudentSelector from '@/components/StudentPortal/LinkedStudentSelector.vue';
+<script setup lang="ts">
 import { router, useForm, usePage } from '@inertiajs/vue3';
-import { computed, ref, watch } from 'vue';
 import {
     CheckCircle2,
     FileText,
@@ -15,6 +13,9 @@ import {
     X,
     XCircle,
 } from 'lucide-vue-next';
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
+import LinkedStudentSelector from '@/components/StudentPortal/LinkedStudentSelector.vue';
+import { useRealtimePolling } from '@/composables/useRealtimePolling';
 
 const props = defineProps({
     messages: { type: Array, default: () => [] },
@@ -25,6 +26,7 @@ const props = defineProps({
 });
 
 const page = usePage();
+const messageRows = ref([...props.messages]);
 const flashSuccess = computed(() => page.props.flash?.success);
 const currentUserId = computed(() =>
     Number(page.props.auth?.user?.user_id ?? page.props.auth?.user?.id ?? 0),
@@ -37,6 +39,11 @@ const currentRole = computed(() =>
 const search = ref('');
 const selectedConversationKey = ref('');
 const selectedRecipient = ref(null);
+const messageThread = ref(null);
+const conversationCursors = new Map();
+const unreadConversationCounts = ref({});
+const numericMessageId = (id) =>
+    Number(String(id).replace(/^portal-/, '')) || 0;
 
 const selectedStudentQuery = computed(() =>
     props.selectedStudentId ? { student_id: props.selectedStudentId } : {},
@@ -87,7 +94,7 @@ const partnerFor = (message) => {
 const conversations = computed(() => {
     const grouped = new Map();
 
-    props.messages.forEach((message) => {
+    messageRows.value.forEach((message) => {
         const partner = partnerFor(message);
         if (!partner.id) return;
 
@@ -141,6 +148,108 @@ const selectedConversation = computed(
         ) ?? null,
 );
 
+const isConversationOpen = computed(
+    () => Boolean(selectedConversation.value?.partner?.id),
+);
+
+const { pollNow: pollConversation } = useRealtimePolling(
+    async () => {
+        const conversation = selectedConversation.value;
+        if (!conversation?.partner?.id) return;
+        const afterId = conversationCursors.get(conversation.key) || 0;
+        const params = {
+            conversation_user_id: conversation.partner.id,
+            after_id: afterId,
+            ...selectedStudentQuery.value,
+        };
+        const response = await fetch(route('messages.poll', params), {
+            headers: { Accept: 'application/json' },
+            credentials: 'same-origin',
+        });
+        if (!response.ok) {
+            throw new Error(`Conversation poll failed (${response.status}).`);
+        }
+        const result = await response.json();
+        unreadConversationCounts.value = result.unread_by_conversation || {};
+        if (!result.messages?.length) return;
+
+        const container = messageThread.value;
+        const shouldStickToBottom = container
+            ? container.scrollHeight -
+                  container.scrollTop -
+                  container.clientHeight <
+              80
+            : true;
+        const existingIds = new Set(
+            messageRows.value.map((message) => numericMessageId(message.id)),
+        );
+        result.messages.forEach((message) => {
+            conversationCursors.set(
+                conversation.key,
+                Math.max(
+                    conversationCursors.get(conversation.key) || 0,
+                    Number(message.id) || 0,
+                ),
+            );
+            if (existingIds.has(Number(message.id))) return;
+            messageRows.value.push({
+                id: Number(message.id),
+                sender_user_id:
+                    message.direction === 'outgoing'
+                        ? currentUserId.value
+                        : conversation.partner.id,
+                recipient_user_id:
+                    message.direction === 'outgoing'
+                        ? conversation.partner.id
+                        : currentUserId.value,
+                sender: message.sender,
+                recipient: message.sender_user_id === currentUserId.value
+                    ? conversation.partner.name
+                    : page.props.auth?.user?.name,
+                subject: 'Conversation',
+                body: message.text,
+                preview: message.text,
+                read_at: message.read_at,
+                created_at: message.timestamp,
+                created_label: message.timestamp,
+                attachment_name: message.text === 'Attachment' ? 'Attachment' : null,
+            });
+        });
+        await nextTick();
+        if (shouldStickToBottom && container) {
+            container.scrollTop = container.scrollHeight;
+        }
+    },
+    isConversationOpen,
+);
+
+watch(
+    () => props.messages,
+    (messages) => {
+        const localIds = new Set(messageRows.value.map((message) => message.id));
+        messages.forEach((message) => {
+            if (!localIds.has(message.id)) messageRows.value.push(message);
+        });
+    },
+);
+
+watch(
+    selectedConversation,
+    (conversation) => {
+        if (!conversation) return;
+        const maxId = conversation.messages.reduce(
+            (max, message) =>
+                Math.max(max, numericMessageId(message.id)),
+            conversationCursors.get(conversation.key) || 0,
+        );
+        conversationCursors.set(conversation.key, maxId);
+        void pollConversation();
+    },
+    { flush: 'post' },
+);
+
+onUnmounted(() => conversationCursors.clear());
+
 watch(
     selectedConversation,
     (conversation) => {
@@ -168,6 +277,7 @@ watch(
                 Number(message.recipient_user_id) === currentUserId.value &&
                 !message.read_at
             ) {
+                message.read_at = new Date().toISOString();
                 router.put(
                     route('messages.read', { message: message.id }),
                     {},
@@ -503,6 +613,13 @@ const reviewedStatusLabel = (status) => {
                         <p class="mt-1 truncate text-xs text-slate-500">
                             {{ conversation.latest.preview }}
                         </p>
+                        <span
+                            v-if="unreadConversationCounts[conversation.partner.id]"
+                            class="mt-1 inline-block rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-sky-800"
+                        >
+                            {{ unreadConversationCounts[conversation.partner.id] }}
+                            unread
+                        </span>
                     </button>
                     <p
                         v-if="conversations.length === 0"
@@ -541,6 +658,7 @@ const reviewedStatusLabel = (status) => {
 
                 <div
                     v-if="selectedConversation"
+                    ref="messageThread"
                     class="min-h-0 flex-1 space-y-3 overflow-y-auto bg-slate-50 p-5"
                 >
                     <article

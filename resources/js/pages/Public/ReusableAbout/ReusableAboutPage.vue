@@ -182,7 +182,7 @@
 import { ref } from 'vue';
 import logo from '@/assets/images/logo.png';
 import pasayCitysouth from '@/assets/images/pasayCitysouth.png';
-import container4 from '@/assets/images/Container 4.png';
+import container4 from '@/assets/images/rfid-reader.jpg';
 import Footer from '@/components/LandingPage/Footer.vue';
 
 defineOptions({

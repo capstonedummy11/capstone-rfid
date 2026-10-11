@@ -751,6 +751,73 @@ const startAttendanceSession = (professor) => {
     showToast('success', 'Attendance recording started');
 };
 
+const verifyInstructorForAttendance = async (professor) => {
+    let livenessToken = null;
+
+    try {
+        livenessToken = await runFaceLiveness({
+            purpose: 'attendance_instructor',
+            subjectKey: professor.user_id,
+        });
+    } catch (error) {
+        const message =
+            error instanceof FaceLivenessError
+                ? error.message
+                : 'Instructor live-face verification could not be completed.';
+        showToast('warning', message);
+        pushHistory('Instructor liveness blocked', message, 'warning');
+        setTapHeadline('Instructor Verification Failed');
+        return false;
+    }
+
+    if (!livenessToken) return true;
+
+    try {
+        const response = await fetch(
+            '/attendance-control-panel/instructor-face-check',
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-XSRF-TOKEN': xsrfToken(),
+                },
+                body: JSON.stringify({
+                    instructor_rfid: professor.rfid,
+                    active_instructor_user_id: professor.user_id,
+                    student_rfid: null,
+                    reason: 'attendance_session_start',
+                    liveness_token: livenessToken,
+                }),
+            },
+        );
+        const payload = await response.json().catch(() => null);
+
+        if (!response.ok || !payload?.verified) {
+            const message =
+                payload?.message ?? 'Instructor face verification failed.';
+            showToast('warning', message);
+            pushHistory('Instructor verification blocked', message, 'warning');
+            setTapHeadline('Instructor Verification Failed');
+            return false;
+        }
+
+        pushHistory(
+            'Instructor live face verified',
+            `${professor.name} passed the required AWS liveness and instructor identity checks.`,
+            'success',
+        );
+        return true;
+    } catch {
+        showToast(
+            'warning',
+            'Connection error during instructor verification.',
+        );
+        setTapHeadline('Instructor Verification Failed');
+        return false;
+    }
+};
+
 // @function endAttendanceSession: Tinatapos ang attendance session sa Attendance Control Panel flow.
 // @useIn endAttendanceSession: TODO(verify): walang direct caller na nakita sa static search
 const endAttendanceSession = () => {
@@ -1567,21 +1634,35 @@ const performEmergencyCall = async (
     let emergencyHotline = selectedHotline;
     let symptoms = '';
     const typeName = String(emergencyType.name ?? '').toLowerCase();
-    const typeCategory = String(emergencyType.category ?? 'general').toLowerCase();
-    const isAreaWideType = typeName.includes('fire') || typeCategory === 'disaster';
+    const typeCategory = String(
+        emergencyType.category ?? 'general',
+    ).toLowerCase();
+    const isAreaWideType =
+        typeName.includes('fire') || typeCategory === 'disaster';
     let emergencyScope = isAreaWideType ? 'all' : 'people';
 
     if (!emergencyHotline) {
         const routingKeys = new Set([typeCategory]);
-        typeName.split(/[^a-z0-9]+/).filter(Boolean).forEach((key) => routingKeys.add(key));
+        typeName
+            .split(/[^a-z0-9]+/)
+            .filter(Boolean)
+            .forEach((key) => routingKeys.add(key));
         if (typeName.includes('fire')) routingKeys.add('fire');
-        if (typeCategory === 'clinic' || typeName.match(/medical|injury|faint|seizure|asthma|allergy|bleed/)) {
+        if (
+            typeCategory === 'clinic' ||
+            typeName.match(/medical|injury|faint|seizure|asthma|allergy|bleed/)
+        ) {
             routingKeys.add('clinic');
             routingKeys.add('medical');
             routingKeys.add('medic');
         }
-        const matchingHotlines = (props.emergencyHotlines ?? []).filter((hotline) =>
-            routingKeys.has(String(hotline.category ?? '').trim().toLowerCase()),
+        const matchingHotlines = (props.emergencyHotlines ?? []).filter(
+            (hotline) =>
+                routingKeys.has(
+                    String(hotline.category ?? '')
+                        .trim()
+                        .toLowerCase(),
+                ),
         );
 
         if (matchingHotlines.length === 1) {
@@ -1589,7 +1670,8 @@ const performEmergencyCall = async (
         } else if (matchingHotlines.length > 1) {
             const hotlineOptions = {};
             matchingHotlines.forEach((hotline) => {
-                hotlineOptions[hotline.emergency_hotline_id] = `${hotline.name} - ${hotline.phone_number}`;
+                hotlineOptions[hotline.emergency_hotline_id] =
+                    `${hotline.name} - ${hotline.phone_number}`;
             });
             const hotlineResult = await Swal.fire({
                 icon: 'question',
@@ -1603,7 +1685,9 @@ const performEmergencyCall = async (
             });
             if (!hotlineResult.isConfirmed) return;
             emergencyHotline = matchingHotlines.find(
-                (hotline) => String(hotline.emergency_hotline_id) === String(hotlineResult.value),
+                (hotline) =>
+                    String(hotline.emergency_hotline_id) ===
+                    String(hotlineResult.value),
             );
         }
 
@@ -1629,7 +1713,9 @@ const performEmergencyCall = async (
 
         return Array.from(selectedStudents.values())
             .map(
-                (student) => `<div style="display:flex; align-items:center; gap:10px; padding:8px; border-bottom:1px solid #e2e8f0;">
+                (
+                    student,
+                ) => `<div style="display:flex; align-items:center; gap:10px; padding:8px; border-bottom:1px solid #e2e8f0;">
                     <img src="${escapeHtml(student.photo || `https://api.dicebear.com/7.x/personas/svg?seed=${encodeURIComponent(student.name)}`)}" alt="" style="width:36px; height:36px; border-radius:999px; object-fit:cover;" />
                     <div style="min-width:0; flex:1; text-align:left;">
                         <div style="font-weight:800; color:#0f172a;">${escapeHtml(student.name)}</div>
@@ -1643,7 +1729,9 @@ const performEmergencyCall = async (
     // @function renderMatches: Nire-render ang matches sa Attendance Control Panel flow.
     // @useIn renderMatches: resources/js/pages/AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage.vue:1620
     const renderMatches = (query) => {
-        const normalized = String(query ?? '').trim().toLowerCase();
+        const normalized = String(query ?? '')
+            .trim()
+            .toLowerCase();
         if (!normalized) return '';
 
         return studentDirectory
@@ -1658,18 +1746,21 @@ const performEmergencyCall = async (
             )
             .slice(0, 8)
             .map(
-                (student) => `<button type="button" data-add-student="${student.id}" style="display:block; width:100%; border:0; border-bottom:1px solid #e2e8f0; background:white; padding:9px; text-align:left; cursor:pointer;">
+                (
+                    student,
+                ) => `<button type="button" data-add-student="${student.id}" style="display:block; width:100%; border:0; border-bottom:1px solid #e2e8f0; background:white; padding:9px; text-align:left; cursor:pointer;">
                     <strong>${escapeHtml(student.name)}</strong><br><span style="font-size:11px; color:#64748b;">${escapeHtml(student.student_number)} · ${escapeHtml(student.section || 'No section')} · RFID ${escapeHtml(student.rfid || 'not enrolled')}</span>
                 </button>`,
             )
             .join('');
     };
     let assistanceResult = { isConfirmed: true };
-    if (!isAreaWideType) assistanceResult = await Swal.fire({
-        icon: 'warning',
-        title: 'Who needs assistance?',
-        width: 680,
-        html: `<div style="text-align:left;">
+    if (!isAreaWideType)
+        assistanceResult = await Swal.fire({
+            icon: 'warning',
+            title: 'Who needs assistance?',
+            width: 680,
+            html: `<div style="text-align:left;">
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px;">
                 <label style="display:flex; gap:8px; align-items:flex-start; padding:10px; border:1px solid #fecaca; border-radius:8px; cursor:pointer;">
                     <input type="radio" name="emergency-scope" value="people" checked />
@@ -1690,73 +1781,99 @@ const performEmergencyCall = async (
             <label for="emergency-symptoms" style="display:block; margin:12px 0 6px; font-size:12px; font-weight:800; color:#334155;">Symptoms or short notes</label>
             <textarea id="emergency-symptoms" class="swal2-textarea" style="width:100%; margin:0;" maxlength="1000" placeholder="Describe what happened or the assistance needed"></textarea>
         </div>`,
-        showCancelButton: true,
-        confirmButtonText: 'Review Emergency',
-        confirmButtonColor: '#dc2626',
-        focusConfirm: false,
-        didOpen: () => {
-            const search = document.getElementById('emergency-student-search');
-            const matches = document.getElementById('emergency-student-matches');
-            const selected = document.getElementById('emergency-selected-students');
-            const specificPeople = document.getElementById('emergency-specific-people');
-            document.querySelectorAll('input[name="emergency-scope"]').forEach((radio) => {
-                radio.addEventListener('change', () => {
-                    emergencyScope = radio.checked ? radio.value : emergencyScope;
-                    specificPeople.style.display = emergencyScope === 'people' ? 'block' : 'none';
-                    if (emergencyScope === 'people') search.focus();
-                });
-            });
-            // @function refresh: Pinoproseso ang refresh para sa Attendance Control Panel.
-            // @useIn refresh: resources/js/pages/AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage.vue:1635
-            const refresh = () => {
-                matches.innerHTML = renderMatches(search.value);
-                selected.innerHTML = renderSelectedStudents();
-            };
-            search.addEventListener('input', refresh);
-            search.addEventListener('keydown', (event) => {
-                if (event.key !== 'Enter') return;
-                event.preventDefault();
-                const exact = studentDirectory.find(
-                    (student) =>
-                        String(student.rfid ?? '').toLowerCase() ===
-                        search.value.trim().toLowerCase(),
+            showCancelButton: true,
+            confirmButtonText: 'Review Emergency',
+            confirmButtonColor: '#dc2626',
+            focusConfirm: false,
+            didOpen: () => {
+                const search = document.getElementById(
+                    'emergency-student-search',
                 );
-                if (exact) {
-                    selectedStudents.set(String(exact.id), exact);
+                const matches = document.getElementById(
+                    'emergency-student-matches',
+                );
+                const selected = document.getElementById(
+                    'emergency-selected-students',
+                );
+                const specificPeople = document.getElementById(
+                    'emergency-specific-people',
+                );
+                document
+                    .querySelectorAll('input[name="emergency-scope"]')
+                    .forEach((radio) => {
+                        radio.addEventListener('change', () => {
+                            emergencyScope = radio.checked
+                                ? radio.value
+                                : emergencyScope;
+                            specificPeople.style.display =
+                                emergencyScope === 'people' ? 'block' : 'none';
+                            if (emergencyScope === 'people') search.focus();
+                        });
+                    });
+                // @function refresh: Pinoproseso ang refresh para sa Attendance Control Panel.
+                // @useIn refresh: resources/js/pages/AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage.vue:1635
+                const refresh = () => {
+                    matches.innerHTML = renderMatches(search.value);
+                    selected.innerHTML = renderSelectedStudents();
+                };
+                search.addEventListener('input', refresh);
+                search.addEventListener('keydown', (event) => {
+                    if (event.key !== 'Enter') return;
+                    event.preventDefault();
+                    const exact = studentDirectory.find(
+                        (student) =>
+                            String(student.rfid ?? '').toLowerCase() ===
+                            search.value.trim().toLowerCase(),
+                    );
+                    if (exact) {
+                        selectedStudents.set(String(exact.id), exact);
+                        search.value = '';
+                        refresh();
+                    }
+                });
+                matches.addEventListener('click', (event) => {
+                    const button = event.target.closest('[data-add-student]');
+                    if (!button) return;
+                    const student = studentDirectory.find(
+                        (item) => String(item.id) === button.dataset.addStudent,
+                    );
+                    if (student)
+                        selectedStudents.set(String(student.id), student);
                     search.value = '';
                     refresh();
-                }
-            });
-            matches.addEventListener('click', (event) => {
-                const button = event.target.closest('[data-add-student]');
-                if (!button) return;
-                const student = studentDirectory.find(
-                    (item) => String(item.id) === button.dataset.addStudent,
-                );
-                if (student) selectedStudents.set(String(student.id), student);
-                search.value = '';
-                refresh();
+                    search.focus();
+                });
+                selected.addEventListener('click', (event) => {
+                    const button = event.target.closest(
+                        '[data-remove-student]',
+                    );
+                    if (!button) return;
+                    selectedStudents.delete(button.dataset.removeStudent);
+                    refresh();
+                });
                 search.focus();
-            });
-            selected.addEventListener('click', (event) => {
-                const button = event.target.closest('[data-remove-student]');
-                if (!button) return;
-                selectedStudents.delete(button.dataset.removeStudent);
-                refresh();
-            });
-            search.focus();
-        },
-        preConfirm: () => {
-            emergencyScope = document.querySelector('input[name="emergency-scope"]:checked')?.value ?? 'people';
-            if (emergencyScope === 'people' && selectedStudents.size === 0) {
-                Swal.showValidationMessage('Scan or select at least one student.');
-                return false;
-            }
-            if (emergencyScope === 'all') selectedStudents.clear();
-            symptoms = document.getElementById('emergency-symptoms').value.trim();
-            return true;
-        },
-    });
+            },
+            preConfirm: () => {
+                emergencyScope =
+                    document.querySelector(
+                        'input[name="emergency-scope"]:checked',
+                    )?.value ?? 'people';
+                if (
+                    emergencyScope === 'people' &&
+                    selectedStudents.size === 0
+                ) {
+                    Swal.showValidationMessage(
+                        'Scan or select at least one student.',
+                    );
+                    return false;
+                }
+                if (emergencyScope === 'all') selectedStudents.clear();
+                symptoms = document
+                    .getElementById('emergency-symptoms')
+                    .value.trim();
+                return true;
+            },
+        });
 
     if (!assistanceResult.isConfirmed) return;
     if (isAreaWideType) {
@@ -1776,10 +1893,17 @@ const performEmergencyCall = async (
             timerProgressBar: true,
             allowOutsideClick: false,
             didOpen: () => {
-                const detailsInput = document.getElementById('area-wide-emergency-details');
-                const timerText = document.getElementById('area-wide-details-timer');
+                const detailsInput = document.getElementById(
+                    'area-wide-emergency-details',
+                );
+                const timerText = document.getElementById(
+                    'area-wide-details-timer',
+                );
                 const interval = window.setInterval(() => {
-                    const seconds = Math.max(0, Math.ceil((Swal.getTimerLeft() ?? 0) / 1000));
+                    const seconds = Math.max(
+                        0,
+                        Math.ceil((Swal.getTimerLeft() ?? 0) / 1000),
+                    );
                     if (timerText && Swal.getTimerLeft() !== null) {
                         timerText.textContent = `Continuing automatically in ${seconds} second${seconds === 1 ? '' : 's'} if no action is taken.`;
                     }
@@ -1788,21 +1912,34 @@ const performEmergencyCall = async (
                 detailsInput.addEventListener('input', () => {
                     areaWideDetails = detailsInput.value.trim();
                     Swal.stopTimer();
-                    if (timerText) timerText.textContent = 'Automatic continuation paused while details are being entered.';
+                    if (timerText)
+                        timerText.textContent =
+                            'Automatic continuation paused while details are being entered.';
                 });
                 detailsInput.focus();
             },
             preConfirm: () => {
-                areaWideDetails = document.getElementById('area-wide-emergency-details').value.trim();
+                areaWideDetails = document
+                    .getElementById('area-wide-emergency-details')
+                    .value.trim();
                 return true;
             },
             willClose: () => {
-                areaWideDetails = document.getElementById('area-wide-emergency-details')?.value.trim() ?? areaWideDetails;
-                const interval = Number(Swal.getPopup()?.dataset.detailsTimerInterval);
+                areaWideDetails =
+                    document
+                        .getElementById('area-wide-emergency-details')
+                        ?.value.trim() ?? areaWideDetails;
+                const interval = Number(
+                    Swal.getPopup()?.dataset.detailsTimerInterval,
+                );
                 if (interval) window.clearInterval(interval);
             },
         });
-        if (!detailsResult.isConfirmed && detailsResult.dismiss !== Swal.DismissReason.timer) return;
+        if (
+            !detailsResult.isConfirmed &&
+            detailsResult.dismiss !== Swal.DismissReason.timer
+        )
+            return;
         symptoms = areaWideDetails;
     }
 
@@ -1827,9 +1964,11 @@ const performEmergencyCall = async (
                 <div><strong>Symptoms/notes</strong><br>${escapeHtml(symptoms || 'No notes supplied')}</div>
                 <div><strong>Selected hotline</strong><br>${escapeHtml(emergencyHotline ? `${emergencyHotline.name} - ${emergencyHotline.phone_number}` : 'No specific hotline')}</div>
             </div>
-            ${emergencyScope === 'people'
-                ? `<div style="font-weight:800; margin-bottom:5px;">Students needing assistance</div><div style="max-height:220px; overflow:auto; border:1px solid #e2e8f0; border-radius:8px;">${renderSelectedStudents()}</div>`
-                : '<div style="padding:12px; border-radius:8px; background:#fff7ed; color:#9a3412; font-weight:800; text-align:center;">Everyone / area-wide emergency — student details are not required.</div>'}
+            ${
+                emergencyScope === 'people'
+                    ? `<div style="font-weight:800; margin-bottom:5px;">Students needing assistance</div><div style="max-height:220px; overflow:auto; border:1px solid #e2e8f0; border-radius:8px;">${renderSelectedStudents()}</div>`
+                    : '<div style="padding:12px; border-radius:8px; background:#fff7ed; color:#9a3412; font-weight:800; text-align:center;">Everyone / area-wide emergency — student details are not required.</div>'
+            }
             <div id="emergency-countdown" style="margin-top:14px; padding:10px; border-radius:8px; background:#fef2f2; color:#b91c1c; text-align:center; font-weight:900;">Sending automatically in 5 seconds…</div>
         </div>`,
         showCancelButton: true,
@@ -1840,9 +1979,14 @@ const performEmergencyCall = async (
         timer: 5000,
         timerProgressBar: true,
         didOpen: () => {
-            const countdownElement = document.getElementById('emergency-countdown');
+            const countdownElement = document.getElementById(
+                'emergency-countdown',
+            );
             const interval = window.setInterval(() => {
-                countdown = Math.max(0, Math.ceil((Swal.getTimerLeft() ?? 0) / 1000));
+                countdown = Math.max(
+                    0,
+                    Math.ceil((Swal.getTimerLeft() ?? 0) / 1000),
+                );
                 if (countdownElement) {
                     countdownElement.textContent = `Sending automatically in ${countdown} second${countdown === 1 ? '' : 's'}…`;
                 }
@@ -2240,7 +2384,9 @@ const handleRfidScan = async (rfid) => {
         }
 
         if (!sessionActive.value) {
-            startAttendanceSession(professor);
+            if (await verifyInstructorForAttendance(professor)) {
+                startAttendanceSession(professor);
+            }
             return;
         }
 
@@ -2625,7 +2771,9 @@ watch(
             <section
                 class="rounded-[18px] bg-white px-5 py-3 shadow-sm ring-1 ring-slate-200/70"
                 :class="
-                    attendeesSlideVisible ? 'md:col-span-2 xl:col-span-3' : 'md:col-span-2'
+                    attendeesSlideVisible
+                        ? 'md:col-span-2 xl:col-span-3'
+                        : 'md:col-span-2'
                 "
             >
                 <div class="flex flex-wrap items-center justify-between gap-3">
@@ -3084,7 +3232,9 @@ watch(
                             <button
                                 type="button"
                                 class="w-full p-3 text-left hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
-                                :aria-expanded="isStudentDetailsExpanded(record)"
+                                :aria-expanded="
+                                    isStudentDetailsExpanded(record)
+                                "
                                 @click="toggleStudentDetails(record)"
                             >
                                 <div
@@ -3096,7 +3246,9 @@ watch(
                                         >
                                             {{ record.name }}
                                         </div>
-                                        <div class="mt-0.5 text-xs text-slate-500">
+                                        <div
+                                            class="mt-0.5 text-xs text-slate-500"
+                                        >
                                             {{ record.course }} •
                                             {{ record.section }}
                                         </div>
@@ -3108,7 +3260,12 @@ watch(
                                     </div>
                                     <svg
                                         class="h-5 w-5 shrink-0 text-blue-600 transition-transform"
-                                        :class="{ 'rotate-180': isStudentDetailsExpanded(record) }"
+                                        :class="{
+                                            'rotate-180':
+                                                isStudentDetailsExpanded(
+                                                    record,
+                                                ),
+                                        }"
                                         viewBox="0 0 24 24"
                                         fill="none"
                                         stroke="currentColor"
@@ -3132,8 +3289,12 @@ watch(
                                     class="mt-2 grid grid-cols-3 gap-2 rounded-xl bg-slate-50 px-3 py-2 text-[11px] text-slate-600"
                                 >
                                     <span>In: {{ record.time_in || '-' }}</span>
-                                    <span>Out: {{ record.time_out || '-' }}</span>
-                                    <span>{{ record.room_status || 'Inside' }}</span>
+                                    <span
+                                        >Out: {{ record.time_out || '-' }}</span
+                                    >
+                                    <span>{{
+                                        record.room_status || 'Inside'
+                                    }}</span>
                                 </div>
                             </button>
 
@@ -3146,32 +3307,71 @@ watch(
                                     :key="event.id"
                                     class="rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600"
                                 >
-                                    <div class="flex items-start justify-between gap-3">
+                                    <div
+                                        class="flex items-start justify-between gap-3"
+                                    >
                                         <div>
-                                            <div class="font-bold text-slate-900">
-                                                {{ event.tap_type || 'Tap' }} #{{ event.tap_sequence_number || '-' }}
+                                            <div
+                                                class="font-bold text-slate-900"
+                                            >
+                                                {{ event.tap_type || 'Tap' }}
+                                                #{{
+                                                    event.tap_sequence_number ||
+                                                    '-'
+                                                }}
                                             </div>
-                                            <div class="mt-0.5 text-slate-500">{{ event.time || 'N/A' }}</div>
+                                            <div class="mt-0.5 text-slate-500">
+                                                {{ event.time || 'N/A' }}
+                                            </div>
                                         </div>
-                                        <span class="rounded-md bg-slate-100 px-2 py-1 font-semibold">
-                                            {{ event.validation_result || event.status || 'N/A' }}
+                                        <span
+                                            class="rounded-md bg-slate-100 px-2 py-1 font-semibold"
+                                        >
+                                            {{
+                                                event.validation_result ||
+                                                event.status ||
+                                                'N/A'
+                                            }}
                                         </span>
                                     </div>
-                                    <dl class="mt-3 grid grid-cols-2 gap-x-3 gap-y-2">
+                                    <dl
+                                        class="mt-3 grid grid-cols-2 gap-x-3 gap-y-2"
+                                    >
                                         <div>
-                                            <dt class="font-semibold text-slate-700">Room status</dt>
-                                            <dd>{{ event.room_status || '-' }}</dd>
+                                            <dt
+                                                class="font-semibold text-slate-700"
+                                            >
+                                                Room status
+                                            </dt>
+                                            <dd>
+                                                {{ event.room_status || '-' }}
+                                            </dd>
                                         </div>
                                         <div>
-                                            <dt class="font-semibold text-slate-700">Verification</dt>
-                                            <dd>{{ event.verification_method || '-' }}</dd>
+                                            <dt
+                                                class="font-semibold text-slate-700"
+                                            >
+                                                Verification
+                                            </dt>
+                                            <dd>
+                                                {{
+                                                    event.verification_method ||
+                                                    '-'
+                                                }}
+                                            </dd>
                                         </div>
                                     </dl>
-                                    <p v-if="event.remarks" class="mt-3 rounded-lg bg-slate-50 px-2 py-1.5">
+                                    <p
+                                        v-if="event.remarks"
+                                        class="mt-3 rounded-lg bg-slate-50 px-2 py-1.5"
+                                    >
                                         {{ event.remarks }}
                                     </p>
                                     <div
-                                        v-if="event.time_in_image_url || event.time_out_image_url"
+                                        v-if="
+                                            event.time_in_image_url ||
+                                            event.time_out_image_url
+                                        "
                                         class="mt-3 flex flex-wrap gap-2"
                                     >
                                         <a
@@ -3180,14 +3380,16 @@ watch(
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             class="font-semibold text-emerald-700 underline"
-                                        >View check-in evidence</a>
+                                            >View check-in evidence</a
+                                        >
                                         <a
                                             v-if="event.time_out_image_url"
                                             :href="event.time_out_image_url"
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             class="font-semibold text-emerald-700 underline"
-                                        >View check-out evidence</a>
+                                            >View check-out evidence</a
+                                        >
                                     </div>
                                 </article>
                             </div>

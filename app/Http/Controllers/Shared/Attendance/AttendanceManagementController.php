@@ -151,6 +151,14 @@ class AttendanceManagementController extends Controller
                 ->whereDate('date', $session->date)
                 ->first();
 
+            if (! $attendance && Attendance::onlyTrashed()
+                ->where('schedule_id', $session->schedule_id)
+                ->where('student_id', $student->student_id)
+                ->whereDate('date', $session->date)
+                ->exists()) {
+                return null;
+            }
+
             return [
                 'session_id' => $session->attendance_id,
                 'session_type' => 'physical',
@@ -163,7 +171,7 @@ class AttendanceManagementController extends Controller
                 'time_out' => $this->formatTime($attendance?->time_out),
                 'remarks' => $attendance?->remarks,
             ];
-        })->merge(
+        })->filter()->merge(
             $this->onlineClassesFor($subject, $context['instructor_id'])
                 ->with(['attendances' => fn ($query) => $query->where('student_id', $student->student_id)])
                 ->get()
@@ -339,6 +347,56 @@ class AttendanceManagementController extends Controller
         return back()->with('success', 'Online attendance status updated and logged.');
     }
 
+    // Removes a physical attendance result without deleting its tap evidence or history row.
+    public function destroyAttendance(Request $request, Attendance $attendance): SymfonyResponse
+    {
+        [$role, $instructorId] = $this->actor($request);
+        $attendance->loadMissing(['schedule', 'academicYear', 'student']);
+
+        abort_unless($attendance->schedule, 404);
+        if ($role === 'instructor') {
+            abort_unless((int) $attendance->schedule->instructor_id === (int) $instructorId, 403);
+        }
+
+        $academicYear = $attendance->academicYear ?? $attendance->schedule->academicYear;
+        abort_if($academicYear && ! $academicYear->isWritable(), 422, 'Attendance from a closed or archived academic year is read-only.');
+
+        $editDays = max(1, min(365, SystemSetting::integer(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 15)));
+        $attendanceDate = Carbon::parse($attendance->date)->startOfDay();
+        abort_if(
+            $attendanceDate->lt(now()->subDays($editDays - 1)->startOfDay()) || $attendanceDate->gt(now()->endOfDay()),
+            422,
+            "Attendance can only be removed within the latest {$editDays} day(s).",
+        );
+
+        DB::transaction(function () use ($request, $attendance) {
+            $attendance->delete();
+
+            ActivityLog::query()->create([
+                'event_id' => (string) Str::uuid(),
+                'user_id' => $request->user()->user_id,
+                'user_name' => $request->user()->name,
+                'user_role' => $request->user()->role,
+                'action' => 'attendance_removed',
+                'table_name' => 'attendances',
+                'module' => 'attendance',
+                'outcome' => 'success',
+                'severity' => 'warning',
+                'subject_type' => 'attendance',
+                'subject_id' => (string) $attendance->attendance_id,
+                'route_name' => $request->route()?->getName(),
+                'http_method' => $request->method(),
+                'ip_address' => $request->ip(),
+                'user_agent' => Str::limit((string) $request->userAgent(), 1000, ''),
+                'status_code' => 200,
+                'description' => 'Removed attendance '.$attendance->attendance_id.' for student '.($attendance->student?->student_number ?? $attendance->student_id).'.',
+                'created_at' => now(),
+            ]);
+        });
+
+        return back()->with('success', 'Attendance removed. The record remains available for audit recovery.');
+    }
+
     // @function exportSession: Ine-export ang session sa Attendance Management flow.
     // @useIn exportSession: routes/web.php:268 (attendance.session.export)
     public function exportSession(Request $request, Subject $subject, string $session, string $format): SymfonyResponse
@@ -428,6 +486,7 @@ class AttendanceManagementController extends Controller
     private function subjectAssignedTo(Subject $subject, int $instructorId): bool
     {
         return DB::table('schedules')
+            ->whereNull('schedules.deleted_at')
             ->where('instructor_id', $instructorId)
             ->where('subject_code', $subject->subject_code)
             ->exists();
@@ -468,6 +527,7 @@ class AttendanceManagementController extends Controller
     {
         return DB::table('attendance_sessions')
             ->join('schedules', 'schedules.scheduled_id', '=', 'attendance_sessions.schedule_id')
+            ->whereNull('schedules.deleted_at')
             ->where('schedules.subject_code', $subject->subject_code)
             ->when($instructorId, fn ($query) => $query->where('schedules.instructor_id', $instructorId))
             ->select('attendance_sessions.*', 'schedules.instructor_id', 'schedules.section_id', 'schedules.semester')
@@ -570,13 +630,20 @@ class AttendanceManagementController extends Controller
             ->get()
             ->keyBy(fn (Attendance $attendance) => $attendance->student_id.'|'.$attendance->schedule_id.'|'.$attendance->date?->toDateString());
 
+        $removedPhysical = Attendance::onlyTrashed()
+            ->whereIn('schedule_id', $sessions->pluck('schedule_id')->filter()->unique())
+            ->whereIn('student_id', $students->pluck('student_id'))
+            ->get()
+            ->keyBy(fn (Attendance $attendance) => $attendance->student_id.'|'.$attendance->schedule_id.'|'.$attendance->date?->toDateString())
+            ->reject(fn (Attendance $attendance, string $key) => $physical->has($key));
+
         $onlineAttendances = OnlineClassAttendance::query()
             ->whereIn('student_id', $students->pluck('student_id'))
             ->whereIn('online_class_id', $onlineClasses->pluck('online_class_id'))
             ->get()
             ->keyBy(fn (OnlineClassAttendance $attendance) => $attendance->student_id.'|'.$attendance->online_class_id);
 
-        return $students->map(function (Students $student) use ($sessions, $onlineClasses, $physical, $onlineAttendances) {
+        return $students->map(function (Students $student) use ($sessions, $onlineClasses, $physical, $removedPhysical, $onlineAttendances) {
             $counts = collect();
             $eligibleSessionCount = 0;
             foreach ($sessions as $session) {
@@ -585,6 +652,9 @@ class AttendanceManagementController extends Controller
                 }
                 $eligibleSessionCount++;
                 $key = $student->student_id.'|'.$session->schedule_id.'|'.Carbon::parse($session->date)->toDateString();
+                if ($removedPhysical->has($key)) {
+                    continue;
+                }
                 $attendance = $physical->get($key);
                 $status = $attendance ? $this->displayStatus($attendance, $session) : $this->missingStatus($session);
                 $counts[$status] = ($counts[$status] ?? 0) + 1;
@@ -624,10 +694,22 @@ class AttendanceManagementController extends Controller
             ->get()
             ->keyBy('student_id');
 
+        $removedStudentIds = Attendance::onlyTrashed()
+            ->where('schedule_id', $session->schedule_id)
+            ->whereDate('date', $session->date)
+            ->whereNotIn('student_id', $attendances->keys())
+            ->pluck('student_id');
+
         $tapEvents = DB::table('attendance_logs')
+            ->leftJoin('attendances', 'attendances.attendance_id', '=', 'attendance_logs.main_attendance_id')
             ->where('attendance_id', $session->attendance_id)
+            ->where(function ($query) {
+                $query->whereNull('attendance_logs.main_attendance_id')
+                    ->orWhereNull('attendances.deleted_at');
+            })
             ->orderBy('tap_sequence_number')
             ->orderBy('id')
+            ->select('attendance_logs.*')
             ->get()
             ->groupBy('student_id')
             ->map(fn (Collection $events) => $events->map(function (object $event) {
@@ -658,10 +740,14 @@ class AttendanceManagementController extends Controller
                 ];
             })->values());
 
-        return $this->studentsFor($subject, $session->instructor_id ?? null, $session)->get()->map(function (Students $student) use ($attendances, $session, $tapEvents) {
+        return $this->studentsFor($subject, $session->instructor_id ?? null, $session)
+            ->whereNotIn('student_id', $removedStudentIds)
+            ->get()
+            ->map(function (Students $student) use ($attendances, $session, $tapEvents) {
             $attendance = $attendances->get($student->student_id);
 
             return [
+                'attendance_id' => $attendance?->attendance_id,
                 'student_id' => $student->student_id,
                 'student_number' => $student->student_number,
                 'student_name' => trim($student->first_name.' '.$student->last_name),

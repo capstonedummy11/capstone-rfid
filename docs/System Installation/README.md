@@ -118,7 +118,7 @@ The 2026-10-09 Instructor-sync migration makes upcoming online-class assignments
 | `PANEL_PIN` | Configuration fallback; normal runtime global/device hashes are stored in System Settings/Panel Devices. |
 | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, `AWS_DEFAULT_REGION` | Backend-only AWS credentials and the region used for still-image comparison. Use a role or short-lived credentials outside local development; never expose these values to Vite/browser code. |
 | `AWS_REKOGNITION_SIMILARITY_THRESHOLD` | Match threshold; example is 90. |
-| `AWS_REKOGNITION_LIVENESS_ENABLED`, `AWS_REKOGNITION_LIVENESS_REGION`, `AWS_REKOGNITION_LIVENESS_CONFIDENCE_THRESHOLD` | Enables the video-selfie liveness gate, selects a Face Liveness-supported region, and sets the server-side pass threshold. Enable only after the IAM and Cognito setup below is complete. |
+| `AWS_REKOGNITION_LIVENESS_ENABLED`, `AWS_REKOGNITION_LIVENESS_REGION`, `LIVENESS_MIN_CONFIDENCE_STUDENT`, `LIVENESS_MIN_CONFIDENCE_INSTRUCTOR` | Enables the video-selfie liveness gate, selects a supported region, and configures validated server-side Student/Instructor thresholds. Defaults are 60 and 70; invalid values outside 0–100 fall back to those defaults. |
 | `VITE_AWS_COGNITO_IDENTITY_POOL_ID` | Public Cognito Identity Pool identifier used only to obtain short-lived browser credentials for `StartFaceLivenessSession`. Its unauthenticated role must have no other application/AWS access. |
 | `COMPREFACE_URL`, `COMPREFACE_API_KEY` | Alternative/legacy CompreFace service configuration. `COMPREFACE_URL` has a code default but is not shown in the example file. |
 
@@ -165,7 +165,8 @@ Face Liveness is a separate Rekognition workflow. The Laravel backend creates a 
 ```dotenv
 AWS_REKOGNITION_LIVENESS_ENABLED=true
 AWS_REKOGNITION_LIVENESS_REGION=us-east-1
-AWS_REKOGNITION_LIVENESS_CONFIDENCE_THRESHOLD=90
+LIVENESS_MIN_CONFIDENCE_STUDENT=60
+LIVENESS_MIN_CONFIDENCE_INSTRUCTOR=70
 VITE_AWS_COGNITO_IDENTITY_POOL_ID=us-east-1:replace-with-your-pool-uuid
 ```
 

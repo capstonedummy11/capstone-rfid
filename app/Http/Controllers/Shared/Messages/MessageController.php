@@ -505,6 +505,91 @@ class MessageController
         ]);
     }
 
+    // @function pollConversation: Returns only new messages in a conversation and unread counts.
+    // @useIn pollConversation: routes/shared.php (messages.poll)
+    public function pollConversation(Request $request)
+    {
+        $validated = $request->validate([
+            'conversation_user_id' => ['required', 'integer'],
+            'student_id' => ['nullable', 'integer'],
+            'after_id' => ['nullable', 'integer', 'min:0'],
+            'since' => ['nullable', 'date'],
+        ]);
+
+        $user = $request->user();
+        abort_if((int) $validated['conversation_user_id'] === (int) $user->user_id, 422);
+        $partner = User::query()->findOrFail($validated['conversation_user_id']);
+        abort_unless(in_array(strtolower((string) $partner->role), $this->messageRoles(), true), 403);
+
+        $role = strtolower((string) $user->role);
+        $student = in_array($role, ['student', 'parent'], true)
+            ? $this->currentStudentContext($request)
+            : null;
+        if ($request->filled('student_id')) {
+            abort_unless($student && (int) $student->student_id === (int) $request->input('student_id'), 403);
+        }
+        $studentId = $student?->student_id;
+
+        $conversationQuery = StudentPortalMessage::query()
+            ->where(function ($query) use ($user, $partner) {
+                $query
+                    ->where(function ($pair) use ($user, $partner) {
+                        $pair->where('sender_user_id', $user->user_id)
+                            ->where('recipient_user_id', $partner->user_id);
+                    })
+                    ->orWhere(function ($pair) use ($user, $partner) {
+                        $pair->where('sender_user_id', $partner->user_id)
+                            ->where('recipient_user_id', $user->user_id);
+                    });
+            })
+            ->when($studentId, fn ($query) => $query->where('student_id', $studentId));
+
+        $newMessagesQuery = (clone $conversationQuery)
+            ->with('sender:user_id,name')
+            ->select([
+                'student_portal_message_id',
+                'sender_user_id',
+                'recipient_user_id',
+                'body',
+                'body_ciphertext',
+                'attachment_name',
+                'read_at',
+                'created_at',
+            ]);
+
+        if (isset($validated['after_id'])) {
+            $newMessagesQuery->where('student_portal_message_id', '>', $validated['after_id']);
+        }
+        if (isset($validated['since'])) {
+            $newMessagesQuery->where('created_at', '>', $validated['since']);
+        }
+
+        $newMessages = isset($validated['after_id']) || isset($validated['since'])
+            ? $newMessagesQuery->orderBy('student_portal_message_id')->limit(100)->get()
+            : $newMessagesQuery->latest('student_portal_message_id')->limit(50)->get()->reverse()->values();
+
+        $unreadByConversation = StudentPortalMessage::query()
+            ->where('recipient_user_id', $user->user_id)
+            ->whereNull('read_at')
+            ->when($studentId, fn ($query) => $query->where('student_id', $studentId))
+            ->selectRaw('sender_user_id, COUNT(*) as unread_count')
+            ->groupBy('sender_user_id')
+            ->pluck('unread_count', 'sender_user_id');
+
+        return response()->json([
+            'messages' => $newMessages->map(fn (StudentPortalMessage $message) => [
+                'id' => $message->student_portal_message_id,
+                'sender' => $message->sender?->name ?: 'Someone',
+                'direction' => (int) $message->sender_user_id === (int) $user->user_id ? 'outgoing' : 'incoming',
+                'text' => $message->body ?: ($message->attachment_name ? 'Attachment' : ''),
+                'timestamp' => $message->created_at?->toDateTimeString(),
+                'read_at' => $message->read_at?->toDateTimeString(),
+            ])->values(),
+            'unread_count' => (int) $unreadByConversation->sum(),
+            'unread_by_conversation' => $unreadByConversation,
+        ]);
+    }
+
     // @function markRead: Minamark ang read sa Message flow.
     // @useIn markRead: routes/web.php:135 (messages.read)
     public function markRead(Request $request, StudentPortalMessage $message)

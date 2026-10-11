@@ -50,7 +50,10 @@ return [
             'enabled' => env('AWS_REKOGNITION_LIVENESS_ENABLED', false),
             'region' => env('AWS_REKOGNITION_LIVENESS_REGION', 'us-east-1'),
             'identity_pool_id' => env('VITE_AWS_COGNITO_IDENTITY_POOL_ID'),
-            'confidence_threshold' => env('AWS_REKOGNITION_LIVENESS_CONFIDENCE_THRESHOLD', 90),
+            'minimum_confidence' => [
+                'student' => env('LIVENESS_MIN_CONFIDENCE_STUDENT', 60),
+                'instructor' => env('LIVENESS_MIN_CONFIDENCE_INSTRUCTOR', 70),
+            ],
         ],
     ],
 

@@ -62,7 +62,7 @@ class AwsFaceLivenessService
 
     // @function createSession: Gumagawa ng ang session sa Aws Face Liveness flow.
     // @useIn createSession: app/Http/Controllers/Shared/FaceLiveness/FaceLivenessController.php
-    public function createSession(Request $request, string $purpose, string $subjectKey): array
+    public function createSession(Request $request, string $purpose, string $subjectKey, string $subjectRole): array
     {
         $availability = $this->availability();
         if (! $availability['available']) {
@@ -84,7 +84,8 @@ class AwsFaceLivenessService
         $sessions[$sessionId] = [
             'purpose' => $purpose,
             'subject_key' => $subjectKey,
-            'user_id' => $request->user()?->getAuthIdentifier(),
+            'subject_role' => $subjectRole,
+            'starter_user_id' => $request->user()?->getAuthIdentifier(),
             'expires_at' => now()->addSeconds(self::SESSION_LIFETIME_SECONDS)->timestamp,
             'consumed' => false,
         ];
@@ -104,7 +105,7 @@ class AwsFaceLivenessService
     /**
      * @feature     Face Liveness
      * @actor       Shared / Core
-     * @flow        AWS Face Liveness session ang nagsusuri ng video. Pass lang kung SUCCEEDED, confidence >= services.aws_rekognition.liveness.confidence_threshold (default 90), at may reference image; kung fail, walang single-use face token.
+     * @flow        AWS Face Liveness session ang nagsusuri ng video. Pass lang kung SUCCEEDED, confidence >= server-side role threshold, at may reference image; kung fail, walang single-use face token.
      * @uses        resources/js/lib/faceLiveness.tsx; app/Services/AwsFaceLivenessService.php: AwsFaceLivenessService::completeSession
      * @related     Face-required attendance, Instructor verification, at online-class joining kapag enabled.
      * @disable     1) Suriin ang Face Liveness callers, pending work, at dependent screens; Needs developer check: i-verify muna ang still-image fallback at bawat caller bago i-off ang liveness server setting.
@@ -117,7 +118,7 @@ class AwsFaceLivenessService
      * @reEnable    1) Ibalik ang server guard/action. 2) Ibalik ang UI controls. 3) I-test ang actor access, dependencies, pending work, at historical data.
      * @editable    Server environment/config: liveness enable, region, threshold; walang Admin template editor na nakumpirma.
      */
-    public function completeSession(Request $request, string $sessionId): array
+    public function completeSession(Request $request, string $sessionId, FaceLivenessPolicy $policy): array
     {
         $sessions = $request->session()->get('face_liveness_sessions', []);
         $boundSession = $sessions[$sessionId] ?? null;
@@ -125,21 +126,41 @@ class AwsFaceLivenessService
         if (! is_array($boundSession)
             || ($boundSession['consumed'] ?? true)
             || now()->timestamp > (int) ($boundSession['expires_at'] ?? 0)
-            || ($boundSession['user_id'] ?? null) !== $request->user()?->getAuthIdentifier()) {
+            || ($boundSession['starter_user_id'] ?? null) !== $request->user()?->getAuthIdentifier()) {
             return ['ok' => false, 'message' => 'This liveness session is invalid or expired.'];
+        }
+
+        $subjectRole = (string) ($boundSession['subject_role'] ?? '');
+        if (! in_array($subjectRole, [FaceLivenessPolicy::STUDENT_ROLE, FaceLivenessPolicy::INSTRUCTOR_ROLE], true)) {
+            $sessions[$sessionId]['consumed'] = true;
+            $request->session()->put('face_liveness_sessions', $sessions);
+
+            return ['ok' => false, 'message' => 'This liveness session has an invalid subject role.'];
         }
 
         $result = $this->client()->getFaceLivenessSessionResults(['SessionId' => $sessionId]);
         $status = (string) $result->get('Status');
-        $confidence = (float) $result->get('Confidence');
-        $threshold = (float) config('services.aws_rekognition.liveness.confidence_threshold', 90);
-        $referenceImage = $result->get('ReferenceImage');
-        $bytes = is_array($referenceImage) ? (string) ($referenceImage['Bytes'] ?? '') : '';
 
         $sessions[$sessionId]['consumed'] = true;
         $request->session()->put('face_liveness_sessions', $sessions);
 
-        if ($status !== 'SUCCEEDED' || $confidence < $threshold || $bytes === '') {
+        if ($status !== 'SUCCEEDED') {
+            return [
+                'ok' => false,
+                'message' => 'Liveness verification did not pass. Please try again.',
+                'status' => $status,
+                'confidence' => (float) $result->get('Confidence'),
+                'threshold' => $policy->thresholdForRole($subjectRole),
+                'reference_image_received' => false,
+            ];
+        }
+
+        $confidence = (float) $result->get('Confidence');
+        $threshold = $policy->thresholdForRole($subjectRole);
+        $referenceImage = $result->get('ReferenceImage');
+        $bytes = is_array($referenceImage) ? (string) ($referenceImage['Bytes'] ?? '') : '';
+
+        if ($confidence < $threshold || $bytes === '') {
             return [
                 'ok' => false,
                 'message' => 'Liveness verification did not pass. Please try again.',
@@ -158,6 +179,8 @@ class AwsFaceLivenessService
         $tokens[hash('sha256', $token)] = [
             'purpose' => $boundSession['purpose'],
             'subject_key' => $boundSession['subject_key'],
+            'subject_role' => $subjectRole,
+            'starter_user_id' => $boundSession['starter_user_id'],
             'path' => $path,
             'expires_at' => now()->addSeconds(self::TOKEN_LIFETIME_SECONDS)->timestamp,
         ];
@@ -173,7 +196,13 @@ class AwsFaceLivenessService
 
     // @function consumeReferenceImage: Ginagamit nang isang beses ang reference image sa Aws Face Liveness flow.
     // @useIn consumeReferenceImage: app/Http/Controllers/Shared/Attendance/AttendanceController.php
-    public function consumeReferenceImage(Request $request, string $token, string $purpose, string $subjectKey): ?string
+    public function consumeReferenceImage(
+        Request $request,
+        string $token,
+        string $purpose,
+        string $subjectKey,
+        string $subjectRole,
+    ): ?string
     {
         $tokens = $request->session()->get('face_liveness_tokens', []);
         $tokenHash = hash('sha256', $token);
@@ -184,7 +213,14 @@ class AwsFaceLivenessService
         if (! is_array($boundToken)
             || ! hash_equals((string) ($boundToken['purpose'] ?? ''), $purpose)
             || ! hash_equals((string) ($boundToken['subject_key'] ?? ''), $subjectKey)
+            || ! hash_equals((string) ($boundToken['subject_role'] ?? ''), $subjectRole)
+            || ($boundToken['starter_user_id'] ?? null) !== $request->user()?->getAuthIdentifier()
             || now()->timestamp > (int) ($boundToken['expires_at'] ?? 0)) {
+            $invalidPath = is_array($boundToken) ? (string) ($boundToken['path'] ?? '') : '';
+            if ($invalidPath !== '' && Storage::disk('local')->exists($invalidPath)) {
+                Storage::disk('local')->delete($invalidPath);
+            }
+
             return null;
         }
 

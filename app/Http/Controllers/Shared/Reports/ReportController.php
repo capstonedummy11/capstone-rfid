@@ -480,6 +480,7 @@ class ReportController
             $query->whereExists(fn (Builder $schedule) => $schedule
                 ->selectRaw('1')->from('schedules')
                 ->whereColumn('schedules.scheduled_id', "{$table}.schedule_id")
+                ->whereNull('schedules.deleted_at')
                 ->when($needsScheduleYear, fn ($q) => $q->where('schedules.academic_year_id', $yearId))
                 ->when($needsScheduleSemester, fn ($q) => $q->where('schedules.semester', $semester)));
         }
@@ -565,6 +566,7 @@ class ReportController
         }
 
         return DB::table('schedules')
+            ->whereNull('schedules.deleted_at')
             ->where('instructor_id', $instructorId)
             ->pluck('scheduled_id')
             ->all();
@@ -579,6 +581,7 @@ class ReportController
         }
 
         return DB::table('schedules')
+            ->whereNull('schedules.deleted_at')
             ->where('instructor_id', $instructorId)
             ->distinct()
             ->count('section_id');

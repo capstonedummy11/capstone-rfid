@@ -36,7 +36,9 @@ Route::prefix('student-parent')
 
         // Notifications
         Route::get('/notifications', [StudentsController::class, 'portalNotifications'])->name('notifications.index');
+        Route::get('/notifications/poll', [StudentsController::class, 'pollPortalNotifications'])->middleware('throttle:realtime-poll')->name('notifications.poll');
         Route::put('/notifications/{notification}/read', [StudentsController::class, 'markPortalNotificationRead'])->name('notifications.read');
+        Route::put('/notifications/read-all', [StudentsController::class, 'markAllPortalNotificationsRead'])->name('notifications.read-all');
 
         // Online Classes
         Route::get('/online-classes', [OnlineClassController::class, 'studentIndex'])->name('online-classes.index');

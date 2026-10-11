@@ -20,6 +20,9 @@ class OnlineClassAttendanceFinalizer
         OnlineClass::query()
             ->where('status', '!=', 'cancelled')
             ->whereNotNull('instructor_id')
+            ->where(function ($query) {
+                $query->whereNull('schedule_id')->orWhereHas('schedule');
+            })
             ->whereDate('scheduled_date', '<=', now()->toDateString())
             ->orderBy('online_class_id')
             ->chunkById(100, function ($classes) use (&$created) {
@@ -37,7 +40,10 @@ class OnlineClassAttendanceFinalizer
     // @useIn finalize: OnlineClassAttendanceFinalizer::finalizeEnded (app/Services/OnlineClassAttendanceFinalizer.php)
     public function finalize(OnlineClass $onlineClass): int
     {
-        if ($onlineClass->status === 'cancelled' || ! $onlineClass->instructor_id || ! $this->hasEnded($onlineClass)) {
+        if ($onlineClass->status === 'cancelled'
+            || ! $onlineClass->instructor_id
+            || ($onlineClass->schedule_id && ! $onlineClass->schedule()->exists())
+            || ! $this->hasEnded($onlineClass)) {
             return 0;
         }
 

@@ -246,14 +246,11 @@ class ScheduleController
             return back()->withErrors(['schedule' => 'A schedule from a closed or archived academic year cannot be deleted.']);
         }
         $this->assertScheduleIsNotRunning($schedule, 'deleted');
-        if ($schedule->attendances()->exists() || $schedule->onlineClasses()->exists()) {
-            return back()->withErrors(['schedule' => 'This schedule has attendance or online-class history and cannot be deleted.']);
-        }
         $scheduleId = $schedule->scheduled_id;
         $schedule->delete();
-        $this->log('delete', 'schedules', 'Deleted schedule '.$scheduleId);
+        $this->log('delete', 'schedules', 'Archived schedule '.$scheduleId);
 
-        return back()->with('success', 'Schedule deleted successfully.');
+        return back()->with('success', 'Schedule removed successfully. Existing attendance history was preserved.');
     }
 
     // @function resolveOffering: Hinahanap ang offering sa Schedule flow.

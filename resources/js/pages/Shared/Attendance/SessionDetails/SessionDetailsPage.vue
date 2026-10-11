@@ -1,7 +1,8 @@
 <!-- FEATURE:attendance-review - UI para sa assigned attendance and corrections. -->
-<script setup>
+<script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import { confirmActionModal } from '@/lib/feedbackModal';
 
 const props = defineProps({
     subject: { type: Object, required: true },
@@ -95,6 +96,21 @@ const save = () =>
               },
         { preserveScroll: true, onSuccess: () => (editing.value = null) },
     );
+
+const removeAttendance = async (row) => {
+    if (!row.attendance_id || props.session.type !== 'physical') return;
+
+    const confirmed = await confirmActionModal({
+        title: 'Remove attendance record?',
+        text: `Remove ${row.student_name}'s attendance from this session? This action is audited and can be recovered from the database.`,
+        confirmButtonText: 'Remove attendance',
+    });
+    if (!confirmed) return;
+
+    router.delete(route('admin.attendance.destroy', row.attendance_id), {
+        preserveScroll: true,
+    });
+};
 </script>
 
 <template>
@@ -281,13 +297,26 @@ const save = () =>
                                         v-if="canEditAttendance"
                                         class="px-4 py-3"
                                     >
-                                        <button
-                                            v-if="row.editable"
-                                            class="font-bold text-blue-700 hover:underline"
-                                            @click="openEdit(row)"
-                                        >
-                                            Edit</button
-                                        ><span
+                                        <template v-if="row.editable">
+                                            <button
+                                                class="font-bold text-blue-700 hover:underline"
+                                                @click="openEdit(row)"
+                                            >
+                                                Edit
+                                            </button>
+                                            <button
+                                                v-if="
+                                                    row.attendance_id &&
+                                                    session.type === 'physical'
+                                                "
+                                                type="button"
+                                                class="ml-3 font-bold text-rose-700 hover:underline"
+                                                @click="removeAttendance(row)"
+                                            >
+                                                Remove
+                                            </button>
+                                        </template>
+                                        <span
                                             v-else
                                             class="text-xs text-slate-400"
                                             >Locked</span

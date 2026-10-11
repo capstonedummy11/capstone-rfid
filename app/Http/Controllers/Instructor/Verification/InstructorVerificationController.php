@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Instructor\Verification;
 use App\Models\SystemSetting;
 use App\Services\AwsFaceRecognitionService;
 use App\Services\AwsFaceLivenessService;
+use App\Services\FaceLivenessPolicy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -73,6 +74,7 @@ class InstructorVerificationController
                 (string) ($validated['liveness_token'] ?? ''),
                 'instructor_login',
                 (string) $user->user_id,
+                FaceLivenessPolicy::INSTRUCTOR_ROLE,
             ) ?? '';
         }
 
