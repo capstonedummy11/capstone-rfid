@@ -76,6 +76,10 @@ const props = defineProps({
         type: String,
         default: '',
     },
+    ongoingClass: {
+        type: Object,
+        default: null,
+    },
 });
 
 // --- Panel gate / access control ---
@@ -749,6 +753,19 @@ const startAttendanceSession = (professor) => {
     syncPanelSessionState('attendance');
     loadAttendanceLogsFromServer();
     showToast('success', 'Attendance recording started');
+};
+
+const restoreOngoingClass = (ongoingClass) => {
+    if (!ongoingClass?.professor) return false;
+
+    sessionActive.value = true;
+    currentMode.value = 'attendance';
+    isListening.value = true;
+    activeProfessor.value = ongoingClass.professor;
+    dismissClassMode.value = false;
+    lastAction.value = `${ongoingClass.instructor} is currently conducting ${ongoingClass.subject}.`;
+
+    return true;
 };
 
 const verifyInstructorForAttendance = async (professor) => {
@@ -2346,6 +2363,23 @@ const checkPanelStatus = async () => {
                 rfids: { ...(payload.demoAttendancePanel.rfids ?? {}) },
             };
         }
+        if (response.ok && payload?.ongoing_class) {
+            const restored = restoreOngoingClass(payload.ongoing_class);
+            if (restored) loadAttendanceLogsFromServer();
+        } else if (
+            response.ok &&
+            payload &&
+            Object.hasOwn(payload, 'ongoing_class') &&
+            sessionActive.value
+        ) {
+            sessionActive.value = false;
+            currentMode.value = 'idle';
+            activeProfessor.value = null;
+            attendanceRecords.value = [];
+            lastAction.value =
+                'The scheduled class has ended. Waiting for the next instructor RFID tap.';
+            syncPanelSessionState('online');
+        }
         if (response.ok && payload?.logout_required) {
             await performForcedPanelLogout(payload.message);
         }
@@ -2672,8 +2706,9 @@ onMounted(() => {
         selectedRoom.value = props.panelRoom;
         panelUnlocked.value = true;
 
+        const restoredFromServer = restoreOngoingClass(props.ongoingClass);
         const panelRuntimeRaw = localStorage.getItem(PANEL_RUNTIME_KEY);
-        if (panelRuntimeRaw) {
+        if (!restoredFromServer && panelRuntimeRaw) {
             const panelRuntime = JSON.parse(panelRuntimeRaw);
             sessionActive.value = Boolean(panelRuntime.sessionActive);
             const restoredMode =
@@ -2696,6 +2731,10 @@ onMounted(() => {
             ) {
                 loadAttendanceLogsFromServer();
             }
+        }
+
+        if (restoredFromServer) {
+            loadAttendanceLogsFromServer();
         }
 
         if (!sessionActive.value) {

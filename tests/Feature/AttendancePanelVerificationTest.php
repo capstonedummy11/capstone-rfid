@@ -639,6 +639,66 @@ test('attendance panel room remains unlocked on refresh until panel logout', fun
         ->assertRedirect(route('attendanceControlPanel.login'));
 });
 
+test('ongoing Sunday class is restored in its panel and locks the room against another login', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    Carbon::setTestNow(Carbon::parse('2026-10-11 09:00:00', 'Asia/Manila'));
+    $fixture = attendanceVerificationFixture();
+
+    $this->get(route('attendanceControlPanel.login'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('AttendanceConsole/AttendancePanelLogin/AttendancePanelLoginPage')
+            ->where('rooms.0.name', 'COMLAB-ATT')
+            ->where('rooms.0.is_ongoing', true)
+            ->where('rooms.0.label', 'Ongoing')
+            ->where('rooms.0.ongoing_schedule.subject', 'Attendance Security')
+            ->where('rooms.0.ongoing_schedule.section', '11 - ICT ATT 11-A')
+            ->where('rooms.0.ongoing_schedule.instructor', $fixture['instructorUser']->name)
+            ->where('rooms.0.ongoing_schedule.time_start', '8:00 AM')
+            ->where('rooms.0.ongoing_schedule.time_end', '5:00 PM'));
+
+    $this->postJson(route('panelVerify'), [
+        'room' => 'COMLAB-ATT',
+        'pin' => (string) config('panel.pin'),
+    ])->assertStatus(423)->assertJson([
+        'success' => false,
+        'message' => 'This room is locked because a class is currently ongoing.',
+    ]);
+
+    $this->actingAs($fixture['console'])
+        ->withSession(['panel.room' => 'COMLAB-ATT'])
+        ->get(route('attendanceControlPanel'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage')
+            ->where('ongoingClass.status', 'attendance')
+            ->where('ongoingClass.professor.schedule_id', $fixture['schedule']->scheduled_id)
+            ->where('ongoingClass.professor.schedule_days', 'Sunday'));
+
+    $this->postJson(route('attendanceControlPanel.status'), [
+        'room' => 'COMLAB-ATT',
+    ])->assertOk()
+        ->assertJsonPath('logout_required', false)
+        ->assertJsonPath('ongoing_class.schedule_id', $fixture['schedule']->scheduled_id);
+
+    $this->postJson(route('attendanceControlPanel.room'), [
+        'room' => 'COMLAB-ATT',
+    ])->assertStatus(423)->assertJsonPath('success', false);
+
+    DB::table('attendance_sessions')
+        ->where('attendance_id', $fixture['attendanceSessionId'])
+        ->update([
+            'status' => 'online',
+            'time_end' => now()->format('H:i:s'),
+        ]);
+
+    $this->postJson(route('attendanceControlPanel.room'), [
+        'room' => 'COMLAB-ATT',
+    ])->assertOk()->assertJsonPath('success', true);
+
+    Carbon::setTestNow();
+});
+
 test('attendance panel demo buttons are disabled by default and use configured rfids when enabled', function () {
     $fixture = attendanceVerificationFixture();
 
@@ -1013,7 +1073,7 @@ test('late threshold uses the configurable admin setting', function () {
     Carbon::setTestNow();
 });
 
-test('attendance evidence is visible only to authorized attendance viewers', function () {
+test('attendance evidence is visible only to authorized attendance viewers and its active room console', function () {
     Storage::fake('public');
     $fixture = attendanceVerificationFixture();
     Storage::disk('public')->put('attendance_face_captures/test/time-in.jpg', 'time-in-image');
@@ -1032,6 +1092,13 @@ test('attendance evidence is visible only to authorized attendance viewers', fun
         'email' => $fixture['student']->email,
     ]);
     $unrelatedInstructor = User::factory()->create(['role' => 'instructor']);
+    RfidPanelSession::query()->create([
+        'panel_id' => 'attendance-console-test',
+        'room' => 'COMLAB-ATT',
+        'status' => 'attendance',
+        'opened_by_user_id' => $fixture['console']->user_id,
+        'is_listening' => true,
+    ]);
 
     $url = route('attendance.evidence', ['attendanceLog' => $logId, 'moment' => 'time-in']);
 
@@ -1039,4 +1106,11 @@ test('attendance evidence is visible only to authorized attendance viewers', fun
     $this->actingAs($fixture['instructorUser'])->get($url)->assertOk();
     $this->actingAs($studentUser)->get($url)->assertOk();
     $this->actingAs($unrelatedInstructor)->get($url)->assertForbidden();
+    $this->actingAs($fixture['console'])
+        ->withSession(['panel.room' => 'COMLAB-ATT'])
+        ->get($url)
+        ->assertOk();
+    $this->withSession(['panel.room' => 'OTHER-ROOM'])
+        ->get($url)
+        ->assertForbidden();
 });

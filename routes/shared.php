@@ -47,5 +47,5 @@ Route::middleware('auth')->group(function () {
 
 // Attendance Evidence
 Route::get('/attendance-evidence/{attendanceLog}/{moment}', [AttendanceController::class, 'evidence'])
-    ->middleware(['auth', 'role:admin,instructor,student,parent', EnsureParentPortalEnabled::class])
+    ->middleware(['auth', 'role:admin,instructor,student,parent,console', EnsureParentPortalEnabled::class])
     ->name('attendance.evidence');

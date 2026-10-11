@@ -43,10 +43,29 @@ const roomOptions = computed(() =>
                 name: room?.name ?? '',
                 status: room?.status ?? 'offline',
                 label: room?.label ?? 'Not in use',
+                is_ongoing: Boolean(room?.is_ongoing),
+                ongoing_schedule: room?.ongoing_schedule ?? null,
             };
         })
         .filter((room) => room.name !== ''),
 );
+
+const selectedRoomOption = computed(() =>
+    roomOptions.value.find((room) => room.name === selectedRoom.value),
+);
+const selectedRoomIsLocked = computed(() =>
+    Boolean(selectedRoomOption.value?.is_ongoing),
+);
+
+const selectRoom = (room) => {
+    if (room.is_ongoing) {
+        roomError.value = `${room.name} is locked because a class is currently ongoing.`;
+        return;
+    }
+
+    roomError.value = '';
+    selectedRoom.value = room.name;
+};
 
 const filteredRooms = computed(() => {
     if (!roomSearch.value) return roomOptions.value;
@@ -60,6 +79,11 @@ const filteredRooms = computed(() => {
 // @useIn verifyPin: resources/js/pages/AttendanceConsole/AttendancePanelLogin/AttendancePanelLoginPage.vue template @click
 const verifyPin = async () => {
     if (!pinValue.value || !selectedRoom.value) return;
+    if (selectedRoomIsLocked.value) {
+        pinError.value =
+            'This room is locked because a class is currently ongoing.';
+        return;
+    }
 
     pinError.value = '';
     pinLoading.value = true;
@@ -84,7 +108,7 @@ const verifyPin = async () => {
 
         if (response.ok) {
             pinVerified.value = true;
-            unlockPanel();
+            await unlockPanel();
             return;
         }
 
@@ -102,8 +126,13 @@ const verifyPin = async () => {
 
 // @function unlockPanel: Kinukuha ang unlock panel result para sa Attendance Panel Login.
 // @useIn unlockPanel: resources/js/pages/AttendanceConsole/AttendancePanelLogin/AttendancePanelLoginPage.vue template @click
-const unlockPanel = () => {
+const unlockPanel = async () => {
     if (!selectedRoom.value || !pinVerified.value) return;
+    if (selectedRoomIsLocked.value) {
+        roomError.value =
+            'This room is locked because a class is currently ongoing.';
+        return;
+    }
 
     roomError.value = '';
     roomLoading.value = true;
@@ -113,31 +142,33 @@ const unlockPanel = () => {
         .find((row) => row.startsWith('XSRF-TOKEN='))
         ?.split('=')[1];
 
-    fetch('/attendance-control-panel/room', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-            'X-XSRF-TOKEN': xsrfRaw ? decodeURIComponent(xsrfRaw) : '',
-        },
-        body: JSON.stringify({ room: selectedRoom.value }),
-    })
-        .then(async (response) => {
-            if (response.ok) {
-                window.location.href = '/attendance-control-panel';
-                return;
-            }
-
-            const data = await response.json().catch(() => ({}));
-            roomError.value =
-                data.message ?? 'Unable to assign this room. Please retry.';
-        })
-        .catch(() => {
-            roomError.value = 'Connection error. Please retry.';
-        })
-        .finally(() => {
-            roomLoading.value = false;
+    try {
+        const response = await fetch('/attendance-control-panel/room', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'X-XSRF-TOKEN': xsrfRaw ? decodeURIComponent(xsrfRaw) : '',
+            },
+            body: JSON.stringify({ room: selectedRoom.value }),
         });
+
+        if (response.ok) {
+            window.location.href = '/attendance-control-panel';
+            return;
+        }
+
+        const data = await response.json().catch(() => ({}));
+        const message =
+            data.message ?? 'Unable to assign this room. Please retry.';
+        roomError.value = message;
+        if (gateStep.value === 'pin') pinError.value = message;
+    } catch {
+        roomError.value = 'Connection error. Please retry.';
+        if (gateStep.value === 'pin') pinError.value = roomError.value;
+    } finally {
+        roomLoading.value = false;
+    }
 };
 
 // @function resetPinStep: Nire-reset ang pin step sa Attendance Panel Login flow.
@@ -277,18 +308,22 @@ onMounted(() => {
                                 v-for="room in filteredRooms"
                                 :key="room.name"
                                 type="button"
+                                :disabled="room.is_ongoing"
                                 class="rounded-2xl border-2 px-4 py-4 text-left text-sm font-semibold transition-all duration-150"
-                                :class="
-                                    selectedRoom === room.name
-                                        ? 'border-[#123456] bg-[#123456] text-white shadow-md'
-                                        : 'border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-white'
-                                "
-                                @click="selectedRoom = room.name"
+                                :class="[
+                                    room.is_ongoing
+                                        ? 'cursor-not-allowed border-amber-200 bg-amber-50 text-slate-500 opacity-80'
+                                        : selectedRoom === room.name
+                                          ? 'border-[#123456] bg-[#123456] text-white shadow-md'
+                                          : 'border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-white',
+                                ]"
+                                @click="selectRoom(room)"
                             >
                                 <div
                                     class="mb-1 text-[10px] font-bold tracking-wide uppercase"
                                     :class="
-                                        selectedRoom === room.name
+                                        selectedRoom === room.name &&
+                                        !room.is_ongoing
                                             ? 'text-white/60'
                                             : 'text-slate-400'
                                     "
@@ -301,9 +336,11 @@ onMounted(() => {
                                 <div
                                     class="mt-3 inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold tracking-[0.18em] uppercase"
                                     :class="
-                                        selectedRoom === room.name
-                                            ? 'bg-white/15 text-white'
-                                            : 'bg-slate-200 text-slate-600'
+                                        room.is_ongoing
+                                            ? 'bg-amber-100 text-amber-700'
+                                            : selectedRoom === room.name
+                                              ? 'bg-white/15 text-white'
+                                              : 'bg-slate-200 text-slate-600'
                                     "
                                 >
                                     {{ room.label }}
@@ -321,7 +358,9 @@ onMounted(() => {
                     <button
                         type="button"
                         class="mt-5 w-full rounded-2xl bg-[#123456] py-4 text-base font-bold text-white shadow-sm transition hover:bg-[#0e2840] disabled:cursor-not-allowed disabled:opacity-40"
-                        :disabled="!selectedRoom || roomLoading"
+                        :disabled="
+                            !selectedRoom || selectedRoomIsLocked || roomLoading
+                        "
                         @click="
                             props.alreadyVerified
                                 ? unlockPanel()

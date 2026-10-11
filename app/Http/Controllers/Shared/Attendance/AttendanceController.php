@@ -40,7 +40,7 @@ use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
-// Used by roles: Console for panel operations; Admin, Instructor, Student, and Parent for attendance evidence; public bootstrap endpoints also exist.
+// Used by roles: Console for panel operations and room-scoped evidence; Admin, Instructor, Student, and Parent for attendance evidence; public bootstrap endpoints also exist.
 class AttendanceController
 {
     private const FACE_MISMATCH_MESSAGE = 'Face recognition failed to match.';
@@ -1486,6 +1486,7 @@ class AttendanceController
             'title' => 'Attendance Control Panel',
             ...$this->panelPayload(),
             'panelRoom' => $panelRoom,
+            'ongoingClass' => $this->ongoingClassForRoom($panelRoom),
         ]);
     }
 
@@ -1557,6 +1558,13 @@ class AttendanceController
             ], 401);
         }
 
+        if ($room !== '' && $this->ongoingClassForRoom($room)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This room is locked because a class is currently ongoing.',
+            ], 423);
+        }
+
         $consoleUser = User::withTrashed()->updateOrCreate(
             ['email' => 'console@rfid-panel.local'],
             [
@@ -1585,8 +1593,26 @@ class AttendanceController
             'room' => ['required', 'string', 'max:255'],
         ]);
 
-        session(['panel.room' => $validated['room']]);
-        $this->openPanelRoomSession($validated['room'], $request->user());
+        $room = trim($validated['room']);
+
+        $ongoingClass = DB::transaction(function () use ($room, $request) {
+            $ongoingClass = $this->ongoingClassForRoom($room, true);
+            if ($ongoingClass) {
+                return $ongoingClass;
+            }
+
+            session(['panel.room' => $room]);
+            $this->openPanelRoomSession($room, $request->user());
+
+            return null;
+        });
+
+        if ($ongoingClass) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This room is locked because a class is currently ongoing.',
+            ], 423);
+        }
 
         return response()->json(['success' => true]);
     }
@@ -1663,15 +1689,17 @@ class AttendanceController
             ->where('room', $room)
             ->orderByDesc('panel_session_id')
             ->first();
+        $ongoingClass = $this->ongoingClassForRoom($room);
 
-        $logoutRequired = ! $session
+        $logoutRequired = ! $ongoingClass && (! $session
             || $session->ended_at !== null
-            || strtolower((string) $session->status) === 'offline';
+            || strtolower((string) $session->status) === 'offline');
 
         return response()->json([
             'ok' => true,
             'logout_required' => $logoutRequired,
             'status' => $session?->status ?? 'offline',
+            'ongoing_class' => $ongoingClass,
             'featureSettings' => SystemSetting::featureFlags(),
             'demoAttendancePanel' => SystemSetting::demoAttendancePanelSettings(),
             'message' => $logoutRequired ? 'This panel was logged out by an administrator.' : null,
@@ -1891,17 +1919,108 @@ class AttendanceController
             ->map(function (string $room) use ($latestSessionsByRoom) {
                 $latestSession = $latestSessionsByRoom->get($room);
                 $status = $latestSession?->status ?? 'offline';
+                $ongoingSchedule = $this->ongoingClassForRoom($room);
 
                 return [
                     'name' => $room,
                     'status' => $status,
-                    'label' => $status === 'offline' ? 'Not in use' : str_replace('_', ' ', $status),
+                    'label' => $ongoingSchedule ? 'Ongoing' : ($status === 'offline' ? 'Not in use' : str_replace('_', ' ', $status)),
+                    'is_ongoing' => $ongoingSchedule !== null,
+                    'ongoing_schedule' => $ongoingSchedule,
                 ];
             })
             ->values()
             ->all();
 
         return $rooms;
+    }
+
+    // @function ongoingClassForRoom: Resolves the server-authoritative class currently running in one panel room.
+    private function ongoingClassForRoom(string $room, bool $lockForUpdate = false): ?array
+    {
+        $room = trim($room);
+        if ($room === '') {
+            return null;
+        }
+
+        $now = Carbon::now('Asia/Manila');
+        $sessionsQuery = DB::table('attendance_sessions')
+            ->whereRaw('LOWER(TRIM(room)) = ?', [strtolower($room)])
+            ->whereDate('date', $now->toDateString())
+            ->where('status', 'attendance')
+            ->whereNull('time_end')
+            ->orderByDesc('attendance_id');
+
+        if ($lockForUpdate) {
+            $sessionsQuery->lockForUpdate();
+        }
+
+        foreach ($sessionsQuery->get() as $attendanceSession) {
+            $schedule = Schedule::query()
+                ->forActiveAcademicYear()
+                ->with(['instructor.user', 'section.strand'])
+                ->find($attendanceSession->schedule_id);
+
+            if (! $schedule
+                || ! $this->matchesWeekday((string) $schedule->weekdays, $now->format('D'), $now->format('l'))) {
+                continue;
+            }
+
+            $startsAt = $this->scheduleDateTime($now->toDateString(), (string) $schedule->time_start);
+            $endsAt = $this->scheduleDateTime($now->toDateString(), (string) $schedule->time_end);
+            if (! $startsAt || ! $endsAt || $now->lt($startsAt) || ! $now->lt($endsAt)) {
+                continue;
+            }
+
+            $subject = Subject::query()
+                ->where('subject_code', $schedule->subject_code)
+                ->where('section_id', $schedule->section_id)
+                ->first();
+            $instructorUser = $schedule->instructor?->user;
+            $section = $schedule->section;
+            $sectionLabel = trim(implode(' - ', array_filter([
+                $section?->year_level,
+                $section?->section_name,
+            ])));
+            $scheduleLabel = trim(($schedule->weekdays ? $schedule->weekdays.' ' : '')
+                .$this->formatTime((string) $schedule->time_start).' - '
+                .$this->formatTime((string) $schedule->time_end));
+
+            return [
+                'attendance_session_id' => $attendanceSession->attendance_id,
+                'schedule_id' => $schedule->scheduled_id,
+                'room' => $schedule->room,
+                'status' => 'attendance',
+                'subject' => $subject?->subject_name ?? $schedule->subject_code,
+                'subject_code' => $schedule->subject_code,
+                'section' => $sectionLabel ?: 'Unassigned Section',
+                'section_id' => $schedule->section_id,
+                'instructor' => $instructorUser?->name ?? 'Unassigned Instructor',
+                'time_start' => $this->formatTime((string) $schedule->time_start),
+                'time_end' => $this->formatTime((string) $schedule->time_end),
+                'schedule' => $scheduleLabel,
+                'professor' => [
+                    'user_id' => $instructorUser?->user_id,
+                    'id' => $instructorUser?->user_id,
+                    'name' => $instructorUser?->name ?? 'Unassigned Instructor',
+                    'rfid' => $instructorUser?->rfid_tag,
+                    'role' => 'instructor',
+                    'subject' => $subject?->subject_name ?? $schedule->subject_code,
+                    'subject_code' => $schedule->subject_code,
+                    'section' => $sectionLabel ?: 'Unassigned Section',
+                    'section_id' => $schedule->section_id,
+                    'course' => $section?->strand?->strand_code ?? $section?->strand?->strand_name ?? 'Unassigned Strand',
+                    'year_level' => $section?->year_level,
+                    'schedule_id' => $schedule->scheduled_id,
+                    'schedule' => $scheduleLabel,
+                    'schedule_days' => $schedule->weekdays,
+                    'schedule_time_start' => $schedule->time_start,
+                    'schedule_time_end' => $schedule->time_end,
+                ],
+            ];
+        }
+
+        return null;
     }
 
     // @function storeStudentFaceCapture: Sine-save ang student face capture sa Attendance flow.
@@ -2572,6 +2691,7 @@ class AttendanceController
                 'attendance_logs.student_id',
                 'attendance_logs.time_in_face_path',
                 'attendance_logs.time_out_face_path',
+                'attendance_sessions.room',
                 'schedules.instructor_id',
             ])
             ->firstOrFail();
@@ -2586,6 +2706,15 @@ class AttendanceController
             $authorized = (int) Students::query()->where('email', $user->email)->value('student_id') === (int) $record->student_id;
         } elseif ($role === 'parent') {
             $authorized = $user->linkedStudents()->where('students.student_id', $record->student_id)->exists();
+        } elseif ($role === 'console') {
+            $panelRoom = trim((string) $request->session()->get('panel.room', ''));
+            $authorized = $panelRoom !== ''
+                && strcasecmp($panelRoom, (string) $record->room) === 0
+                && RfidPanelSession::query()
+                    ->where('room', $record->room)
+                    ->whereNull('ended_at')
+                    ->where('status', '!=', 'offline')
+                    ->exists();
         }
 
         abort_unless($authorized, 403);
