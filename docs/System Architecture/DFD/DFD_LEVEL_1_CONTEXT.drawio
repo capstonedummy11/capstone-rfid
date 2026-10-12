@@ -1,0 +1,1225 @@
+<mxfile host="65bd71144e">
+    <diagram id="dfd-level-1" name="DFD Level 1">
+        <mxGraphModel dx="2289" dy="607" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1650" pageHeight="3321" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="a_instructor" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=16;align=center;verticalAlign=middle;" value="Instructor" vertex="1">
+                    <mxGeometry height="209.952" width="150" x="-300" y="244" as="geometry"/>
+                </mxCell>
+                <mxCell id="a_registrar" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=16;align=center;verticalAlign=middle;" value="Registrar" vertex="1">
+                    <mxGeometry height="144" width="150" x="-300" y="874" as="geometry"/>
+                </mxCell>
+                <mxCell id="a_student" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=16;align=center;verticalAlign=middle;" value="Student" vertex="1">
+                    <mxGeometry height="221.952" width="150" x="-300" y="1304" as="geometry"/>
+                </mxCell>
+                <mxCell id="a_admin" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=16;align=center;verticalAlign=middle;" value="Admin" vertex="1">
+                    <mxGeometry height="306.05999999999995" width="150" x="-300" y="2020" as="geometry"/>
+                </mxCell>
+                <mxCell id="a_clinic" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=16;align=center;verticalAlign=middle;" value="Clinic" vertex="1">
+                    <mxGeometry height="180" width="150" x="-300" y="2826" as="geometry"/>
+                </mxCell>
+                <mxCell id="p10" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="1.0" vertex="1">
+                    <mxGeometry height="104" width="210" x="330" y="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="p10_name" parent="p10" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="Instructor Login &amp; Verification" vertex="1">
+                    <mxGeometry height="84" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p11" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="1.1" vertex="1">
+                    <mxGeometry height="56" width="210" x="330" y="168" as="geometry"/>
+                </mxCell>
+                <mxCell id="p11_name" parent="p11" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="View Schedule &amp; Class Roster" vertex="1">
+                    <mxGeometry height="36" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p12" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="1.2" vertex="1">
+                    <mxGeometry height="56" width="210" x="330" y="248" as="geometry"/>
+                </mxCell>
+                <mxCell id="p12_name" parent="p12" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="Start / Manage Attendance Session" vertex="1">
+                    <mxGeometry height="36" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p13" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="1.3" vertex="1">
+                    <mxGeometry height="72" width="210" x="330" y="328" as="geometry"/>
+                </mxCell>
+                <mxCell id="p13_name" parent="p13" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="Review / Correct Attendance" vertex="1">
+                    <mxGeometry height="52" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p14" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="1.4" vertex="1">
+                    <mxGeometry height="56" width="210" x="330" y="424" as="geometry"/>
+                </mxCell>
+                <mxCell id="p14_name" parent="p14" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="Manage Online Classes" vertex="1">
+                    <mxGeometry height="36" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p15" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="1.5" vertex="1">
+                    <mxGeometry height="56" width="210" x="330" y="504" as="geometry"/>
+                </mxCell>
+                <mxCell id="p15_name" parent="p15" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="Messenger / Excuse Review" vertex="1">
+                    <mxGeometry height="36" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p16" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="1.6" vertex="1">
+                    <mxGeometry height="56" width="210" x="330" y="584" as="geometry"/>
+                </mxCell>
+                <mxCell id="p16_name" parent="p16" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="View Reports" vertex="1">
+                    <mxGeometry height="36" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p17" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="1.7" vertex="1">
+                    <mxGeometry height="56" width="210" x="330" y="664" as="geometry"/>
+                </mxCell>
+                <mxCell id="p17_name" parent="p17" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="Record Class Attendance" vertex="1">
+                    <mxGeometry height="36" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p20" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="2.0" vertex="1">
+                    <mxGeometry height="88" width="210" x="330" y="774" as="geometry"/>
+                </mxCell>
+                <mxCell id="p20_name" parent="p20" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="Registrar Login &amp; Dashboard" vertex="1">
+                    <mxGeometry height="68" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p21" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="2.1" vertex="1">
+                    <mxGeometry height="72" width="210" x="330" y="886" as="geometry"/>
+                </mxCell>
+                <mxCell id="p21_name" parent="p21" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="Enroll Student RFID / Face" vertex="1">
+                    <mxGeometry height="52" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p22" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="2.2" vertex="1">
+                    <mxGeometry height="56" width="210" x="330" y="982" as="geometry"/>
+                </mxCell>
+                <mxCell id="p22_name" parent="p22" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="Enroll Instructor RFID / Face" vertex="1">
+                    <mxGeometry height="36" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p23" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="2.3" vertex="1">
+                    <mxGeometry height="56" width="210" x="330" y="1062" as="geometry"/>
+                </mxCell>
+                <mxCell id="p23_name" parent="p23" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="View Enrollment Reports" vertex="1">
+                    <mxGeometry height="36" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p30" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="3.0" vertex="1">
+                    <mxGeometry height="72" width="210" x="330" y="1172" as="geometry"/>
+                </mxCell>
+                <mxCell id="p30_name" parent="p30" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="Student Login &amp; Profile" vertex="1">
+                    <mxGeometry height="52" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p31" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="3.1" vertex="1">
+                    <mxGeometry height="88" width="210" x="330" y="1268" as="geometry"/>
+                </mxCell>
+                <mxCell id="p31_name" parent="p31" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="View Dashboard / Attendance" vertex="1">
+                    <mxGeometry height="68" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p32" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="3.2" vertex="1">
+                    <mxGeometry height="56" width="210" x="330" y="1380" as="geometry"/>
+                </mxCell>
+                <mxCell id="p32_name" parent="p32" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="Join Online Class / Notifications" vertex="1">
+                    <mxGeometry height="36" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p33" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="3.3" vertex="1">
+                    <mxGeometry height="56" width="210" x="330" y="1460" as="geometry"/>
+                </mxCell>
+                <mxCell id="p33_name" parent="p33" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="Submit / View Excuse Letter" vertex="1">
+                    <mxGeometry height="36" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p34" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="3.4" vertex="1">
+                    <mxGeometry height="88" width="210" x="330" y="1540" as="geometry"/>
+                </mxCell>
+                <mxCell id="p34_name" parent="p34" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="Messenger / Reports" vertex="1">
+                    <mxGeometry height="68" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p35" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="3.5" vertex="1">
+                    <mxGeometry height="72" width="210" x="330" y="1652" as="geometry"/>
+                </mxCell>
+                <mxCell id="p35_name" parent="p35" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="Record / View My Attendance" vertex="1">
+                    <mxGeometry height="52" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p40" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="4.0" vertex="1">
+                    <mxGeometry height="56" width="210" x="330" y="1778" as="geometry"/>
+                </mxCell>
+                <mxCell id="p40_name" parent="p40" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="Admin Login / Dashboard" vertex="1">
+                    <mxGeometry height="36" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p41" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="4.1" vertex="1">
+                    <mxGeometry height="168" width="210" x="330" y="1858" as="geometry"/>
+                </mxCell>
+                <mxCell id="p41_name" parent="p41" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="Manage Users / Students / Instructors" vertex="1">
+                    <mxGeometry height="148" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p42" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="4.2" vertex="1">
+                    <mxGeometry height="56" width="210" x="330" y="2050" as="geometry"/>
+                </mxCell>
+                <mxCell id="p42_name" parent="p42" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="Manage Academic Structure &amp; Schedules" vertex="1">
+                    <mxGeometry height="36" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p43" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="4.3" vertex="1">
+                    <mxGeometry height="56" width="210" x="330" y="2130" as="geometry"/>
+                </mxCell>
+                <mxCell id="p43_name" parent="p43" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="Manage Inventory / Borrowing" vertex="1">
+                    <mxGeometry height="36" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p44" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="4.4" vertex="1">
+                    <mxGeometry height="56" width="210" x="330" y="2210" as="geometry"/>
+                </mxCell>
+                <mxCell id="p44_name" parent="p44" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="Manage Attendance / Online Classes" vertex="1">
+                    <mxGeometry height="36" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p45" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="4.5" vertex="1">
+                    <mxGeometry height="88" width="210" x="330" y="2290" as="geometry"/>
+                </mxCell>
+                <mxCell id="p45_name" parent="p45" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="Manage Messages / Emergency Settings" vertex="1">
+                    <mxGeometry height="68" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p46" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="4.6" vertex="1">
+                    <mxGeometry height="136" width="210" x="330" y="2402" as="geometry"/>
+                </mxCell>
+                <mxCell id="p46_name" parent="p46" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="View Reports / Activity Logs" vertex="1">
+                    <mxGeometry height="116" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p47" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="4.7" vertex="1">
+                    <mxGeometry height="72" width="210" x="330" y="2562" as="geometry"/>
+                </mxCell>
+                <mxCell id="p47_name" parent="p47" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="Manage Attendance Records" vertex="1">
+                    <mxGeometry height="52" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p50" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="5.0" vertex="1">
+                    <mxGeometry height="88" width="210" x="330" y="2688" as="geometry"/>
+                </mxCell>
+                <mxCell id="p50_name" parent="p50" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="Clinic Login / Dashboard" vertex="1">
+                    <mxGeometry height="68" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p51" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="5.1" vertex="1">
+                    <mxGeometry height="56" width="210" x="330" y="2800" as="geometry"/>
+                </mxCell>
+                <mxCell id="p51_name" parent="p51" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="Manage Emergency Alerts / Dispatch" vertex="1">
+                    <mxGeometry height="36" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p52" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="5.2" vertex="1">
+                    <mxGeometry height="56" width="210" x="330" y="2880" as="geometry"/>
+                </mxCell>
+                <mxCell id="p52_name" parent="p52" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="Manage Case Logs / Patient History" vertex="1">
+                    <mxGeometry height="36" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p53" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="5.3" vertex="1">
+                    <mxGeometry height="56" width="210" x="330" y="2960" as="geometry"/>
+                </mxCell>
+                <mxCell id="p53_name" parent="p53" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="Manage Hotlines / Emergency Types" vertex="1">
+                    <mxGeometry height="36" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p54" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=20;fillColor=#ffffff;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;verticalAlign=top;strokeColor=#000000;fontColor=#000000;fontSize=13;" value="5.4" vertex="1">
+                    <mxGeometry height="104" width="210" x="330" y="3040" as="geometry"/>
+                </mxCell>
+                <mxCell id="p54_name" parent="p54" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontColor=#000000;fontSize=13;" value="View Clinic Reports / Messenger" vertex="1">
+                    <mxGeometry height="84" width="210" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="d11_copy_20" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D11&amp;nbsp; &amp;nbsp; activity_logs" vertex="1">
+                    <mxGeometry height="30" width="230" x="740" y="2463" as="geometry"/>
+                </mxCell>
+                <mxCell id="d6_reuse_1" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D6&amp;nbsp; &amp;nbsp; student_excuse_letters" vertex="1">
+                    <mxGeometry height="30" width="230" x="740" y="1473" as="geometry"/>
+                </mxCell>
+                <mxCell id="d1_reuse_2" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D1&amp;nbsp; &amp;nbsp; users" vertex="1">
+                    <mxGeometry height="30" width="230" x="740" y="2717" as="geometry"/>
+                </mxCell>
+                <mxCell id="d5_reuse_3" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D5&amp;nbsp; &amp;nbsp; online_classes" vertex="1">
+                    <mxGeometry height="30" width="230" x="980" y="2330" as="geometry"/>
+                </mxCell>
+                <mxCell id="d9_reuse_4" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D9&amp;nbsp; &amp;nbsp; emergency_alerts" vertex="1">
+                    <mxGeometry height="30" width="230" x="790" y="2973" as="geometry"/>
+                </mxCell>
+                <mxCell id="d7_reuse_5" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D7&amp;nbsp; &amp;nbsp; student_portal_messages" vertex="1">
+                    <mxGeometry height="30" width="230" x="740" y="1569" as="geometry"/>
+                </mxCell>
+                <mxCell id="d1_reuse_6" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D1&amp;nbsp; &amp;nbsp; users" vertex="1">
+                    <mxGeometry height="30" width="230" x="740" y="1193" as="geometry"/>
+                </mxCell>
+                <mxCell id="d6_reuse_7" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D6&amp;nbsp; &amp;nbsp; student_excuse_letters" vertex="1">
+                    <mxGeometry height="30" width="230" x="740" y="467" as="geometry"/>
+                </mxCell>
+                <mxCell id="d11_reuse_8" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D11&amp;nbsp; &amp;nbsp; activity_logs" vertex="1">
+                    <mxGeometry height="30" width="230" x="740" y="803" as="geometry"/>
+                </mxCell>
+                <mxCell id="d11_reuse_9" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D11&amp;nbsp; &amp;nbsp; activity_logs" vertex="1">
+                    <mxGeometry height="30" width="230" x="740" y="1075" as="geometry"/>
+                </mxCell>
+                <mxCell id="d9_reuse_10" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D9&amp;nbsp; &amp;nbsp; emergency_alerts" vertex="1">
+                    <mxGeometry height="30" width="230" x="740" y="2415" as="geometry"/>
+                </mxCell>
+                <mxCell id="d7_reuse_11" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D7&amp;nbsp; &amp;nbsp; student_portal_messages" vertex="1">
+                    <mxGeometry height="30" width="230" x="740" y="2319" as="geometry"/>
+                </mxCell>
+                <mxCell id="d5_reuse_12" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D5&amp;nbsp; &amp;nbsp; online_classes" vertex="1">
+                    <mxGeometry height="30" width="230" x="740" y="1393" as="geometry"/>
+                </mxCell>
+                <mxCell id="d1_reuse_13" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D1&amp;nbsp; &amp;nbsp; users" vertex="1">
+                    <mxGeometry height="30" width="230" x="740" y="995" as="geometry"/>
+                </mxCell>
+                <mxCell id="d11_reuse_14" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D11&amp;nbsp; &amp;nbsp; activity_logs" vertex="1">
+                    <mxGeometry height="30" width="230" x="790" y="2893" as="geometry"/>
+                </mxCell>
+                <mxCell id="d4_reuse_15" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D4&amp;nbsp; &amp;nbsp; attendances" vertex="1">
+                    <mxGeometry height="30" width="230" x="740" y="1345" as="geometry"/>
+                </mxCell>
+                <mxCell id="d2_reuse_16" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D2&amp;nbsp; &amp;nbsp; students" vertex="1">
+                    <mxGeometry height="30" width="230" x="740" y="907" as="geometry"/>
+                </mxCell>
+                <mxCell id="d4_reuse_17" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D4&amp;nbsp; &amp;nbsp; attendances" vertex="1">
+                    <mxGeometry height="30" width="230" x="740" y="3125" as="geometry"/>
+                </mxCell>
+                <mxCell id="d12_reuse_18" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D12&amp;nbsp; &amp;nbsp; system_settings" vertex="1">
+                    <mxGeometry height="30" width="230" x="700" y="2280" as="geometry"/>
+                </mxCell>
+                <mxCell id="d2_reuse_19" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D2&amp;nbsp; &amp;nbsp; students" vertex="1">
+                    <mxGeometry height="30" width="230" x="750" y="1274" as="geometry"/>
+                </mxCell>
+                <mxCell id="d4_reuse_20" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D4&amp;nbsp; &amp;nbsp; attendances" vertex="1">
+                    <mxGeometry height="30" width="230" x="740" y="320" as="geometry"/>
+                </mxCell>
+                <mxCell id="d4_reuse_21" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D4&amp;nbsp; &amp;nbsp; attendances" vertex="1">
+                    <mxGeometry height="30" width="230" x="740" y="597" as="geometry"/>
+                </mxCell>
+                <mxCell id="d1_reuse_22" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D1&amp;nbsp; &amp;nbsp; users" vertex="1">
+                    <mxGeometry height="30" width="230" x="810" y="1890" as="geometry"/>
+                </mxCell>
+                <mxCell id="d3_reuse_23" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D3&amp;nbsp; &amp;nbsp; schedules" vertex="1">
+                    <mxGeometry height="30" width="230" x="740" y="181" as="geometry"/>
+                </mxCell>
+                <mxCell id="d4_reuse_24" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D4&amp;nbsp; &amp;nbsp; attendances" vertex="1">
+                    <mxGeometry height="30" width="230" x="740" y="2223" as="geometry"/>
+                </mxCell>
+                <mxCell id="d1_reuse_25" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D1&amp;nbsp; &amp;nbsp; users" vertex="1">
+                    <mxGeometry height="30" width="230" x="740" y="77" as="geometry"/>
+                </mxCell>
+                <mxCell id="d7_reuse_26" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D7&amp;nbsp; &amp;nbsp; student_portal_messages" vertex="1">
+                    <mxGeometry height="30" width="230" x="740" y="540" as="geometry"/>
+                </mxCell>
+                <mxCell id="d2_reuse_27" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D2&amp;nbsp; &amp;nbsp; students" vertex="1">
+                    <mxGeometry height="30" width="230" x="790" y="2010" as="geometry"/>
+                </mxCell>
+                <mxCell id="d5_reuse_28" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D5&amp;nbsp; &amp;nbsp; online_classes" vertex="1">
+                    <mxGeometry height="30" width="230" x="740" y="437" as="geometry"/>
+                </mxCell>
+                <mxCell id="d3_reuse_29" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D3&amp;nbsp; &amp;nbsp; schedules" vertex="1">
+                    <mxGeometry height="30" width="230" x="740" y="2063" as="geometry"/>
+                </mxCell>
+                <mxCell id="d10_reuse_30" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D10&amp;nbsp; &amp;nbsp; clinic_cases" vertex="1">
+                    <mxGeometry height="30" width="230" x="720" y="3077" as="geometry"/>
+                </mxCell>
+                <mxCell id="d8_reuse_31" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D8&amp;nbsp; &amp;nbsp; inventory_items" vertex="1">
+                    <mxGeometry height="30" width="230" x="740" y="2143" as="geometry"/>
+                </mxCell>
+                <mxCell id="e1_1" edge="1" parent="1" source="a_instructor" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.086;exitDx=0;exitDy=0;entryX=0.000;entryY=0.192;entryDx=0;entryDy=0;" target="p10" value="Login credentials">
+                    <mxGeometry relative="1" x="0.8214" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-126" y="262"/>
+                            <mxPoint x="-126" y="60"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e1_2" edge="1" parent="1" source="a_instructor" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.143;exitDx=0;exitDy=0;entryX=0.000;entryY=0.346;entryDx=0;entryDy=0;" target="p10" value="biometric info">
+                    <mxGeometry relative="1" x="0.8442" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-118" y="274"/>
+                            <mxPoint x="-118" y="76"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e1_3" edge="1" parent="1" source="a_instructor" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.200;exitDx=0;exitDy=0;entryX=0.000;entryY=0.500;entryDx=0;entryDy=0;" target="p10" value="attendance session info">
+                    <mxGeometry relative="1" x="0.7712" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-110" y="286"/>
+                            <mxPoint x="-110" y="92"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e1_4" edge="1" parent="1" source="a_instructor" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.257;exitDx=0;exitDy=0;entryX=0.000;entryY=0.654;entryDx=0;entryDy=0;" target="p10" value="attendance correction info">
+                    <mxGeometry relative="1" x="0.7457" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-102" y="298"/>
+                            <mxPoint x="-102" y="108"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e1_5" edge="1" parent="1" source="a_instructor" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.315;exitDx=0;exitDy=0;entryX=0.000;entryY=0.808;entryDx=0;entryDy=0;" target="p10" value="excuse letter review info">
+                    <mxGeometry relative="1" x="0.7523" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-94" y="310"/>
+                            <mxPoint x="-94" y="124"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e2_1" edge="1" parent="1" source="p11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.357;exitDx=0;exitDy=0;entryX=1.000;entryY=0.371;entryDx=0;entryDy=0;" target="a_instructor" value="Schedule info">
+                    <mxGeometry relative="1" x="-0.8368" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-86" y="188"/>
+                            <mxPoint x="-86" y="322"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e2_2" edge="1" parent="1" source="p11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.643;exitDx=0;exitDy=0;entryX=1.000;entryY=0.429;entryDx=0;entryDy=0;" target="a_instructor" value="student list info">
+                    <mxGeometry relative="1" x="-0.8003" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-78" y="204"/>
+                            <mxPoint x="-78" y="334"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e3_1" edge="1" parent="1" source="a_instructor" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.486;exitDx=0;exitDy=0;entryX=0.000;entryY=0.500;entryDx=0;entryDy=0;" target="p12" value="Attendance session info">
+                    <mxGeometry relative="1" x="0.7196" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-70" y="346"/>
+                            <mxPoint x="-70" y="276"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e4_1" edge="1" parent="1" source="p13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.278;exitDx=0;exitDy=0;entryX=1.000;entryY=0.543;entryDx=0;entryDy=0;" target="a_instructor" value="Class attendance details">
+                    <mxGeometry relative="1" x="-0.6743" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-62" y="348"/>
+                            <mxPoint x="-62" y="358"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e4_2" edge="1" parent="1" source="p13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.500;exitDx=0;exitDy=0;entryX=1.000;entryY=0.600;entryDx=0;entryDy=0;" target="a_instructor" value="attendance report info">
+                    <mxGeometry relative="1" x="-0.6938" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-54" y="364"/>
+                            <mxPoint x="-54" y="370"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e4_3" edge="1" parent="1" source="p13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.722;exitDx=0;exitDy=0;entryX=1.000;entryY=0.658;entryDx=0;entryDy=0;" target="a_instructor" value="approved excuse letter info">
+                    <mxGeometry relative="1" x="-0.6353" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-46" y="380"/>
+                            <mxPoint x="-46" y="382"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e5_1" edge="1" parent="1" source="a_instructor" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.772;exitDx=0;exitDy=0;entryX=0.000;entryY=0.500;entryDx=0;entryDy=0;" target="p15" value="Excuse letter review info">
+                    <mxGeometry relative="1" x="0.7277" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-118" y="406"/>
+                            <mxPoint x="-118" y="532"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e6_1" edge="1" parent="1" source="a_registrar" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.125;exitDx=0;exitDy=0;entryX=0.000;entryY=0.227;entryDx=0;entryDy=0;" target="p20" value="Login credentials">
+                    <mxGeometry relative="1" x="0.7893" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-126" y="892"/>
+                            <mxPoint x="-126" y="794"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e6_2" edge="1" parent="1" source="a_registrar" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.208;exitDx=0;exitDy=0;entryX=0.000;entryY=0.409;entryDx=0;entryDy=0;" target="p20" value="Instructor RFID info">
+                    <mxGeometry relative="1" x="0.7596" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-118" y="904"/>
+                            <mxPoint x="-118" y="810"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e6_3" edge="1" parent="1" source="a_registrar" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.292;exitDx=0;exitDy=0;entryX=0.000;entryY=0.591;entryDx=0;entryDy=0;" target="p20" value="Instructor face info">
+                    <mxGeometry relative="1" x="0.7579" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-110" y="916"/>
+                            <mxPoint x="-110" y="826"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e7_1" edge="1" parent="1" source="a_registrar" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.458;exitDx=0;exitDy=0;entryX=0.000;entryY=0.278;entryDx=0;entryDy=0;" target="p21" value="Student enrollment info">
+                    <mxGeometry relative="1" x="0.7" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-94" y="940"/>
+                            <mxPoint x="-94" y="906"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e7_2" edge="1" parent="1" source="a_registrar" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.542;exitDx=0;exitDy=0;entryX=0.000;entryY=0.500;entryDx=0;entryDy=0;" target="p21" value="Student RFID info">
+                    <mxGeometry relative="1" x="0.7612" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-86" y="952"/>
+                            <mxPoint x="-86" y="922"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e7_3" edge="1" parent="1" source="a_registrar" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.625;exitDx=0;exitDy=0;entryX=0.000;entryY=0.722;entryDx=0;entryDy=0;" target="p21" value="Student face enrollment info">
+                    <mxGeometry relative="1" x="0.6419" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-78" y="964"/>
+                            <mxPoint x="-78" y="938"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e8_1" edge="1" parent="1" source="p23" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.357;exitDx=0;exitDy=0;entryX=1.000;entryY=0.792;entryDx=0;entryDy=0;" target="a_registrar" value="Enrollment details">
+                    <mxGeometry relative="1" x="-0.7784" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-118" y="1082"/>
+                            <mxPoint x="-118" y="988"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e8_2" edge="1" parent="1" source="p23" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.643;exitDx=0;exitDy=0;entryX=1.000;entryY=0.875;entryDx=0;entryDy=0;" target="a_registrar" value="enrollment report info">
+                    <mxGeometry relative="1" x="-0.7426" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-126" y="1098"/>
+                            <mxPoint x="-126" y="1000"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e9_1" edge="1" parent="1" source="a_student" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.081;exitDx=0;exitDy=0;entryX=0.000;entryY=0.278;entryDx=0;entryDy=0;" target="p30" value="Login credentials">
+                    <mxGeometry relative="1" x="0.8003" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-126" y="1322"/>
+                            <mxPoint x="-126" y="1192"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e9_2" edge="1" parent="1" source="a_student" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.135;exitDx=0;exitDy=0;entryX=0.000;entryY=0.500;entryDx=0;entryDy=0;" target="p30" value="biometric info">
+                    <mxGeometry relative="1" x="0.8257" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-118" y="1334"/>
+                            <mxPoint x="-118" y="1208"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e9_3" edge="1" parent="1" source="a_student" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.189;exitDx=0;exitDy=0;entryX=0.000;entryY=0.722;entryDx=0;entryDy=0;" target="p30" value="profile information">
+                    <mxGeometry relative="1" x="0.7797" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-110" y="1346"/>
+                            <mxPoint x="-110" y="1224"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e10_1" edge="1" parent="1" source="p31" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.227;exitDx=0;exitDy=0;entryX=1.000;entryY=0.243;entryDx=0;entryDy=0;" target="a_student" value="Attendance details">
+                    <mxGeometry relative="1" x="-0.7687" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-102" y="1288"/>
+                            <mxPoint x="-102" y="1358"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e10_2" edge="1" parent="1" source="p31" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.409;exitDx=0;exitDy=0;entryX=1.000;entryY=0.298;entryDx=0;entryDy=0;" target="a_student" value="schedule info">
+                    <mxGeometry relative="1" x="-0.8165" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-94" y="1304"/>
+                            <mxPoint x="-94" y="1370"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e10_3" edge="1" parent="1" source="p31" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.591;exitDx=0;exitDy=0;entryX=1.000;entryY=0.351;entryDx=0;entryDy=0;" target="a_student" value="online class info">
+                    <mxGeometry relative="1" x="-0.7753" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-86" y="1320"/>
+                            <mxPoint x="-86" y="1382"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e10_4" edge="1" parent="1" source="p31" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.773;exitDx=0;exitDy=0;entryX=1.000;entryY=0.406;entryDx=0;entryDy=0;" target="a_student" value="notification info">
+                    <mxGeometry relative="1" x="-0.7736" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-78" y="1336"/>
+                            <mxPoint x="-78" y="1394"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e11_1" edge="1" parent="1" source="a_student" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.459;exitDx=0;exitDy=0;entryX=0.000;entryY=0.357;entryDx=0;entryDy=0;" target="p32" value="RFID attendance info">
+                    <mxGeometry relative="1" x="0.716" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-70" y="1406"/>
+                            <mxPoint x="-70" y="1400"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e11_2" edge="1" parent="1" source="a_student" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.514;exitDx=0;exitDy=0;entryX=0.000;entryY=0.643;entryDx=0;entryDy=0;" target="p32" value="face verification info">
+                    <mxGeometry relative="1" x="0.6913" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-62" y="1418"/>
+                            <mxPoint x="-62" y="1416"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e12_1" edge="1" parent="1" source="a_student" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.567;exitDx=0;exitDy=0;entryX=0.000;entryY=0.500;entryDx=0;entryDy=0;" target="p33" value="Excuse information">
+                    <mxGeometry relative="1" x="0.7636" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-94" y="1430"/>
+                            <mxPoint x="-94" y="1488"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e13_1" edge="1" parent="1" source="p34" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.227;exitDx=0;exitDy=0;entryX=1.000;entryY=0.622;entryDx=0;entryDy=0;" target="a_student" value="Message information">
+                    <mxGeometry relative="1" x="-0.7783" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-102" y="1560"/>
+                            <mxPoint x="-102" y="1442"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e13_2" edge="1" parent="1" source="p34" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.409;exitDx=0;exitDy=0;entryX=1.000;entryY=0.676;entryDx=0;entryDy=0;" target="a_student" value="excuse letter status">
+                    <mxGeometry relative="1" x="-0.7708" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-110" y="1576"/>
+                            <mxPoint x="-110" y="1454"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e13_3" edge="1" parent="1" source="p34" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.591;exitDx=0;exitDy=0;entryX=1.000;entryY=0.730;entryDx=0;entryDy=0;" target="a_student" value="excuse letter PDF">
+                    <mxGeometry relative="1" x="-0.799" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-118" y="1592"/>
+                            <mxPoint x="-118" y="1466"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e14_1" edge="1" parent="1" source="a_admin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.098;exitDx=0;exitDy=0;entryX=0.000;entryY=0.119;entryDx=0;entryDy=0;" target="p41" value="Login credentials">
+                    <mxGeometry relative="1" x="0.8132" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-118" y="2050"/>
+                            <mxPoint x="-118" y="1878"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e14_2" edge="1" parent="1" source="a_admin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.137;exitDx=0;exitDy=0;entryX=0.000;entryY=0.214;entryDx=0;entryDy=0;" target="p41" value="student info">
+                    <mxGeometry relative="1" x="0.8537" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-110" y="2062"/>
+                            <mxPoint x="-110" y="1894"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e14_3" edge="1" parent="1" source="a_admin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.177;exitDx=0;exitDy=0;entryX=0.000;entryY=0.310;entryDx=0;entryDy=0;" target="p41" value="parent info">
+                    <mxGeometry relative="1" x="0.8612" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-102" y="2074"/>
+                            <mxPoint x="-102" y="1910"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e14_4" edge="1" parent="1" source="a_admin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.216;exitDx=0;exitDy=0;entryX=0.000;entryY=0.405;entryDx=0;entryDy=0;" target="p41" value="instructor info">
+                    <mxGeometry relative="1" x="0.8266" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-94" y="2086"/>
+                            <mxPoint x="-94" y="1926"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e14_5" edge="1" parent="1" source="a_admin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.255;exitDx=0;exitDy=0;entryX=0.000;entryY=0.500;entryDx=0;entryDy=0;" target="p41" value="staff account info">
+                    <mxGeometry relative="1" x="0.8" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-86" y="2098"/>
+                            <mxPoint x="-86" y="1942"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e14_6" edge="1" parent="1" source="a_admin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.294;exitDx=0;exitDy=0;entryX=0.000;entryY=0.595;entryDx=0;entryDy=0;" target="p41" value="academic year / strand / section / subject / schedule info">
+                    <mxGeometry relative="1" x="0.457" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-78" y="2110"/>
+                            <mxPoint x="-78" y="1958"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e14_7" edge="1" parent="1" source="a_admin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.334;exitDx=0;exitDy=0;entryX=0.000;entryY=0.690;entryDx=0;entryDy=0;" target="p41" value="laboratory / device / settings info">
+                    <mxGeometry relative="1" x="0.6513" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-70" y="2122"/>
+                            <mxPoint x="-70" y="1974"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e14_8" edge="1" parent="1" source="a_admin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.372;exitDx=0;exitDy=0;entryX=0.000;entryY=0.786;entryDx=0;entryDy=0;" target="p41" value="online class / inventory / borrowing / attendance / message info">
+                    <mxGeometry relative="1" x="0.3981" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-62" y="2134"/>
+                            <mxPoint x="-62" y="1990"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e15_1" edge="1" parent="1" source="p46" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.147;exitDx=0;exitDy=0;entryX=1.000;entryY=0.608;entryDx=0;entryDy=0;" target="a_admin" value="Dashboard info">
+                    <mxGeometry relative="1" x="-0.8483" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-78" y="2422"/>
+                            <mxPoint x="-78" y="2206"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e15_2" edge="1" parent="1" source="p46" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.265;exitDx=0;exitDy=0;entryX=1.000;entryY=0.647;entryDx=0;entryDy=0;" target="a_admin" value="report info">
+                    <mxGeometry relative="1" x="-0.8723" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-86" y="2438"/>
+                            <mxPoint x="-86" y="2218"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e15_3" edge="1" parent="1" source="p46" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.382;exitDx=0;exitDy=0;entryX=1.000;entryY=0.686;entryDx=0;entryDy=0;" target="a_admin" value="clinic case info">
+                    <mxGeometry relative="1" x="-0.8347" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-94" y="2454"/>
+                            <mxPoint x="-94" y="2230"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e15_4" edge="1" parent="1" source="p46" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.500;exitDx=0;exitDy=0;entryX=1.000;entryY=0.725;entryDx=0;entryDy=0;" target="a_admin" value="patient info">
+                    <mxGeometry relative="1" x="-0.8661" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-102" y="2470"/>
+                            <mxPoint x="-102" y="2242"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e15_5" edge="1" parent="1" source="p46" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.618;exitDx=0;exitDy=0;entryX=1.000;entryY=0.765;entryDx=0;entryDy=0;" target="a_admin" value="student / instructor record info">
+                    <mxGeometry relative="1" x="-0.7152" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-110" y="2486"/>
+                            <mxPoint x="-110" y="2254"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e15_6" edge="1" parent="1" source="p46" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.735;exitDx=0;exitDy=0;entryX=1.000;entryY=0.803;entryDx=0;entryDy=0;" target="a_admin" value="activity log info">
+                    <mxGeometry relative="1" x="-0.8299" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-118" y="2502"/>
+                            <mxPoint x="-118" y="2266"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e15_7" edge="1" parent="1" source="p46" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.853;exitDx=0;exitDy=0;entryX=1.000;entryY=0.843;entryDx=0;entryDy=0;" target="a_admin" value="class log info">
+                    <mxGeometry relative="1" x="-0.8533" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-126" y="2518"/>
+                            <mxPoint x="-126" y="2278"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e16_1" edge="1" parent="1" source="a_clinic" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.100;exitDx=0;exitDy=0;entryX=0.000;entryY=0.227;entryDx=0;entryDy=0;" target="p50" value="Login credentials">
+                    <mxGeometry relative="1" x="0.8023" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-126" y="2844"/>
+                            <mxPoint x="-126" y="2708"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e16_2" edge="1" parent="1" source="a_clinic" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.167;exitDx=0;exitDy=0;entryX=0.000;entryY=0.409;entryDx=0;entryDy=0;" target="p50" value="emergency information">
+                    <mxGeometry relative="1" x="0.7657" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-118" y="2856"/>
+                            <mxPoint x="-118" y="2724"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e16_3" edge="1" parent="1" source="a_clinic" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.233;exitDx=0;exitDy=0;entryX=0.000;entryY=0.591;entryDx=0;entryDy=0;" target="p50" value="case log info">
+                    <mxGeometry relative="1" x="0.8352" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-110" y="2868"/>
+                            <mxPoint x="-110" y="2740"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e16_4" edge="1" parent="1" source="a_clinic" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.300;exitDx=0;exitDy=0;entryX=0.000;entryY=0.773;entryDx=0;entryDy=0;" target="p50" value="patient history info">
+                    <mxGeometry relative="1" x="0.7715" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-102" y="2880"/>
+                            <mxPoint x="-102" y="2756"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e17_1" edge="1" parent="1" source="a_clinic" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.367;exitDx=0;exitDy=0;entryX=0.000;entryY=0.500;entryDx=0;entryDy=0;" target="p51" value="Emergency information">
+                    <mxGeometry relative="1" x="0.7364" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-94" y="2892"/>
+                            <mxPoint x="-94" y="2828"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e18_1" edge="1" parent="1" source="p54" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.192;exitDx=0;exitDy=0;entryX=1.000;entryY=0.633;entryDx=0;entryDy=0;" target="a_clinic" value="Student information">
+                    <mxGeometry relative="1" x="-0.779" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-94" y="3060"/>
+                            <mxPoint x="-94" y="2940"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e18_2" edge="1" parent="1" source="p54" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.346;exitDx=0;exitDy=0;entryX=1.000;entryY=0.700;entryDx=0;entryDy=0;" target="a_clinic" value="student attendance details">
+                    <mxGeometry relative="1" x="-0.7179" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-102" y="3076"/>
+                            <mxPoint x="-102" y="2952"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e18_3" edge="1" parent="1" source="p54" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.500;exitDx=0;exitDy=0;entryX=1.000;entryY=0.767;entryDx=0;entryDy=0;" target="a_clinic" value="clinic report info">
+                    <mxGeometry relative="1" x="-0.7908" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-110" y="3092"/>
+                            <mxPoint x="-110" y="2964"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e18_4" edge="1" parent="1" source="p54" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.654;exitDx=0;exitDy=0;entryX=1.000;entryY=0.833;entryDx=0;entryDy=0;" target="a_clinic" value="alert info">
+                    <mxGeometry relative="1" x="-0.8627" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-118" y="3108"/>
+                            <mxPoint x="-118" y="2976"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e18_5" edge="1" parent="1" source="p54" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.808;exitDx=0;exitDy=0;entryX=1.000;entryY=0.900;entryDx=0;entryDy=0;" target="a_clinic" value="dispatch info">
+                    <mxGeometry relative="1" x="-0.8373" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-126" y="3124"/>
+                            <mxPoint x="-126" y="2988"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e20_1" edge="1" parent="1" source="a_instructor" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.714;exitDx=0;exitDy=0;entryX=0.000;entryY=0.500;entryDx=0;entryDy=0;" target="p14" value="Online class info">
+                    <mxGeometry relative="1" x="0.7736" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-110" y="394"/>
+                            <mxPoint x="-110" y="452"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e21_1" edge="1" parent="1" source="p16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.500;exitDx=0;exitDy=0;entryX=1.000;entryY=0.829;entryDx=0;entryDy=0;" target="a_instructor" value="Attendance report info">
+                    <mxGeometry relative="1" x="-0.7792" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-126" y="612"/>
+                            <mxPoint x="-126" y="418"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e22_1" edge="1" parent="1" source="a_registrar" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.708;exitDx=0;exitDy=0;entryX=0.000;entryY=0.500;entryDx=0;entryDy=0;" target="p22" value="Login credentials">
+                    <mxGeometry relative="1" x="0.763" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-110" y="976"/>
+                            <mxPoint x="-110" y="1010"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e23_1" edge="1" parent="1" source="p20" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.773;exitDx=0;exitDy=0;entryX=1.000;entryY=0.375;entryDx=0;entryDy=0;" target="a_registrar" value="Enrollment details">
+                    <mxGeometry relative="1" x="-0.7753" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-102" y="842"/>
+                            <mxPoint x="-102" y="928"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e24_1" edge="1" parent="1" source="p34" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.773;exitDx=0;exitDy=0;entryX=1.000;entryY=0.784;entryDx=0;entryDy=0;" target="a_student" value="Report info">
+                    <mxGeometry relative="1" x="-0.8534" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-126" y="1608"/>
+                            <mxPoint x="-126" y="1478"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e25_1" edge="1" parent="1" source="a_admin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.059;exitDx=0;exitDy=0;entryX=0.000;entryY=0.500;entryDx=0;entryDy=0;" target="p40" value="Login credentials">
+                    <mxGeometry relative="1" x="0.8289" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-126" y="2038"/>
+                            <mxPoint x="-126" y="1806"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e26_1" edge="1" parent="1" source="a_admin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.412;exitDx=0;exitDy=0;entryX=0.000;entryY=0.881;entryDx=0;entryDy=0;" target="p41" value="Student / instructor / staff account info">
+                    <mxGeometry relative="1" x="0.5945" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-54" y="2146"/>
+                            <mxPoint x="-54" y="2006"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e27_1" edge="1" parent="1" source="a_admin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.451;exitDx=0;exitDy=0;entryX=0.000;entryY=0.500;entryDx=0;entryDy=0;" target="p42" value="Academic year / strand / section / subject / schedule info">
+                    <mxGeometry relative="1" x="0.3871" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-46" y="2158"/>
+                            <mxPoint x="-46" y="2078"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e28_1" edge="1" parent="1" source="a_admin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.490;exitDx=0;exitDy=0;entryX=0.000;entryY=0.500;entryDx=0;entryDy=0;" target="p43" value="Inventory / borrowing info">
+                    <mxGeometry relative="1" x="0.6537" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-38" y="2170"/>
+                            <mxPoint x="-38" y="2158"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e29_1" edge="1" parent="1" source="a_admin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.529;exitDx=0;exitDy=0;entryX=0.000;entryY=0.500;entryDx=0;entryDy=0;" target="p44" value="Attendance / online class info">
+                    <mxGeometry relative="1" x="0.6418" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-62" y="2182"/>
+                            <mxPoint x="-62" y="2238"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e30_1" edge="1" parent="1" source="a_admin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.568;exitDx=0;exitDy=0;entryX=0.000;entryY=0.500;entryDx=0;entryDy=0;" target="p45" value="Message / system settings info">
+                    <mxGeometry relative="1" x="0.6903" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-70" y="2194"/>
+                            <mxPoint x="-70" y="2334"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e33_1" edge="1" parent="1" source="a_clinic" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.433;exitDx=0;exitDy=0;entryX=0.000;entryY=0.357;entryDx=0;entryDy=0;" target="p52" value="Case log info">
+                    <mxGeometry relative="1" x="0.793" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-86" y="2904"/>
+                            <mxPoint x="-86" y="2900"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e33_2" edge="1" parent="1" source="a_clinic" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.500;exitDx=0;exitDy=0;entryX=0.000;entryY=0.643;entryDx=0;entryDy=0;" target="p52" value="patient history info">
+                    <mxGeometry relative="1" x="0.7125" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e34_1" edge="1" parent="1" source="a_clinic" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.567;exitDx=0;exitDy=0;entryX=0.000;entryY=0.500;entryDx=0;entryDy=0;" target="p53" value="Emergency information">
+                    <mxGeometry relative="1" x="0.7344" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-86" y="2928"/>
+                            <mxPoint x="-86" y="2988"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="s1_1" edge="1" parent="1" source="p10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=1.000;exitY=0.500;exitDx=0;exitDy=0;entryX=0.000;entryY=0.500;entryDx=0;entryDy=0;" target="d1_reuse_25" value="User credentials and biometrics">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s2_1" edge="1" parent="1" source="d3_reuse_23" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=0.000;exitY=0.500;exitDx=0;exitDy=0;entryX=1.000;entryY=0.500;entryDx=0;entryDy=0;" target="p11" value="Schedule info">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s3_1" edge="1" parent="1" source="p12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=1.000;exitY=0.500;exitDx=0;exitDy=0;entryX=0.000;entryY=0.367;entryDx=0;entryDy=0;" target="d4_reuse_20" value="Attendance session info">
+                    <mxGeometry relative="1" x="0.0035" as="geometry"/>
+                </mxCell>
+                <mxCell id="s4_1" edge="1" parent="1" source="p13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=1.000;exitY=0.500;exitDx=0;exitDy=0;entryX=0.000;entryY=0.633;entryDx=0;entryDy=0;" target="d4_reuse_20" value="Attendance correction info">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s5_1" edge="1" parent="1" source="p14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=1.000;exitY=0.500;exitDx=0;exitDy=0;entryX=0.000;entryY=0.500;entryDx=0;entryDy=0;" target="d5_reuse_28" value="Online class info">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s6_1" edge="1" parent="1" source="p15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=1.000;exitY=0.643;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="d7_reuse_26" value="Message and review info">
+                    <mxGeometry relative="1" x="0.6168" as="geometry"/>
+                </mxCell>
+                <mxCell id="s7_1" edge="1" parent="1" source="p15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=1.000;exitY=0.357;exitDx=0;exitDy=0;entryX=0.000;entryY=0.500;entryDx=0;entryDy=0;" target="d6_reuse_7" value="Excuse letter info">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s8_1" edge="1" parent="1" source="d4_reuse_21" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=0.000;exitY=0.500;exitDx=0;exitDy=0;entryX=1.000;entryY=0.500;entryDx=0;entryDy=0;" target="p16" value="Attendance report details">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s9_1" edge="1" parent="1" source="p21" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=1.000;exitY=0.500;exitDx=0;exitDy=0;entryX=0.000;entryY=0.500;entryDx=0;entryDy=0;" target="d2_reuse_16" value="Student enrollment info">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s10_1" edge="1" parent="1" source="p22" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=1.000;exitY=0.500;exitDx=0;exitDy=0;entryX=0.000;entryY=0.500;entryDx=0;entryDy=0;" target="d1_reuse_13" value="Instructor biometric info">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s11_1" edge="1" parent="1" source="d11_reuse_9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=0.000;exitY=0.500;exitDx=0;exitDy=0;entryX=1.000;entryY=0.500;entryDx=0;entryDy=0;" target="p23" value="Enrollment audit info">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s12_1" edge="1" parent="1" source="p30" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=1.000;exitY=0.500;exitDx=0;exitDy=0;entryX=0.000;entryY=0.500;entryDx=0;entryDy=0;" target="d1_reuse_6" value="Profile information">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s13_1" edge="1" parent="1" source="d2_reuse_19" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=0.000;exitY=0.500;exitDx=0;exitDy=0;entryX=1.000;entryY=0.409;entryDx=0;entryDy=0;" target="p31" value="Student record info">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s14_1" edge="1" parent="1" source="d4_reuse_15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=0.500;exitY=0.000;exitDx=0;exitDy=0;entryX=1.000;entryY=0.591;entryDx=0;entryDy=0;" target="p31" value="Attendance details">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s15_1" edge="1" parent="1" source="d5_reuse_12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=0.000;exitY=0.367;exitDx=0;exitDy=0;entryX=1.000;entryY=0.357;entryDx=0;entryDy=0;" target="p32" value="Online class and notification info">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s16_1" edge="1" parent="1" source="p32" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=1.000;exitY=0.643;exitDx=0;exitDy=0;entryX=0.000;entryY=0.633;entryDx=0;entryDy=0;" target="d5_reuse_12" value="Online attendance info">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s17_1" edge="1" parent="1" source="p33" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=1.000;exitY=0.500;exitDx=0;exitDy=0;entryX=0.000;entryY=0.500;entryDx=0;entryDy=0;" target="d6_reuse_1" value="Excuse letter details">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s18_1" edge="1" parent="1" source="p34" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=1.000;exitY=0.500;exitDx=0;exitDy=0;entryX=0.000;entryY=0.500;entryDx=0;entryDy=0;" target="d7_reuse_5" value="Message details">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s19_1" edge="1" parent="1" source="p41" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=1.000;exitY=0.452;exitDx=0;exitDy=0;entryX=0.000;entryY=0.633;entryDx=0;entryDy=0;" target="d1_reuse_22" value="Account and student records">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s20_1" edge="1" parent="1" source="p41" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=1.000;exitY=0.548;exitDx=0;exitDy=0;entryX=0.500;entryY=0.000;entryDx=0;entryDy=0;" target="d2_reuse_27" value="Student placement info">
+                    <mxGeometry relative="1" x="-0.0022" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="540" y="1960"/>
+                            <mxPoint x="660" y="1960"/>
+                            <mxPoint x="660" y="1996"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="s21_1" edge="1" parent="1" source="p42" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=1.000;exitY=0.500;exitDx=0;exitDy=0;entryX=0.000;entryY=0.500;entryDx=0;entryDy=0;" target="d3_reuse_29" value="Academic structure and schedule info">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s22_1" edge="1" parent="1" source="p43" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=1.000;exitY=0.357;exitDx=0;exitDy=0;entryX=0.000;entryY=0.367;entryDx=0;entryDy=0;" target="d8_reuse_31" value="Inventory item info">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s22_2" edge="1" parent="1" source="p43" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=1.000;exitY=0.643;exitDx=0;exitDy=0;entryX=0.000;entryY=0.633;entryDx=0;entryDy=0;" target="d8_reuse_31" value="Borrow transaction details">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s23_1" edge="1" parent="1" source="p44" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=1.000;exitY=0.357;exitDx=0;exitDy=0;entryX=0.000;entryY=0.500;entryDx=0;entryDy=0;" target="d4_reuse_24" value="Attendance and class log info">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s24_1" edge="1" parent="1" source="p44" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=1.000;exitY=0.643;exitDx=0;exitDy=0;entryX=0.500;entryY=0.000;entryDx=0;entryDy=0;" target="d5_reuse_3" value="Online class details">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="540" y="2260"/>
+                            <mxPoint x="1095" y="2260"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="s25_1" edge="1" parent="1" source="p45" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=1.000;exitY=0.227;exitDx=0;exitDy=0;entryX=0.000;entryY=0.500;entryDx=0;entryDy=0;" target="d7_reuse_11" value="Message info">
+                    <mxGeometry relative="1" x="0.0179" y="4" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="600" y="2310"/>
+                            <mxPoint x="600" y="2334"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="s26_1" edge="1" parent="1" source="p45" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=1.000;exitY=0.409;exitDx=0;exitDy=0;entryX=0.250;entryY=0.000;entryDx=0;entryDy=0;" target="d9_reuse_10" value="Emergency configuration info">
+                    <mxGeometry relative="1" x="0.0621" y="-10" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="540" y="2340"/>
+                            <mxPoint x="690" y="2340"/>
+                            <mxPoint x="690" y="2390"/>
+                            <mxPoint x="797.5" y="2390"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="s26_2" edge="1" parent="1" source="p45" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=1.000;exitY=0.591;exitDx=0;exitDy=0;entryX=0.750;entryY=0.000;entryDx=0;entryDy=0;" target="d9_reuse_10" value="System settings info">
+                    <mxGeometry relative="1" x="0.0012" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="580" y="2342"/>
+                            <mxPoint x="580" y="2380"/>
+                            <mxPoint x="912.5" y="2380"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="s27_1" edge="1" parent="1" source="p45" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=1.000;exitY=0.773;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="d12_reuse_18" value="Setting key and value">
+                    <mxGeometry relative="1" x="0.148" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="560" y="2358"/>
+                            <mxPoint x="560" y="2295"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="s28_1" edge="1" parent="1" source="d11_copy_20" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=0.000;exitY=0.500;exitDx=0;exitDy=0;entryX=1.000;entryY=0.500;entryDx=0;entryDy=0;" target="p46" value="Report and activity log details">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s29_1" edge="1" parent="1" source="p51" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=1.000;exitY=0.643;exitDx=0;exitDy=0;entryX=0.000;entryY=0.233;entryDx=0;entryDy=0;" target="d9_reuse_4" value="Emergency alert details">
+                    <mxGeometry relative="1" x="-0.6512" y="-4" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="s30_1" edge="1" parent="1" source="p52" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=1.000;exitY=0.643;exitDx=0;exitDy=0;entryX=0.250;entryY=0.000;entryDx=0;entryDy=0;" target="d10_reuse_30" value="Clinic case and patient details">
+                    <mxGeometry relative="1" x="-0.0231" y="-24" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="s31_1" edge="1" parent="1" source="d10_reuse_30" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=0.750;exitY=0.000;exitDx=0;exitDy=0;entryX=1.000;entryY=0.577;entryDx=0;entryDy=0;" target="p54" value="Clinic report details">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s32_1" edge="1" parent="1" source="p53" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=1.000;exitY=0.357;exitDx=0;exitDy=0;entryX=0.000;entryY=0.500;entryDx=0;entryDy=0;" target="d9_reuse_4" value="Hotline contact details">
+                    <mxGeometry relative="1" x="-0.6899" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="s32_2" edge="1" parent="1" source="p53" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=1.000;exitY=0.643;exitDx=0;exitDy=0;entryX=0.000;entryY=0.767;entryDx=0;entryDy=0;" target="d9_reuse_4" value="Emergency type details">
+                    <mxGeometry relative="1" x="0.44" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="s33_1" edge="1" parent="1" source="d4_reuse_17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=0.000;exitY=0.500;exitDx=0;exitDy=0;entryX=1.000;entryY=0.423;entryDx=0;entryDy=0;" target="p54" value="Student attendance details">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s34_1" edge="1" parent="1" source="p51" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=1.000;exitY=0.357;exitDx=0;exitDy=0;entryX=0.250;entryY=0.000;entryDx=0;entryDy=0;" target="d11_reuse_14" value="Emergency activity log">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s35_1" edge="1" parent="1" source="p52" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=1.000;exitY=0.357;exitDx=0;exitDy=0;entryX=0.750;entryY=0.000;entryDx=0;entryDy=0;" target="d11_reuse_14" value="Clinic activity log">
+                    <mxGeometry relative="1" x="0.001" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="630" y="2900"/>
+                            <mxPoint x="630" y="2860"/>
+                            <mxPoint x="912.5" y="2860"/>
+                            <mxPoint x="912.5" y="2893"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="s36_1" edge="1" parent="1" source="d11_reuse_8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=0.000;exitY=0.500;exitDx=0;exitDy=0;entryX=1.000;entryY=0.500;entryDx=0;entryDy=0;" target="p20" value="Enrollment dashboard details">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s37_1" edge="1" parent="1" source="d1_reuse_22" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=0.000;exitY=0.367;exitDx=0;exitDy=0;entryX=1.000;entryY=0.500;entryDx=0;entryDy=0;" target="p40" value="Admin account info">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s38_1" edge="1" parent="1" source="d1_reuse_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;exitX=0.000;exitY=0.500;exitDx=0;exitDy=0;entryX=1.000;entryY=0.500;entryDx=0;entryDy=0;" target="p50" value="Clinic account info">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="d4_reuse_34" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D4&amp;nbsp; &amp;nbsp; attendances" vertex="1">
+                    <mxGeometry height="30" width="230" x="740" y="2583" as="geometry"/>
+                </mxCell>
+                <mxCell id="p47_a1" edge="1" parent="1" source="a_admin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.882;exitDx=0;exitDy=0;entryX=0.000;entryY=0.278;entryDx=0;entryDy=0;" target="p47" value="Attendance record info">
+                    <mxGeometry relative="1" x="0.8072" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-131" y="2290"/>
+                            <mxPoint x="-131" y="2582"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="p47_a2" edge="1" parent="1" source="a_admin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.922;exitDx=0;exitDy=0;entryX=0.000;entryY=0.500;entryDx=0;entryDy=0;" target="p47" value="Attendance correction info">
+                    <mxGeometry relative="1" x="0.7804" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-138" y="2302"/>
+                            <mxPoint x="-138" y="2598"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="p47_a3" edge="1" parent="1" source="p47" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.722;exitDx=0;exitDy=0;entryX=1.000;entryY=0.961;entryDx=0;entryDy=0;" target="a_admin" value="Attendance report info">
+                    <mxGeometry relative="1" x="-0.8092" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-145" y="2614"/>
+                            <mxPoint x="-145" y="2314"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="p47_s1" edge="1" parent="1" source="p47" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.389;exitDx=0;exitDy=0;entryX=0.000;entryY=0.233;entryDx=0;entryDy=0;" target="d4_reuse_34" value="attendance status, tap time">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="p47_s2" edge="1" parent="1" source="d4_reuse_34" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=top;exitX=0.000;exitY=0.767;exitDx=0;exitDy=0;entryX=1.000;entryY=0.611;entryDx=0;entryDy=0;" target="p47" value="attendance rows, schedule">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="d4_reuse_33" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D4&amp;nbsp; &amp;nbsp; attendances" vertex="1">
+                    <mxGeometry height="30" width="230" x="740" y="1673" as="geometry"/>
+                </mxCell>
+                <mxCell id="p35_a1" edge="1" parent="1" source="a_student" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.838;exitDx=0;exitDy=0;entryX=0.000;entryY=0.278;entryDx=0;entryDy=0;" target="p35" value="RFID tap info">
+                    <mxGeometry relative="1" x="0.8487" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-131" y="1490"/>
+                            <mxPoint x="-131" y="1672"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="p35_a2" edge="1" parent="1" source="a_student" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.892;exitDx=0;exitDy=0;entryX=0.000;entryY=0.500;entryDx=0;entryDy=0;" target="p35" value="Face verification info">
+                    <mxGeometry relative="1" x="0.7766" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-138" y="1502"/>
+                            <mxPoint x="-138" y="1688"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="p35_a3" edge="1" parent="1" source="p35" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.722;exitDx=0;exitDy=0;entryX=1.000;entryY=0.946;entryDx=0;entryDy=0;" target="a_student" value="Attendance confirmation info">
+                    <mxGeometry relative="1" x="-0.7296" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-145" y="1704"/>
+                            <mxPoint x="-145" y="1514"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="p35_s1" edge="1" parent="1" source="p35" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.389;exitDx=0;exitDy=0;entryX=0.000;entryY=0.233;entryDx=0;entryDy=0;" target="d4_reuse_33" value="attendance status, tap time">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="p35_s2" edge="1" parent="1" source="d4_reuse_33" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=top;exitX=0.000;exitY=0.767;exitDx=0;exitDy=0;entryX=1.000;entryY=0.611;entryDx=0;entryDy=0;" target="p35" value="attendance rows, schedule">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="d4_reuse_32" parent="1" style="html=1;dashed=0;whiteSpace=wrap;shape=mxgraph.dfd.dataStoreID;align=left;spacingLeft=3;points=[[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=12;" value="&amp;nbsp; D4&amp;nbsp; &amp;nbsp; attendances" vertex="1">
+                    <mxGeometry height="30" width="230" x="740" y="677" as="geometry"/>
+                </mxCell>
+                <mxCell id="p17_a1" edge="1" parent="1" source="a_instructor" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.886;exitDx=0;exitDy=0;entryX=0.000;entryY=0.357;entryDx=0;entryDy=0;" target="p17" value="Attendance status info">
+                    <mxGeometry relative="1" x="0.7973" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-138" y="430"/>
+                            <mxPoint x="-138" y="684"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="p17_a2" edge="1" parent="1" source="p17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=0.000;exitY=0.643;exitDx=0;exitDy=0;entryX=1.000;entryY=0.943;entryDx=0;entryDy=0;" target="a_instructor" value="Attendance record details">
+                    <mxGeometry relative="1" x="-0.7764" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="-145" y="700"/>
+                            <mxPoint x="-145" y="442"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="p17_s1" edge="1" parent="1" source="p17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=bottom;exitX=1.000;exitY=0.357;exitDx=0;exitDy=0;entryX=0.000;entryY=0.233;entryDx=0;entryDy=0;" target="d4_reuse_32" value="attendance status, tap time">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="p17_s2" edge="1" parent="1" source="d4_reuse_32" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontSize=10;labelBackgroundColor=#ffffff;verticalAlign=top;exitX=0.000;exitY=0.767;exitDx=0;exitDy=0;entryX=1.000;entryY=0.643;entryDx=0;entryDy=0;" target="p17" value="attendance rows, schedule">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
