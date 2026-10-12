@@ -63,7 +63,7 @@ Admin controls the switches on **System Settings**. The application shares their
 - When face verification is required but unavailable, the system can remove the requirement and record/notify the bypass depending on the current provider state.
 - `online-classes:finalize-attendance` runs every minute when Laravel's scheduler is running. It inserts missing Absent rows for ended, non-cancelled classes and is designed to be safe when repeated.
 - Opening an online-class page also performs a lazy finalization pass, so records may still be completed when the scheduler was briefly unavailable.
-- Current-code caution: some online-class enrollment queries require status `active`, while normal yearly enrollments default to `enrolled`. Verify this workflow in the deployed database before relying on automatic online attendance.
+- Online-class absence finalization includes yearly enrollments in either `active` or `enrolled` status, matching the enrollment lifecycle and default status.
 
 ## Messages and notifications
 

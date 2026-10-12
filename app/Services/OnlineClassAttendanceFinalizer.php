@@ -55,7 +55,9 @@ class OnlineClassAttendanceFinalizer
         $rows = Students::query()
             ->when($onlineClass->academic_year_id,
                 fn ($query) => $query->whereHas('enrollments', fn ($enrollment) => $enrollment
-                    ->where('academic_year_id', $onlineClass->academic_year_id)->where('section_id', $onlineClass->section_id)->where('status', 'active')),
+                    ->where('academic_year_id', $onlineClass->academic_year_id)
+                    ->where('section_id', $onlineClass->section_id)
+                    ->whereIn('status', ['active', 'enrolled'])),
                 fn ($query) => $query->where('section_id', $onlineClass->section_id))
             ->where(function ($query) {
                 $query->whereNull('status')->orWhereRaw('LOWER(status) = ?', ['active']);

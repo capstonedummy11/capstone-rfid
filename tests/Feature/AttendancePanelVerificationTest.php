@@ -3,6 +3,7 @@
 use App\Models\AcademicYear;
 use App\Models\Attendance;
 use App\Models\Instructor;
+use App\Models\OnlineClass;
 use App\Models\RfidPanelSession;
 use App\Models\Schedule;
 use App\Models\Section;
@@ -118,6 +119,42 @@ function attendanceVerificationFixture(bool $withFace = false): array
 
     return compact('academicYear', 'student', 'instructorUser', 'schedule', 'console', 'attendanceSessionId');
 }
+
+test('student dashboard counts online class absences for enrolled students', function () {
+    $fixture = attendanceVerificationFixture();
+    $onlineClass = OnlineClass::query()->create([
+        'schedule_id' => $fixture['schedule']->scheduled_id,
+        'instructor_id' => $fixture['schedule']->instructor_id,
+        'section_id' => $fixture['schedule']->section_id,
+        'subject_code' => 'ATT-SEC-101',
+        'title' => 'Past online class',
+        'meeting_link' => 'https://example.test/attendance',
+        'scheduled_date' => now()->subDay()->toDateString(),
+        'start_time' => '08:00:00',
+        'end_time' => '09:00:00',
+        'require_face_recognition' => false,
+        'status' => 'scheduled',
+    ]);
+    $studentUser = User::factory()->create([
+        'email' => $fixture['student']->email,
+        'role' => 'student',
+    ]);
+
+    $this->actingAs($studentUser)
+        ->get(route('student-parent.dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('StudentParent/Dashboard/DashboardPage')
+            ->where('stats.absent', 1)
+            ->where('attendance.1.source', 'online')
+            ->where('attendance.1.status', 'absent'));
+
+    $this->assertDatabaseHas('online_class_attendances', [
+        'online_class_id' => $onlineClass->online_class_id,
+        'student_id' => $fixture['student']->student_id,
+        'status' => 'absent',
+    ]);
+});
 
 test('direct student tap cannot record attendance without server-side verification', function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
