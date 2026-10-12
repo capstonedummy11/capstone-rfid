@@ -61,6 +61,7 @@ class SystemSettingsController
             'inventory_enabled' => ['required', 'boolean'],
             'parent_portal_enabled' => ['required', 'boolean'],
             'parent_excuse_letters_enabled' => ['nullable', 'boolean'],
+            'parent_excuse_letter_approval_required' => ['nullable', 'boolean'],
             'face_recognition_enabled' => ['required', 'boolean'],
             'demo_attendance_panel_enabled' => ['required', 'boolean'],
             'demo_attendance_panel_rfids' => ['required', 'array'],
@@ -125,6 +126,10 @@ class SystemSettingsController
         SystemSetting::setBoolean(
             SystemSetting::PARENT_EXCUSE_LETTERS_ENABLED,
             $parentPortalEnabled && (bool) ($validated['parent_excuse_letters_enabled'] ?? false),
+        );
+        SystemSetting::setBoolean(
+            SystemSetting::PARENT_EXCUSE_LETTER_APPROVAL_REQUIRED,
+            $parentPortalEnabled && (bool) ($validated['parent_excuse_letter_approval_required'] ?? false),
         );
         SystemSetting::setBoolean(SystemSetting::FACE_RECOGNITION_ENABLED, (bool) $validated['face_recognition_enabled']);
         SystemSetting::setBoolean(SystemSetting::DEMO_ATTENDANCE_PANEL_ENABLED, (bool) $validated['demo_attendance_panel_enabled']);

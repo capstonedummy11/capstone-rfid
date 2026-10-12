@@ -138,7 +138,7 @@ Only sender/recipient may download/preview an attachment. The older public `mess
 
 ## Excuse-letter flow
 
-Student/Parent form -> resolve owned/linked Student and active enrollment -> validate dates, teachers, attachment, signature rules -> `student_excuse_letters`. Student letters wait for Parent approval only when Parent Portal is enabled. Approval calls `ExcuseLetterPdfService`, writes the PDF, creates teacher Messenger messages, and attempts email attachments. The letter is evidence/communication; attendance status changes only through attendance controls.
+Student/Parent form -> resolve owned/linked Student and active enrollment -> validate dates, selected Instructors, and attachment -> save `student_excuse_letters` as `pending_instructor_approval` -> create `Excuse Letter Submitted: ...` Instructor Messenger items and emails. An assigned Instructor approves or denies the linked message; approval enables generated PDF download and creates an `Approved Excuse Letter: ...` dashboard reminder for the Student only. If the separate Parent approval setting is enabled, only linked Parents receive the initial approval reminder; after a Parent approves, the letter proceeds to Instructor review. The letter is evidence/communication; attendance status changes only through attendance controls.
 
 ## Borrowing and inventory flow
 

@@ -31,21 +31,16 @@ class ExcuseLetterPdfService
             [$submittedBy, 11, false],
         ];
 
-        if (SystemSetting::featureFlags()['parent_excuse_letters_enabled']) {
-            array_push($lines,
+        if (SystemSetting::boolean(SystemSetting::PARENT_PORTAL_ENABLED, false)
+            && SystemSetting::boolean(SystemSetting::PARENT_EXCUSE_LETTER_APPROVAL_REQUIRED, false)
+            && filled($letter->parent_signature)) {
+            $lines = [
+                ...$lines,
                 ['', 11, false],
                 ['Parent Approval', 12, true],
-                ['Status: '.$this->statusLabel((string) $letter->status), 11, false],
-                ['Parent Signature: '.($letter->parent_signature ?: ''), 11, false],
-                ['Approved By: '.($letter->parentApprovedBy?->name ?: 'Pending'), 11, false],
-                ['Approved At: '.($letter->parent_approved_at?->format('F j, Y g:i A') ?: 'Pending'), 11, false],
-            );
-        }
-
-        if ($letter->parent_approval_notes && SystemSetting::featureFlags()['parent_excuse_letters_enabled']) {
-            $lines[] = ['', 11, false];
-            $lines[] = ['Parent Notes', 12, true];
-            array_push($lines, ...$this->wrap($letter->parent_approval_notes));
+                ['Parent Signature: '.$letter->parent_signature, 11, false],
+                ['Approved At: '.$letter->parent_approved_at?->format('F j, Y g:i A'), 10, false],
+            ];
         }
 
         return $this->pdf($lines);
@@ -136,10 +131,4 @@ class ExcuseLetterPdfService
         return str_replace(['\\', '(', ')'], ['\\\\', '\\(', '\\)'], $text);
     }
 
-    // @function statusLabel: Binubuo ang status label string para sa Excuse Letter Pdf.
-    // @useIn statusLabel: ExcuseLetterPdfService::render (app/Services/ExcuseLetterPdfService.php)
-    private function statusLabel(string $status): string
-    {
-        return ucwords(str_replace('_', ' ', $status));
-    }
 }

@@ -218,34 +218,28 @@ Routes:
 
 Page names:
 
-- `StudentParent/ExcuseLetters.vue` - student and parent excuse letter submission, approval, and download page.
+- `StudentParent/ExcuseLetters.vue` - student and parent excuse letter submission and Instructor-review status page.
 
 Routes:
 
 - `/student-parent/excuse-letters` - opens the excuse letter page and stores new letters.
-- `/student-parent/excuse-letters/{letter}/approve` - linked parent approval endpoint for student-created letters.
-- `/student-parent/excuse-letters/{letter}/download` - downloads the approved generated PDF.
+- `/student-parent/excuse-letters/{letter}/approve` - Parent approval endpoint; enabled only when the Parent-approval setting is on and the linked Parent is approving a `pending_parent_approval` letter.
+- `/student-parent/excuse-letters/{letter}/download` - downloads the Instructor-approved generated PDF.
 
-### 1. Student-Created Letter
+### 1. Student-Submitted Letter
 
-1. A student submits an excuse letter for their own student record.
-2. The letter is saved with status `pending_parent_approval`.
-3. Each linked parent with a valid email address receives an email notification containing a link to the selected student's Excuse Letter page.
-4. PDF download is blocked while parent approval is pending.
-5. A linked parent opens the same student's Excuse Letter page.
-6. The parent enters a typed parent signature and optional notes, then approves the letter.
-7. The letter status becomes `approved`, and the parent signature, approver, and approval timestamp are stored.
-8. The system generates a complete signed PDF and sends the details and protected PDF attachment to the selected teachers, or all assigned teachers when none were selected, through Messenger.
-9. Each recipient instructor with a valid email address also receives an email notification with the signed PDF attached.
-10. The student or linked parent can download the generated `.pdf`.
+1. A Student submits an excuse letter for their own student record.
+2. The letter is saved as `pending_instructor_approval`; it is not approved at submission.
+3. The system sends an `Excuse Letter Submitted: ...` Messenger item and email to selected Instructors, or all assigned Instructors when none were selected.
+4. The recipient Instructor opens the linked item in Messenger and approves or denies the letter.
+5. Instructor approval sets the letter to `approved`, enables generated PDF download, and emails and creates an `Approved Excuse Letter: ...` reminder for the Student only.
+6. Instructor denial sets the letter to `denied` without notification; generated approved PDF remains unavailable.
 
-### 2. Parent-Created Letter
+### 2. Parent-Submitted Letter
 
-1. A parent selects the linked student and submits an excuse letter.
-2. Parent signature is required on submission.
-3. The letter is saved immediately as `approved` with the parent signature and approval timestamp.
-4. The generated `.pdf` includes the letter content and parent approval block.
-5. Selected or assigned instructors receive the approved details and generated PDF through Messenger and email.
+1. A permitted Parent selects the linked Student and submits an excuse letter.
+2. If Parent approval is required in Settings, only linked Parents receive an `Excuse Letter Needs Parent Approval: ...` reminder. A Parent's name confirms the first approval step; the letter then enters Instructor review. Otherwise, Student submission goes directly to assigned Instructors and appears on the Student dashboard as submitted.
+3. The letter follows the same `pending_instructor_approval` and Instructor decision flow as a Student-submitted letter.
 
 ### 3. Excuse Letter Attachments
 
@@ -735,8 +729,9 @@ The portal reads official records created by admin, registrar, attendance, onlin
 flowchart TD
     Attendance[Physical attendance records] --> PortalAttendance[Attendance history]
     Online[Online classes] --> PortalOnline[Online class list and join flow]
-    StudentLetter[Student excuse letter] --> ParentApproval[Parent approval]
-    ParentLetter[Parent-created excuse letter] --> ApprovedLetter[Approved generated letter]
+    StudentLetter[Student or Parent excuse letter] --> PendingInstructor[Pending Instructor review]
+    PendingInstructor -->|Approve| ApprovedLetter[Approved PDF and portal reminder]
+    PendingInstructor -->|Deny| DeniedLetter[Denied letter]
     Messenger[Unified Messenger] --> PortalMessages[Portal messages]
     Notifications[Online class notifications] --> PortalNotifications[Notifications page]
 ```
@@ -746,8 +741,8 @@ Student portal visibility:
 - Student users see their own linked student record.
 - Parent users see records for linked students through `parent_student_links`.
 - Attendance evidence routes require authorization before images are shown.
-- Student-created excuse letters remain pending until a linked parent approves them.
-- Parent-created excuse letters are saved as approved because the parent signs during creation.
+- Student and Parent excuse letters remain pending until the required steps finish. The Instructor always makes the final approval or denial decision.
+- When Parent approval is enabled, only linked Parents receive the initial approval reminder; after Parent approval, assigned Instructors receive the letter.
 
 ## Clinic And Emergency Handoff
 

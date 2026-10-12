@@ -54,7 +54,7 @@ This catalog maps implementation classes and frontend building blocks to their r
 | `OnlineClassNotificationService` | Per-Student notification rows and email attempts on class changes. |
 | `OnlineClassAuditLogger` | Before/after online-class action audit. |
 | `MessengerEmailNotificationService` | Cache-throttled sender-to-recipient email notification. |
-| `ExcuseLetterPdfService` | Generates approved letter PDF bytes with conditional Parent approval content. |
+| `ExcuseLetterPdfService` | Generates the excuse-letter PDF available after Instructor approval. |
 | `SemaphoreSmsService` / `IprogSmsService` | Common SMS provider implementations for sending and read-only account checks. |
 | `SmsService` / `SmsProviderRegistry` | Resolves DB-configured primary SMS provider, performs fallback, and exposes provider checks without leaking credentials. |
 | `LegacyAcademicFallbackMonitor` | Counts reads that use deprecated academic assignment data. |

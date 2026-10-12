@@ -3,7 +3,7 @@
 <script setup lang="ts">
 import { useForm, usePage } from '@inertiajs/vue3';
 import { Paperclip, X } from 'lucide-vue-next';
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import LinkedStudentSelector from '@/components/StudentPortal/LinkedStudentSelector.vue';
 import SuccessModal from '@/pages/StudentParent/ExcuseLetters/components/SuccessModal.vue';
 
@@ -14,8 +14,8 @@ const props = defineProps({
     currentUserRole: { type: String, default: '' },
     letters: { type: Array, default: () => [] },
     recipientSuggestions: { type: Array, default: () => [] },
-    parentPortalEnabled: { type: Boolean, default: false },
     parentExcuseLettersEnabled: { type: Boolean, default: false },
+    parentApprovalRequired: { type: Boolean, default: false },
     activeAcademicYear: { type: Object, default: null },
 });
 
@@ -28,13 +28,25 @@ const canSubmitLetter = computed(
 );
 const recipientSearch = ref('');
 const attachmentInput = ref<HTMLInputElement | null>(null);
+const approvalForm = useForm({ parent_signature: '' });
+
+const approveForParent = (letter) => {
+    approvalForm.clearErrors();
+    if (!approvalForm.parent_signature.trim()) {
+        approvalForm.setError('parent_signature', 'Enter your name to confirm Parent approval.');
+        return;
+    }
+    approvalForm.put(route('student-parent.excuse-letters.approve', { letter: letter.id }), {
+        preserveScroll: true,
+        onSuccess: () => approvalForm.reset(),
+    });
+};
 
 const form = useForm<{
     subject: string;
     from_date: string;
     to_date: string;
     reason: string;
-    parent_signature: string;
     recipient_user_ids: number[];
     attachment: File | null;
 }>({
@@ -42,7 +54,6 @@ const form = useForm<{
     from_date: '',
     to_date: '',
     reason: '',
-    parent_signature: '',
     recipient_user_ids: [],
     attachment: null,
 });
@@ -90,7 +101,6 @@ type LetterFormField =
     | 'from_date'
     | 'to_date'
     | 'reason'
-    | 'parent_signature'
     | 'recipient_user_ids'
     | 'attachment';
 
@@ -159,15 +169,6 @@ const validateLetterForm = () => {
         setError('reason', 'The reason must not exceed 5,000 characters.');
     }
 
-    if (isParent.value && !form.parent_signature.trim()) {
-        setError('parent_signature', 'Enter the Parent signature.');
-    } else if (form.parent_signature.trim().length > 255) {
-        setError(
-            'parent_signature',
-            'The Parent signature must not exceed 255 characters.',
-        );
-    }
-
     if (recipientSearch.value.trim() !== '') {
         setError(
             'recipient_user_ids',
@@ -220,37 +221,6 @@ const submitLetter = () => {
 const selectedStudentQuery = computed(() =>
     props.selectedStudentId ? { student_id: props.selectedStudentId } : {},
 );
-
-const approvalForms = reactive({});
-
-// @function approvalFormFor: Kinukuha ang approval form for result para sa Excuse Letters.
-// @useIn approvalFormFor: resources/js/pages/StudentParent/ExcuseLetters/ExcuseLettersPage.vue template
-const approvalFormFor = (letter) => {
-    if (!approvalForms[letter.id]) {
-        approvalForms[letter.id] = useForm({
-            parent_signature: '',
-            parent_approval_notes: '',
-        });
-    }
-
-    return approvalForms[letter.id];
-};
-
-// @function approveLetter: Pinoproseso ang approve letter para sa Excuse Letters.
-// @useIn approveLetter: resources/js/pages/StudentParent/ExcuseLetters/ExcuseLettersPage.vue template
-const approveLetter = (letter) => {
-    const approveForm = approvalFormFor(letter);
-    approveForm.put(
-        route('student-parent.excuse-letters.approve', {
-            letter: letter.id,
-            ...selectedStudentQuery.value,
-        }),
-        {
-            preserveScroll: true,
-            onSuccess: () => approveForm.reset(),
-        },
-    );
-};
 
 // @function statusLabel: Pinoproseso ang status label para sa Excuse Letters.
 // @useIn statusLabel: resources/js/pages/StudentParent/ExcuseLetters/ExcuseLettersPage.vue template
@@ -478,12 +448,7 @@ const letterRecipients = (letter) => {
                         v-else
                         class="rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-500"
                     >
-                        Leave blank to send to all assigned teachers after
-                        {{
-                            parentPortalEnabled
-                                ? 'parent approval.'
-                                : 'submission.'
-                        }}
+                        Leave blank to send to all assigned instructors for review.
                     </div>
                     <div
                         v-if="availableRecipientSuggestions.length"
@@ -596,31 +561,6 @@ const letterRecipients = (letter) => {
                             {{ form.errors.reason }}
                         </span>
                     </label>
-                    <label
-                        v-if="isParent"
-                        class="text-xs font-bold text-slate-500 uppercase"
-                    >
-                        Parent Signature
-                        <input
-                            v-model="form.parent_signature"
-                            class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm normal-case"
-                            :class="{
-                                'border-rose-400': form.errors.parent_signature,
-                            }"
-                            placeholder="Type your full name"
-                            maxlength="255"
-                            :aria-invalid="
-                                Boolean(form.errors.parent_signature)
-                            "
-                            @input="form.clearErrors('parent_signature')"
-                        />
-                        <span
-                            v-if="form.errors.parent_signature"
-                            class="mt-1 block text-xs font-medium text-rose-600 normal-case"
-                        >
-                            {{ form.errors.parent_signature }}
-                        </span>
-                    </label>
                     <div>
                         <p class="text-xs font-bold text-slate-500 uppercase">
                             Attachment
@@ -710,19 +650,31 @@ const letterRecipients = (letter) => {
                                 Recipient: {{ letterRecipients(letter) }}
                             </div>
                             <div
-                                v-if="letter.parent_signature"
-                                class="mt-1 text-xs text-slate-500"
-                            >
-                                Signed by parent:
-                                {{ letter.parent_signature }}
-                            </div>
-                            <div
-                                v-else-if="
-                                    letter.status === 'pending_parent_approval'
-                                "
+                                v-if="letter.status === 'pending_instructor_approval'"
                                 class="mt-1 text-xs font-semibold text-amber-600"
                             >
-                                Waiting for parent approval and signature.
+                                Waiting for instructor review.
+                            </div>
+                            <div
+                                v-if="letter.status === 'pending_parent_approval' && isParent"
+                                class="mt-2 rounded-md border border-amber-200 bg-amber-50 p-3"
+                            >
+                                <p class="text-xs font-semibold text-amber-800">Your approval is needed before Instructor review.</p>
+                                <input
+                                    v-model="approvalForm.parent_signature"
+                                    class="mt-2 w-full rounded-md border border-amber-300 px-3 py-2 text-sm"
+                                    placeholder="Type your full name to approve"
+                                    maxlength="255"
+                                />
+                                <p v-if="approvalForm.errors.parent_signature" class="mt-1 text-xs text-rose-600">{{ approvalForm.errors.parent_signature }}</p>
+                                <button
+                                    type="button"
+                                    class="mt-2 rounded-md bg-brand px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
+                                    :disabled="approvalForm.processing"
+                                    @click="approveForParent(letter)"
+                                >
+                                    {{ approvalForm.processing ? 'Submitting...' : 'Approve for Instructor review' }}
+                                </button>
                             </div>
                             <a
                                 v-if="letter.can_download"
@@ -742,53 +694,8 @@ const letterRecipients = (letter) => {
                                 v-else
                                 class="mt-2 text-xs font-semibold text-slate-400"
                             >
-                                PDF available
-                                {{
-                                    parentPortalEnabled
-                                        ? 'after parent approval.'
-                                        : 'after submission.'
-                                }}
+                                PDF available after instructor approval.
                             </p>
-                            <form
-                                v-if="letter.can_parent_approve"
-                                class="mt-3 space-y-2 rounded-md bg-amber-50 p-3"
-                                @submit.prevent="approveLetter(letter)"
-                            >
-                                <label
-                                    class="text-xs font-bold text-slate-500 uppercase"
-                                >
-                                    Parent Signature
-                                    <input
-                                        v-model="
-                                            approvalFormFor(letter)
-                                                .parent_signature
-                                        "
-                                        class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm normal-case"
-                                        placeholder="Type your full name"
-                                        required
-                                    />
-                                </label>
-                                <label
-                                    class="text-xs font-bold text-slate-500 uppercase"
-                                >
-                                    Notes
-                                    <textarea
-                                        v-model="
-                                            approvalFormFor(letter)
-                                                .parent_approval_notes
-                                        "
-                                        class="mt-1 h-20 w-full rounded-md border border-slate-300 px-3 py-2 text-sm normal-case"
-                                    />
-                                </label>
-                                <button
-                                    class="rounded-md bg-emerald-600 px-3 py-2 text-xs font-bold text-white"
-                                    :disabled="
-                                        approvalFormFor(letter).processing
-                                    "
-                                >
-                                    Approve and Sign
-                                </button>
-                            </form>
                         </div>
                         <p
                             v-if="letters.length === 0"
@@ -832,11 +739,9 @@ const letterRecipients = (letter) => {
                         <p>Sincerely,</p>
                         <p>{{ student?.name || '[Student Name]' }}</p>
                     </div>
-                    <div v-if="isParent" class="mt-12">
-                        <p>Parent Signature:</p>
-                        <p>
-                            {{ form.parent_signature || '[Parent Signature]' }}
-                        </p>
+                    <div v-if="parentApprovalRequired" class="mt-10">
+                        <p class="font-semibold">Parent Signature:</p>
+                        <p class="mt-6">____________________________</p>
                     </div>
                 </div>
             </section>

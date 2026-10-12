@@ -641,14 +641,11 @@ Student-created excuse letter flow:
 3. Student creates an excuse letter.
 4. Student adds the reason, date details, and attachment if needed.
    When the Student selects a From date while To is empty, To automatically uses the same date and can still be changed. Both dates must remain within the displayed active academic-year range. An invalid date is shown in the form and does not upload the attachment or create a letter.
-5. The letter is saved with parent approval required.
-6. Linked parents receive an email asking them to review and sign the letter.
-7. The parent follows the email link and logs in.
-8. Parent opens Excuse Letters for the linked student.
-9. Parent reviews the student-created letter.
-10. Parent approves it with a typed parent signature.
-11. The approved generated letter becomes downloadable.
-12. Selected instructors, or all assigned instructors when none were selected, receive the signed PDF through Messenger and email.
+5. The letter is saved as pending Instructor review.
+6. Selected instructors, or all assigned instructors when none were selected, receive an `Excuse Letter Submitted: ...` Messenger item and email.
+7. The assigned Instructor opens `/messages` and approves or denies the linked letter.
+8. After Instructor approval, the generated PDF becomes downloadable and the Student receives an `Approved Excuse Letter: ...` dashboard reminder. If Parent approval is required in Settings, only linked Parents receive the initial approval reminder; after a Parent approves, assigned Instructors receive the letter.
+9. If denied, the letter status changes to denied and its generated PDF is unavailable.
 
 Parent-created excuse letter flow:
 
@@ -656,31 +653,29 @@ Parent-created excuse letter flow:
 2. Parent selects the linked student if more than one child is linked.
 3. Parent opens Excuse Letters.
 4. Parent creates the letter.
-5. Parent signs it during creation.
-6. The letter is immediately treated as parent-approved.
-7. The generated letter can be downloaded.
-8. Selected or assigned instructors receive the signed PDF through Messenger and email.
+5. The letter is saved as pending Instructor review, just like a Student submission.
+6. Selected or assigned Instructors receive the submission through Messenger and email.
 
 Important rule:
 
-- Student-created letters need parent approval before download.
-- Parent-created letters are already approved because the parent created and signed them.
+- Neither Student nor Parent submissions are approved automatically.
+- Only an assigned Instructor can approve or deny a submitted letter.
 
 Instructor review and result email:
 
-1. The assigned Instructor opens `/messages` and selects the conversation containing the generated excuse-letter PDF.
+1. The assigned Instructor opens `/messages` and selects the `Excuse Letter Submitted: ...` item.
 2. Select **Approve** or **Deny** on that excuse-letter message.
-3. Select **Student**, **Parent**, or both. Parent sends to every linked Parent with a valid email address.
+3. For approval, select the Student email recipient. Parent is not an Instructor-decision email recipient.
 4. Review or edit the prepared email subject and message, then submit the decision.
-5. The system emails the selected recipients, includes the generated PDF when available, and records the Instructor, decision time, final template, and actual recipients.
+5. Approval emails and creates an `Approved Excuse Letter: ...` dashboard reminder for the Student only. Denial records the decision without sending a notification.
 
-Only the Instructor who received that specific linked delivery can decide it once. When a letter was sent to multiple Instructors, each Instructor has an independent decision.
+Only an Instructor who received that linked delivery can decide it. The first Instructor decision closes review for the letter.
 
 Excuse-letter form validation:
 
 - Subject and reason are required and enforce their server limits.
 - From and To are required, To cannot precede From, and both must remain in the active academic year.
-- A Parent-created letter requires the Parent signature.
+- Parent signature appears on the generated PDF only when the separate **Require Parent Approval Before Instructor Review** setting was enabled and Parent approval was recorded.
 - A typed Instructor search must be selected or cleared; a blank recipient selection means all assigned Instructors.
 - Attachments are optional, limited to PDF, Word, JPG, JPEG, or PNG, and cannot exceed 5 MB.
 - Client-side checks provide immediate field messages. Laravel repeats every rule before storing the attachment or letter.
@@ -786,7 +781,7 @@ Use this section as the quick feature map for each role.
 | Instructor | Assigned schedules, instructor verification, attendance session participation, Dismiss Class/Continue Class control, temporary movement approval, attendance logs, online classes, reports, Messenger. |
 | Console    | Room selection, attendance panel operation, instructor session start support, student RFID tap recording, face/fallback attendance flow, emergency alert creation.                                     |
 | Student    | Portal dashboard, attendance history, online classes, excuse letters, messages, notifications, profile updates.                                                                                        |
-| Parent     | Linked student dashboard, attendance viewing, excuse letter approval, parent-created excuse letters, messages, notifications, profile updates.                                                         |
+| Parent     | Linked student dashboard, attendance viewing, parent-created excuse letters when enabled, first-step excuse-letter approval when enabled, messages, notifications, profile updates.                                                         |
 | Clinic     | Clinic dashboard, emergency alerts, case logs, patient histories, emergency hotlines, emergency types, clinic reports, Messenger.                                                                      |
 
 ### Manage Your Own Profile
@@ -1071,7 +1066,7 @@ They can use:
 - `/student-parent/messages` for messages.
 - `/student-parent/notifications` for online class notifications.
 
-Student-created excuse letters require linked parent approval before download.
+All submitted excuse letters require Instructor approval before generated PDF download.
 
 ## 28. Clinic Daily Use
 

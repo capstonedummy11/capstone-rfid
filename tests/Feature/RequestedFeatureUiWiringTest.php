@@ -266,7 +266,7 @@ test('excuse letter defaults an empty end date to the selected start date', func
     $excuseLetters = file_get_contents(resource_path('js/pages/StudentParent/ExcuseLetters/ExcuseLettersPage.vue'));
 
     expect($excuseLetters)
-        ->toContain("import { computed, reactive, ref, watch } from 'vue'")
+        ->toContain("import { computed, ref, watch } from 'vue'")
         ->toContain('if (startDate && !form.to_date)')
         ->toContain('form.to_date = startDate;')
         ->toContain('const validateLetterForm = () =>')

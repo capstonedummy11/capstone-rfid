@@ -11,7 +11,7 @@ Admin controls the switches on **System Settings**. The application shares their
 | Borrowing | Shows Borrowing in the Admin menu and borrowing mode on the panel. | Disabled requests are rejected; the Admin page redirects to Settings. |
 | Inventory | Shows Inventory in the Admin menu. | The main Inventory page redirects to Settings when disabled. |
 | Parent Portal | Shows the Parent option on the public login. | Parent login and parent-protected routes are rejected when off. Students remain able to use their own portal. |
-| Parent Excuse Letters | Shows parent creation/approval controls only while Parent Portal is also on. | A parent cannot submit or approve when disabled. Turning off Parent Portal also stores this setting as off. |
+| Parent Excuse Letters | Controls whether Parents may submit letters while Parent Portal is on. **Require Parent Approval Before Instructor Review** controls whether Parent approval is a required first step. | Parents cannot submit when submission is disabled. Turning off Parent Portal disables both Parent letter settings. |
 | Face Recognition | Enables attendance and online-class face checks when AWS Rekognition is configured. | Settings automatically keep it off when the provider is unavailable. Attendance can use documented instructor fallback paths. |
 | Demo Attendance Panel | Shows configured demonstration tap buttons and sample RFID values. | Intended for demonstrations, not production. |
 | Online Classes | Hides the staff Online Classes and Admin Online Class Logs menu links. | Current implementation does not consistently block all direct online-class routes; treat it as a visibility switch, not a complete shutdown control. |
@@ -77,12 +77,11 @@ Admin controls the switches on **System Settings**. The application shares their
 
 ## Excuse-letter automation
 
-- A Student letter becomes `pending_parent_approval` when the Parent Portal is on. Linked parents with valid email addresses receive a review link.
-- If Parent Portal is off, a Student letter is approved immediately and sent to teachers without parent review.
-- A permitted Parent-created letter is approved immediately and requires a typed signature.
-- Parent approval stores the approving account, time, signature, and optional notes; generates a signed PDF; stores it; creates teacher Messenger records; and attempts teacher email with the PDF attached.
-- Selected teacher recipients must be valid for the student's schedule. When none are selected, assigned teachers are determined from the student's class schedules.
-- Parent approval never changes official attendance by itself.
+- With Parent approval required off, every Student or permitted Parent submission is saved as `pending_instructor_approval` and routed to assigned Instructors. With it on, submission is saved as `pending_parent_approval` and only linked Parents get an approval reminder.
+- The system sends an `Excuse Letter Submitted: ...` Messenger item and email to selected Instructors, or all Instructors assigned to the Student's current enrollment context.
+- Only an assigned Instructor can approve or deny the linked Messenger item. Approval changes the letter to `approved`, enables PDF download, and creates an `Approved Excuse Letter: ...` reminder for the Student only. Denial changes it to `denied` without a notification. When Parent approval is required, linked Parents alone receive the initial `Excuse Letter Needs Parent Approval: ...` reminder; Parent approval then sends the letter to assigned Instructors.
+- When Parent approval is required, a linked Parent records their name to approve; the letter then becomes `pending_instructor_approval` and routes to assigned Instructors. Instructor approval remains the final decision.
+- Excuse-letter decisions do not change official attendance; attendance remains controlled by attendance workflows.
 
 ## Emergency and clinic automation
 

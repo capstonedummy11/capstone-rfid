@@ -189,17 +189,13 @@ For the exhaustive list of enforced foreign keys, delete rules, and logical link
 - Parent portal accounts are stored in `users` with `role = parent`; Admin Student Management creates or links these accounts and stores the relationship label on `parent_student_links.relationship`.
 - `online_classes.schedule_id`, `instructor_id`, and `section_id` connect online classes to the academic setup.
 
-Student excuse-letter approval fields:
+Student excuse-letter legacy Parent-approval fields and current review behavior:
 
-- `parent_signature` stores the typed parent signature shown on generated PDFs.
-- `parent_approval_notes` stores optional parent approval notes.
-- `parent_approved_by_user_id` links to the parent `users` row that approved the letter.
-- `parent_approved_at` stores the approval timestamp.
-- `recipient_user_ids` optionally stores selected teacher recipients. When empty, approved letters are sent to all assigned teachers for the student's section.
-- Student-created letters use `pending_parent_approval` until a linked parent approves them; parent-created letters are saved as `approved`.
-- Excuse-letter attachments are downloaded through an authenticated student/parent route and remain scoped to the selected student.
-- Student submission emails each linked parent with a valid email address and a portal link for review and signature.
-- Approval generates an official signed PDF stored under `student-excuse-letters/generated`; the generated file metadata is copied to the instructor Messenger record and the PDF is also attached to the instructor email.
+- `parent_signature`, `parent_approved_by_user_id`, and `parent_approved_at` record the first approval step when the Parent-approval setting is enabled; `parent_approval_notes` remains for compatibility with historical records.
+- `recipient_user_ids` optionally stores selected Instructor recipients. When empty, submitted letters are sent to all Instructors assigned to the Student's current section and enrollment context.
+- By default, every new Student or permitted Parent submission uses `pending_instructor_approval`. When Parent approval is required, submission starts at `pending_parent_approval`; a linked Parent moves it to `pending_instructor_approval`, after which only an assigned Instructor can set it to `approved` or `denied` through the linked Messenger review action.
+- Submission creates an `Excuse Letter Submitted: ...` Messenger item for each recipient. Instructor approval creates an `Approved Excuse Letter: ...` portal message for the Student only.
+- Excuse-letter attachments are downloaded through an authenticated student/parent route and remain scoped to the selected student. Generated PDFs are available only after Instructor approval.
 
 Messenger data behavior:
 

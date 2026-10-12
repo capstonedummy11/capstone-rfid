@@ -22,6 +22,7 @@ class SystemSetting extends Model
     public const PARENT_PORTAL_ENABLED = 'feature.parent_portal_enabled';
 
     public const PARENT_EXCUSE_LETTERS_ENABLED = 'feature.parent_excuse_letters_enabled';
+    public const PARENT_EXCUSE_LETTER_APPROVAL_REQUIRED = 'feature.parent_excuse_letter_approval_required';
 
     public const FACE_RECOGNITION_ENABLED = 'feature.face_recognition_enabled';
 
@@ -87,6 +88,8 @@ class SystemSetting extends Model
             'parent_portal_enabled' => $parentPortalEnabled,
             'parent_excuse_letters_enabled' => $parentPortalEnabled
                 && static::boolean(static::PARENT_EXCUSE_LETTERS_ENABLED, false),
+            'parent_excuse_letter_approval_required' => $parentPortalEnabled
+                && static::boolean(static::PARENT_EXCUSE_LETTER_APPROVAL_REQUIRED, false),
             'face_recognition_enabled' => static::boolean(static::FACE_RECOGNITION_ENABLED, true),
             'demo_attendance_panel_enabled' => static::boolean(static::DEMO_ATTENDANCE_PANEL_ENABLED, false),
             'online_class_face_recognition_default' => static::boolean(static::ONLINE_CLASS_FACE_RECOGNITION_DEFAULT, true),

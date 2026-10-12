@@ -589,7 +589,7 @@ test('student can upload an account profile picture without changing biometric f
     Storage::disk('public')->assertExists($fixture['studentUser']->profile_photo_path);
 });
 
-test('student-created excuse letter requires parent approval before pdf download', function () {
+test('student excuse letter stays pending until an instructor approves it', function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
     Mail::fake();
     $fixture = portalFixture();
@@ -602,11 +602,11 @@ test('student-created excuse letter requires parent approval before pdf download
             'reason' => 'Medical appointment.',
         ])
         ->assertRedirect()
-        ->assertSessionHas('success', 'Excuse letter submitted.');
+        ->assertSessionHas('success', 'Excuse letter submitted, but no assigned instructor was found for this section.');
 
     $letter = StudentExcuseLetter::query()->firstOrFail();
 
-    expect($letter->status)->toBe('pending_parent_approval')
+    expect($letter->status)->toBe('pending_instructor_approval')
         ->and($letter->parent_signature)->toBeNull();
 
     $this->actingAs($fixture['studentUser'])
@@ -618,27 +618,13 @@ test('student-created excuse letter requires parent approval before pdf download
             'parent_signature' => 'Maria Santos',
             'parent_approval_notes' => 'Approved after checking the appointment.',
         ])
-        ->assertRedirect()
-        ->assertSessionHas('success', 'Excuse letter approved, but no assigned teacher was found for this section.');
+        ->assertForbidden();
 
     $letter->refresh();
 
-    expect($letter->status)->toBe('approved')
-        ->and($letter->parent_signature)->toBe('Maria Santos')
-        ->and($letter->parent_approved_by_user_id)->toBe($fixture['parentUser']->user_id);
-
-    $response = $this->actingAs($fixture['studentUser'])
-        ->get(route('student-parent.excuse-letters.download', $letter))
-        ->assertOk()
-        ->assertHeader('Content-Type', 'application/pdf');
-
-    expect(substr($response->getContent(), 0, 4))->toBe('%PDF');
-
-    $this->assertDatabaseHas('activity_logs', [
-        'user_id' => $fixture['parentUser']->user_id,
-        'action' => 'update',
-        'table_name' => 'student_excuse_letters',
-    ]);
+    expect($letter->status)->toBe('pending_instructor_approval')
+        ->and($letter->parent_signature)->toBeNull()
+        ->and($letter->parent_approved_by_user_id)->toBeNull();
 });
 
 test('new excuse letter keeps the active academic year enrollment context', function () {
@@ -666,7 +652,7 @@ test('new excuse letter keeps the active academic year enrollment context', func
     ]);
 });
 
-test('parent-created excuse letter is signed and downloads as pdf', function () {
+test('parent-created excuse letter also waits for instructor approval', function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
     $fixture = portalFixture();
 
@@ -676,39 +662,80 @@ test('parent-created excuse letter is signed and downloads as pdf', function () 
             'from_date' => '2026-07-01',
             'to_date' => '2026-07-02',
             'reason' => 'Medical appointment.',
-            'parent_signature' => '',
         ])
         ->assertRedirect()
-        ->assertSessionHasErrors('parent_signature');
+        ->assertSessionHasNoErrors();
 
-    $this->assertDatabaseCount('student_excuse_letters', 0);
-
-    $this->actingAs($fixture['parentUser'])
-        ->post(route('student-parent.excuse-letters.store', ['student_id' => $fixture['student']->student_id]), [
-            'subject' => 'Programming I',
-            'from_date' => '2026-07-01',
-            'to_date' => '2026-07-02',
-            'reason' => 'Medical appointment.',
-            'parent_signature' => 'Maria Santos',
-        ])
-        ->assertRedirect()
-        ->assertSessionHas('success', 'Excuse letter submitted, but no assigned teacher was found for this section.');
+    $this->assertDatabaseCount('student_excuse_letters', 1);
 
     $letter = StudentExcuseLetter::query()->firstOrFail();
 
-    expect($letter->status)->toBe('approved')
-        ->and($letter->parent_signature)->toBe('Maria Santos')
-        ->and($letter->parent_approved_by_user_id)->toBe($fixture['parentUser']->user_id);
+    expect($letter->status)->toBe('pending_instructor_approval')
+        ->and($letter->parent_signature)->toBeNull()
+        ->and($letter->parent_approved_by_user_id)->toBeNull();
 
-    $response = $this->actingAs($fixture['parentUser'])
+    $this->actingAs($fixture['parentUser'])
         ->get(route('student-parent.excuse-letters.download', $letter))
-        ->assertOk()
-        ->assertHeader('Content-Type', 'application/pdf');
-
-    expect(substr($response->getContent(), 0, 4))->toBe('%PDF');
+        ->assertStatus(422);
 });
 
-test('approved excuse letter is sent to instructor messenger with generated pdf', function () {
+test('required parent approval notifies only the parent before instructor review', function () {
+    $fixture = portalFixture();
+    $instructor = Instructor::query()->where('user_id', $fixture['instructorUser']->user_id)->firstOrFail();
+    Schedule::query()->create([
+        'instructor_id' => $instructor->instructor_id,
+        'section_id' => $fixture['section']->section_id,
+        'subject_code' => 'PROG1',
+        'weekdays' => 'Monday',
+        'time_start' => '08:00:00',
+        'time_end' => '09:00:00',
+        'room' => 'ICT Lab',
+    ]);
+    SystemSetting::setBoolean(SystemSetting::PARENT_EXCUSE_LETTER_APPROVAL_REQUIRED, true);
+
+    $this->actingAs($fixture['studentUser'])
+        ->post(route('student-parent.excuse-letters.store'), [
+            'subject' => 'Programming I',
+            'from_date' => '2026-09-21',
+            'to_date' => '2026-09-21',
+            'reason' => 'Parent approval is required first.',
+        ])
+        ->assertRedirect();
+
+    $letter = StudentExcuseLetter::query()->firstOrFail();
+    $parentReminder = StudentPortalMessage::query()->where('student_excuse_letter_id', $letter->student_excuse_letter_id)->firstOrFail();
+    expect($letter->status)->toBe('pending_parent_approval')
+        ->and($parentReminder->recipient_user_id)->toBe($fixture['parentUser']->user_id)
+        ->and($parentReminder->subject)->toBe('Excuse Letter Needs Parent Approval: Programming I');
+    $this->assertDatabaseMissing('student_portal_messages', [
+        'student_excuse_letter_id' => $letter->student_excuse_letter_id,
+        'recipient_user_id' => $fixture['instructorUser']->user_id,
+    ]);
+
+    $this->actingAs($fixture['studentUser'])
+        ->get(route('student-parent.dashboard'))
+        ->assertInertia(fn (Assert $page) => $page->where('recentMessages', []));
+    $this->actingAs($fixture['parentUser'])
+        ->get(route('student-parent.dashboard', ['student_id' => $fixture['student']->student_id]))
+        ->assertInertia(fn (Assert $page) => $page->where('recentMessages.0.subject', 'Excuse Letter Needs Parent Approval: Programming I'));
+
+    $this->actingAs($fixture['parentUser'])
+        ->put(route('student-parent.excuse-letters.approve', $letter), ['parent_signature' => 'Maria Santos'])
+        ->assertRedirect();
+
+    expect($letter->fresh()->status)->toBe('pending_instructor_approval')
+        ->and($letter->fresh()->parent_signature)->toBe('Maria Santos');
+    $this->actingAs($fixture['studentUser'])
+        ->get(route('student-parent.dashboard'))
+        ->assertInertia(fn (Assert $page) => $page->where('recentMessages', []));
+    $this->assertDatabaseHas('student_portal_messages', [
+        'student_excuse_letter_id' => $letter->student_excuse_letter_id,
+        'recipient_user_id' => $fixture['instructorUser']->user_id,
+        'subject' => 'Encrypted message',
+    ]);
+});
+
+test('submitted excuse letter is sent to instructor messenger for review', function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
     Mail::fake();
     Storage::fake('public');
@@ -733,15 +760,16 @@ test('approved excuse letter is sent to instructor messenger with generated pdf'
             'from_date' => '2026-07-01',
             'to_date' => '2026-07-02',
             'reason' => 'Medical appointment.',
-            'parent_signature' => 'Maria Santos',
         ])
         ->assertRedirect()
-        ->assertSessionHas('success', 'Excuse letter submitted and sent to the teacher.');
+        ->assertSessionHas('success', 'Excuse letter submitted for instructor review.');
 
     $letter = StudentExcuseLetter::query()->firstOrFail();
     $message = StudentPortalMessage::query()->firstOrFail();
 
-    expect($message->recipient_user_id)->toBe($fixture['instructorUser']->user_id)
+    expect($letter->status)->toBe('pending_instructor_approval')
+        ->and($message->recipient_user_id)->toBe($fixture['instructorUser']->user_id)
+        ->and($message->subject)->toBe('Excuse Letter Submitted: Programming I')
         ->and($message->attachment_name)->toBe('excuse-letter-'.$letter->student_excuse_letter_id.'.pdf')
         ->and($message->attachment_mime)->toBe('application/pdf')
         ->and($message->attachment_size)->toBeGreaterThan(0);
@@ -762,9 +790,9 @@ test('student can download an approved generated excuse letter pdf', function ()
         'to_date' => '2026-07-02',
         'reason' => 'Medical appointment.',
         'status' => 'approved',
-        'parent_signature' => 'Maria Santos',
-        'parent_approved_by_user_id' => $fixture['parentUser']->user_id,
-        'parent_approved_at' => now(),
+        'parent_signature' => null,
+        'parent_approved_by_user_id' => null,
+        'parent_approved_at' => null,
     ]);
 
     $response = $this->actingAs($fixture['studentUser'])
@@ -813,7 +841,7 @@ test('generated excuse letter omits parent approval when the setting is disabled
         ->and($pdf)->not->toContain('Approved At:');
 });
 
-test('generated excuse letter leaves an unsigned parent signature blank', function () {
+test('generated excuse letter does not include a parent signature line', function () {
     $fixture = portalFixture();
 
     SystemSetting::setBoolean(SystemSetting::PARENT_EXCUSE_LETTERS_ENABLED, true);
@@ -835,6 +863,32 @@ test('generated excuse letter leaves an unsigned parent signature blank', functi
 
     $pdf = $response->getContent();
 
-    expect($pdf)->toContain('Parent Signature: ')
+    expect($pdf)->not->toContain('Parent Signature: ')
         ->and($pdf)->not->toContain('Not yet signed');
+});
+
+test('generated excuse letter includes parent signature only after required parent approval', function () {
+    $fixture = portalFixture();
+    SystemSetting::setBoolean(SystemSetting::PARENT_EXCUSE_LETTER_APPROVAL_REQUIRED, true);
+    $letter = StudentExcuseLetter::query()->create([
+        'student_id' => $fixture['student']->student_id,
+        'submitted_by_user_id' => $fixture['studentUser']->user_id,
+        'submitted_by_role' => 'student',
+        'subject' => 'Programming I',
+        'from_date' => '2026-07-01',
+        'to_date' => '2026-07-02',
+        'reason' => 'Medical appointment.',
+        'status' => 'approved',
+        'parent_signature' => 'Maria Santos',
+        'parent_approved_by_user_id' => $fixture['parentUser']->user_id,
+        'parent_approved_at' => now(),
+    ]);
+
+    $pdf = $this->actingAs($fixture['studentUser'])
+        ->get(route('student-parent.excuse-letters.download', $letter))
+        ->assertOk()
+        ->getContent();
+
+    expect($pdf)->toContain('Parent Approval')
+        ->and($pdf)->toContain('Parent Signature: Maria Santos');
 });

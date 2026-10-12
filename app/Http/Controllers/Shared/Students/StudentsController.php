@@ -756,9 +756,10 @@ class StudentsController
             'linkedStudents' => $this->linkedStudentsPayload($request),
             'selectedStudentId' => $student?->student_id,
             'currentUserRole' => strtolower((string) $request->user()?->role),
-            'parentPortalEnabled' => $parentPortalEnabled,
             'parentExcuseLettersEnabled' => $parentPortalEnabled
                 && SystemSetting::boolean(SystemSetting::PARENT_EXCUSE_LETTERS_ENABLED, false),
+            'parentApprovalRequired' => $parentPortalEnabled
+                && SystemSetting::boolean(SystemSetting::PARENT_EXCUSE_LETTER_APPROVAL_REQUIRED, false),
             'activeAcademicYear' => $enrollment?->academicYear ? [
                 'name' => $enrollment->academicYear->name,
                 'starts_on' => $enrollment->academicYear->starts_on?->toDateString(),
@@ -766,7 +767,7 @@ class StudentsController
             ] : null,
             'recipientSuggestions' => $student ? $this->teacherSuggestionPayload($student, $enrollment) : [],
             'letters' => $student
-                ? $student->excuseLetters()->with(['submittedBy', 'parentApprovedBy', 'academicYear'])->when($enrollment, fn ($query) => $query->where('academic_year_id', $enrollment->academic_year_id))->latest()->get()->map(fn (StudentExcuseLetter $letter) => $this->letterPayload($letter, $request))
+                ? $student->excuseLetters()->with(['submittedBy', 'academicYear'])->when($enrollment, fn ($query) => $query->where('academic_year_id', $enrollment->academic_year_id))->latest()->get()->map(fn (StudentExcuseLetter $letter) => $this->letterPayload($letter, $request))
                 : [],
         ]);
     }
@@ -776,7 +777,7 @@ class StudentsController
     /**
     * WHAT IT DOES: Nagsusumite ng excuse letter at anumang kasamang file.
     * WHO USES IT: Student.
-    * WHAT HAPPENS: Nase-save ang letter at ipinapasa muna sa Parent kung kailangan ng approval.
+    * WHAT HAPPENS: Nase-save ang letter bilang pending at ipinapasa sa mga assigned Instructor para sa review.
     */
     public function storePortalExcuseLetter(Request $request)
     {
@@ -792,15 +793,23 @@ class StudentsController
         $parentPortalEnabled = SystemSetting::boolean(SystemSetting::PARENT_PORTAL_ENABLED, false);
         $parentExcuseLettersEnabled = $parentPortalEnabled
             && SystemSetting::boolean(SystemSetting::PARENT_EXCUSE_LETTERS_ENABLED, false);
+        $parentApprovalRequired = $parentPortalEnabled
+            && SystemSetting::boolean(SystemSetting::PARENT_EXCUSE_LETTER_APPROVAL_REQUIRED, false);
 
         abort_if($role === 'parent' && ! $parentExcuseLettersEnabled, 403);
+
+        if ($parentApprovalRequired && $student->parentUsers()->doesntExist()) {
+            throw ValidationException::withMessages([
+                'subject' => 'A linked Parent account is required before submitting this excuse letter.',
+            ]);
+        }
 
         $validated = $request->validate([
             'subject' => ['required', 'string', 'max:255'],
             'from_date' => ['required', 'date'],
             'to_date' => ['required', 'date', 'after_or_equal:from_date'],
             'reason' => ['required', 'string', 'max:5000'],
-            'parent_signature' => [Rule::requiredIf($role === 'parent'), 'nullable', 'string', 'max:255'],
+            'parent_signature' => ['nullable', 'string', 'max:255'],
             'recipient_user_ids' => ['nullable', 'array'],
             'recipient_user_ids.*' => ['integer', 'exists:users,user_id'],
             'attachment' => ['nullable', 'file', 'max:5120', 'mimes:pdf,doc,docx,jpg,jpeg,png'],
@@ -844,31 +853,26 @@ class StudentsController
             'student_enrollment_id' => $enrollment?->student_enrollment_id,
             'submitted_by_user_id' => $request->user()->user_id,
             'submitted_by_role' => $role,
-            'status' => $role === 'parent' || ! $parentPortalEnabled ? 'approved' : 'pending_parent_approval',
-            'parent_signature' => $role === 'parent' ? $request->input('parent_signature') : null,
-            'parent_approved_by_user_id' => $role === 'parent' ? $request->user()->user_id : null,
-            'parent_approved_at' => $role === 'parent' ? now() : null,
+            'status' => $parentApprovalRequired ? 'pending_parent_approval' : 'pending_instructor_approval',
+            'parent_signature' => null,
+            'parent_approved_by_user_id' => null,
+            'parent_approved_at' => null,
         ]);
 
         $this->logActivity('create', 'student_excuse_letters', 'Submitted excuse letter '.$letter->student_excuse_letter_id.' for student '.$student->student_number);
 
-        $teacherMessageCount = $role === 'parent' || ! $parentPortalEnabled
-            ? $this->sendApprovedExcuseLetterToTeachers($letter->fresh(['student', 'submittedBy', 'parentApprovedBy']), $request->user())
-            : 0;
-
-        if ($role !== 'parent' && $parentPortalEnabled) {
-            $this->notifyParentsExcuseLetterNeedsApproval(
-                $letter->fresh(['student.parentUsers', 'submittedBy']),
+        if ($parentApprovalRequired) {
+            $teacherMessageCount = $this->notifyParentsExcuseLetterNeedsApproval($letter, $request->user());
+        } else {
+            $teacherMessageCount = $this->sendSubmittedExcuseLetterToTeachers(
+                $letter->fresh(['student', 'submittedBy']),
+                $request->user(),
             );
         }
 
-        return back()->with('success', match (true) {
-            $role !== 'parent' && $parentPortalEnabled => 'Excuse letter submitted.',
-            $role !== 'parent' && $teacherMessageCount > 0 => 'Excuse letter submitted and sent to the teacher.',
-            $role !== 'parent' => 'Excuse letter submitted, but no assigned teacher was found for this section.',
-            $teacherMessageCount > 0 => 'Excuse letter submitted and sent to the teacher.',
-            default => 'Excuse letter submitted, but no assigned teacher was found for this section.',
-        });
+        return back()->with('success', $teacherMessageCount > 0
+            ? ($parentApprovalRequired ? 'Excuse letter submitted to the linked Parent for approval.' : 'Excuse letter submitted for instructor review.')
+            : ($parentApprovalRequired ? 'Excuse letter submitted, but no linked Parent account was found.' : 'Excuse letter submitted, but no assigned instructor was found for this section.'));
     }
 
     // @function approvePortalExcuseLetter: Kinukuha ang approve portal excuse letter result para sa Students.
@@ -880,38 +884,29 @@ class StudentsController
     */
     public function approvePortalExcuseLetter(Request $request, StudentExcuseLetter $letter)
     {
-        abort_if(! SystemSetting::boolean(SystemSetting::PARENT_PORTAL_ENABLED, false), 403, 'Parent portal is disabled.');
-        $student = $this->currentStudent($request);
-        abort_unless(
-            strtolower((string) $request->user()?->role) === 'parent'
-            && $student
-            && (int) $letter->student_id === (int) $student->student_id,
-            403,
-        );
-
-        if ((string) $letter->submitted_by_role !== 'student') {
-            return back()->withErrors(['letter' => 'Only student-created excuse letters need parent approval.']);
-        }
+        abort_unless(strtolower((string) $request->user()?->role) === 'parent', 403);
+        abort_unless(SystemSetting::boolean(SystemSetting::PARENT_EXCUSE_LETTER_APPROVAL_REQUIRED, false), 403);
+        abort_unless($request->user()->linkedStudents()->where('students.student_id', $letter->student_id)->exists(), 403);
+        abort_unless((string) $letter->status === 'pending_parent_approval', 422, 'This excuse letter is not waiting for Parent approval.');
 
         $validated = $request->validate([
             'parent_signature' => ['required', 'string', 'max:255'],
-            'parent_approval_notes' => ['nullable', 'string', 'max:2000'],
         ]);
-
         $letter->update([
-            'status' => 'approved',
-            'parent_signature' => $validated['parent_signature'],
-            'parent_approval_notes' => $validated['parent_approval_notes'] ?? null,
+            'status' => 'pending_instructor_approval',
+            'parent_signature' => trim($validated['parent_signature']),
             'parent_approved_by_user_id' => $request->user()->user_id,
             'parent_approved_at' => now(),
         ]);
 
-        $this->logActivity('update', 'student_excuse_letters', 'Parent approved excuse letter '.$letter->student_excuse_letter_id.' for student '.$student->student_number);
-        $teacherMessageCount = $this->sendApprovedExcuseLetterToTeachers($letter->fresh(['student', 'submittedBy', 'parentApprovedBy']), $request->user());
+        $teacherMessageCount = $this->sendSubmittedExcuseLetterToTeachers(
+            $letter->fresh(['student', 'submittedBy']),
+            $request->user(),
+        );
 
         return back()->with('success', $teacherMessageCount > 0
-            ? 'Excuse letter approved and sent to the teacher.'
-            : 'Excuse letter approved, but no assigned teacher was found for this section.');
+            ? 'Parent approval submitted. The excuse letter is now waiting for Instructor review.'
+            : 'Parent approval was saved, but no assigned Instructor was found for this section.');
     }
 
     // @function downloadPortalExcuseLetter: Idinodownload ang portal excuse letter sa Students flow.
@@ -920,7 +915,7 @@ class StudentsController
     {
         $student = $this->currentStudent($request);
         abort_unless($student && (int) $letter->student_id === (int) $student->student_id, 403);
-        abort_if((string) $letter->status === 'pending_parent_approval', 422, 'Parent approval is required before downloading this excuse letter.');
+        abort_if((string) $letter->status !== 'approved', 422, 'Instructor approval is required before downloading this excuse letter.');
 
         $letter->loadMissing(['student.section', 'studentEnrollment.section', 'submittedBy', 'parentApprovedBy']);
         $studentName = trim($letter->student->first_name.' '.$letter->student->last_name);
@@ -1386,11 +1381,36 @@ class StudentsController
         return Str::lower(preg_replace('/\s+/u', '', trim($firstName.$lastName)) ?? '');
     }
 
-    // @function sendApprovedExcuseLetterToTeachers: Ipinapadala ang approved excuse letter to teachers sa Students flow.
-    // @useIn sendApprovedExcuseLetterToTeachers: StudentsController::storePortalExcuseLetter (app/Http/Controllers/Shared/Students/StudentsController.php)
-    private function sendApprovedExcuseLetterToTeachers(StudentExcuseLetter $letter, User $sender): int
+    // @function notifyParentsExcuseLetterNeedsApproval: Inaabisuhan ang linked Parents para sa approval.
+    // @useIn notifyParentsExcuseLetterNeedsApproval: StudentsController::storePortalExcuseLetter (app/Http/Controllers/Shared/Students/StudentsController.php)
+    private function notifyParentsExcuseLetterNeedsApproval(StudentExcuseLetter $letter, User $sender): int
     {
-        $letter->loadMissing(['student.section', 'studentEnrollment', 'submittedBy', 'parentApprovedBy']);
+        $student = $letter->student()->with('parentUsers')->first();
+        if (! $student) {
+            return 0;
+        }
+
+        $parents = $student->parentUsers->filter(fn (User $parent) => strtolower((string) $parent->role) === 'parent');
+        foreach ($parents as $parent) {
+            StudentPortalMessage::query()->create([
+                'student_id' => $student->student_id,
+                'student_excuse_letter_id' => $letter->student_excuse_letter_id,
+                'sender_user_id' => $sender->user_id,
+                'recipient_user_id' => $parent->user_id,
+                'sender_role' => strtolower((string) $sender->role),
+                'subject' => 'Excuse Letter Needs Parent Approval: '.$letter->subject,
+                'body' => 'An excuse letter for '.$student->first_name.' '.$student->last_name.' needs your approval before it is sent to the Instructor. Subject: '.$letter->subject,
+            ]);
+        }
+
+        return $parents->count();
+    }
+
+    // @function sendSubmittedExcuseLetterToTeachers: Ipinapadala ang submitted excuse letter sa assigned Instructors.
+    // @useIn sendSubmittedExcuseLetterToTeachers: StudentsController::storePortalExcuseLetter (app/Http/Controllers/Shared/Students/StudentsController.php)
+    private function sendSubmittedExcuseLetterToTeachers(StudentExcuseLetter $letter, User $sender): int
+    {
+        $letter->loadMissing(['student.section', 'studentEnrollment', 'submittedBy']);
         $student = $letter->student;
         if (! $student) {
             return 0;
@@ -1410,14 +1430,14 @@ class StudentsController
         }
 
         if ($teacherUsers->isEmpty()) {
-            $this->logActivity('warning', 'student_excuse_letters', 'Approved excuse letter '.$letter->student_excuse_letter_id.' was not sent because no teacher is assigned to student '.$student->student_number);
+            $this->logActivity('warning', 'student_excuse_letters', 'Submitted excuse letter '.$letter->student_excuse_letter_id.' was not sent because no Instructor is assigned to student '.$student->student_number);
 
             return 0;
         }
 
-        $subject = 'Approved Excuse Letter: '.$letter->subject;
-        $body = $this->approvedExcuseLetterMessageBody($letter, $student, $sender);
-        [$attachmentPath, $attachmentName] = $this->storeApprovedExcuseLetterPdf($letter, $student);
+        $subject = 'Excuse Letter Submitted: '.$letter->subject;
+        $body = $this->submittedExcuseLetterMessageBody($letter, $student, $sender);
+        [$attachmentPath, $attachmentName] = $this->storeExcuseLetterPdf($letter, $student);
         $attachmentMime = $this->storedAttachmentMime($attachmentPath);
         $attachmentSize = $this->storedAttachmentSize($attachmentPath);
 
@@ -1451,7 +1471,7 @@ class StudentsController
                 'attachment_size' => $message->attachment_size,
             ]);
 
-            $this->emailApprovedExcuseLetterToTeacher(
+            $this->emailExcuseLetterSubmissionToTeacher(
                 $teacher,
                 $letter,
                 $student,
@@ -1462,66 +1482,14 @@ class StudentsController
             );
         }
 
-        $this->logActivity('create', 'student_portal_messages', 'Sent approved excuse letter '.$letter->student_excuse_letter_id.' to '.$teacherUsers->count().' teacher account(s).');
+        $this->logActivity('create', 'student_portal_messages', 'Sent submitted excuse letter '.$letter->student_excuse_letter_id.' to '.$teacherUsers->count().' Instructor account(s).');
 
         return $teacherUsers->count();
     }
 
-    // @function notifyParentsExcuseLetterNeedsApproval: Nagnonotify ang parents excuse letter needs approval sa Students flow.
-    // @useIn notifyParentsExcuseLetterNeedsApproval: StudentsController::storePortalExcuseLetter (app/Http/Controllers/Shared/Students/StudentsController.php)
-    /**
-    * WHAT IT DOES: Nagpapadala ng email kapag may excuse letter na naghihintay ng Parent approval.
-    * WHO USES IT: Student at Parent.
-    * WHAT HAPPENS: Makakatanggap ang linked Parent ng paalala na mag-sign in at pumirma.
-    */
-    private function notifyParentsExcuseLetterNeedsApproval(StudentExcuseLetter $letter): int
-    {
-        $student = $letter->student;
-        if (! $student) {
-            return 0;
-        }
-
-        $studentName = trim($student->first_name.' '.$student->last_name);
-        $approvalUrl = route('student-parent.excuse-letters.index', [
-            'student_id' => $student->student_id,
-        ]);
-        $sent = 0;
-
-        foreach ($student->parentUsers->filter(fn (User $parent) => filter_var($parent->email, FILTER_VALIDATE_EMAIL)) as $parent) {
-            try {
-                Mail::raw(
-                    implode("\n\n", [
-                        "Hello {$parent->name},",
-                        "{$studentName} submitted an excuse letter for {$letter->subject} covering {$letter->from_date?->format('F j, Y')} to {$letter->to_date?->format('F j, Y')}.",
-                        'Please sign in to the parent portal, review the letter, and provide your approval and signature.',
-                        "Review and sign: {$approvalUrl}",
-                    ]),
-                    fn ($message) => $message
-                        ->to($parent->email)
-                        ->subject('Excuse Letter Awaiting Parent Signature'),
-                );
-                $sent++;
-            } catch (\Throwable $exception) {
-                Log::warning('Parent excuse-letter email could not be sent.', [
-                    'letter_id' => $letter->student_excuse_letter_id,
-                    'parent_user_id' => $parent->user_id,
-                    'message' => $exception->getMessage(),
-                ]);
-            }
-        }
-
-        $this->logActivity(
-            $sent > 0 ? 'email' : 'warning',
-            'student_excuse_letters',
-            'Sent parent signature notification for excuse letter '.$letter->student_excuse_letter_id.' to '.$sent.' parent account(s).',
-        );
-
-        return $sent;
-    }
-
-    // @function emailApprovedExcuseLetterToTeacher: Kinukuha ang email approved excuse letter to teacher result para sa Students.
-    // @useIn emailApprovedExcuseLetterToTeacher: StudentsController::sendApprovedExcuseLetterToTeachers (app/Http/Controllers/Shared/Students/StudentsController.php)
-    private function emailApprovedExcuseLetterToTeacher(
+    // @function emailExcuseLetterSubmissionToTeacher: Emails the submitted excuse letter to its Instructor.
+    // @useIn emailExcuseLetterSubmissionToTeacher: StudentsController::sendSubmittedExcuseLetterToTeachers (app/Http/Controllers/Shared/Students/StudentsController.php)
+    private function emailExcuseLetterSubmissionToTeacher(
         User $teacher,
         StudentExcuseLetter $letter,
         Students $student,
@@ -1536,17 +1504,17 @@ class StudentsController
 
         try {
             Mail::raw(
-                $body."\n\nThe signed excuse-letter PDF is attached. You can also review it in Messenger.",
+                $body."\n\nThe excuse letter is attached. You can review it in Messenger.",
                 fn ($message) => $message
                     ->to($teacher->email)
-                    ->subject('Approved Excuse Letter: '.$letter->subject)
+                    ->subject('Excuse Letter Submitted: '.$letter->subject)
                     ->attach(Storage::disk('public')->path($attachmentPath), [
                         'as' => $attachmentName,
                         'mime' => 'application/pdf',
                     ]),
             );
         } catch (\Throwable $exception) {
-            Log::warning('Instructor excuse-letter email could not be sent.', [
+            Log::warning('Submitted excuse-letter email could not be sent to the Instructor.', [
                 'letter_id' => $letter->student_excuse_letter_id,
                 'student_id' => $student->student_id,
                 'teacher_user_id' => $teacher->user_id,
@@ -1556,9 +1524,9 @@ class StudentsController
         }
     }
 
-    // @function storeApprovedExcuseLetterPdf: Sine-save ang approved excuse letter pdf sa Students flow.
-    // @useIn storeApprovedExcuseLetterPdf: StudentsController::sendApprovedExcuseLetterToTeachers (app/Http/Controllers/Shared/Students/StudentsController.php)
-    private function storeApprovedExcuseLetterPdf(StudentExcuseLetter $letter, Students $student): array
+    // @function storeExcuseLetterPdf: Sine-save ang excuse letter PDF sa Students flow.
+    // @useIn storeExcuseLetterPdf: StudentsController::sendSubmittedExcuseLetterToTeachers (app/Http/Controllers/Shared/Students/StudentsController.php)
+    private function storeExcuseLetterPdf(StudentExcuseLetter $letter, Students $student): array
     {
         $studentName = trim($student->first_name.' '.$student->last_name);
         $section = $student->section?->section_name ?: 'Section';
@@ -1578,7 +1546,7 @@ class StudentsController
     }
 
     // @function teacherUsersForStudent: Kinukuha ang teacher users for student result para sa Students.
-    // @useIn teacherUsersForStudent: StudentsController::sendApprovedExcuseLetterToTeachers (app/Http/Controllers/Shared/Students/StudentsController.php)
+    // @useIn teacherUsersForStudent: StudentsController::sendSubmittedExcuseLetterToTeachers (app/Http/Controllers/Shared/Students/StudentsController.php)
     private function teacherUsersForStudent(Students $student, ?StudentEnrollment $enrollment = null)
     {
         $sectionId = $enrollment?->section_id ?? $student->section_id;
@@ -1640,30 +1608,25 @@ class StudentsController
         return $selectedIds === [] ? null : $selectedIds;
     }
 
-    // @function approvedExcuseLetterMessageBody: Binubuo ang approved excuse letter message body string para sa Students.
-    // @useIn approvedExcuseLetterMessageBody: StudentsController::sendApprovedExcuseLetterToTeachers (app/Http/Controllers/Shared/Students/StudentsController.php)
-    private function approvedExcuseLetterMessageBody(StudentExcuseLetter $letter, Students $student, User $sender): string
+    // @function submittedExcuseLetterMessageBody: Binubuo ang submitted excuse letter message body string.
+    // @useIn submittedExcuseLetterMessageBody: StudentsController::sendSubmittedExcuseLetterToTeachers (app/Http/Controllers/Shared/Students/StudentsController.php)
+    private function submittedExcuseLetterMessageBody(StudentExcuseLetter $letter, Students $student, User $sender): string
     {
         $studentName = trim($student->first_name.' '.$student->last_name);
         $dateRange = trim(($letter->from_date?->format('Y-m-d') ?? '').' to '.($letter->to_date?->format('Y-m-d') ?? ''));
-        $approvedAt = $letter->parent_approved_at?->format('Y-m-d g:i A') ?? now()->format('Y-m-d g:i A');
-
         return trim(implode("\n\n", array_filter([
-            'An excuse letter has been signed by a parent and is ready for teacher review.',
+            'An excuse letter was submitted and is waiting for Instructor review.',
             "Student: {$studentName} ({$student->student_number})",
             'Section: '.($student->section?->section_name ?? 'N/A'),
             "Subject: {$letter->subject}",
             "Covered Dates: {$dateRange}",
             "Reason:\n{$letter->reason}",
-            "Parent Signature: {$letter->parent_signature}",
-            "Approved By: {$sender->name}",
-            "Approved At: {$approvedAt}",
-            $letter->parent_approval_notes ? "Parent Notes:\n{$letter->parent_approval_notes}" : null,
+            "Submitted By: {$sender->name}",
         ])));
     }
 
     // @function storedAttachmentMime: Binubuo ang stored attachment mime string para sa Students.
-    // @useIn storedAttachmentMime: StudentsController::sendApprovedExcuseLetterToTeachers (app/Http/Controllers/Shared/Students/StudentsController.php)
+    // @useIn storedAttachmentMime: StudentsController::sendSubmittedExcuseLetterToTeachers (app/Http/Controllers/Shared/Students/StudentsController.php)
     private function storedAttachmentMime(?string $path): ?string
     {
         return $path && Storage::disk('public')->exists($path)
@@ -1672,7 +1635,7 @@ class StudentsController
     }
 
     // @function storedAttachmentSize: Kinukuha ang stored attachment size result para sa Students.
-    // @useIn storedAttachmentSize: StudentsController::sendApprovedExcuseLetterToTeachers (app/Http/Controllers/Shared/Students/StudentsController.php)
+    // @useIn storedAttachmentSize: StudentsController::sendSubmittedExcuseLetterToTeachers (app/Http/Controllers/Shared/Students/StudentsController.php)
     private function storedAttachmentSize(?string $path): ?int
     {
         return $path && Storage::disk('public')->exists($path)
@@ -1989,11 +1952,13 @@ class StudentsController
         return StudentPortalMessage::query()
             ->with(['sender', 'recipient', 'instructor'])
             ->where('student_id', $student->student_id)
-            ->where(function ($query) use ($userId) {
+            ->where(function ($query) use ($userId, $request) {
                 $query
                     ->where('sender_user_id', $userId)
                     ->orWhere('recipient_user_id', $userId);
             })
+            ->when(strtolower((string) $request->user()?->role) === 'student', fn ($query) => $query->whereDoesntHave('excuseLetter', fn ($letterQuery) => $letterQuery->where('status', 'pending_parent_approval')))
+            ->when(strtolower((string) $request->user()?->role) === 'student', fn ($query) => $query->whereDoesntHave('recipient', fn ($recipientQuery) => $recipientQuery->whereRaw('LOWER(role) = ?', ['parent'])))
             ->latest();
     }
 
@@ -2024,8 +1989,6 @@ class StudentsController
     // @useIn letterPayload: StudentsController::portalExcuseLetters (app/Http/Controllers/Shared/Students/StudentsController.php)
     private function letterPayload(StudentExcuseLetter $letter, ?Request $request = null): array
     {
-        $role = strtolower((string) $request?->user()?->role);
-
         return [
             'id' => $letter->student_excuse_letter_id,
             'subject' => $letter->subject,
@@ -2036,15 +1999,8 @@ class StudentsController
             'academic_year' => $letter->academicYear?->name,
             'submitted_by' => $letter->submittedBy?->name,
             'submitted_by_role' => $letter->submitted_by_role,
-            'parent_signature' => $letter->parent_signature,
-            'parent_approval_notes' => $letter->parent_approval_notes,
-            'parent_approved_by' => $letter->parentApprovedBy?->name,
-            'parent_approved_at' => $letter->parent_approved_at?->toDateTimeString(),
             'recipient_user_ids' => $letter->recipient_user_ids ?? [],
-            'can_parent_approve' => $role === 'parent'
-                && $letter->submitted_by_role === 'student'
-                && $letter->status === 'pending_parent_approval',
-            'can_download' => $letter->status !== 'pending_parent_approval',
+            'can_download' => $letter->status === 'approved',
             'attachment_name' => $letter->attachment_name,
             'attachment_url' => $letter->attachment_path
                 ? route('student-parent.excuse-letters.attachment', array_filter([

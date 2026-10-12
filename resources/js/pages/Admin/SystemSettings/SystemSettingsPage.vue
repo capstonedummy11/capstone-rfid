@@ -153,6 +153,7 @@ const sendTestSms = async (provider) => {
 const toggleParentPortal = () => {
     if (!form.parent_portal_enabled) {
         form.parent_excuse_letters_enabled = false;
+        form.parent_excuse_letter_approval_required = false;
     }
 };
 
@@ -162,6 +163,9 @@ const form = useForm({
     parent_portal_enabled: Boolean(props.featureSettings.parent_portal_enabled),
     parent_excuse_letters_enabled: Boolean(
         props.featureSettings.parent_excuse_letters_enabled,
+    ),
+    parent_excuse_letter_approval_required: Boolean(
+        props.featureSettings.parent_excuse_letter_approval_required,
     ),
     face_recognition_enabled:
         faceAvailable.value &&
@@ -743,6 +747,25 @@ const toggleFaceSetting = (field) => {
                         </span>
                         <input
                             v-model="form.online_classes_enabled"
+                            type="checkbox"
+                            class="h-5 w-5 shrink-0 accent-brand"
+                        />
+                    </label>
+
+                    <label
+                        v-if="form.parent_portal_enabled"
+                        class="flex items-center justify-between gap-4 rounded-md border border-slate-200 p-4"
+                    >
+                        <span class="min-w-0">
+                            <span class="block text-sm font-bold text-slate-900">
+                                Require Parent Approval Before Instructor Review
+                            </span>
+                            <span class="block text-sm text-slate-500">
+                                Only linked Parents are notified first. Instructor review starts after Parent approval.
+                            </span>
+                        </span>
+                        <input
+                            v-model="form.parent_excuse_letter_approval_required"
                             type="checkbox"
                             class="h-5 w-5 shrink-0 accent-brand"
                         />

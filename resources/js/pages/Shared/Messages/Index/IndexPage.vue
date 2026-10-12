@@ -462,20 +462,18 @@ const reviewDecisionLabel = computed(() =>
 // @useIn openReviewModal: resources/js/pages/Shared/Messages/Index/IndexPage.vue template
 const openReviewModal = (message, decision) => {
     const student = message.excuse_letter_review?.student;
-    const parents = message.excuse_letter_review?.parents ?? [];
     const studentName = student?.name || message.student_name || 'Student';
     const result = decision === 'approved' ? 'approved' : 'denied';
     const recipients = [];
 
     if (student?.available) recipients.push('student');
-    if (parents.length > 0) recipients.push('parent');
 
     reviewMessage.value = message;
     reviewForm.clearErrors();
     reviewForm.decision = decision;
     reviewForm.recipients = recipients;
     reviewForm.email_subject = `Excuse Letter ${result === 'approved' ? 'Approved' : 'Denied'} - ${studentName}`;
-    reviewForm.email_body = `Dear Student/Parent,\n\nThe excuse letter for ${studentName} has been ${result} by the instructor.\n\nSubject: ${message.subject}\n\nRegards,\n${page.props.auth?.user?.name || 'Instructor'}`;
+    reviewForm.email_body = `Dear ${studentName},\n\nYour excuse letter has been ${result} by the instructor.\n\nSubject: ${message.subject}\n\nRegards,\n${page.props.auth?.user?.name || 'Instructor'}`;
 };
 
 // @function closeReviewModal: Isinasara ang review modal sa Index flow.
@@ -490,7 +488,7 @@ const closeReviewModal = () => {
 // @function submitReview: Isinusumite ang review sa Index flow.
 // @useIn submitReview: resources/js/pages/Shared/Messages/Index/IndexPage.vue template
 const submitReview = () => {
-    if (!reviewMessage.value || reviewForm.recipients.length === 0) {
+    if (!reviewMessage.value || (reviewForm.decision === 'approved' && reviewForm.recipients.length === 0)) {
         reviewForm.setError(
             'recipients',
             'Select at least one available email recipient.',
@@ -1022,13 +1020,13 @@ const reviewedStatusLabel = (status) => {
                 </div>
 
                 <form class="space-y-4 p-5" @submit.prevent="submitReview">
-                    <fieldset>
+                    <fieldset v-if="reviewForm.decision === 'approved'">
                         <legend
                             class="text-xs font-bold text-slate-500 uppercase"
                         >
                             Send email to
                         </legend>
-                        <div class="mt-2 grid gap-2 sm:grid-cols-2">
+                        <div class="mt-2 grid gap-2">
                             <label
                                 class="flex items-start gap-3 rounded-lg border border-slate-200 p-3"
                                 :class="
@@ -1059,47 +1057,6 @@ const reviewedStatusLabel = (status) => {
                                             'No valid email'
                                         }}
                                     </span>
-                                </span>
-                            </label>
-                            <label
-                                class="flex items-start gap-3 rounded-lg border border-slate-200 p-3"
-                                :class="
-                                    reviewMessage.excuse_letter_review?.parents
-                                        ?.length
-                                        ? 'cursor-pointer hover:bg-slate-50'
-                                        : 'cursor-not-allowed bg-slate-50 opacity-60'
-                                "
-                            >
-                                <input
-                                    v-model="reviewForm.recipients"
-                                    type="checkbox"
-                                    value="parent"
-                                    class="mt-1 h-4 w-4 rounded border-slate-300"
-                                    :disabled="
-                                        !reviewMessage.excuse_letter_review
-                                            ?.parents?.length
-                                    "
-                                />
-                                <span class="min-w-0 text-sm">
-                                    <strong class="block text-slate-800"
-                                        >Parent</strong
-                                    >
-                                    <span
-                                        v-if="
-                                            reviewMessage.excuse_letter_review
-                                                ?.parents?.length
-                                        "
-                                        class="block text-slate-500"
-                                    >
-                                        {{
-                                            reviewMessage.excuse_letter_review.parents
-                                                .map((parent) => parent.email)
-                                                .join(', ')
-                                        }}
-                                    </span>
-                                    <span v-else class="block text-slate-500"
-                                        >No linked parent email</span
-                                    >
                                 </span>
                             </label>
                         </div>
