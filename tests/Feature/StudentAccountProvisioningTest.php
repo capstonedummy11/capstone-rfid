@@ -83,6 +83,17 @@ test('student created by an admin can sign in with the submitted email and gener
         'status' => 'enrolled',
     ]);
 
+    $this->actingAs($admin)
+        ->get(route('admin.students.index', ['search' => $studentData['student_number']]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Shared/Students/StudentsPage')
+            ->has('students', 1)
+            ->where('students.0.student_number', $studentData['student_number'])
+            ->where('students.0.email', $studentData['email'])
+            ->where('students.0.section_id', $section->section_id)
+        );
+
     $this->post(route('logout'))->assertRedirect('/');
     $this->assertGuest();
 

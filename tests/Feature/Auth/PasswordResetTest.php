@@ -46,7 +46,9 @@ test('reset password screen can be rendered', function () {
     Notification::assertSentTo($user, ResetPassword::class, function ($notification) {
         $response = $this->get(route('password.reset', $notification->token));
 
-        $response->assertOk();
+        $response->assertOk()
+            ->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page
+                ->component('Shared/Auth/ResetPassword/ResetPasswordPage'));
 
         return true;
     });

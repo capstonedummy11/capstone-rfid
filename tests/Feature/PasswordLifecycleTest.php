@@ -62,6 +62,12 @@ test('new non console account must change temporary password before dashboard ac
     $this->actingAs($user)
         ->get(route('admin.dashboard'))
         ->assertRedirect(route('password.first-login'));
+
+    $this->actingAs($user)
+        ->get(route('password.first-login'))
+        ->assertOk()
+        ->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page
+            ->component('Shared/Auth/FirstLoginPassword/FirstLoginPasswordPage'));
 });
 
 test('user can replace a temporary password and continue', function () {

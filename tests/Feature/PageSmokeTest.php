@@ -366,6 +366,84 @@ test('application pages do not return server errors', function () {
         ['parent reports', $parent, route('reports.index')],
     ];
 
+    $expectedComponents = [
+        'guest landing' => 'StudentParent/Login/StudentParentLoginPage',
+        'guest about' => 'Public/About/AboutPage',
+        'staff login' => 'Shared/Auth/StaffLogin/StaffLoginPage',
+        'register' => 'Public/Register/RegisterPage',
+        'messages create' => 'Shared/Messages/Create/CreatePage',
+        'attendance panel login' => 'AttendanceConsole/AttendancePanelLogin/AttendancePanelLoginPage',
+        'admin dashboard' => 'Shared/Dashboard/DashboardPage',
+        'admin academic years' => 'Admin/AcademicYears/AcademicYearsPage',
+        'admin active devices' => 'Admin/ActiveDevices/ActiveDevicesPage',
+        'admin activity logs' => 'Admin/ActivityLogs/ActivityLogsPage',
+        'admin attendance logs' => 'Shared/Attendance/SubjectSelection/SubjectSelectionPage',
+        'admin attendance scanner' => 'Shared/Attendance/AttendanceScanner/AttendanceScannerPage',
+        'admin attendance subject' => 'Shared/Attendance/Dashboard/DashboardPage',
+        'admin attendance summary' => 'Shared/Attendance/Summary/SummaryPage',
+        'admin attendance student' => 'Shared/Attendance/StudentHistory/StudentHistoryPage',
+        'admin attendance session' => 'Shared/Attendance/SessionDetails/SessionDetailsPage',
+        'admin attendance legacy logs' => 'Shared/Attendance/AttendanceLogs/AttendanceLogsPage',
+        'admin borrow' => 'Admin/Borrow/BorrowPage',
+        'admin instructors' => 'Admin/Instructors/InstructorsPage',
+        'admin inventory' => 'Admin/Inventory/InventoryPage',
+        'admin laboratories' => 'Admin/Laboratories/LaboratoriesPage',
+        'admin messages' => 'Shared/Messages/Index/IndexPage',
+        'admin online class logs' => 'Admin/OnlineClassLogs/OnlineClassLogsPage',
+        'admin online classes' => 'Shared/OnlineClasses/OnlineClassesPage',
+        'admin rfid' => 'Admin/Rfid/RfidPage',
+        'admin schedules' => 'Shared/Schedules/SchedulesPage',
+        'admin sections' => 'Admin/Sections/SectionsPage',
+        'admin settings' => 'Admin/SystemSettings/SystemSettingsPage',
+        'admin strands' => 'Admin/Strands/StrandsPage',
+        'admin students' => 'Shared/Students/StudentsPage',
+        'admin students management' => 'Admin/StudentsManagement/StudentsManagementPage',
+        'admin subjects' => 'Admin/Subjects/SubjectsPage',
+        'admin users' => 'Admin/UserManagement/UserManagementPage',
+        'admin reports' => 'Shared/Reports/Index/IndexPage',
+        'profile settings' => 'Shared/Settings/Profile/ProfilePage',
+        'password settings' => 'Shared/Settings/Password/PasswordPage',
+        'appearance settings' => 'Shared/Settings/Appearance/AppearancePage',
+        'two factor settings' => 'Shared/Settings/TwoFactor/TwoFactorPage',
+        'instructor verify' => 'Instructor/Verification/InstructorVerifyPage',
+        'instructor dashboard' => 'Shared/Dashboard/DashboardPage',
+        'instructor schedules' => 'Shared/Schedules/SchedulesPage',
+        'instructor students' => 'Shared/Students/StudentsPage',
+        'instructor attendance logs' => 'Shared/Attendance/SubjectSelection/SubjectSelectionPage',
+        'instructor online classes' => 'Shared/OnlineClasses/OnlineClassesPage',
+        'instructor messages' => 'Shared/Messages/Index/IndexPage',
+        'instructor reports' => 'Shared/Reports/Index/IndexPage',
+        'clinic dashboard' => 'Clinic/Dashboard/DashboardPage',
+        'clinic case logs' => 'Clinic/CaseLogs/CaseLogsPage',
+        'clinic patient history' => 'Clinic/PatientHistory/PatientHistoryPage',
+        'clinic reports' => 'Clinic/Reports/ReportsPage',
+        'clinic emergency hotlines' => 'Clinic/EmergencyHotlines/EmergencyHotlinesPage',
+        'clinic messages' => 'Shared/Messages/Index/IndexPage',
+        'clinic global reports' => 'Shared/Reports/Index/IndexPage',
+        'registrar dashboard' => 'Registrar/Dashboard/DashboardPage',
+        'registrar biometric enrollment' => 'Registrar/BiometricEnrollment/BiometricEnrollmentPage',
+        'registrar instructor faces' => 'Registrar/InstructorFaceEnrollment/InstructorFaceEnrollmentPage',
+        'registrar messages' => 'Shared/Messages/Index/IndexPage',
+        'registrar reports' => 'Shared/Reports/Index/IndexPage',
+        'console control panel' => 'AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage',
+        'student dashboard' => 'StudentParent/Dashboard/DashboardPage',
+        'student profile' => 'StudentParent/Profile/ProfilePage',
+        'student attendance' => 'StudentParent/Attendance/AttendancePage',
+        'student excuse letters' => 'StudentParent/ExcuseLetters/ExcuseLettersPage',
+        'student messages' => 'Shared/Messages/Index/IndexPage',
+        'student notifications' => 'StudentParent/Notifications/NotificationsPage',
+        'student online classes' => 'StudentParent/OnlineClasses/OnlineClassesPage',
+        'student reports' => 'Shared/Reports/Index/IndexPage',
+        'parent dashboard' => 'StudentParent/Dashboard/DashboardPage',
+        'parent profile' => 'StudentParent/Profile/ProfilePage',
+        'parent attendance' => 'StudentParent/Attendance/AttendancePage',
+        'parent excuse letters' => 'StudentParent/ExcuseLetters/ExcuseLettersPage',
+        'parent messages' => 'Shared/Messages/Index/IndexPage',
+        'parent notifications' => 'StudentParent/Notifications/NotificationsPage',
+        'parent online classes' => 'StudentParent/OnlineClasses/OnlineClassesPage',
+        'parent reports' => 'Shared/Reports/Index/IndexPage',
+    ];
+
     $failures = [];
 
     foreach ($routes as $route) {
@@ -382,6 +460,14 @@ test('application pages do not return server errors', function () {
         if ($response->getStatusCode() >= 500) {
             $message = $response->exception?->getMessage() ?: $response->getContent();
             $failures[] = "{$label} [{$response->getStatusCode()}] {$url}: {$message}";
+        }
+
+        if (isset($expectedComponents[$label]) && $response->getStatusCode() === 200) {
+            try {
+                $response->assertInertia(fn (Assert $page) => $page->component($expectedComponents[$label]));
+            } catch (Throwable $exception) {
+                $failures[] = "{$label} rendered the wrong Inertia page: {$exception->getMessage()}";
+            }
         }
 
         if ($user && $response->getStatusCode() === 200) {

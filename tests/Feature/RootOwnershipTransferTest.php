@@ -42,6 +42,11 @@ test('accepted normal transfer completes atomically and revokes the old owner ac
     $transfer = requestTransfer($this, $root, $target);
     $acceptUrl = URL::temporarySignedRoute('root-ownership.accept.store', $transfer->expires_at, ['transfer' => $transfer->id]);
 
+    $this->actingAs($target)
+        ->get($acceptUrl)
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->component('Shared/RootOwnership/Accept/AcceptPage'));
+
     $this->actingAs($target)->post($acceptUrl)->assertRedirect(route('admin.users.index'));
     $this->travel((int) config('root_ownership.transfer_delay_days'))->days();
     app(RootTransferService::class)->processDue();

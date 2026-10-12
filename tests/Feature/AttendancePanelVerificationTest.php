@@ -12,8 +12,8 @@ use App\Models\Students;
 use App\Models\Subject;
 use App\Models\SystemSetting;
 use App\Models\User;
-use App\Services\AwsFaceRecognitionService;
 use App\Services\AwsFaceLivenessService;
+use App\Services\AwsFaceRecognitionService;
 use App\Services\FaceLivenessPolicy;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -640,49 +640,52 @@ test('administrator can edit attendance and export subject reports', function ()
 });
 
 test('attendance panel room remains unlocked on refresh until panel logout', function () {
-    $this->withoutMiddleware(ValidateCsrfToken::class);
-    $fixture = attendanceVerificationFixture();
+    // The fixture has an 08:00 class; freeze before it so the test remains valid at any wall-clock time.
+    $this->travelTo(Carbon::parse('2026-10-12 07:00:00', 'Asia/Manila'), function () {
+        $this->withoutMiddleware(ValidateCsrfToken::class);
+        $fixture = attendanceVerificationFixture();
 
-    $this->actingAs($fixture['console'])
-        ->postJson(route('attendanceControlPanel.room'), [
+        $this->actingAs($fixture['console'])
+            ->postJson(route('attendanceControlPanel.room'), [
+                'room' => 'COMLAB-ATT',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertDatabaseHas('rfid_panel_sessions', [
             'room' => 'COMLAB-ATT',
-        ])
-        ->assertOk()
-        ->assertJsonPath('success', true);
+            'opened_by_user_id' => $fixture['console']->user_id,
+            'status' => 'online',
+            'ended_at' => null,
+        ]);
 
-    $this->assertDatabaseHas('rfid_panel_sessions', [
-        'room' => 'COMLAB-ATT',
-        'opened_by_user_id' => $fixture['console']->user_id,
-        'status' => 'online',
-        'ended_at' => null,
-    ]);
+        $this->flushSession();
 
-    $this->flushSession();
+        $this->actingAs($fixture['console'])
+            ->get(route('attendanceControlPanel'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage')
+                ->where('panelRoom', 'COMLAB-ATT')
+            );
 
-    $this->actingAs($fixture['console'])
-        ->get(route('attendanceControlPanel'))
-        ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->component('AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage')
-            ->where('panelRoom', 'COMLAB-ATT')
-        );
+        $this->actingAs($fixture['console'])
+            ->withSession(['panel.room' => 'COMLAB-ATT'])
+            ->postJson(route('attendanceControlPanel.logout'), [
+                'room' => 'COMLAB-ATT',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
 
-    $this->actingAs($fixture['console'])
-        ->withSession(['panel.room' => 'COMLAB-ATT'])
-        ->postJson(route('attendanceControlPanel.logout'), [
-            'room' => 'COMLAB-ATT',
-        ])
-        ->assertOk()
-        ->assertJsonPath('success', true);
+        expect(RfidPanelSession::query()
+            ->where('room', 'COMLAB-ATT')
+            ->whereNull('ended_at')
+            ->exists())->toBeFalse();
 
-    expect(RfidPanelSession::query()
-        ->where('room', 'COMLAB-ATT')
-        ->whereNull('ended_at')
-        ->exists())->toBeFalse();
-
-    $this->actingAs($fixture['console'])
-        ->get(route('attendanceControlPanel'))
-        ->assertRedirect(route('attendanceControlPanel.login'));
+        $this->actingAs($fixture['console'])
+            ->get(route('attendanceControlPanel'))
+            ->assertRedirect(route('attendanceControlPanel.login'));
+    });
 });
 
 test('ongoing Sunday class is restored in its panel and locks the room against another login', function () {
