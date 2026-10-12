@@ -22,7 +22,7 @@ The recipient Instructor sees Approve and Deny only when:
 - the linked letter is pending (`pending_instructor_approval`); and
 - that delivered message has not already been reviewed.
 
-The decision is stored on the delivered Messenger record and updates the linked letter to `approved` or `denied`. The first Instructor decision closes review for that letter. Approval emails and dashboard-notifies the Student only; denial sends no notification.
+The decision is stored on the delivered Messenger record and updates the linked letter to `approved` or `denied`. The first Instructor decision closes review for that letter. Both decisions email and create a dashboard reminder for the Student only; Parents do not receive Instructor-decision notifications.
 
 The live letter template preview and generated PDF show a Parent Signature section only when **Require Parent Approval Before Instructor Review** is enabled. The downloaded PDF includes the actual Parent signature only after that approval is recorded. Letters submitted while the setting is off do not show the signature section.
 
@@ -35,7 +35,7 @@ Review fields are:
 
 ## Email behavior
 
-The modal provides an editable template and a Student email recipient. After approval, the system emails and creates an `Approved Excuse Letter: ...` portal reminder for the Student only. Denial is recorded without sending a notification.
+The modal provides an editable template and the Student email recipient for either decision. Approval creates an `Approved Excuse Letter: ...` portal reminder. Denial creates a `Denied Excuse Letter: ...` portal reminder. Both emails and reminders go to the Student only.
 
 The Parent is not an Instructor-decision notification recipient. Parent notification occurs only at the separate Parent-approval stage when the setting is enabled.
 

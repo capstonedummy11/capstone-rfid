@@ -488,7 +488,7 @@ const closeReviewModal = () => {
 // @function submitReview: Isinusumite ang review sa Index flow.
 // @useIn submitReview: resources/js/pages/Shared/Messages/Index/IndexPage.vue template
 const submitReview = () => {
-    if (!reviewMessage.value || (reviewForm.decision === 'approved' && reviewForm.recipients.length === 0)) {
+    if (!reviewMessage.value || reviewForm.recipients.length === 0) {
         reviewForm.setError(
             'recipients',
             'Select at least one available email recipient.',
@@ -1020,7 +1020,7 @@ const reviewedStatusLabel = (status) => {
                 </div>
 
                 <form class="space-y-4 p-5" @submit.prevent="submitReview">
-                    <fieldset v-if="reviewForm.decision === 'approved'">
+                    <fieldset>
                         <legend
                             class="text-xs font-bold text-slate-500 uppercase"
                         >

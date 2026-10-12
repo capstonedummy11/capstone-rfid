@@ -352,7 +352,7 @@ class MessageController
 
         $validated = $request->validate([
             'decision' => ['required', Rule::in(['approved', 'denied'])],
-            'recipients' => [$request->input('decision') === 'approved' ? 'required' : 'nullable', 'array', 'min:1'],
+            'recipients' => ['required', 'array', 'min:1'],
             'recipients.*' => ['required', 'string', 'distinct', Rule::in(['student'])],
             'email_subject' => ['required', 'string', 'max:255'],
             'email_body' => ['required', 'string', 'max:5000'],
@@ -373,10 +373,6 @@ class MessageController
                 'name' => trim($student->first_name.' '.$student->last_name),
                 'email' => $student->email,
             ]);
-        }
-
-        if ($validated['decision'] !== 'approved') {
-            $emailRecipients = collect();
         }
 
         $emailRecipients = $emailRecipients->unique('email')->values();
@@ -406,42 +402,36 @@ class MessageController
 
         $letter->update(['status' => $validated['decision'] === 'approved' ? 'approved' : 'denied']);
 
-        if ($validated['decision'] === 'approved') {
-            $studentUser = User::query()
-                ->where('email', $student->email)
-                ->whereRaw('LOWER(role) = ?', ['student'])
-                ->first();
-            $notificationSubject = 'Approved Excuse Letter: '.$letter->subject;
-            $notificationBody = 'Your excuse letter for '.$letter->subject.' covering '
-                .$letter->from_date?->format('F j, Y').' to '.$letter->to_date?->format('F j, Y')
-                .' was approved by Instructor '.$instructor->name.'.';
+        $studentUser = User::query()
+            ->where('email', $student->email)
+            ->whereRaw('LOWER(role) = ?', ['student'])
+            ->first();
+        $decisionLabel = $validated['decision'] === 'approved' ? 'approved' : 'denied';
+        $notificationSubject = ucfirst($decisionLabel).' Excuse Letter: '.$letter->subject;
+        $notificationBody = 'Your excuse letter for '.$letter->subject.' covering '
+            .$letter->from_date?->format('F j, Y').' to '.$letter->to_date?->format('F j, Y')
+            .' was '.$decisionLabel.' by Instructor '.$instructor->name.'.';
 
-            foreach (collect([$studentUser])->filter() as $recipient) {
-                StudentPortalMessage::query()->create([
-                    'student_id' => $student->student_id,
-                    'student_excuse_letter_id' => $letter->student_excuse_letter_id,
-                    'sender_user_id' => $instructor->user_id,
-                    'recipient_user_id' => $recipient->user_id,
-                    'sender_role' => 'instructor',
-                    'instructor_user_id' => $instructor->user_id,
-                    'subject' => $notificationSubject,
-                    'body' => $notificationBody,
-                ]);
-            }
+        foreach (collect([$studentUser])->filter() as $recipient) {
+            StudentPortalMessage::query()->create([
+                'student_id' => $student->student_id,
+                'student_excuse_letter_id' => $letter->student_excuse_letter_id,
+                'sender_user_id' => $instructor->user_id,
+                'recipient_user_id' => $recipient->user_id,
+                'sender_role' => 'instructor',
+                'instructor_user_id' => $instructor->user_id,
+                'subject' => $notificationSubject,
+                'body' => $notificationBody,
+            ]);
         }
 
-        $decisionLabel = $validated['decision'] === 'approved' ? 'approved' : 'denied';
         $this->logActivity(
             'update',
             'student_excuse_letters',
             'Instructor '.$decisionLabel.' excuse letter '.$letter->student_excuse_letter_id.' and emailed '.$emailRecipients->count().' recipient(s).',
         );
 
-        $successMessage = $validated['decision'] === 'approved'
-            ? 'Excuse letter approved and emailed to the student.'
-            : 'Excuse letter denied.';
-
-        return back()->with('success', $successMessage);
+        return back()->with('success', 'Excuse letter '.$decisionLabel.' and emailed to the student.');
     }
 
     // @function sendConversationMessage: Ipinapadala ang conversation message sa Message flow.

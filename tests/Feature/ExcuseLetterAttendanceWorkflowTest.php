@@ -378,17 +378,23 @@ test('current enrollment instructor can be searched and receives an excuse lette
             'email_body' => 'Your excuse letter was denied. Please contact your instructor.',
         ])
         ->assertRedirect()
-        ->assertSessionHas('success', 'Excuse letter denied.');
+        ->assertSessionHas('success', 'Excuse letter denied and emailed to the student.');
 
     $deniedLetter->refresh();
     $deniedPortalMessage->refresh();
     expect($deniedLetter->status)->toBe('denied')
         ->and($deniedPortalMessage->excuse_letter_review_decision)->toBe('denied')
         ->and($deniedPortalMessage->excuse_letter_reviewed_by_user_id)->toBe($instructorUser->user_id)
-        ->and($deniedPortalMessage->excuse_letter_review_recipients)->toBe([]);
+        ->and($deniedPortalMessage->excuse_letter_review_recipients)->toHaveCount(1)
+        ->and($deniedPortalMessage->excuse_letter_review_recipients[0]['email'])->toBe($student->email);
+
+    expect(StudentPortalMessage::query()
+        ->where('student_excuse_letter_id', $deniedLetter->student_excuse_letter_id)
+        ->where('recipient_user_id', $studentUser->user_id)
+        ->firstOrFail()->subject)->toBe('Denied Excuse Letter: '.$subject->subject_name);
 
     $sentEmails = app('mailer')->getSymfonyTransport()->messages();
-    expect($sentEmails)->toHaveCount(3);
+    expect($sentEmails)->toHaveCount(4);
 
     $emailRecipients = $sentEmails
         ->flatMap(fn ($sentEmail) => $sentEmail->getEnvelope()->getRecipients())

@@ -233,7 +233,7 @@ Routes:
 3. The system sends an `Excuse Letter Submitted: ...` Messenger item and email to selected Instructors, or all assigned Instructors when none were selected.
 4. The recipient Instructor opens the linked item in Messenger and approves or denies the letter.
 5. Instructor approval sets the letter to `approved`, enables generated PDF download, and emails and creates an `Approved Excuse Letter: ...` reminder for the Student only.
-6. Instructor denial sets the letter to `denied` without notification; generated approved PDF remains unavailable.
+6. Instructor denial sets the letter to `denied`, emails the Student, and creates a `Denied Excuse Letter: ...` dashboard reminder; generated approved PDF remains unavailable.
 
 ### 2. Parent-Submitted Letter
 

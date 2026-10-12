@@ -667,7 +667,7 @@ Instructor review and result email:
 2. Select **Approve** or **Deny** on that excuse-letter message.
 3. For approval, select the Student email recipient. Parent is not an Instructor-decision email recipient.
 4. Review or edit the prepared email subject and message, then submit the decision.
-5. Approval emails and creates an `Approved Excuse Letter: ...` dashboard reminder for the Student only. Denial records the decision without sending a notification.
+5. Approval emails and creates an `Approved Excuse Letter: ...` dashboard reminder for the Student only. Denial emails the Student and creates a `Denied Excuse Letter: ...` dashboard reminder. Parents do not receive the Instructor's decision notification.
 
 Only an Instructor who received that linked delivery can decide it. The first Instructor decision closes review for the letter.
 
