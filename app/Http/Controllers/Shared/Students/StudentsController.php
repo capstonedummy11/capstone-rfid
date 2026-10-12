@@ -631,6 +631,7 @@ class StudentsController
         $student = $this->currentStudent($request);
         $enrollment = $this->portalEnrollment($request, $student);
         $attendance = $this->combinedAttendancePayloads($student, $enrollment);
+        $attendanceCounts = $attendance->countBy(fn (array $record) => strtolower(trim((string) ($record['status'] ?? ''))));
 
         return Inertia::render('StudentParent/Dashboard/DashboardPage', [
             'title' => 'Student Dashboard',
@@ -638,9 +639,9 @@ class StudentsController
             'linkedStudents' => $this->linkedStudentsPayload($request),
             'selectedStudentId' => $student?->student_id,
             'stats' => [
-                'present' => $attendance->where('status', 'present')->count(),
-                'late' => $attendance->where('status', 'late')->count(),
-                'absent' => $attendance->where('status', 'absent')->count(),
+                'present' => $attendanceCounts->get('present', 0),
+                'late' => $attendanceCounts->get('late', 0),
+                'absent' => $attendanceCounts->get('absent', 0),
                 'excuse_letters' => $student?->excuseLetters()->when($enrollment, fn ($query) => $query->where('academic_year_id', $enrollment->academic_year_id))->count() ?? 0,
                 'messages' => $student ? $this->messageQuery($request, $student)->count() : 0,
                 'online_classes' => $student

@@ -122,6 +122,14 @@ function attendanceVerificationFixture(bool $withFace = false): array
 
 test('student dashboard counts online class absences for enrolled students', function () {
     $fixture = attendanceVerificationFixture();
+    Attendance::query()->create([
+        'student_id' => $fixture['student']->student_id,
+        'schedule_id' => $fixture['schedule']->scheduled_id,
+        'date' => now()->toDateString(),
+        'status' => 'absent',
+        'subject_code' => 'ATT-SEC-101',
+        'room' => 'COMLAB-ATT',
+    ]);
     $onlineClass = OnlineClass::query()->create([
         'schedule_id' => $fixture['schedule']->scheduled_id,
         'instructor_id' => $fixture['schedule']->instructor_id,
@@ -145,7 +153,7 @@ test('student dashboard counts online class absences for enrolled students', fun
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('StudentParent/Dashboard/DashboardPage')
-            ->where('stats.absent', 1)
+            ->where('stats.absent', 2)
             ->where('attendance.1.source', 'online')
             ->where('attendance.1.status', 'absent'));
 
