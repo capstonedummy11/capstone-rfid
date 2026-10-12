@@ -117,23 +117,6 @@ const statusClass = (status) => {
                         :students="linkedStudents"
                         :selected-student-id="selectedStudentId"
                     />
-                    <div
-                        class="flex min-w-0 items-center gap-3 rounded-full bg-white px-4 py-2 shadow-sm"
-                    >
-                        <div
-                            class="h-9 w-9 shrink-0 rounded-full bg-slate-200"
-                        />
-                        <div class="min-w-0 text-left sm:text-right">
-                            <p
-                                class="truncate text-sm font-bold text-slate-900"
-                            >
-                                {{ student?.name || 'Student' }}
-                            </p>
-                            <p class="truncate text-xs text-slate-500">
-                                {{ student?.email || 'No email linked' }}
-                            </p>
-                        </div>
-                    </div>
                 </div>
             </header>
 
