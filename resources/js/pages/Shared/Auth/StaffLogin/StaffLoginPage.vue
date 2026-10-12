@@ -29,7 +29,7 @@ const carouselSlides = [
     {
         image: schoolPhoto,
         label: 'Secure staff access',
-        title: 'RFID-Based Attendance Monitoring and Management System',
+        title: 'RFID AND FACIAL RECOGNITION ATTENDANCE SYSTEM',
         text: 'Continue to role-based workspaces for admin, instructor, clinic, and registrar operations.',
     },
     {
