@@ -69,19 +69,40 @@ const mergeNotifications = (items) => {
     );
     items.forEach((item) => {
         byId.set(item.id, { ...byId.get(item.id), ...item });
-        notificationCursor.value = Math.max(
-            notificationCursor.value,
-            Number(item.id) || 0,
-        );
+        if (item.kind !== 'message') {
+            notificationCursor.value = Math.max(
+                notificationCursor.value,
+                Number(item.id) || 0,
+            );
+        }
     });
     notificationItems.value = Array.from(byId.values())
-        .sort((a, b) => Number(b.id) - Number(a.id))
-        .slice(0, 30);
+        .sort((a, b) =>
+            new Date(b.timestamp || 0).getTime() -
+            new Date(a.timestamp || 0).getTime(),
+        )
+        .slice(0, 50);
+};
+
+const openMessenger = (notification) => {
+    const params = {};
+    if (notification.conversation_user_id) {
+        params.conversation_user_id = notification.conversation_user_id;
+    }
+    if (notification.student_id || selectedStudentId.value) {
+        params.student_id = notification.student_id || selectedStudentId.value;
+    }
+    router.visit(route('messages.index', params));
+    notificationDropdownOpen.value = false;
 };
 
 const markNotificationRead = (notification, visitAfter = false) => {
     if (notification.read_at) {
-        if (visitAfter) openNotificationsPage();
+        if (visitAfter) {
+            notification.kind === 'message'
+                ? openMessenger(notification)
+                : openNotificationsPage();
+        }
         return;
     }
 
@@ -95,14 +116,21 @@ const markNotificationRead = (notification, visitAfter = false) => {
         0,
         unreadNotificationCount.value - 1,
     );
+    const messageNotification = notification.kind === 'message';
     router.put(
-        route('student-parent.notifications.read', notification.id),
+        messageNotification
+            ? route('messages.read', { message: notification.message_id })
+            : route('student-parent.notifications.read', notification.id),
         { student_id: selectedStudentId.value },
         {
             preserveScroll: true,
             preserveState: true,
             onSuccess: () => {
-                if (visitAfter) openNotificationsPage();
+                if (visitAfter) {
+                    messageNotification
+                        ? openMessenger(notification)
+                        : openNotificationsPage();
+                }
             },
             onError: () => {
                 Swal.fire({
@@ -125,12 +153,34 @@ const markAllNotificationsRead = () => {
         if (!notification.read_at) notification.read_at = now;
     });
     unreadNotificationCount.value = 0;
+    const markMessagesRead = () => router.put(route('messages.read-all'), {}, {
+        preserveScroll: true,
+        preserveState: true,
+        onError: () => {
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'error',
+                title: 'Could not mark message notifications as read',
+                timer: 4000,
+                showConfirmButton: false,
+            });
+            void pollNow();
+        },
+    });
+
+    if (!isStudentParent.value) {
+        markMessagesRead();
+        return;
+    }
+
     router.put(
         route('student-parent.notifications.read-all'),
         { student_id: selectedStudentId.value },
         {
             preserveScroll: true,
             preserveState: true,
+            onSuccess: markMessagesRead,
             onError: () => {
                 Swal.fire({
                     toast: true,
@@ -147,6 +197,10 @@ const markAllNotificationsRead = () => {
 };
 
 const openNotification = (notification) => {
+    if (notification.kind === 'message') {
+        markNotificationRead(notification, true);
+        return;
+    }
     if (isStudentParent.value) {
         markNotificationRead(notification, true);
         notificationDropdownOpen.value = false;
@@ -204,6 +258,8 @@ const pollRealtime = async () => {
         latest?.id &&
         Number(latest.id) !== Number(latestUnreadMessageId.value);
     unreadMessageCount.value = Number(status.unread_count || 0);
+    mergeNotifications(status.items || []);
+    unreadNotificationCount.value = unreadMessageCount.value;
     latestUnreadMessageId.value = latest?.id ?? null;
     messagePollingInitialized = true;
 
@@ -219,7 +275,7 @@ const pollRealtime = async () => {
             timer: 8000,
             timerProgressBar: true,
         }).then((result) => {
-            if (result.isConfirmed) router.visit(route('messages.index'));
+            if (result.isConfirmed) openMessenger(latest);
         });
     }
 
@@ -250,9 +306,8 @@ const pollRealtime = async () => {
     const unreadNotifications = newNotifications.filter(
         (notification) => !notification.read_at,
     );
-    unreadNotificationCount.value = Number(
-        notificationStatus.unread_count || 0,
-    );
+    unreadNotificationCount.value =
+        unreadMessageCount.value + Number(notificationStatus.unread_count || 0);
     mergeNotifications(newNotifications);
 
     if (notificationPollingInitialized && unreadNotifications.length > 0) {
@@ -382,11 +437,8 @@ watch(
                                 <h2 class="font-bold text-slate-900">
                                     Notifications
                                 </h2>
-                                <button
-                                    v-if="
-                                        unreadNotificationCount > 0 &&
-                                        isStudentParent
-                                    "
+                            <button
+                                    v-if="unreadNotificationCount > 0"
                                     type="button"
                                     class="text-xs font-semibold text-sky-700 hover:underline"
                                     @click="markAllNotificationsRead"
@@ -394,7 +446,7 @@ watch(
                                     Mark all read
                                 </button>
                             </div>
-                            <div class="max-h-80 overflow-y-auto">
+                            <div class="max-h-80 overscroll-contain overflow-y-auto">
                                 <button
                                     v-for="notification in notificationItems"
                                     :key="notification.id"

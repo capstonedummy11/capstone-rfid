@@ -133,6 +133,22 @@ const conversations = computed(() => {
 watch(
     conversations,
     (items) => {
+        const requestedUserId = Number(
+            new URLSearchParams(page.url.split('?')[1] || '').get(
+                'conversation_user_id',
+            ) || 0,
+        );
+        const requestedConversation = requestedUserId
+            ? items.find(
+                  (conversation) =>
+                      Number(conversation.partner.id) === requestedUserId,
+              )
+            : null;
+        if (requestedConversation) {
+            selectedConversationKey.value = requestedConversation.key;
+            form.recipient_user_id = requestedConversation.partner.id;
+            return;
+        }
         if (!selectedConversationKey.value && items.length > 0) {
             selectedConversationKey.value = items[0].key;
             form.recipient_user_id = items[0].partner.id;

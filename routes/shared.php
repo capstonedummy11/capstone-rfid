@@ -17,6 +17,7 @@ Route::middleware(['auth', 'role:admin,instructor,clinic,registrar,student,paren
     // Authenticated Messenger
     Route::get('/messages', [MessageController::class, 'index'])->name('messages.index');
     Route::get('/messages/unread-status', [MessageController::class, 'unreadStatus'])->middleware('throttle:realtime-poll')->name('messages.unread-status');
+    Route::put('/messages/read-all', [MessageController::class, 'markAllRead'])->name('messages.read-all');
     Route::get('/messages/poll', [MessageController::class, 'pollConversation'])->middleware('throttle:realtime-poll')->name('messages.poll');
     Route::post('/messages/conversation', [MessageController::class, 'sendConversationMessage'])->name('messages.conversation.store');
     Route::post('/messages/{message}/forward-to-parent', [MessageController::class, 'forwardExcuseLetterToParent'])->name('messages.forward-to-parent');

@@ -1,6 +1,6 @@
 <!-- FEATURE:parent-student-view - UI para sa linked student dashboard and attendance. -->
 <script setup>
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import StatCard from '@/pages/StudentParent/Dashboard/components/StatCard.vue';
 import LinkedStudentSelector from '@/components/StudentPortal/LinkedStudentSelector.vue';
 import {
@@ -22,6 +22,20 @@ const props = defineProps({
     attendance: { type: Array, default: () => [] },
     recentMessages: { type: Array, default: () => [] },
 });
+
+const page = usePage();
+const messageConversationUrl = (message) => {
+    const currentUserId = Number(
+        page.props.auth?.user?.user_id ?? page.props.auth?.user?.id ?? 0,
+    );
+    const conversationUserId =
+        Number(message.sender_user_id) === currentUserId
+            ? message.recipient_user_id
+            : message.sender_user_id;
+    const params = { conversation_user_id: conversationUserId };
+    if (props.selectedStudentId) params.student_id = props.selectedStudentId;
+    return route('messages.index', params);
+};
 
 const search = ref('');
 const statusFilter = ref('');
@@ -194,10 +208,11 @@ const statusClass = (status) => {
                         Reminder
                     </h2>
                     <div class="mt-3 divide-y divide-slate-100">
-                        <div
+                        <Link
                             v-for="message in recentMessages"
                             :key="message.id"
-                            class="flex items-start gap-3 py-3"
+                            :href="messageConversationUrl(message)"
+                            class="flex items-start gap-3 py-3 hover:bg-slate-50"
                         >
                             <Bell
                                 class="mt-0.5 h-4 w-4 shrink-0 text-indigo-400"
@@ -210,7 +225,7 @@ const statusClass = (status) => {
                                     {{ message.created_at }}
                                 </p>
                             </div>
-                        </div>
+                        </Link>
                         <div
                             v-if="recentMessages.length === 0"
                             class="flex items-start gap-3 py-3"

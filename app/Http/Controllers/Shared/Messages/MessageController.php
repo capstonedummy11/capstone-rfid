@@ -490,20 +490,44 @@ class MessageController
     // @useIn unreadStatus: routes/web.php:128 (messages.unread-status)
     public function unreadStatus(Request $request)
     {
+        $recipientId = (int) $request->user()->user_id;
+        $recentMessages = StudentPortalMessage::query()
+            ->with('sender:user_id,name')
+            ->where('recipient_user_id', $recipientId)
+            ->latest('created_at')
+            ->limit(20)
+            ->get();
         $latest = StudentPortalMessage::query()
             ->with('sender:user_id,name')
-            ->where('recipient_user_id', $request->user()->user_id)
+            ->where('recipient_user_id', $recipientId)
             ->whereNull('read_at')
             ->latest('created_at')
             ->first();
 
         return response()->json([
             'unread_count' => StudentPortalMessage::query()
-                ->where('recipient_user_id', $request->user()->user_id)
+                ->where('recipient_user_id', $recipientId)
                 ->whereNull('read_at')
                 ->count(),
+            'items' => $recentMessages->reverse()->values()->map(fn (StudentPortalMessage $message) => [
+                'id' => 'message-'.$message->student_portal_message_id,
+                'kind' => 'message',
+                'message_id' => $message->student_portal_message_id,
+                'conversation_user_id' => $message->sender_user_id,
+                'student_id' => $message->student_id,
+                'sender' => $message->sender?->name ?: 'Someone',
+                'title' => 'Message from '.($message->sender?->name ?: 'Someone'),
+                'text' => str($message->body ?: $message->attachment_name ?: 'Attachment')
+                    ->squish()
+                    ->limit(120)
+                    ->toString(),
+                'timestamp' => $message->created_at?->toDateTimeString(),
+                'read_at' => $message->read_at?->toDateTimeString(),
+            ])->values(),
             'latest' => $latest ? [
                 'id' => $latest->student_portal_message_id,
+                'conversation_user_id' => $latest->sender_user_id,
+                'student_id' => $latest->student_id,
                 'sender' => $latest->sender?->name ?: 'Someone',
                 'preview' => str($latest->body ?: $latest->attachment_name ?: 'Attachment')
                     ->squish()
@@ -610,6 +634,20 @@ class MessageController
         if (! $message->read_at) {
             $message->update(['read_at' => now()]);
             $this->logActivity('update', 'student_portal_messages', 'Marked messenger message '.$message->student_portal_message_id.' as read');
+        }
+
+        return back();
+    }
+
+    public function markAllRead(Request $request)
+    {
+        $updated = StudentPortalMessage::query()
+            ->where('recipient_user_id', $request->user()->user_id)
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
+
+        if ($updated > 0) {
+            $this->logActivity('update', 'student_portal_messages', 'Marked '.$updated.' Messenger notifications as read');
         }
 
         return back();
