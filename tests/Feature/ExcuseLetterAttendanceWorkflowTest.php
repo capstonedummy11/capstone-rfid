@@ -391,7 +391,7 @@ test('current enrollment instructor can be searched and receives an excuse lette
     expect(StudentPortalMessage::query()
         ->where('student_excuse_letter_id', $deniedLetter->student_excuse_letter_id)
         ->where('recipient_user_id', $studentUser->user_id)
-        ->firstOrFail()->subject)->toBe('Denied Excuse Letter: '.$subject->subject_name);
+        ->firstOrFail()->subject)->toBe('Denied Excuse Letter: Second excuse letter');
 
     $sentEmails = app('mailer')->getSymfonyTransport()->messages();
     expect($sentEmails)->toHaveCount(4);
