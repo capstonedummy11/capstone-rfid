@@ -1,0 +1,787 @@
+<mxfile host="65bd71144e">
+    <diagram id="dfd-level-0" name="DFD Level 0 - Context">
+        <mxGraphModel dx="444" dy="422" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2600" pageHeight="1800" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=18;align=center;verticalAlign=middle;" value="Instructor" vertex="1">
+                    <mxGeometry height="120" width="230" x="100" y="635" as="geometry"/>
+                </mxCell>
+                <mxCell id="3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=18;align=center;verticalAlign=middle;" value="Registrar" vertex="1">
+                    <mxGeometry height="90" width="230" x="900" y="1480" as="geometry"/>
+                </mxCell>
+                <mxCell id="4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=18;align=center;verticalAlign=middle;" value="Student" vertex="1">
+                    <mxGeometry height="90" width="230" x="900" y="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="5" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=18;align=center;verticalAlign=middle;" value="Admin" vertex="1">
+                    <mxGeometry height="340" width="230" x="2240" y="525" as="geometry"/>
+                </mxCell>
+                <mxCell id="6" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=18;align=center;verticalAlign=middle;" value="Clinic" vertex="1">
+                    <mxGeometry height="90" width="230" x="1320" y="1480" as="geometry"/>
+                </mxCell>
+                <mxCell id="7" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;align=center;verticalAlign=middle;spacing=0;overflow=fill;" value="&lt;table style=&quot;border-collapse:collapse;width:100%;height:100%;font-family:Arial,sans-serif;color:#000&quot;&gt;&lt;tr style=&quot;height:44px&quot;&gt;&lt;td style=&quot;border-bottom:1px solid #000;text-align:center;font-size:15px&quot;&gt;0&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style=&quot;text-align:center;font-size:13px;padding:3px&quot;&gt;RFID and Facial Recognition&lt;br&gt;Attendance System&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;" vertex="1">
+                    <mxGeometry height="340" width="300" x="865" y="525" as="geometry"/>
+                </mxCell>
+                <mxCell id="8" edge="1" parent="1" source="2" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=1.000000;exitY=0.208333;exitDx=0;exitDy=0;entryX=0.000000;entryY=0.397059;entryDx=0;entryDy=0;" target="7" value="Attendance session info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="384" y="660"/>
+                            <mxPoint x="384" y="620"/>
+                            <mxPoint x="811" y="620"/>
+                            <mxPoint x="811" y="660"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="9" edge="1" parent="1" source="2" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=1.000000;exitY=0.291667;exitDx=0;exitDy=0;entryX=0.000000;entryY=0.426471;entryDx=0;entryDy=0;" target="7" value="RFID scan info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="396" y="670"/>
+                            <mxPoint x="396" y="644"/>
+                            <mxPoint x="799" y="644"/>
+                            <mxPoint x="799" y="670"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="10" edge="1" parent="1" source="2" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=1.000000;exitY=0.375000;exitDx=0;exitDy=0;entryX=0.000000;entryY=0.455882;entryDx=0;entryDy=0;" target="7" value="Face verification info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="408" y="680"/>
+                            <mxPoint x="408" y="668"/>
+                            <mxPoint x="787" y="668"/>
+                            <mxPoint x="787" y="680"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="11" edge="1" parent="1" source="2" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=1.000000;exitY=0.458333;exitDx=0;exitDy=0;entryX=0.000000;entryY=0.485294;entryDx=0;entryDy=0;" target="7" value="Attendance correction info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="432" y="690"/>
+                            <mxPoint x="432" y="692"/>
+                            <mxPoint x="763" y="692"/>
+                            <mxPoint x="763" y="690"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="12" edge="1" parent="1" source="2" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=1.000000;exitY=0.541667;exitDx=0;exitDy=0;entryX=0.000000;entryY=0.514706;entryDx=0;entryDy=0;" target="7" value="Excuse letter review info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="420" y="700"/>
+                            <mxPoint x="420" y="716"/>
+                            <mxPoint x="775" y="716"/>
+                            <mxPoint x="775" y="700"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="13" edge="1" parent="1" source="7" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.544118;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.625000;entryDx=0;entryDy=0;" target="2" value="Schedule info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="787" y="710"/>
+                            <mxPoint x="787" y="740"/>
+                            <mxPoint x="408" y="740"/>
+                            <mxPoint x="408" y="710"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="14" edge="1" parent="1" source="7" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.573529;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.708333;entryDx=0;entryDy=0;" target="2" value="Class attendance details">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="799" y="720"/>
+                            <mxPoint x="799" y="764"/>
+                            <mxPoint x="396" y="764"/>
+                            <mxPoint x="396" y="720"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="15" edge="1" parent="1" source="7" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.602941;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.791667;entryDx=0;entryDy=0;" target="2" value="Student list info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="811" y="730"/>
+                            <mxPoint x="811" y="788"/>
+                            <mxPoint x="384" y="788"/>
+                            <mxPoint x="384" y="730"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="16" edge="1" parent="1" source="7" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.632353;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.875000;entryDx=0;entryDy=0;" target="2" value="Attendance report info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="823" y="740"/>
+                            <mxPoint x="823" y="812"/>
+                            <mxPoint x="372" y="812"/>
+                            <mxPoint x="372" y="740"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="17" edge="1" parent="1" source="7" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.661765;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.958333;entryDx=0;entryDy=0;" target="2" value="Approved excuse letter info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="835" y="750"/>
+                            <mxPoint x="835" y="836"/>
+                            <mxPoint x="360" y="836"/>
+                            <mxPoint x="360" y="750"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="28" edge="1" parent="1" source="4" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.642857;exitDx=0;exitDy=0;entryX=0.350000;entryY=0.000000;entryDx=0;entryDy=0;" target="7" value="RFID attendance info">
+                    <mxGeometry relative="1" x="0.12807" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="640" y="137.86"/>
+                            <mxPoint x="640" y="264"/>
+                            <mxPoint x="970" y="264"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="29" edge="1" parent="1" source="4" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.500000;exitDx=0;exitDy=0;entryX=0.300000;entryY=0.000000;entryDx=0;entryDy=0;" target="7" value="Face verification info">
+                    <mxGeometry relative="1" x="0.2087" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="610" y="125"/>
+                            <mxPoint x="610" y="288"/>
+                            <mxPoint x="955" y="288"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="30" edge="1" parent="1" source="4" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.357143;exitDx=0;exitDy=0;entryX=0.250000;entryY=0.000000;entryDx=0;entryDy=0;" target="7" value="Profile information">
+                    <mxGeometry relative="1" x="0.28078" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="580" y="112.14"/>
+                            <mxPoint x="580" y="312"/>
+                            <mxPoint x="940" y="312"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="31" edge="1" parent="1" source="4" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.214286;exitDx=0;exitDy=0;entryX=0.200000;entryY=0.000000;entryDx=0;entryDy=0;" target="7" value="Message information">
+                    <mxGeometry relative="1" x="0.34562" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="550" y="99.29"/>
+                            <mxPoint x="550" y="336"/>
+                            <mxPoint x="925" y="336"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="32" edge="1" parent="1" source="4" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.071429;exitDx=0;exitDy=0;entryX=0.150000;entryY=0.000000;entryDx=0;entryDy=0;" target="7" value="Excuse information">
+                    <mxGeometry relative="1" x="0.40426" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="520" y="86.43"/>
+                            <mxPoint x="520" y="360"/>
+                            <mxPoint x="910" y="360"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="33" edge="1" parent="1" source="7" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.550000;exitY=0.000000;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.937500;entryDx=0;entryDy=0;" target="4" value="Attendance details">
+                    <mxGeometry relative="1" x="0.06667" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="1030" y="216"/>
+                            <mxPoint x="1330" y="216"/>
+                            <mxPoint x="1330" y="164.38"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="38" edge="1" parent="1" source="3" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.833333;exitDx=0;exitDy=0;entryX=0.110000;entryY=1.000000;entryDx=0;entryDy=0;" target="7" value="Student enrollment info">
+                    <mxGeometry relative="1" x="0.62997" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="490" y="1555"/>
+                            <mxPoint x="490" y="940"/>
+                            <mxPoint x="898" y="940"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="39" edge="1" parent="1" source="3" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.722222;exitDx=0;exitDy=0;entryX=0.163333;entryY=1.000000;entryDx=0;entryDy=0;" target="7" value="Student RFID info">
+                    <mxGeometry relative="1" x="0.59285" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="520" y="1545"/>
+                            <mxPoint x="520" y="964"/>
+                            <mxPoint x="914" y="964"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="40" edge="1" parent="1" source="3" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.611111;exitDx=0;exitDy=0;entryX=0.216667;entryY=1.000000;entryDx=0;entryDy=0;" target="7" value="Student face enrollment info">
+                    <mxGeometry relative="1" x="0.55286" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="550" y="1535"/>
+                            <mxPoint x="550" y="988"/>
+                            <mxPoint x="930" y="988"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="42" edge="1" parent="1" source="7" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.376667;exitY=1.000000;exitDx=0;exitDy=0;entryX=0.000000;entryY=0.277778;entryDx=0;entryDy=0;" target="3" value="Enrollment details">
+                    <mxGeometry relative="1" x="-0.41195" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="978" y="1060"/>
+                            <mxPoint x="640" y="1060"/>
+                            <mxPoint x="640" y="1505"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="44" edge="1" parent="1" source="7" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.483333;exitY=1.000000;exitDx=0;exitDy=0;entryX=0.000000;entryY=0.055556;entryDx=0;entryDy=0;" target="3" value="Enrollment report info">
+                    <mxGeometry relative="1" x="-0.29558" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="1010" y="1108"/>
+                            <mxPoint x="700" y="1108"/>
+                            <mxPoint x="700" y="1485"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="45" edge="1" parent="1" source="6" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.834783;exitY=0.000000;exitDx=0;exitDy=0;entryX=0.936667;entryY=1.000000;entryDx=0;entryDy=0;" target="7" value="Emergency information">
+                    <mxGeometry relative="1" x="0.06626" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="1512" y="1140"/>
+                            <mxPoint x="1146" y="1140"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="46" edge="1" parent="1" source="6" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.734783;exitY=0.000000;exitDx=0;exitDy=0;entryX=0.890000;entryY=1.000000;entryDx=0;entryDy=0;" target="7" value="Case log info">
+                    <mxGeometry relative="1" x="0.01749" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="1489" y="1164"/>
+                            <mxPoint x="1132" y="1164"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="48" edge="1" parent="1" source="6" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.534783;exitY=0.000000;exitDx=0;exitDy=0;entryX=0.796667;entryY=1.000000;entryDx=0;entryDy=0;" target="7" value="Excuse slip information">
+                    <mxGeometry relative="1" x="-0.08281" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="1443" y="1212"/>
+                            <mxPoint x="1104" y="1212"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="49" edge="1" parent="1" source="7" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.750000;exitY=1.000000;exitDx=0;exitDy=0;entryX=0.434783;entryY=0.000000;entryDx=0;entryDy=0;" target="6" value="Student information">
+                    <mxGeometry relative="1" x="0.13439" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="1090" y="1236"/>
+                            <mxPoint x="1420" y="1236"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="50" edge="1" parent="1" source="7" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.703333;exitY=1.000000;exitDx=0;exitDy=0;entryX=0.334783;entryY=0.000000;entryDx=0;entryDy=0;" target="6" value="Student attendance details">
+                    <mxGeometry relative="1" x="0.18697" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="1076" y="1260"/>
+                            <mxPoint x="1397" y="1260"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="52" edge="1" parent="1" source="7" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.563333;exitY=1.000000;exitDx=0;exitDy=0;entryX=0.034783;entryY=0.000000;entryDx=0;entryDy=0;" target="6" value="Clinic report info">
+                    <mxGeometry relative="1" x="0.35094" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="1034" y="1332"/>
+                            <mxPoint x="1328" y="1332"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="53" edge="1" parent="1" source="2" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=1.000000;exitY=0.041667;exitDx=0;exitDy=0;entryX=0.000000;entryY=0.338235;entryDx=0;entryDy=0;" target="7" value="Login credentials">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="360" y="640"/>
+                            <mxPoint x="360" y="572"/>
+                            <mxPoint x="835" y="572"/>
+                            <mxPoint x="835" y="640"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="54" edge="1" parent="1" source="2" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=1.000000;exitY=0.125000;exitDx=0;exitDy=0;entryX=0.000000;entryY=0.367647;entryDx=0;entryDy=0;" target="7" value="Biometric info">
+                    <mxGeometry relative="1" x="0.0016" y="12" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="372" y="650"/>
+                            <mxPoint x="372" y="596"/>
+                            <mxPoint x="823" y="596"/>
+                            <mxPoint x="823" y="650"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="55" edge="1" parent="1" source="4" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.928571;exitDx=0;exitDy=0;entryX=0.450000;entryY=0.000000;entryDx=0;entryDy=0;" target="7" value="Login credentials">
+                    <mxGeometry relative="1" x="-0.06567" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="700" y="163.57"/>
+                            <mxPoint x="700" y="216"/>
+                            <mxPoint x="1000" y="216"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="56" edge="1" parent="1" source="4" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.785714;exitDx=0;exitDy=0;entryX=0.400000;entryY=0.000000;entryDx=0;entryDy=0;" target="7" value="Biometric info">
+                    <mxGeometry relative="1" x="0.0373" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="670" y="150.71"/>
+                            <mxPoint x="670" y="240"/>
+                            <mxPoint x="985" y="240"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="57" edge="1" parent="1" source="7" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.600000;exitY=0.000000;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.812500;entryDx=0;entryDy=0;" target="4" value="Schedule info">
+                    <mxGeometry relative="1" x="-0.03476" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="1045" y="240"/>
+                            <mxPoint x="1360" y="240"/>
+                            <mxPoint x="1360" y="153.12"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="58" edge="1" parent="1" source="7" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.650000;exitY=0.000000;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.687500;entryDx=0;entryDy=0;" target="4" value="Online class info">
+                    <mxGeometry relative="1" x="-0.12447" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="1060" y="264"/>
+                            <mxPoint x="1390" y="264"/>
+                            <mxPoint x="1390" y="141.88"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="59" edge="1" parent="1" source="7" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.700000;exitY=0.000000;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.562500;entryDx=0;entryDy=0;" target="4" value="Notification info">
+                    <mxGeometry relative="1" x="-0.20437" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="1075" y="288"/>
+                            <mxPoint x="1420" y="288"/>
+                            <mxPoint x="1420" y="130.62"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="60" edge="1" parent="1" source="7" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.750000;exitY=0.000000;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.437500;entryDx=0;entryDy=0;" target="4" value="Clinic referral info">
+                    <mxGeometry relative="1" x="-0.27599" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="1090" y="312"/>
+                            <mxPoint x="1450" y="312"/>
+                            <mxPoint x="1450" y="119.38"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="61" edge="1" parent="1" source="7" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.800000;exitY=0.000000;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.312500;entryDx=0;entryDy=0;" target="4" value="Excuse slip info">
+                    <mxGeometry relative="1" x="-0.34056" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="1105" y="336"/>
+                            <mxPoint x="1480" y="336"/>
+                            <mxPoint x="1480" y="108.12"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="62" edge="1" parent="1" source="7" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.850000;exitY=0.000000;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.187500;entryDx=0;entryDy=0;" target="4" value="Excuse letter status">
+                    <mxGeometry relative="1" x="-0.39906" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="1120" y="360"/>
+                            <mxPoint x="1510" y="360"/>
+                            <mxPoint x="1510" y="96.88"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="63" edge="1" parent="1" source="7" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.900000;exitY=0.000000;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.062500;entryDx=0;entryDy=0;" target="4" value="Excuse letter PDF">
+                    <mxGeometry relative="1" x="-0.45232" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="1135" y="384"/>
+                            <mxPoint x="1540" y="384"/>
+                            <mxPoint x="1540" y="85.62"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="64" edge="1" parent="1" source="5" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.018519;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.018519;entryDx=0;entryDy=0;" target="7" value="Login credentials">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="2210" y="531.3"/>
+                            <mxPoint x="2210" y="438"/>
+                            <mxPoint x="1195" y="438"/>
+                            <mxPoint x="1195" y="531.3"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="65" edge="1" parent="1" source="5" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.055556;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.055556;entryDx=0;entryDy=0;" target="7" value="Student info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="2198" y="543.89"/>
+                            <mxPoint x="2198" y="462"/>
+                            <mxPoint x="1207" y="462"/>
+                            <mxPoint x="1207" y="543.89"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="66" edge="1" parent="1" source="5" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.092593;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.092593;entryDx=0;entryDy=0;" target="7" value="Parent info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="2186" y="556.48"/>
+                            <mxPoint x="2186" y="486"/>
+                            <mxPoint x="1219" y="486"/>
+                            <mxPoint x="1219" y="556.48"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="67" edge="1" parent="1" source="5" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.129630;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.129630;entryDx=0;entryDy=0;" target="7" value="Instructor info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="2174" y="569.07"/>
+                            <mxPoint x="2174" y="510"/>
+                            <mxPoint x="1231" y="510"/>
+                            <mxPoint x="1231" y="569.07"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="68" edge="1" parent="1" source="5" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.166667;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.166667;entryDx=0;entryDy=0;" target="7" value="Staff account info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="2162" y="581.67"/>
+                            <mxPoint x="2162" y="534"/>
+                            <mxPoint x="1243" y="534"/>
+                            <mxPoint x="1243" y="581.67"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="69" edge="1" parent="1" source="5" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.203704;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.203704;entryDx=0;entryDy=0;" target="7" value="Academic year info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="2150" y="594.26"/>
+                            <mxPoint x="2150" y="558"/>
+                            <mxPoint x="1255" y="558"/>
+                            <mxPoint x="1255" y="594.26"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="70" edge="1" parent="1" source="5" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.240741;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.240741;entryDx=0;entryDy=0;" target="7" value="Strand info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="2138" y="606.85"/>
+                            <mxPoint x="2138" y="582"/>
+                            <mxPoint x="1267" y="582"/>
+                            <mxPoint x="1267" y="606.85"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="71" edge="1" parent="1" source="5" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.277778;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.277778;entryDx=0;entryDy=0;" target="7" value="Section info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="2126" y="619.44"/>
+                            <mxPoint x="2126" y="606"/>
+                            <mxPoint x="1279" y="606"/>
+                            <mxPoint x="1279" y="619.44"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="72" edge="1" parent="1" source="5" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.314815;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.314815;entryDx=0;entryDy=0;" target="7" value="Subject info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="2114" y="632.04"/>
+                            <mxPoint x="2114" y="630"/>
+                            <mxPoint x="1291" y="630"/>
+                            <mxPoint x="1291" y="632.04"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="73" edge="1" parent="1" source="5" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.351852;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.351852;entryDx=0;entryDy=0;" target="7" value="Subject offering info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="2006" y="644.63"/>
+                            <mxPoint x="2006" y="654"/>
+                            <mxPoint x="1399" y="654"/>
+                            <mxPoint x="1399" y="644.63"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="74" edge="1" parent="1" source="5" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.388889;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.388889;entryDx=0;entryDy=0;" target="7" value="Schedule info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="2018" y="657.22"/>
+                            <mxPoint x="2018" y="678"/>
+                            <mxPoint x="1387" y="678"/>
+                            <mxPoint x="1387" y="657.22"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="75" edge="1" parent="1" source="5" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.425926;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.425926;entryDx=0;entryDy=0;" target="7" value="Laboratory info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="2030" y="669.81"/>
+                            <mxPoint x="2030" y="702"/>
+                            <mxPoint x="1375" y="702"/>
+                            <mxPoint x="1375" y="669.81"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="76" edge="1" parent="1" source="5" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.462963;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.462963;entryDx=0;entryDy=0;" target="7" value="Device info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="2042" y="682.41"/>
+                            <mxPoint x="2042" y="726"/>
+                            <mxPoint x="1363" y="726"/>
+                            <mxPoint x="1363" y="682.41"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="77" edge="1" parent="1" source="5" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.500000;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.500000;entryDx=0;entryDy=0;" target="7" value="System settings info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="2054" y="695"/>
+                            <mxPoint x="2054" y="750"/>
+                            <mxPoint x="1351" y="750"/>
+                            <mxPoint x="1351" y="695"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="78" edge="1" parent="1" source="5" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.537037;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.537037;entryDx=0;entryDy=0;" target="7" value="Online class info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="2066" y="707.59"/>
+                            <mxPoint x="2066" y="774"/>
+                            <mxPoint x="1339" y="774"/>
+                            <mxPoint x="1339" y="707.59"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="79" edge="1" parent="1" source="5" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.574074;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.574074;entryDx=0;entryDy=0;" target="7" value="Inventory info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="2078" y="720.19"/>
+                            <mxPoint x="2078" y="798"/>
+                            <mxPoint x="1327" y="798"/>
+                            <mxPoint x="1327" y="720.19"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="80" edge="1" parent="1" source="5" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.611111;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.611111;entryDx=0;entryDy=0;" target="7" value="Borrowing info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="2090" y="732.78"/>
+                            <mxPoint x="2090" y="822"/>
+                            <mxPoint x="1315" y="822"/>
+                            <mxPoint x="1315" y="732.78"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="81" edge="1" parent="1" source="5" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.648148;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.648148;entryDx=0;entryDy=0;" target="7" value="Attendance info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="2102" y="745.37"/>
+                            <mxPoint x="2102" y="846"/>
+                            <mxPoint x="1303" y="846"/>
+                            <mxPoint x="1303" y="745.37"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="82" edge="1" parent="1" source="5" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.685185;exitDx=0;exitDy=0;entryX=1.000000;entryY=0.685185;entryDx=0;entryDy=0;" target="7" value="Message info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="2114" y="757.96"/>
+                            <mxPoint x="2114" y="870"/>
+                            <mxPoint x="1291" y="870"/>
+                            <mxPoint x="1291" y="757.96"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="83" edge="1" parent="1" source="7" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=1.000000;exitY=0.722222;exitDx=0;exitDy=0;entryX=0.000000;entryY=0.722222;entryDx=0;entryDy=0;" target="5" value="Dashboard info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="1279" y="770.56"/>
+                            <mxPoint x="1279" y="894"/>
+                            <mxPoint x="2126" y="894"/>
+                            <mxPoint x="2126" y="770.56"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="84" edge="1" parent="1" source="7" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=1.000000;exitY=0.759259;exitDx=0;exitDy=0;entryX=0.000000;entryY=0.759259;entryDx=0;entryDy=0;" target="5" value="Report info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="1267" y="783.15"/>
+                            <mxPoint x="1267" y="918"/>
+                            <mxPoint x="2138" y="918"/>
+                            <mxPoint x="2138" y="783.15"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="85" edge="1" parent="1" source="7" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=1.000000;exitY=0.796296;exitDx=0;exitDy=0;entryX=0.000000;entryY=0.796296;entryDx=0;entryDy=0;" target="5" value="Clinic case info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="1255" y="795.74"/>
+                            <mxPoint x="1255" y="942"/>
+                            <mxPoint x="2150" y="942"/>
+                            <mxPoint x="2150" y="795.74"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="86" edge="1" parent="1" source="7" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=1.000000;exitY=0.833333;exitDx=0;exitDy=0;entryX=0.000000;entryY=0.833333;entryDx=0;entryDy=0;" target="5" value="Patient info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="1243" y="808.33"/>
+                            <mxPoint x="1243" y="966"/>
+                            <mxPoint x="2162" y="966"/>
+                            <mxPoint x="2162" y="808.33"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="87" edge="1" parent="1" source="7" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=1.000000;exitY=0.870370;exitDx=0;exitDy=0;entryX=0.000000;entryY=0.870370;entryDx=0;entryDy=0;" target="5" value="Student record info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="1231" y="820.93"/>
+                            <mxPoint x="1231" y="990"/>
+                            <mxPoint x="2174" y="990"/>
+                            <mxPoint x="2174" y="820.93"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="88" edge="1" parent="1" source="7" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=1.000000;exitY=0.907407;exitDx=0;exitDy=0;entryX=0.000000;entryY=0.907407;entryDx=0;entryDy=0;" target="5" value="Instructor record info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="1219" y="833.52"/>
+                            <mxPoint x="1219" y="1014"/>
+                            <mxPoint x="2186" y="1014"/>
+                            <mxPoint x="2186" y="833.52"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="89" edge="1" parent="1" source="7" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=1.000000;exitY=0.944444;exitDx=0;exitDy=0;entryX=0.000000;entryY=0.944444;entryDx=0;entryDy=0;" target="5" value="Activity log info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="1207" y="846.11"/>
+                            <mxPoint x="1207" y="1038"/>
+                            <mxPoint x="2198" y="1038"/>
+                            <mxPoint x="2198" y="846.11"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="90" edge="1" parent="1" source="7" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=1.000000;exitY=0.981481;exitDx=0;exitDy=0;entryX=0.000000;entryY=0.981481;entryDx=0;entryDy=0;" target="5" value="Class log info">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="1195" y="858.7"/>
+                            <mxPoint x="1195" y="1062"/>
+                            <mxPoint x="2210" y="1062"/>
+                            <mxPoint x="2210" y="858.7"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="91" edge="1" parent="1" source="3" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.944444;exitDx=0;exitDy=0;entryX=0.056667;entryY=1.000000;entryDx=0;entryDy=0;" target="7" value="Login credentials">
+                    <mxGeometry relative="1" x="0.66453" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="460" y="1565"/>
+                            <mxPoint x="460" y="916"/>
+                            <mxPoint x="882" y="916"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="92" edge="1" parent="1" source="3" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.500000;exitDx=0;exitDy=0;entryX=0.270000;entryY=1.000000;entryDx=0;entryDy=0;" target="7" value="Instructor RFID info">
+                    <mxGeometry relative="1" x="0.50966" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="580" y="1525"/>
+                            <mxPoint x="580" y="1012"/>
+                            <mxPoint x="946" y="1012"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="93" edge="1" parent="1" source="3" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.000000;exitY=0.388889;exitDx=0;exitDy=0;entryX=0.323333;entryY=1.000000;entryDx=0;entryDy=0;" target="7" value="Instructor face info">
+                    <mxGeometry relative="1" x="0.46285" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="610" y="1515"/>
+                            <mxPoint x="610" y="1036"/>
+                            <mxPoint x="962" y="1036"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="94" edge="1" parent="1" source="7" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.430000;exitY=1.000000;exitDx=0;exitDy=0;entryX=0.000000;entryY=0.166667;entryDx=0;entryDy=0;" target="3" value="Audit info">
+                    <mxGeometry relative="1" x="-0.35642" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="994" y="1084"/>
+                            <mxPoint x="670" y="1084"/>
+                            <mxPoint x="670" y="1495"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="95" edge="1" parent="1" source="6" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.934783;exitY=0.000000;exitDx=0;exitDy=0;entryX=0.983333;entryY=1.000000;entryDx=0;entryDy=0;" target="7" value="Login credentials">
+                    <mxGeometry relative="1" x="0.11414" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="1535" y="1116"/>
+                            <mxPoint x="1160" y="1116"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="96" edge="1" parent="1" source="6" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.634783;exitY=0.000000;exitDx=0;exitDy=0;entryX=0.843333;entryY=1.000000;entryDx=0;entryDy=0;" target="7" value="Patient history info">
+                    <mxGeometry relative="1" x="-0.03219" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="1466" y="1188"/>
+                            <mxPoint x="1118" y="1188"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="97" edge="1" parent="1" source="7" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.656667;exitY=1.000000;exitDx=0;exitDy=0;entryX=0.234783;entryY=0.000000;entryDx=0;entryDy=0;" target="6" value="Alert info">
+                    <mxGeometry relative="1" x="0.24056" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="1062" y="1284"/>
+                            <mxPoint x="1374" y="1284"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="98" edge="1" parent="1" source="7" style="rounded=0;html=1;strokeColor=#000000;strokeWidth=1.25;fontColor=#000000;fontSize=11;endArrow=classic;endFill=1;endSize=4;labelBackgroundColor=#ffffff;align=center;verticalAlign=middle;exitX=0.610000;exitY=1.000000;exitDx=0;exitDy=0;entryX=0.134783;entryY=0.000000;entryDx=0;entryDy=0;" target="6" value="Dispatch info">
+                    <mxGeometry relative="1" x="0.29521" as="geometry">
+                        <mxPoint y="-12" as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="1048" y="1308"/>
+                            <mxPoint x="1351" y="1308"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
