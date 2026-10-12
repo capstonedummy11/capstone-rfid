@@ -416,5 +416,5 @@ test('current enrollment instructor can be searched and receives an excuse lette
         ->assertSessionHasErrors('recipient_user_ids');
 
     $this->assertDatabaseCount('student_excuse_letters', 2);
-    $this->assertDatabaseCount('student_portal_messages', 3);
+    $this->assertDatabaseCount('student_portal_messages', 4);
 });
