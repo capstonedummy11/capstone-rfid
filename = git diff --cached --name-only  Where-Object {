@@ -1,0 +1,140 @@
+public/build/assets/faceLiveness-v5NIfWLZ.js:2: trailing whitespace.
+[32m+[m[32mimport{Q as yh,R as Gi,U as $c,V as VF}from"./app-D_b7dNyO.js";import{c as jF,p as WF}from"./CameraCapture-BzFDKgB2.js";function fw(t,e){for(var n=0;n<e.length;n++){const r=e[n];if(typeof r!="string"&&!Array.isArray(r)){for(const a in r)if(a!=="default"&&!(a in t)){const s=Object.getOwnPropertyDescriptor(r,a);s&&Object.defineProperty(t,a,s.get?s:{enumerable:!0,get:()=>r[a]})}}}return Object.freeze(Object.defineProperty(t,Symbol.toStringTag,{value:"Module"}))}var S1={exports:{}},ht={};var pI;function qF(){if(pI)return ht;pI=1;var t=Symbol.for("react.transitional.element"),e=Symbol.for("react.portal"),n=Symbol.for("react.fragment"),r=Symbol.for("react.strict_mode"),a=Symbol.for("react.profiler"),s=Symbol.for("react.consumer"),l=Symbol.for("react.context"),u=Symbol.for("react.forward_ref"),d=Symbol.for("react.suspense"),h=Symbol.for("react.memo"),c=Symbol.for("react.lazy"),p=Symbol.for("react.activity"),g=Symbol.for("react.view_transition"),y=Symbol.iterator;function b(U){return U===null||typeof U!="object"?null:(U=y&&U[y]||U["@@iterator"],typeof U=="function"?U:null)}var w={isMounted:function(){return!1},enqueueForceUpdate:function(){},enqueueReplaceState:function(){},enqueueSetState:function(){}},E=Object.assign,T={};function x(U,te,Se){this.props=U,this.context=te,this.refs=T,this.updater=Se||w}x.prototype.isReactComponent={},x.prototype.setState=function(U,te){if(typeof U!="object"&&typeof U!="function"&&U!=null)throw Error("takes an object of state variables to update or a function which returns an object of state variables.");this.updater.enqueueSetState(this,U,te,"setState")},x.prototype.forceUpdate=function(U){this.updater.enqueueForceUpdate(this,U,"forceUpdate")};function I(){}I.prototype=x.prototype;function k(U,te,Se){this.props=U,this.context=te,this.refs=T,this.updater=Se||w}var D=k.prototype=new I;D.constructor=k,E(D,x.prototype),D.isPureReactComponent=!0;var M=Array.isArray;function $(){}var H={H:null,A:null,T:null,S:null},B=Object.prototype.hasOwnProperty;function z(U,te,Se){var Te=Se.ref;return{$$typeof:t,type:U,key:te,ref:Te!==void 0?Te:null,props:Se}}function R(U,te){return z(U.type,te,U.props)}function j(U){return typeof U=="object"&&U!==null&&U.$$typeof===t}function q(U){var te={"=":"=0",":":"=2"};return"$"+U.replace(/[=:]/g,function(Se){return te[Se]})}var ee=/\/+/g;function Q(U,te){return typeof U=="object"&&U!==null&&U.key!=null?q(""+U.key):te.toString(36)}function G(U){switch(U.status){case"fulfilled":return U.value;case"rejected":throw U.reason;default:switch(typeof U.status=="string"?U.then($,$):(U.status="pending",U.then(function(te){U.status==="pending"&&(U.status="fulfilled",U.value=te)},function(te){U.status==="pending"&&(U.status="rejected",U.reason=te)})),U.status){case"fulfilled":return U.value;case"rejected":throw U.reason}}throw U}function ae(U,te,Se,Te,ke){var Ae=typeof U;(Ae==="undefined"||Ae==="boolean")&&(U=null);var Fe=!1;if(U===null)Fe=!0;else switch(Ae){case"bigint":case"string":case"number":Fe=!0;break;case"object":switch(U.$$typeof){case t:case e:Fe=!0;break;case c:return Fe=U._init,ae(Fe(U._payload),te,Se,Te,ke)}}if(Fe)return ke=ke(U),Fe=Te===""?"."+Q(U,0):Te,M(ke)?(Se="",Fe!=null&&(Se=Fe.replace(ee,"$&/")+"/"),ae(ke,te,Se,"",function(tt){return tt})):ke!=null&&(j(ke)&&(ke=R(ke,Se+(ke.key==null||U&&U.key===ke.key?"":(""+ke.key).replace(ee,"$&/")+"/")+Fe)),te.push(ke)),1;Fe=0;var Ne=Te===""?".":Te+":";if(M(U))for(var Re=0;Re<U.length;Re++)Te=U[Re],Ae=Ne+Q(Te,Re),Fe+=ae(Te,te,Se,Ae,ke);else if(Re=b(U),typeof Re=="function")for(U=Re.call(U),Re=0;!(Te=U.next()).done;)Te=Te.value,Ae=Ne+Q(Te,Re++),Fe+=ae(Te,te,Se,Ae,ke);else if(Ae==="object"){if(typeof U.then=="function")return ae(G(U),te,Se,Te,ke);throw te=String(U),Error("Objects are not valid as a React child (found: "+(te==="[object Object]"?"object with keys {"+Object.keys(U).join(", ")+"}":te)+"). If you meant to render a collection of children, use an array instead.")}return Fe}function Z(U,te,Se){if(U==null)return U;var Te=[],ke=0;return ae(U,Te,"","",function(Ae){return te.call(Se,Ae,ke++)}),Te}function ue(U){if(U._status===-1){var te=U._result,Se=te();Se.then(function(Te){(U._status===0||U._status===-1)&&(U._status=1,U._result=Te,Se.status===void 0&&(Se.status="fulfilled",Se.value=Te))},function(Te){(U._status===0||U._status===-1)&&(U._status=2,U._result=Te,Se.status===void 0&&(Se.status="rejected",Se.reason=Te))}),U._status===-1&&(U._status=0,U._result=Se)}if(U._status===1)return U._result.default;throw U._result}var de=typeof reportError=="function"?reportError:function(U){if(typeof window=="object"&&typeof window.ErrorEvent=="function"){var te=new window.ErrorEvent("error",{bubbles:!0,cancelable:!0,message:typeof U=="object"&&U!==null&&typeof U.message=="string"?String(U.message):String(U),error:U});if(!window.dispatchEvent(te))return}else if(typeof process=="object"&&typeof process.emit=="function"){process.emit("uncaughtException",U);return}console.error(U)};function ye(U){var te=H.T,Se={};Se.types=te!==null?te.types:null,H.T=Se;try{var Te=U(),ke=H.S;ke!==null&&ke(Se,Te),typeof Te=="object"&&Te!==null&&typeof Te.then=="function"&&Te.then($,de)}catch(Ae){de(Ae)}finally{te!==null&&Se.types!==null&&(te.types=Se.types),H.T=te}}function _e(U){var te=H.T;if(te!==null){var Se=te.types;Se===null?te.types=[U]:Se.indexOf(U)===-1&&Se.push(U)}else ye(_e.bind(null,U))}var ve={map:Z,forEach:function(U,te,Se){Z(U,function(){te.apply(this,arguments)},Se)},count:function(U){var te=0;return Z(U,function(){te++}),te},toArray:function(U){return Z(U,function(te){return te})||[]},only:function(U){if(!j(U))throw Error("React.Children.only expected to receive a single React element child.");return U}};return ht.Activity=p,ht.Children=ve,ht.Component=x,ht.Fragment=n,ht.Profiler=a,ht.PureComponent=k,ht.StrictMode=r,ht.Suspense=d,ht.ViewTransition=g,ht.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE=H,ht.__COMPILER_RUNTIME={__proto__:null,c:function(U){return H.H.useMemoCache(U)}},ht.addTransitionType=_e,ht.cache=function(U){return function(){return U.apply(null,arguments)}},ht.cacheSignal=function(){return null},ht.cloneElement=function(U,te,Se){if(U==null)throw Error("The argument must be a React element, but you passed "+U+".");var Te=E({},U.props),ke=U.key;if(te!=null)for(Ae in te.key!==void 0&&(ke=""+te.key),te)!B.call(te,Ae)||Ae==="key"||Ae==="__self"||Ae==="__source"||Ae==="ref"&&te.ref===void 0||(Te[Ae]=te[Ae]);var Ae=arguments.length-2;if(Ae===1)Te.children=Se;else if(1<Ae){for(var Fe=Array(Ae),Ne=0;Ne<Ae;Ne++)Fe[Ne]=arguments[Ne+2];Te.children=Fe}return z(U.type,ke,Te)},ht.createContext=function(U){return U={$$typeof:l,_currentValue:U,_currentValue2:U,_threadCount:0,Provider:null,Consumer:null},U.Provider=U,U.Consumer={$$typeof:s,_context:U},U},ht.createElement=function(U,te,Se){var Te,ke={},Ae=null;if(te!=null)for(Te in te.key!==void 0&&(Ae=""+te.key),te)B.call(te,Te)&&Te!=="key"&&Te!=="__self"&&Te!=="__source"&&(ke[Te]=te[Te]);var Fe=arguments.length-2;if(Fe===1)ke.children=Se;else if(1<Fe){for(var Ne=Array(Fe),Re=0;Re<Fe;Re++)Ne[Re]=arguments[Re+2];ke.children=Ne}if(U&&U.defaultProps)for(Te in Fe=U.defaultProps,Fe)ke[Te]===void 0&&(ke[Te]=Fe[Te]);return z(U,Ae,ke)},ht.createRef=function(){return{current:null}},ht.forwardRef=function(U){return{$$typeof:u,render:U}},ht.isValidElement=j,ht.lazy=function(U){return{$$typeof:c,_payload:{_status:-1,_result:U},_init:ue}},ht.memo=function(U,te){return{$$typeof:h,type:U,compare:te===void 0?null:te}},ht.startTransition=ye,ht.unstable_useCacheRefresh=function(){return H.H.useCacheRefresh()},ht.use=function(U){return H.H.use(U)},ht.useActionState=function(U,te,Se){return H.H.useActionState(U,te,Se)},ht.useCallback=function(U,te){return H.H.useCallback(U,te)},ht.useContext=function(U){return H.H.useContext(U)},ht.useDebugValue=function(){},ht.useDeferredValue=function(U,te){return H.H.useDeferredValue(U,te)},ht.useEffect=function(U,te){return H.H.useEffect(U,te)},ht.useEffectEvent=function(U){return H.H.useEffectEvent(U)},ht.useId=function(){return H.H.useId()},ht.useImperativeHandle=function(U,te,Se){return H.H.usedocs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:22: trailing whitespace.
+[32m+[m[41m                [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:23: trailing whitespace.
+[32m+[m[41m                [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:126: trailing whitespace.
+[32m+[m[41m                [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:127: trailing whitespace.
+[32m+[m[41m                [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:128: trailing whitespace.
+[32m+[m[41m                [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:129: trailing whitespace.
+[32m+[m[41m                [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:130: trailing whitespace.
+[32m+[m[41m                [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:133: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:138: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:143: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:148: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:153: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:158: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:163: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:168: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:173: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:178: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:183: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:188: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:193: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:198: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:203: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:208: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:213: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:218: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:223: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:228: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:233: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:238: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:243: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:248: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:253: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:258: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:263: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:268: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:273: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:278: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:283: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:288: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:293: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:298: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:303: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:308: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:313: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:318: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:323: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:328: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:333: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:338: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:343: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:348: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:353: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:358: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:363: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:368: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:373: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:378: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:383: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:388: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:393: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:398: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:403: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:408: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:413: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:418: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:423: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:428: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:433: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL_ERD.drawio:438: trailing whitespace.
+[32m+[m[41m                        [m
+docs/System Architecture/ERD/CONCEPTUAL
