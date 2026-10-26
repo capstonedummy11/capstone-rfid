@@ -949,7 +949,7 @@ const recordAttendance = async (student) => {
         student.student_id ?? student.user_id ?? student.id ?? '',
     );
     const studentRfid = String(student.rfid ?? '').trim().toLowerCase();
-    const studentRecord = attendanceRecords.value.find(
+    const existingStudentRecord = attendanceRecords.value.find(
         (record) =>
             String(record.student_id ?? '') === studentId ||
             String(record.rfid ?? '').trim().toLowerCase() === studentRfid,
@@ -957,7 +957,7 @@ const recordAttendance = async (student) => {
     let temporaryMovementVerified = false;
     let pendingLivenessToken = null;
 
-    if (studentRecord?.time_in && !studentRecord?.time_out && !dismissClassMode.value) {
+    if (existingStudentRecord?.time_in && !existingStudentRecord?.time_out && !dismissClassMode.value) {
         if (panelFeatureSettings.value.temporary_movement_liveness_enabled) {
             try {
                 pendingLivenessToken = await runFaceLiveness({
