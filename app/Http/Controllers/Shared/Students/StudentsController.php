@@ -1048,6 +1048,26 @@ class StudentsController
     {
         $student = $this->currentStudent($request);
         $enrollment = $this->portalEnrollment($request, $student);
+        $user = $request->user();
+        $portalMessages = $student
+            ? StudentPortalMessage::query()
+                ->where('student_id', $student->student_id)
+                ->where('recipient_user_id', $user->user_id)
+                ->whereNotNull('student_excuse_letter_id')
+                ->latest()
+                ->get()
+                ->map(fn (StudentPortalMessage $message) => [
+                    'id' => 'message-'.$message->student_portal_message_id,
+                    'message_id' => $message->student_portal_message_id,
+                    'kind' => 'portal_message',
+                    'title' => $message->subject,
+                    'body' => $message->body,
+                    'event' => 'excuse_letter',
+                    'read_at' => $message->read_at?->toDateTimeString(),
+                    'email_sent_at' => null,
+                    'created_at' => $message->created_at?->toDateTimeString(),
+                ])
+            : collect();
 
         return Inertia::render('StudentParent/Notifications/NotificationsPage', [
             'title' => 'Notifications',
@@ -1071,6 +1091,9 @@ class StudentsController
                         'email_sent_at' => $notification->email_sent_at?->toDateTimeString(),
                         'created_at' => $notification->created_at?->toDateTimeString(),
                     ])
+                    ->concat($portalMessages)
+                    ->sortByDesc('created_at')
+                    ->values()
                 : [],
         ]);
     }
@@ -1127,10 +1150,35 @@ class StudentsController
             ->when($enrollment, fn ($query) => $query->where('academic_year_id', $enrollment->academic_year_id))
             ->count();
 
+        $portalMessages = StudentPortalMessage::query()
+            ->where('student_id', $student->student_id)
+            ->where('recipient_user_id', $request->user()->user_id)
+            ->whereNotNull('student_excuse_letter_id');
+        $portalUnreadCount = (clone $portalMessages)->whereNull('read_at')->count();
+        $portalItems = $portalMessages
+            ->latest('student_portal_message_id')
+            ->limit(20)
+            ->get()
+            ->reverse()
+            ->map(fn (StudentPortalMessage $message) => [
+                'id' => 'message-'.$message->student_portal_message_id,
+                'message_id' => $message->student_portal_message_id,
+                'kind' => 'portal_message',
+                'sender' => 'Excuse letter updates',
+                'title' => $message->subject,
+                'text' => $message->body,
+                'body' => $message->body,
+                'event' => 'excuse_letter',
+                'timestamp' => $message->created_at?->toDateTimeString(),
+                'created_at' => $message->created_at?->toDateTimeString(),
+                'read_at' => $message->read_at?->toDateTimeString(),
+            ]);
+
         return response()->json([
-            'unread_count' => $unreadCount,
+            'unread_count' => $unreadCount + $portalUnreadCount,
             'items' => $notifications->map(fn (OnlineClassNotification $notification) => [
                 'id' => $notification->online_class_notification_id,
+                'kind' => 'portal_notification',
                 'sender' => 'Online classes',
                 'title' => $notification->title,
                 'text' => $notification->body,
@@ -1139,20 +1187,37 @@ class StudentsController
                 'timestamp' => $notification->created_at?->toDateTimeString(),
                 'created_at' => $notification->created_at?->toDateTimeString(),
                 'read_at' => $notification->read_at?->toDateTimeString(),
-            ])->values(),
+            ])->concat($portalItems)->sortBy('timestamp')->values(),
         ]);
     }
 
     // @function markPortalNotificationRead: Minamark ang portal notification read sa Students flow.
     // @useIn markPortalNotificationRead: routes/web.php:532 (notifications.read)
-    public function markPortalNotificationRead(Request $request, OnlineClassNotification $notification)
+    public function markPortalNotificationRead(Request $request, string $notification)
     {
         $student = $this->currentStudent($request);
-        abort_unless($student && (int) $notification->student_id === (int) $student->student_id, 403);
+        abort_unless($student, 403);
 
-        if (! $notification->read_at) {
-            $notification->update(['read_at' => now()]);
-            $this->logActivity('update', 'online_class_notifications', 'Marked online class notification '.$notification->online_class_notification_id.' as read for student '.$student->student_number);
+        if (str_starts_with($notification, 'message-')) {
+            $message = StudentPortalMessage::query()
+                ->where('student_portal_message_id', substr($notification, 8))
+                ->where('student_id', $student->student_id)
+                ->where('recipient_user_id', $request->user()->user_id)
+                ->whereNotNull('student_excuse_letter_id')
+                ->firstOrFail();
+            if (! $message->read_at) {
+                $message->update(['read_at' => now()]);
+            }
+
+            return back();
+        }
+
+        $onlineNotification = OnlineClassNotification::query()->findOrFail($notification);
+        abort_unless((int) $onlineNotification->student_id === (int) $student->student_id, 403);
+
+        if (! $onlineNotification->read_at) {
+            $onlineNotification->update(['read_at' => now()]);
+            $this->logActivity('update', 'online_class_notifications', 'Marked online class notification '.$onlineNotification->online_class_notification_id.' as read for student '.$student->student_number);
         }
 
         return back();
@@ -1175,9 +1240,15 @@ class StudentsController
             ->whereNull('read_at')
             ->when($enrollment, fn ($query) => $query->where('academic_year_id', $enrollment->academic_year_id))
             ->update(['read_at' => now(), 'updated_at' => now()]);
+        $portalUpdated = StudentPortalMessage::query()
+            ->where('student_id', $student->student_id)
+            ->where('recipient_user_id', $request->user()->user_id)
+            ->whereNotNull('student_excuse_letter_id')
+            ->whereNull('read_at')
+            ->update(['read_at' => now(), 'updated_at' => now()]);
 
-        if ($updated > 0) {
-            $this->logActivity('update', 'online_class_notifications', 'Marked '.$updated.' online class notifications as read for student '.$student->student_number);
+        if ($updated + $portalUpdated > 0) {
+            $this->logActivity('update', 'student_portal_notifications', 'Marked '.($updated + $portalUpdated).' portal notifications as read for student '.$student->student_number);
         }
 
         return back();

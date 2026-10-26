@@ -38,6 +38,10 @@ const isStudentParent = computed(() =>
         String(currentUser.value?.role || '').toLowerCase(),
     ),
 );
+const messengerEnabled = computed(() => {
+    const role = String(currentUser.value?.role || '').toLowerCase();
+    return page.props.featureSettings?.[`messenger_${role}_enabled`] ?? true;
+});
 const canPollRealtime = computed(() =>
     [
         'admin',
@@ -117,6 +121,7 @@ const markNotificationRead = (notification, visitAfter = false) => {
         unreadNotificationCount.value - 1,
     );
     const messageNotification = notification.kind === 'message';
+    const portalMessageNotification = notification.kind === 'portal_message';
     router.put(
         messageNotification
             ? route('messages.read', { message: notification.message_id })
@@ -170,7 +175,7 @@ const markAllNotificationsRead = () => {
     });
 
     if (!isStudentParent.value) {
-        markMessagesRead();
+        if (messengerEnabled.value) markMessagesRead();
         return;
     }
 
@@ -180,7 +185,9 @@ const markAllNotificationsRead = () => {
         {
             preserveScroll: true,
             preserveState: true,
-            onSuccess: markMessagesRead,
+            onSuccess: () => {
+                if (messengerEnabled.value) markMessagesRead();
+            },
             onError: () => {
                 Swal.fire({
                     toast: true,
@@ -231,6 +238,7 @@ provide('realtimeNotificationCenter', {
 const pollRealtime = async () => {
     if (!currentUserId.value) return;
 
+    if (messengerEnabled.value) {
     const messageResponse = await fetch(route('messages.unread-status'), {
         headers: {
             Accept: 'application/json',
@@ -277,6 +285,12 @@ const pollRealtime = async () => {
         }).then((result) => {
             if (result.isConfirmed) openMessenger(latest);
         });
+    }
+    } else {
+        unreadMessageCount.value = 0;
+        notificationItems.value = notificationItems.value.filter(
+            (item) => item.kind !== 'message',
+        );
     }
 
     if (!isStudentParent.value) return;

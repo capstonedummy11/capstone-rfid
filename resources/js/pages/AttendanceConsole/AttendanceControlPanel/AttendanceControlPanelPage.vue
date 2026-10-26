@@ -30,6 +30,7 @@ const props = defineProps({
             borrowing_enabled: false,
             inventory_enabled: false,
             demo_attendance_panel_enabled: false,
+            temporary_movement_liveness_enabled: false,
         }),
     },
     demoAttendancePanel: {
@@ -902,6 +903,7 @@ const checkStudentFaceForAttendance = async (
     instructorRfid = null,
     cameraUnavailable = false,
     livenessToken = null,
+    temporaryMovementCandidate = false,
 ) => {
     try {
         const response = await fetch(
@@ -922,6 +924,7 @@ const checkStudentFaceForAttendance = async (
                     liveness_token: livenessToken,
                     instructor_rfid: instructorRfid,
                     camera_unavailable: cameraUnavailable,
+                    temporary_movement_candidate: temporaryMovementCandidate,
                 }),
             },
         );
@@ -942,13 +945,87 @@ const checkStudentFaceForAttendance = async (
 const recordAttendance = async (student) => {
     showStudentTemporarily(student);
 
+    const studentId = String(
+        student.student_id ?? student.user_id ?? student.id ?? '',
+    );
+    const studentRfid = String(student.rfid ?? '').trim().toLowerCase();
+    const studentRecord = attendanceRecords.value.find(
+        (record) =>
+            String(record.student_id ?? '') === studentId ||
+            String(record.rfid ?? '').trim().toLowerCase() === studentRfid,
+    );
+    let temporaryMovementVerified = false;
+    let pendingLivenessToken = null;
+
+    if (studentRecord?.time_in && !studentRecord?.time_out && !dismissClassMode.value) {
+        if (panelFeatureSettings.value.temporary_movement_liveness_enabled) {
+            try {
+                pendingLivenessToken = await runFaceLiveness({
+                    purpose: 'attendance_student',
+                    subjectKey: student.rfid,
+                });
+            } catch (error) {
+                const message =
+                    error instanceof FaceLivenessError
+                        ? error.message
+                        : 'Live-face verification could not be completed.';
+                showStudentToast(student, message, 'warning');
+                pushHistory(
+                    'Temporary movement liveness blocked',
+                    `${student.name}: ${message}`,
+                    'warning',
+                );
+                setTapHeadline('Liveness Verification Failed');
+                return;
+            }
+
+            if (!pendingLivenessToken) {
+                const message = 'Student Face Liveness is required but unavailable.';
+                showStudentToast(student, message, 'warning');
+                pushHistory('Temporary movement blocked', message, 'warning');
+                setTapHeadline('Liveness Verification Failed');
+                return;
+            }
+        }
+
+        const movementResult = await checkStudentFaceForAttendance(
+            student,
+            null,
+            null,
+            false,
+            pendingLivenessToken,
+            true,
+        );
+
+        if (movementResult?.temporary_movement_eligible) {
+            if (!movementResult.ok || movementResult.verified === false) {
+                const message =
+                    movementResult.message ??
+                    'Temporary movement verification failed.';
+                showStudentToast(student, message, 'warning');
+                pushHistory('Temporary movement blocked', message, 'warning');
+                setTapHeadline('Temporary Movement Verification Failed');
+                return;
+            }
+
+            temporaryMovementVerified = true;
+            pushHistory(
+                movementResult.liveness_required
+                    ? 'Temporary movement liveness verified'
+                    : 'Temporary movement face check skipped',
+                movementResult.message,
+                movementResult.liveness_required ? 'success' : 'warning',
+            );
+        }
+    }
+
     const timestamp = new Date().toLocaleTimeString('en-US', {
         hour: 'numeric',
         minute: '2-digit',
         hour12: true,
     });
 
-    if (!student.hasFaceImage) {
+    if (!temporaryMovementVerified && !student.hasFaceImage) {
         const instructorApproval = await requestInstructorRfidPrompt({
             text: `${student.name} has no registered face image. Scan the active instructor's RFID card to approve this attendance.`,
         });
@@ -990,13 +1067,15 @@ const recordAttendance = async (student) => {
             `${activeProfessor.value?.name ?? 'The active instructor'} approved attendance for ${student.name}.`,
             'success',
         );
-    } else {
-        let livenessToken = null;
+    } else if (!temporaryMovementVerified) {
+        let livenessToken = pendingLivenessToken;
         try {
-            livenessToken = await runFaceLiveness({
-                purpose: 'attendance_student',
-                subjectKey: student.rfid,
-            });
+            if (!livenessToken) {
+                livenessToken = await runFaceLiveness({
+                    purpose: 'attendance_student',
+                    subjectKey: student.rfid,
+                });
+            }
         } catch (error) {
             const message =
                 error instanceof FaceLivenessError

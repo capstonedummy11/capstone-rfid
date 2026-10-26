@@ -151,6 +151,7 @@ const sections = [
                 text: 'Messages',
                 route: route('messages.index'),
                 roles: ['admin', 'instructor', 'clinic', 'registrar'],
+                feature: `messenger_${currentRole.value}_enabled`,
             },
             {
                 icon: MonitorCheck,
@@ -199,6 +200,7 @@ const sections = [
                 text: 'Messages',
                 route: route('messages.index'),
                 roles: ['student', 'parent'],
+                feature: `messenger_${currentRole.value}_enabled`,
             },
             {
                 icon: Bell,

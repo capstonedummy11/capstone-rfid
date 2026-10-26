@@ -94,7 +94,7 @@ Messaging and portal tables:
 - `messages` - public/student-to-instructor and instructor inbox messages.
 - `parent_student_links` - parent account to student links.
 - `student_excuse_letters` - student/parent excuse letter submissions with parent approval and signature metadata.
-- `student_portal_messages` - authenticated Messenger conversations for students, parents, clinic, registrar, instructors, and admins; console users are excluded from Messenger.
+- `student_portal_messages` - authenticated direct conversations and linked automated excuse-letter workflow notices for students, parents, clinic, registrar, instructors, and admins; console users are excluded. Student/Parent Notifications reads recipient-owned excuse-letter records even when Messenger access is disabled.
 
 Online Class tables:
 
@@ -140,7 +140,7 @@ Legacy academic compatibility:
 
 System and audit tables:
 
-- `system_settings` - feature flags and configurable settings.
+- `system_settings` - feature flags and configurable settings, including independent Direct Messages access switches for Admin, Instructor, Clinic, Registrar, Student, and Parent.
 - `activity_logs` - general activity/audit log records.
 
 Panel PIN behavior:

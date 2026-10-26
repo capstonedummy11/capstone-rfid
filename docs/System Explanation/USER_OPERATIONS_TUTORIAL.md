@@ -62,6 +62,7 @@ Important settings:
 - Panel access behavior.
 - Inventory availability behavior.
 - Online class face recognition default.
+- Direct Messages access for each role. Turning Student or Parent Messenger off still leaves system notifications, including excuse-letter updates, available in their Notifications page.
 
 Recommended first value:
 

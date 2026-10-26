@@ -323,6 +323,17 @@ class AttendanceController
         $checkoutWindowStart = $scheduleEnd?->copy()->subMinutes(15);
         $forceCheckout = (bool) ($validated['force_checkout'] ?? false);
 
+        if (str_starts_with($verificationMethod, 'temporary_movement')
+            && ($forceCheckout
+                || ($checkoutWindowStart && $now->greaterThanOrEqualTo($checkoutWindowStart))
+                || ! $this->temporaryMovementIsEligible($attendanceSession, $currentSchedule, $student))) {
+            return response()->json([
+                'ok' => false,
+                'requires_verification' => true,
+                'message' => 'This tap is no longer a temporary movement. Normal attendance verification is required.',
+            ], 422);
+        }
+
         $result = DB::transaction(function () use ($student, $attendanceSession, $currentSchedule, $scheduleId, $subjectCode, $validated, $today, $now, $nowTime, $scheduleStart, $checkoutWindowStart, $forceCheckout, $verificationMethod, $verificationFacePath) {
             $attendance = Attendance::query()
                 ->where('student_id', $student->student_id)
@@ -499,6 +510,7 @@ class AttendanceController
             'liveness_token' => ['nullable', 'string', 'size:64'],
             'instructor_rfid' => ['nullable', 'string', 'max:255'],
             'camera_unavailable' => ['nullable', 'boolean'],
+            'temporary_movement_candidate' => ['nullable', 'boolean'],
         ]);
 
         $rfid = strtolower(trim($validated['rfid']));
@@ -565,6 +577,79 @@ class AttendanceController
                 'ok' => false,
                 'message' => 'Student year level does not match this class.',
             ], 422);
+        }
+
+        if ($validated['temporary_movement_candidate'] ?? false) {
+            if (! $this->temporaryMovementIsEligible($attendanceSession, $currentSchedule, $student)) {
+                return response()->json([
+                    'ok' => false,
+                    'temporary_movement_eligible' => false,
+                    'message' => 'This tap requires the normal attendance verification flow.',
+                ], 409);
+            }
+
+            if (! SystemSetting::boolean(SystemSetting::TEMPORARY_MOVEMENT_LIVENESS_ENABLED, false)) {
+                $this->grantAttendanceVerification($request, $attendanceSession, $student, 'temporary_movement');
+
+                return response()->json([
+                    'ok' => true,
+                    'verified' => true,
+                    'temporary_movement_eligible' => true,
+                    'liveness_required' => false,
+                    'provider' => 'instructor_rfid',
+                    'message' => 'Student face verification is skipped for temporary movement. Scheduled Instructor RFID approval is still required.',
+                ]);
+            }
+
+            if (! config('services.aws_rekognition.liveness.enabled', false)) {
+                return response()->json([
+                    'ok' => false,
+                    'verified' => false,
+                    'temporary_movement_eligible' => true,
+                    'message' => 'Student Face Liveness is required for temporary movement but is unavailable.',
+                ], 503);
+            }
+
+            $capturedImage = $livenessService->consumeReferenceImage(
+                $request,
+                (string) ($validated['liveness_token'] ?? ''),
+                'attendance_student',
+                (string) $student->rfid_tag,
+                FaceLivenessPolicy::STUDENT_ROLE,
+            ) ?? '';
+            if ($capturedImage === '') {
+                return response()->json([
+                    'ok' => false,
+                    'verified' => false,
+                    'temporary_movement_eligible' => true,
+                    'message' => 'A valid live-face verification is required for temporary movement.',
+                ], 422);
+            }
+
+            $capturePath = $this->storeAttendanceFaceCapture(
+                $capturedImage,
+                (int) $attendanceSession->attendance_id,
+                $student,
+            );
+            if (! $capturePath) {
+                return response()->json([
+                    'ok' => false,
+                    'verified' => false,
+                    'message' => 'Liveness passed, but its attendance evidence could not be stored.',
+                ], 500);
+            }
+
+            $this->grantAttendanceVerification($request, $attendanceSession, $student, 'temporary_movement_liveness', $capturePath);
+
+            return response()->json([
+                'ok' => true,
+                'verified' => true,
+                'temporary_movement_eligible' => true,
+                'liveness_required' => true,
+                'capture_recorded' => true,
+                'provider' => 'aws_face_liveness',
+                'message' => 'Student liveness verified. Scheduled Instructor RFID approval is still required.',
+            ]);
         }
 
         $faceImages = array_values(array_filter($student->face_images ?? []));
@@ -912,6 +997,38 @@ class AttendanceController
     private function attendanceVerificationKey(int $attendanceSessionId, int $studentId): string
     {
         return "attendance.verification.{$attendanceSessionId}.{$studentId}";
+    }
+
+    private function temporaryMovementIsEligible(object $attendanceSession, Schedule $schedule, Students $student): bool
+    {
+        if (($attendanceSession->status ?? null) !== 'attendance') {
+            return false;
+        }
+
+        $panelSession = RfidPanelSession::query()
+            ->where('room', $attendanceSession->room)
+            ->whereNull('ended_at')
+            ->latest('panel_session_id')
+            ->first();
+        if (($panelSession?->meta['dismiss_class_mode'] ?? false) === true) {
+            return false;
+        }
+
+        $attendance = Attendance::query()
+            ->where('student_id', $student->student_id)
+            ->where('schedule_id', $schedule->scheduled_id)
+            ->whereDate('date', now()->toDateString())
+            ->first();
+        if (! $attendance || ! $attendance->time_in || $attendance->time_out) {
+            return false;
+        }
+
+        $checkoutWindowStart = $this->scheduleDateTime(
+            now()->toDateString(),
+            (string) $schedule->time_end,
+        )?->subMinutes(15);
+
+        return $checkoutWindowStart !== null && now()->lt($checkoutWindowStart);
     }
 
     // @function grantAttendanceVerification: Pinoproseso ang grant attendance verification para sa Attendance.

@@ -14,9 +14,16 @@ const props = defineProps({
             parent_portal_enabled: false,
             parent_excuse_letters_enabled: false,
             face_recognition_enabled: true,
+            temporary_movement_liveness_enabled: false,
             demo_attendance_panel_enabled: false,
             online_class_face_recognition_default: true,
             online_classes_enabled: true,
+            messenger_admin_enabled: true,
+            messenger_instructor_enabled: true,
+            messenger_clinic_enabled: true,
+            messenger_registrar_enabled: true,
+            messenger_student_enabled: true,
+            messenger_parent_enabled: true,
         }),
     },
     faceRecognitionAvailability: {
@@ -24,6 +31,13 @@ const props = defineProps({
         default: () => ({
             available: true,
             message: 'AWS Rekognition is configured.',
+        }),
+    },
+    faceLivenessAvailability: {
+        type: Object,
+        default: () => ({
+            available: false,
+            message: 'AWS Face Liveness is not configured.',
         }),
     },
     attendanceSettings: {
@@ -170,6 +184,9 @@ const form = useForm({
     face_recognition_enabled:
         faceAvailable.value &&
         Boolean(props.featureSettings.face_recognition_enabled),
+    temporary_movement_liveness_enabled: Boolean(
+        props.featureSettings.temporary_movement_liveness_enabled ?? false,
+    ),
     online_class_face_recognition_default:
         faceAvailable.value &&
         Boolean(props.featureSettings.face_recognition_enabled) &&
@@ -179,6 +196,12 @@ const form = useForm({
     online_classes_enabled: Boolean(
         props.featureSettings.online_classes_enabled ?? true,
     ),
+    messenger_admin_enabled: Boolean(props.featureSettings.messenger_admin_enabled ?? true),
+    messenger_instructor_enabled: Boolean(props.featureSettings.messenger_instructor_enabled ?? true),
+    messenger_clinic_enabled: Boolean(props.featureSettings.messenger_clinic_enabled ?? true),
+    messenger_registrar_enabled: Boolean(props.featureSettings.messenger_registrar_enabled ?? true),
+    messenger_student_enabled: Boolean(props.featureSettings.messenger_student_enabled ?? true),
+    messenger_parent_enabled: Boolean(props.featureSettings.messenger_parent_enabled ?? true),
     demo_attendance_panel_enabled: Boolean(
         props.demoAttendancePanelSettings.enabled,
     ),
@@ -752,6 +775,35 @@ const toggleFaceSetting = (field) => {
                         />
                     </label>
 
+                    <section class="rounded-md border border-slate-200 p-4">
+                        <h3 class="text-sm font-bold text-slate-900">Direct Messages by Role</h3>
+                        <p class="mt-1 text-sm text-slate-500">
+                            Control access to Messenger separately for each account role. System notifications, including excuse-letter updates, remain available.
+                        </p>
+                        <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                            <label
+                                v-for="role in [
+                                    { key: 'admin', label: 'Admin' },
+                                    { key: 'instructor', label: 'Instructor' },
+                                    { key: 'clinic', label: 'Clinic' },
+                                    { key: 'registrar', label: 'Registrar' },
+                                    { key: 'student', label: 'Student' },
+                                    { key: 'parent', label: 'Parent' },
+                                ]"
+                                :key="role.key"
+                                class="flex items-center justify-between gap-3 rounded-md bg-slate-50 p-3"
+                            >
+                                <span class="text-sm font-semibold text-slate-800">{{ role.label }}</span>
+                                <input
+                                    v-model="form[`messenger_${role.key}_enabled`]"
+                                    type="checkbox"
+                                    :aria-label="`Enable direct messages for ${role.label}`"
+                                    class="h-5 w-5 shrink-0 accent-brand"
+                                />
+                            </label>
+                        </div>
+                    </section>
+
                     <label
                         v-if="form.parent_portal_enabled"
                         class="flex items-center justify-between gap-4 rounded-md border border-slate-200 p-4"
@@ -1226,6 +1278,40 @@ const toggleFaceSetting = (field) => {
                             @change="
                                 toggleFaceSetting('face_recognition_enabled')
                             "
+                        />
+                    </label>
+
+                    <label
+                        class="flex items-center justify-between gap-4 rounded-md border border-slate-200 p-4"
+                    >
+                        <span class="min-w-0">
+                            <span class="block text-sm font-bold text-slate-900">
+                                Require Student Liveness for Temporary Exit / Return
+                            </span>
+                            <span class="block text-sm text-slate-500">
+                                Off by default. When enabled, the student must pass live video verification before temporary movement; scheduled Instructor RFID approval is still required. This does not compare the student's face with an enrolled image.
+                            </span>
+                            <span
+                                v-if="!props.faceLivenessAvailability.available"
+                                class="mt-1 block text-xs font-semibold text-amber-700"
+                            >
+                                {{ props.faceLivenessAvailability.message }}
+                            </span>
+                            <span
+                                v-if="form.errors.temporary_movement_liveness_enabled"
+                                class="mt-1 block text-xs font-semibold text-red-700"
+                            >
+                                {{ form.errors.temporary_movement_liveness_enabled }}
+                            </span>
+                        </span>
+                        <input
+                            v-model="form.temporary_movement_liveness_enabled"
+                            type="checkbox"
+                            :disabled="
+                                !props.faceLivenessAvailability.available &&
+                                !form.temporary_movement_liveness_enabled
+                            "
+                            class="h-5 w-5 shrink-0 accent-brand disabled:opacity-50"
                         />
                     </label>
 

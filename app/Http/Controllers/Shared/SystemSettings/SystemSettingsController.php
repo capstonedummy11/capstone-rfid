@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Shared\SystemSettings;
 use App\Models\ActivityLog;
 use App\Models\SystemSetting;
 use App\Services\AwsFaceRecognitionService;
+use App\Services\AwsFaceLivenessService;
 use App\Services\PhilSmsService;
 use App\Services\SmsActivityLogger;
 use App\Services\SmsProviderRegistry;
@@ -34,12 +35,14 @@ class SystemSettingsController
     public function edit()
     {
         $faceAvailability = (new AwsFaceRecognitionService)->availability();
+        $faceLivenessAvailability = (new AwsFaceLivenessService)->availability();
 
         return Inertia::render('Admin/SystemSettings/SystemSettingsPage', [
             'title' => 'Settings',
             'featureSettings' => SystemSetting::featureFlags(),
             'demoAttendancePanelSettings' => SystemSetting::demoAttendancePanelSettings(),
             'faceRecognitionAvailability' => $faceAvailability,
+            'faceLivenessAvailability' => $faceLivenessAvailability,
             'attendanceSettings' => [
                 'absent_default_days' => SystemSetting::integer(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 15),
                 'late_threshold_minutes' => SystemSetting::integer(SystemSetting::ATTENDANCE_LATE_THRESHOLD_MINUTES, 15),
@@ -62,7 +65,14 @@ class SystemSettingsController
             'parent_portal_enabled' => ['required', 'boolean'],
             'parent_excuse_letters_enabled' => ['nullable', 'boolean'],
             'parent_excuse_letter_approval_required' => ['nullable', 'boolean'],
+            'messenger_admin_enabled' => ['sometimes', 'boolean'],
+            'messenger_instructor_enabled' => ['sometimes', 'boolean'],
+            'messenger_clinic_enabled' => ['sometimes', 'boolean'],
+            'messenger_registrar_enabled' => ['sometimes', 'boolean'],
+            'messenger_student_enabled' => ['sometimes', 'boolean'],
+            'messenger_parent_enabled' => ['sometimes', 'boolean'],
             'face_recognition_enabled' => ['required', 'boolean'],
+            'temporary_movement_liveness_enabled' => ['sometimes', 'boolean'],
             'demo_attendance_panel_enabled' => ['required', 'boolean'],
             'demo_attendance_panel_rfids' => ['required', 'array'],
             'demo_attendance_panel_rfids.professor_tap' => ['nullable', 'string', 'max:255'],
@@ -108,6 +118,12 @@ class SystemSettingsController
         }
 
         $faceAvailability = (new AwsFaceRecognitionService)->availability();
+        $faceLivenessAvailability = (new AwsFaceLivenessService)->availability();
+        if (($validated['temporary_movement_liveness_enabled'] ?? false) && ! $faceLivenessAvailability['available']) {
+            throw ValidationException::withMessages([
+                'temporary_movement_liveness_enabled' => 'Student liveness for temporary movement requires AWS Face Liveness to be configured.',
+            ]);
+        }
         if (! $faceAvailability['available'] && ((bool) $validated['face_recognition_enabled'] || (bool) $validated['online_class_face_recognition_default'])) {
             $validated['face_recognition_enabled'] = false;
             $validated['online_class_face_recognition_default'] = false;
@@ -131,7 +147,19 @@ class SystemSettingsController
             SystemSetting::PARENT_EXCUSE_LETTER_APPROVAL_REQUIRED,
             $parentPortalEnabled && (bool) ($validated['parent_excuse_letter_approval_required'] ?? false),
         );
+        foreach (SystemSetting::MESSENGER_ROLE_ENABLED as $role => $key) {
+            $field = 'messenger_'.$role.'_enabled';
+            if (array_key_exists($field, $validated)) {
+                SystemSetting::setBoolean($key, (bool) $validated[$field]);
+            }
+        }
         SystemSetting::setBoolean(SystemSetting::FACE_RECOGNITION_ENABLED, (bool) $validated['face_recognition_enabled']);
+        if (array_key_exists('temporary_movement_liveness_enabled', $validated)) {
+            SystemSetting::setBoolean(
+                SystemSetting::TEMPORARY_MOVEMENT_LIVENESS_ENABLED,
+                (bool) $validated['temporary_movement_liveness_enabled'],
+            );
+        }
         SystemSetting::setBoolean(SystemSetting::DEMO_ATTENDANCE_PANEL_ENABLED, (bool) $validated['demo_attendance_panel_enabled']);
         SystemSetting::setArray(
             SystemSetting::DEMO_ATTENDANCE_PANEL_RFIDS,

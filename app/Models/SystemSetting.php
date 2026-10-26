@@ -24,7 +24,18 @@ class SystemSetting extends Model
     public const PARENT_EXCUSE_LETTERS_ENABLED = 'feature.parent_excuse_letters_enabled';
     public const PARENT_EXCUSE_LETTER_APPROVAL_REQUIRED = 'feature.parent_excuse_letter_approval_required';
 
+    public const MESSENGER_ROLE_ENABLED = [
+        'admin' => 'feature.messenger_admin_enabled',
+        'instructor' => 'feature.messenger_instructor_enabled',
+        'clinic' => 'feature.messenger_clinic_enabled',
+        'registrar' => 'feature.messenger_registrar_enabled',
+        'student' => 'feature.messenger_student_enabled',
+        'parent' => 'feature.messenger_parent_enabled',
+    ];
+
     public const FACE_RECOGNITION_ENABLED = 'feature.face_recognition_enabled';
+
+    public const TEMPORARY_MOVEMENT_LIVENESS_ENABLED = 'attendance.temporary_movement_liveness_enabled';
 
     public const DEMO_ATTENDANCE_PANEL_ENABLED = 'feature.demo_attendance_panel_enabled';
 
@@ -91,10 +102,21 @@ class SystemSetting extends Model
             'parent_excuse_letter_approval_required' => $parentPortalEnabled
                 && static::boolean(static::PARENT_EXCUSE_LETTER_APPROVAL_REQUIRED, false),
             'face_recognition_enabled' => static::boolean(static::FACE_RECOGNITION_ENABLED, true),
+            'temporary_movement_liveness_enabled' => static::boolean(static::TEMPORARY_MOVEMENT_LIVENESS_ENABLED, false),
             'demo_attendance_panel_enabled' => static::boolean(static::DEMO_ATTENDANCE_PANEL_ENABLED, false),
             'online_class_face_recognition_default' => static::boolean(static::ONLINE_CLASS_FACE_RECOGNITION_DEFAULT, true),
             'online_classes_enabled' => static::boolean(static::ONLINE_CLASSES_ENABLED, true),
+            ...collect(static::MESSENGER_ROLE_ENABLED)
+                ->mapWithKeys(fn (string $key, string $role) => ['messenger_'.$role.'_enabled' => static::boolean($key, true)])
+                ->all(),
         ];
+    }
+
+    public static function messengerEnabledForRole(?string $role): bool
+    {
+        $key = static::MESSENGER_ROLE_ENABLED[strtolower(trim((string) $role))] ?? null;
+
+        return $key === null || static::boolean($key, true);
     }
 
     // Credentials stay server-side; saved tokens are encrypted using the application key.

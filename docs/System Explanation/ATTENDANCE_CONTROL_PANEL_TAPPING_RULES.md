@@ -13,7 +13,7 @@ A student tap can become official attendance only when:
 - An assigned instructor has started the matching scheduled session.
 - The current date, weekday, room, instructor, and time match the schedule.
 - The student is active and belongs to the scheduled section.
-- Required face verification or an allowed instructor-approved fallback succeeds.
+- Required face verification or an allowed instructor-approved fallback succeeds. For Temporary Exit/Return only, the separate Student Liveness setting is off by default and scheduled Instructor RFID approval remains mandatory.
 
 A failed prerequisite produces a rejected or invalid event; it does not create valid attendance.
 
@@ -55,6 +55,7 @@ After check-in and before that window:
 - `Inside` becomes `Temporary Exit` and changes location to `Outside`.
 - `Outside` becomes `Temporary Return` and changes location to `Inside`.
 - Without valid approval, movement is rejected and state does not change.
+- Student face recognition is skipped for temporary movement. If Admin enables **Require Student Liveness for Temporary Exit / Return**, the Student must pass liveness first; the enrolled-face comparison still does not run.
 - Approved early movement can alternate on later taps.
 
 ## 5. Official Checkout

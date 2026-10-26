@@ -31,8 +31,8 @@ Route::prefix('student-parent')
         Route::get('/excuse-letters/{letter}/attachment', [StudentsController::class, 'downloadPortalExcuseLetterAttachment'])->name('excuse-letters.attachment');
 
         // Messenger
-        Route::get('/messages', [MessageController::class, 'index'])->name('messages.index');
-        Route::post('/messages', [MessageController::class, 'sendConversationMessage'])->name('messages.store');
+        Route::get('/messages', [MessageController::class, 'index'])->middleware('messenger.enabled')->name('messages.index');
+        Route::post('/messages', [MessageController::class, 'sendConversationMessage'])->middleware('messenger.enabled')->name('messages.store');
 
         // Notifications
         Route::get('/notifications', [StudentsController::class, 'portalNotifications'])->name('notifications.index');

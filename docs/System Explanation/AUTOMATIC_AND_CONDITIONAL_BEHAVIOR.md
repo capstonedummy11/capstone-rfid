@@ -16,6 +16,10 @@ Admin controls the switches on **System Settings**. The application shares their
 | Demo Attendance Panel | Shows configured demonstration tap buttons and sample RFID values. | Intended for demonstrations, not production. |
 | Online Classes | Hides the staff Online Classes and Admin Online Class Logs menu links. | Current implementation does not consistently block all direct online-class routes; treat it as a visibility switch, not a complete shutdown control. |
 | Online-class face default | Preselects face verification for new online classes. | Automatically turns off if the main face-recognition switch/provider is unavailable. |
+| Temporary movement Student Liveness | Requires a Student liveness challenge before Temporary Exit/Return when enabled. | Off by default. Scheduled Instructor RFID approval remains required. When on, this checks liveness only and does not compare against an enrolled Student face. AWS Face Liveness must be configured before enabling it. |
+| Direct Messages by Role | Shows or hides Messenger for Admin, Instructor, Clinic, Registrar, Student, or Parent independently. | Disabled roles cannot open Messenger or use its authenticated inbox, send, reply, attachment, or polling endpoints. Automated Student/Parent notifications continue separately. |
+
+Excuse-letter automation sends linked Parent-approval and Instructor-decision messages into the Student/Parent Notifications feed while retaining the workflow record. Student and Parent read state is scoped to the signed-in recipient. Existing online-class notifications remain in the same feed. Disabling Messenger only removes direct conversation access; it does not disable notifications.
 
 ## Sign-in and access automation
 
@@ -45,6 +49,7 @@ Admin controls the switches on **System Settings**. The application shares their
 - A verification grant is short-lived and tied to one student and one attendance session. It is consumed after the tap.
 - First valid tap creates a Pending attendance result and records Present or Late as the check-in basis. Late uses the configured number of minutes after class start.
 - Before the last 15 minutes, another tap requires the scheduled Instructor's RFID and becomes Temporary Exit or Temporary Return.
+- Temporary Exit/Return skip Student face recognition by default. Admin may enable the separate Student Liveness setting; it then requires live video verification as well as scheduled Instructor RFID approval.
 - During the final 15 minutes, Dismiss Class, or an accepted fallback verification path, the next valid tap becomes official checkout.
 - Once checkout exists, later taps are logged as ignored and do not change the official result.
 - Leaving attendance mode finalizes students who left temporarily and did not return as Absent with a cutting reason.

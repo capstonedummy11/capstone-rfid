@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Route;
 // Public Messenger
 Route::get('/messages/new', [MessageController::class, 'create'])->name('messages.create');
 Route::post('/messages', [MessageController::class, 'store'])->name('messages.store');
-Route::middleware(['auth', 'role:admin,instructor,clinic,registrar,student,parent', EnsureParentPortalEnabled::class])->group(function () {
+Route::middleware(['auth', 'role:admin,instructor,clinic,registrar,student,parent', EnsureParentPortalEnabled::class, 'messenger.enabled'])->group(function () {
     // Authenticated Messenger
     Route::get('/messages', [MessageController::class, 'index'])->name('messages.index');
     Route::get('/messages/unread-status', [MessageController::class, 'unreadStatus'])->middleware('throttle:realtime-poll')->name('messages.unread-status');
@@ -22,13 +22,13 @@ Route::middleware(['auth', 'role:admin,instructor,clinic,registrar,student,paren
     Route::post('/messages/conversation', [MessageController::class, 'sendConversationMessage'])->name('messages.conversation.store');
     Route::post('/messages/{message}/forward-to-parent', [MessageController::class, 'forwardExcuseLetterToParent'])->name('messages.forward-to-parent');
 
-    // Excuse Letter Review
-    Route::put('/messages/{message}/excuse-letter-review', [MessageController::class, 'reviewExcuseLetter'])->name('messages.excuse-letters.review');
-
     // Messenger
     Route::put('/messages/{message}/read', [MessageController::class, 'markRead'])->name('messages.read');
     Route::get('/messages/{message}/attachment', [MessageController::class, 'downloadAttachment'])->name('messages.attachments.show');
 });
+Route::put('/messages/{message}/excuse-letter-review', [MessageController::class, 'reviewExcuseLetter'])
+    ->middleware(['auth', 'role:instructor', 'instructor.verified', EnsureParentPortalEnabled::class])
+    ->name('messages.excuse-letters.review');
 Route::middleware(['auth', 'role:admin,instructor,clinic,registrar,student,parent', EnsureParentPortalEnabled::class])->group(function () {
     // Reports and Exports
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');

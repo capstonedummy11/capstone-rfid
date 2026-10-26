@@ -917,8 +917,13 @@ test('fallback verification keeps temporary exit and return rules before the che
         ->assertOk()
         ->assertJsonPath('action', 'time_in');
 
-    $this->postJson(route('attendanceControlPanel.studentFaceCheck'), $verificationPayload)
-        ->assertOk();
+    $this->postJson(route('attendanceControlPanel.studentFaceCheck'), [
+        ...$payload,
+        'temporary_movement_candidate' => true,
+    ])
+        ->assertOk()
+        ->assertJsonPath('temporary_movement_eligible', true)
+        ->assertJsonPath('liveness_required', false);
     $this->postJson(route('attendanceControlPanel.studentTap'), $payload)
         ->assertStatus(428)
         ->assertJsonPath('requires_temporary_movement_instructor', true);
@@ -930,8 +935,13 @@ test('fallback verification keeps temporary exit and return rules before the che
         ->assertJsonPath('action', 'temporary_exit')
         ->assertJsonPath('record.room_status', 'Outside');
 
-    $this->postJson(route('attendanceControlPanel.studentFaceCheck'), $verificationPayload)
-        ->assertOk();
+    $this->postJson(route('attendanceControlPanel.studentFaceCheck'), [
+        ...$payload,
+        'temporary_movement_candidate' => true,
+    ])
+        ->assertOk()
+        ->assertJsonPath('temporary_movement_eligible', true)
+        ->assertJsonPath('liveness_required', false);
     $this->postJson(route('attendanceControlPanel.studentTap'), [
         ...$payload,
         'temporary_movement_instructor_rfid' => $fixture['instructorUser']->rfid_tag,
@@ -972,6 +982,71 @@ test('fallback verification keeps temporary exit and return rules before the che
             ->where('rows.0.tap_events.2.tap_type', 'Temporary Return')
             ->where('rows.0.tap_events.2.room_status', 'Inside'));
 
+    Carbon::setTestNow();
+});
+
+test('temporary movement can require liveness without comparing the enrolled face', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    Carbon::setTestNow('2026-09-25 12:00:00');
+    Storage::fake('public');
+    config()->set('services.aws_rekognition.liveness.enabled', true);
+    SystemSetting::setBoolean(SystemSetting::TEMPORARY_MOVEMENT_LIVENESS_ENABLED, true);
+    $fixture = attendanceVerificationFixture(true);
+    $fixture['student']->update(['face_images' => []]);
+    $payload = [
+        'rfid' => $fixture['student']->rfid_tag,
+        'room' => 'COMLAB-ATT',
+        'subject_code' => 'ATT-SEC-101',
+        'schedule_id' => $fixture['schedule']->scheduled_id,
+    ];
+
+    $faceService = Mockery::mock(AwsFaceRecognitionService::class);
+    $faceService->shouldNotReceive('compareBase64WithStoredImage');
+    $this->app->instance(AwsFaceRecognitionService::class, $faceService);
+    $livenessService = Mockery::mock(AwsFaceLivenessService::class);
+    $livenessService->shouldReceive('consumeReferenceImage')
+        ->once()
+        ->withArgs(fn ($request, $token, $purpose, $subjectKey, $subjectRole) =>
+            $token === str_repeat('l', 64)
+            && $purpose === 'attendance_student'
+            && $subjectKey === $fixture['student']->rfid_tag
+            && $subjectRole === FaceLivenessPolicy::STUDENT_ROLE
+        )
+        ->andReturn('data:image/jpeg;base64,'.base64_encode('live-reference-image'));
+    $this->app->instance(AwsFaceLivenessService::class, $livenessService);
+
+    $this->actingAs($fixture['console'])
+        ->postJson(route('attendanceControlPanel.studentFaceCheck'), [
+            ...$payload,
+            'instructor_rfid' => $fixture['instructorUser']->rfid_tag,
+        ])
+        ->assertOk();
+    $this->postJson(route('attendanceControlPanel.studentTap'), $payload)
+        ->assertOk()
+        ->assertJsonPath('action', 'time_in');
+
+    $this->postJson(route('attendanceControlPanel.studentFaceCheck'), [
+        ...$payload,
+        'temporary_movement_candidate' => true,
+        'liveness_token' => str_repeat('l', 64),
+    ])
+        ->assertOk()
+        ->assertJsonPath('temporary_movement_eligible', true)
+        ->assertJsonPath('liveness_required', true)
+        ->assertJsonPath('provider', 'aws_face_liveness');
+
+    $this->postJson(route('attendanceControlPanel.studentTap'), [
+        ...$payload,
+        'temporary_movement_instructor_rfid' => $fixture['instructorUser']->rfid_tag,
+    ])
+        ->assertOk()
+        ->assertJsonPath('action', 'temporary_exit');
+
+    $this->assertDatabaseHas('attendance_logs', [
+        'student_id' => $fixture['student']->student_id,
+        'tap_type' => 'Temporary Exit',
+        'verification_method' => 'temporary_movement_liveness',
+    ]);
     Carbon::setTestNow();
 });
 

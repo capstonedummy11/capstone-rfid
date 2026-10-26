@@ -6,6 +6,8 @@ This is the canonical connection map for the final schema produced by every migr
 
 ## High-level relationship map
 
+Role-specific Messenger switches are key/value rows in `system_settings` and add no database relationship. Automated excuse notifications reuse the existing `student_portal_messages` recipient and letter foreign keys.
+
 ```mermaid
 flowchart LR
     Users[users] --> Instructors[instructors]

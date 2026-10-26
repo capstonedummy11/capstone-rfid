@@ -34,8 +34,8 @@ Route::prefix('admin')
         Route::post('/attendance/scan', [AttendanceController::class, 'scan'])->name('attendance.scan');
 
         // Messenger
-        Route::get('/messages', [MessageController::class, 'index'])->name('messages.index');
-        Route::post('/messages/{message}/reply', [MessageController::class, 'reply'])->name('messages.reply');
+        Route::get('/messages', [MessageController::class, 'index'])->middleware('messenger.enabled')->name('messages.index');
+        Route::post('/messages/{message}/reply', [MessageController::class, 'reply'])->middleware('messenger.enabled')->name('messages.reply');
 
         // Online Class Management
         Route::get('/online-classes', [OnlineClassController::class, 'index'])->name('online-classes.index');
