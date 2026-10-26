@@ -132,7 +132,8 @@ const submit = () => {
     }
 
     setStaffSavePreference(form.email, shouldSave);
-    form.post(route('staff.login.store'));
+    // Keep the login request on the page's origin when APP_URL differs locally.
+    form.post(route('staff.login.store', undefined, false));
 };
 
 onMounted(() => {

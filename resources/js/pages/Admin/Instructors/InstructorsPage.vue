@@ -185,101 +185,19 @@
                                         >Not assigned</span
                                     >
                                 </td>
-                                <td class="border border-gray-300 px-4 py-3">
-                                    <div class="flex items-center gap-2">
-                                        <button
-                                            @click="openEditModal(instructor)"
-                                            class="rounded-md bg-indigo-600 px-3 py-1 text-sm text-white hover:bg-indigo-700"
-                                        >
-                                            Edit
-                                        </button>
-                                        <div class="group relative">
-                                            <button
-                                                type="button"
-                                                @click="
-                                                    resetInstructorPassword(
-                                                        instructor,
-                                                    )
-                                                "
-                                                aria-label="Reset password"
-                                                class="rounded-md bg-amber-500 p-2 text-white hover:bg-amber-600 focus:ring-2 focus:ring-amber-300 focus:outline-none"
-                                            >
-                                                <svg
-                                                    viewBox="0 0 24 24"
-                                                    class="h-4 w-4"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    stroke-width="2"
-                                                    aria-hidden="true"
-                                                >
-                                                    <path
-                                                        d="M15.5 7.5a4.5 4.5 0 1 0-2.8 4.15L15 14h2v2h2v2h2v-3.17l-5.02-5.02A4.5 4.5 0 0 0 15.5 7.5Z"
-                                                        stroke-linecap="round"
-                                                        stroke-linejoin="round"
-                                                    />
-                                                    <path
-                                                        d="M8 7.5h.01"
-                                                        stroke-linecap="round"
-                                                    />
-                                                </svg>
-                                            </button>
-                                            <span
-                                                role="tooltip"
-                                                class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 rounded bg-slate-900 px-2 py-1 text-[11px] font-medium whitespace-nowrap text-white opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100"
-                                            >
-                                                Reset password
-                                            </span>
-                                        </div>
-                                        <div class="group relative">
-                                            <button
-                                                type="button"
-                                                @click="
-                                                    resetInstructorSecurityQuestions(
-                                                        instructor,
-                                                    )
-                                                "
-                                                aria-label="Reset security questions"
-                                                class="rounded-md bg-sky-600 p-2 text-white hover:bg-sky-700 focus:ring-2 focus:ring-sky-300 focus:outline-none"
-                                            >
-                                                <svg
-                                                    viewBox="0 0 24 24"
-                                                    class="h-4 w-4"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    stroke-width="2"
-                                                    aria-hidden="true"
-                                                >
-                                                    <path
-                                                        d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"
-                                                        stroke-linecap="round"
-                                                        stroke-linejoin="round"
-                                                    />
-                                                    <path
-                                                        d="M9.8 9a2.25 2.25 0 1 1 3.42 1.92c-.75.45-1.22.87-1.22 1.83"
-                                                        stroke-linecap="round"
-                                                    />
-                                                    <path
-                                                        d="M12 16h.01"
-                                                        stroke-linecap="round"
-                                                    />
-                                                </svg>
-                                            </button>
-                                            <span
-                                                role="tooltip"
-                                                class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 rounded bg-slate-900 px-2 py-1 text-[11px] font-medium whitespace-nowrap text-white opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100"
-                                            >
-                                                Reset security questions
-                                            </span>
-                                        </div>
-                                        <button
-                                            @click="
-                                                deleteInstructor(instructor)
-                                            "
-                                            class="rounded-md bg-rose-500 px-3 py-1 text-sm text-white hover:bg-rose-600"
-                                        >
-                                            Delete
-                                        </button>
-                                    </div>
+                                <td
+                                    class="border border-gray-300 px-4 py-3 text-right"
+                                >
+                                    <RowSettingsMenu
+                                        :actions="instructorActions"
+                                        :record-label="`${instructor.first_name} ${instructor.last_name}`"
+                                        @select="
+                                            handleInstructorAction(
+                                                $event,
+                                                instructor,
+                                            )
+                                        "
+                                    />
                                 </td>
                             </tr>
                         </tbody>
@@ -719,6 +637,8 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
+import { KeyRound, Pencil, ShieldQuestion, Trash2 } from 'lucide-vue-next';
+import RowSettingsMenu from '@/components/RowSettingsMenu.vue';
 import { confirmActionModal, showAlertModal } from '@/lib/feedbackModal';
 
 interface Instructor {
@@ -768,6 +688,35 @@ const resetSuccessInstructorName = ref('');
 const resetSuccessPassword = ref('');
 const securityQuestionResetInstructor = ref<Instructor | null>(null);
 const securityQuestionResetSuccessName = ref('');
+
+const instructorActions = [
+    { id: 'edit', label: 'Edit instructor', icon: Pencil },
+    { id: 'password', label: 'Reset password', icon: KeyRound, tone: 'amber' },
+    {
+        id: 'questions',
+        label: 'Reset security questions',
+        icon: ShieldQuestion,
+        tone: 'sky',
+    },
+    { id: 'delete', label: 'Delete instructor', icon: Trash2, tone: 'rose' },
+] as const;
+
+const handleInstructorAction = (action: string, instructor: Instructor) => {
+    switch (action) {
+        case 'edit':
+            openEditModal(instructor);
+            break;
+        case 'password':
+            resetInstructorPassword(instructor);
+            break;
+        case 'questions':
+            resetInstructorSecurityQuestions(instructor);
+            break;
+        case 'delete':
+            deleteInstructor(instructor);
+            break;
+    }
+};
 
 const form = useForm({
     instructor_id: '',

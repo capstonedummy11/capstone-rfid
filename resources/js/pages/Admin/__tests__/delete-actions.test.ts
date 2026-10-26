@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Sections from '../Sections/SectionsPage.vue';
 import Students from '../../Shared/Students/StudentsPage.vue';
+import RowSettingsMenu from '../../../components/RowSettingsMenu.vue';
 import Subjects from '../Subjects/SubjectsPage.vue';
 
 const {
@@ -117,7 +118,7 @@ describe('admin delete actions', () => {
             },
         });
 
-        await wrapper.get('[data-testid="delete-subject"]').trigger('click');
+        wrapper.getComponent(RowSettingsMenu).vm.$emit('select', 'archive');
         await flushPromises();
 
         expect(deleteRequest).toHaveBeenCalledWith(
@@ -160,7 +161,7 @@ describe('admin delete actions', () => {
             },
         });
 
-        await wrapper.get('[data-testid="delete-student"]').trigger('click');
+        wrapper.getComponent(RowSettingsMenu).vm.$emit('select', 'delete');
         await flushPromises();
 
         expect(sweetAlert).toHaveBeenCalled();

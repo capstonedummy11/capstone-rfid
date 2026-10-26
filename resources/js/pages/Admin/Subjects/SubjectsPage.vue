@@ -241,8 +241,22 @@
                                     <span v-else>Unassigned</span>
                                 </td>
                                 <td class="border border-gray-300 px-4 py-3">
-                                    <div class="flex items-center gap-2">
+                                    <div
+                                        class="flex items-center justify-end gap-2"
+                                    >
+                                        <RowSettingsMenu
+                                            v-if="view === 'active'"
+                                            :actions="subjectActions"
+                                            :record-label="subject.subject_name"
+                                            @select="
+                                                handleSubjectAction(
+                                                    $event,
+                                                    subject,
+                                                )
+                                            "
+                                        />
                                         <button
+                                            v-if="view === 'archived'"
                                             type="button"
                                             :aria-label="`View schedule for ${subject.subject_code}`"
                                             :title="`View schedule for ${subject.subject_code}`"
@@ -257,31 +271,8 @@
                                                 aria-hidden="true"
                                             />
                                         </button>
-                                        <template v-if="view === 'active'">
-                                            <button
-                                                @click="openEditModal(subject)"
-                                                class="rounded-md bg-indigo-600 px-3 py-1 text-sm text-white hover:bg-indigo-700"
-                                            >
-                                                Edit
-                                            </button>
-                                            <button
-                                                @click="
-                                                    openOfferingModal(subject)
-                                                "
-                                                class="rounded-md bg-sky-600 px-3 py-1 text-sm text-white hover:bg-sky-700"
-                                            >
-                                                Add Offering
-                                            </button>
-                                            <button
-                                                data-testid="delete-subject"
-                                                @click="deleteSubject(subject)"
-                                                class="rounded-md bg-rose-500 px-3 py-1 text-sm text-white hover:bg-rose-600"
-                                            >
-                                                Archive Subject
-                                            </button>
-                                        </template>
                                         <span
-                                            v-else
+                                            v-if="view === 'archived'"
                                             class="text-sm text-slate-600"
                                             >{{
                                                 subject.deleted_at || 'Archived'
@@ -871,9 +862,10 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
-import { CalendarDays, X } from 'lucide-vue-next';
+import { Archive, CalendarDays, Pencil, Plus, X } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
 import SearchableSelect from '@/components/SearchableSelect.vue';
+import RowSettingsMenu from '@/components/RowSettingsMenu.vue';
 import { confirmActionModal, showAlertModal } from '@/lib/feedbackModal';
 
 interface Subject {
@@ -985,6 +977,40 @@ const formAcademicYearId = ref<string | number | ''>('');
 const formYearLevel = ref<string | number | ''>('');
 const offeringAcademicYearId = ref<string | number | ''>('');
 const offeringYearLevel = ref<string | number | ''>('');
+const subjectActions = [
+    {
+        id: 'schedule',
+        label: 'View schedules',
+        icon: CalendarDays,
+        tone: 'sky',
+    },
+    { id: 'edit', label: 'Edit subject', icon: Pencil },
+    { id: 'offering', label: 'Add offering', icon: Plus, tone: 'emerald' },
+    {
+        id: 'archive',
+        label: 'Archive subject',
+        icon: Archive,
+        tone: 'rose',
+        testId: 'delete-subject',
+    },
+] as const;
+
+const handleSubjectAction = (action: string, subject: Subject) => {
+    switch (action) {
+        case 'schedule':
+            selectedScheduleSubject.value = subject;
+            break;
+        case 'edit':
+            openEditModal(subject);
+            break;
+        case 'offering':
+            openOfferingModal(subject);
+            break;
+        case 'archive':
+            deleteSubject(subject);
+            break;
+    }
+};
 
 const instructors = computed(() => {
     return (props.instructorOptions as InstructorOption[]).filter(

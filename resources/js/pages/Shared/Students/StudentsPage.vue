@@ -394,77 +394,15 @@
                                 </td>
                                 <td
                                     v-if="canManageStudents"
-                                    class="border border-gray-300 px-3 py-3 break-words"
+                                    class="border border-gray-300 px-3 py-3 text-right"
                                 >
-                                    <div
-                                        class="flex flex-wrap items-center gap-2"
-                                    >
-                                        <button
-                                            type="button"
-                                            @click="openEditModal(student)"
-                                            aria-label="Edit student"
-                                            class="group relative rounded-md bg-indigo-600 p-2 text-white hover:bg-indigo-700"
-                                        >
-                                            <Pencil class="h-4 w-4" />
-                                            <span
-                                                class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 rounded bg-slate-900 px-2 py-1 text-[11px] font-medium whitespace-nowrap text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100"
-                                                >Edit student</span
-                                            >
-                                        </button>
-                                        <button
-                                            type="button"
-                                            @click="openParentModal(student)"
-                                            aria-label="Manage parents"
-                                            class="group relative rounded-md bg-emerald-600 p-2 text-white hover:bg-emerald-700"
-                                        >
-                                            <Users class="h-4 w-4" />
-                                            <span
-                                                class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 rounded bg-slate-900 px-2 py-1 text-[11px] font-medium whitespace-nowrap text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100"
-                                                >Manage parents</span
-                                            >
-                                        </button>
-                                        <button
-                                            type="button"
-                                            @click="
-                                                openEnrollmentHistory(student)
-                                            "
-                                            aria-label="Enrollment history"
-                                            class="group relative rounded-md bg-sky-600 p-2 text-white hover:bg-sky-700"
-                                        >
-                                            <History class="h-4 w-4" />
-                                            <span
-                                                class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 rounded bg-slate-900 px-2 py-1 text-[11px] font-medium whitespace-nowrap text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100"
-                                                >Enrollment history</span
-                                            >
-                                        </button>
-                                        <button
-                                            type="button"
-                                            @click="
-                                                resetStudentPassword(student)
-                                            "
-                                            aria-label="Reset password"
-                                            class="group relative rounded-md bg-amber-500 p-2 text-white hover:bg-amber-600"
-                                        >
-                                            <KeyRound class="h-4 w-4" />
-                                            <span
-                                                class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 rounded bg-slate-900 px-2 py-1 text-[11px] font-medium whitespace-nowrap text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100"
-                                                >Reset password</span
-                                            >
-                                        </button>
-                                        <button
-                                            type="button"
-                                            data-testid="delete-student"
-                                            @click="deleteStudent(student)"
-                                            aria-label="Delete student"
-                                            class="group relative rounded-md bg-rose-500 p-2 text-white hover:bg-rose-600"
-                                        >
-                                            <Trash2 class="h-4 w-4" />
-                                            <span
-                                                class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 rounded bg-slate-900 px-2 py-1 text-[11px] font-medium whitespace-nowrap text-white opacity-0 transition-opacity duration-75 group-hover:opacity-100"
-                                                >Delete student</span
-                                            >
-                                        </button>
-                                    </div>
+                                    <RowSettingsMenu
+                                        :actions="studentActions"
+                                        :record-label="`${student.first_name} ${student.last_name}`"
+                                        @select="
+                                            handleStudentAction($event, student)
+                                        "
+                                    />
                                 </td>
                             </tr>
                         </tbody>
@@ -1220,6 +1158,7 @@ import {
 import Swal from 'sweetalert2';
 import { computed, ref } from 'vue';
 import CameraCapture from '@/components/CameraCapture.vue';
+import RowSettingsMenu from '@/components/RowSettingsMenu.vue';
 import { showAlertModal } from '@/lib/feedbackModal';
 
 interface Student {
@@ -1360,6 +1299,39 @@ const selectedStudent = ref<Student | null>(null);
 const showParentModal = ref(false);
 const showEnrollmentModal = ref(false);
 const selectedParent = ref<ParentAccount | null>(null);
+const studentActions = [
+    { id: 'edit', label: 'Edit student', icon: Pencil },
+    { id: 'parents', label: 'Manage parents', icon: Users, tone: 'emerald' },
+    { id: 'history', label: 'Enrollment history', icon: History, tone: 'sky' },
+    { id: 'password', label: 'Reset password', icon: KeyRound, tone: 'amber' },
+    {
+        id: 'delete',
+        label: 'Delete student',
+        icon: Trash2,
+        tone: 'rose',
+        testId: 'delete-student',
+    },
+] as const;
+
+const handleStudentAction = (action: string, student: Student) => {
+    switch (action) {
+        case 'edit':
+            openEditModal(student);
+            break;
+        case 'parents':
+            openParentModal(student);
+            break;
+        case 'history':
+            openEnrollmentHistory(student);
+            break;
+        case 'password':
+            resetStudentPassword(student);
+            break;
+        case 'delete':
+            deleteStudent(student);
+            break;
+    }
+};
 // Face image management state
 const faceImages = ref<string[]>([]);
 const faceImageUploading = ref(false);

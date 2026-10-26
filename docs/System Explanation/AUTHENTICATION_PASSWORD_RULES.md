@@ -50,7 +50,7 @@ For privacy, the request screen returns the same generic result even when an ema
 
 Console accounts cannot use email password recovery. Their access is managed through the attendance-panel administration process.
 
-Password-reset links and other application website links included in emails use the canonical `APP_URL` value. For local XAMPP operation this is `http://localhost`; production must replace it with the public HTTPS application URL and rebuild the configuration cache.
+Password-reset links and other application website links included in emails use the canonical `APP_URL` value. In local development, set it to the exact browser origin, including the port (for example, `http://127.0.0.1:8000`); production must use the public HTTPS application URL and rebuild the configuration cache.
 
 ## New Account First Login
 

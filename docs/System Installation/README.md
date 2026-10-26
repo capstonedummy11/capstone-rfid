@@ -60,7 +60,7 @@ Never commit the real `.env`. Generate a unique `APP_KEY`, use production-only s
 | `APP_ENV` | `local`, `staging`, or `production`. | Production changes password strength and destructive-command protection. |
 | `APP_KEY` | Encryption key. | Required; changing it makes encrypted data unreadable, including encrypted message values. |
 | `APP_DEBUG` | Detailed errors. | `false` in production. |
-| `APP_URL` | Canonical URL. | Use HTTPS production URL; affects storage URLs. |
+| `APP_URL` | Canonical URL. | Match the browser origin, including the development port (for example, `http://127.0.0.1:8000`); use HTTPS in production. A mismatch can send generated login links to a different origin. |
 | `APP_TIMEZONE` | Server-side application time. | Example uses `Asia/Manila`; schedules/attendance depend on this. |
 | `SECURE_LOGIN_ROUTE` | Private staff-login path. | Do not publish the production value; omit leading/trailing slash for clarity. |
 
