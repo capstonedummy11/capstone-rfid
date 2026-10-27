@@ -1389,19 +1389,17 @@ const toggleFaceSetting = (field) => {
                         />
                     </label>
 
-                    <div class="flex justify-end">
-                        <button
-                            type="submit"
-                            :disabled="form.processing"
-                            class="rounded-md bg-brand px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            {{
-                                form.processing ? 'Saving...' : 'Save Settings'
-                            }}
-                        </button>
-                    </div>
                 </form>
             </section>
         </div>
+        <button
+            v-if="form.isDirty"
+            type="button"
+            :disabled="form.processing"
+            class="fixed right-20 bottom-5 z-40 rounded-md bg-brand px-5 py-3 text-sm font-bold text-white shadow-lg transition hover:bg-sky-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-60"
+            @click="saveSettings"
+        >
+            {{ form.processing ? 'Saving...' : 'Save Settings' }}
+        </button>
     </div>
 </template>
