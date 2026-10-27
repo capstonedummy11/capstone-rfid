@@ -33,6 +33,8 @@ class SystemSetting extends Model
         'parent' => 'feature.messenger_parent_enabled',
     ];
 
+    public const MESSENGER_STUDENT_EXCUSE_LETTER_UPDATES_ENABLED = 'feature.messenger_student_excuse_letter_updates_enabled';
+
     public const FACE_RECOGNITION_ENABLED = 'feature.face_recognition_enabled';
 
     public const TEMPORARY_MOVEMENT_LIVENESS_ENABLED = 'attendance.temporary_movement_liveness_enabled';
@@ -109,6 +111,10 @@ class SystemSetting extends Model
             ...collect(static::MESSENGER_ROLE_ENABLED)
                 ->mapWithKeys(fn (string $key, string $role) => ['messenger_'.$role.'_enabled' => static::boolean($key, true)])
                 ->all(),
+            'messenger_student_excuse_letter_updates_enabled' => static::boolean(
+                static::MESSENGER_STUDENT_EXCUSE_LETTER_UPDATES_ENABLED,
+                false,
+            ),
         ];
     }
 

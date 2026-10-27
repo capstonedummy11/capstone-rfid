@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\Instructor;
 use App\Models\Message;
 use App\Models\StudentPortalMessage;
+use App\Models\SystemSetting;
 use App\Models\Students;
 use App\Models\User;
 use App\Services\MessengerEmailNotificationService;
@@ -194,6 +195,11 @@ class MessageController
                     ->where('sender_user_id', $user->user_id)
                     ->orWhere('recipient_user_id', $user->user_id);
             })
+            ->when(
+                $role === 'student'
+                    && ! SystemSetting::boolean(SystemSetting::MESSENGER_STUDENT_EXCUSE_LETTER_UPDATES_ENABLED, false),
+                fn ($query) => $query->whereNull('student_excuse_letter_id'),
+            )
             ->latest('created_at')
             ->get()
             ->map(fn (StudentPortalMessage $message) => [

@@ -151,6 +151,16 @@ test('student and parent roles can open their portal pages', function () {
             ->has('linkedStudents', 1)
             ->has('attendance', 2)
         );
+
+    SystemSetting::setInteger(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 4);
+    $this->actingAs($fixture['studentUser'])
+        ->get(route('student-parent.attendance'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('StudentParent/Attendance/AttendancePage')
+            ->where('currentUserRole', 'student')
+            ->where('absentAttendanceDays', 4)
+            ->has('letters', 1));
 });
 
 test('disabled Student and Parent Messenger access does not remove their excuse notifications', function () {
@@ -213,6 +223,47 @@ test('disabled Student and Parent Messenger access does not remove their excuse 
         ->assertRedirect();
 
     expect($parentNotice->fresh()->read_at)->not->toBeNull();
+});
+
+test('student excuse-letter updates stay in notifications and only appear in Messenger when enabled', function () {
+    $fixture = portalFixture();
+    $letter = StudentExcuseLetter::query()->create([
+        'student_id' => $fixture['student']->student_id,
+        'submitted_by_user_id' => $fixture['studentUser']->user_id,
+        'submitted_by_role' => 'student',
+        'subject' => 'Medical appointment',
+        'from_date' => now()->toDateString(),
+        'to_date' => now()->toDateString(),
+        'reason' => 'Clinic visit',
+        'status' => 'approved',
+    ]);
+    $notice = StudentPortalMessage::query()->create([
+        'student_id' => $fixture['student']->student_id,
+        'student_excuse_letter_id' => $letter->student_excuse_letter_id,
+        'sender_user_id' => $fixture['instructorUser']->user_id,
+        'recipient_user_id' => $fixture['studentUser']->user_id,
+        'sender_role' => 'instructor',
+        'subject' => 'Approved Excuse Letter: Medical appointment',
+        'body' => 'Your excuse letter was approved.',
+    ]);
+
+    $this->actingAs($fixture['studentUser'])
+        ->get(route('student-parent.messages.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->component('Shared/Messages/Index/IndexPage')->has('messages', 0));
+
+    $this->getJson(route('student-parent.notifications.poll'))
+        ->assertOk()
+        ->assertJsonPath('unread_count', 1)
+        ->assertJsonPath('items.0.id', 'message-'.$notice->student_portal_message_id);
+
+    SystemSetting::setBoolean(SystemSetting::MESSENGER_STUDENT_EXCUSE_LETTER_UPDATES_ENABLED, true);
+    $this->get(route('student-parent.messages.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Shared/Messages/Index/IndexPage')
+            ->has('messages', 1)
+            ->where('messages.0.excuse_letter_id', $letter->student_excuse_letter_id));
 });
 
 test('student and parent only see portal messages where they are sender or recipient', function () {

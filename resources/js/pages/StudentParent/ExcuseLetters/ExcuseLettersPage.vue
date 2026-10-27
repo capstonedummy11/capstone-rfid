@@ -17,6 +17,7 @@ const props = defineProps({
     parentExcuseLettersEnabled: { type: Boolean, default: false },
     parentApprovalRequired: { type: Boolean, default: false },
     activeAcademicYear: { type: Object, default: null },
+    initialDate: { type: String, default: '' },
 });
 
 const page = usePage();
@@ -51,8 +52,8 @@ const form = useForm<{
     attachment: File | null;
 }>({
     subject: '',
-    from_date: '',
-    to_date: '',
+    from_date: props.initialDate,
+    to_date: props.initialDate,
     reason: '',
     recipient_user_ids: [],
     attachment: null,

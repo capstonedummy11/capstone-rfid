@@ -193,7 +193,7 @@ const sections = [
                 icon: FileText,
                 text: 'Excuse Letters',
                 route: route('student-parent.excuse-letters.index'),
-                roles: ['student', 'parent'],
+                roles: ['parent'],
             },
             {
                 icon: MessageSquare,

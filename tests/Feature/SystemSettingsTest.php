@@ -13,6 +13,7 @@ uses(RefreshDatabase::class);
 test('admin can enable demo attendance panel and configure demo rfids', function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
     $admin = User::factory()->create(['role' => 'admin']);
+    expect(SystemSetting::featureFlags()['messenger_student_excuse_letter_updates_enabled'])->toBeFalse();
 
     $this->actingAs($admin)
         ->put(route('admin.settings.update'), [
@@ -28,6 +29,7 @@ test('admin can enable demo attendance panel and configure demo rfids', function
             'messenger_registrar_enabled' => true,
             'messenger_student_enabled' => false,
             'messenger_parent_enabled' => false,
+            'messenger_student_excuse_letter_updates_enabled' => true,
             'online_class_face_recognition_default' => false,
             'demo_attendance_panel_enabled' => true,
             'demo_attendance_panel_rfids' => [
@@ -57,6 +59,7 @@ test('admin can enable demo attendance panel and configure demo rfids', function
         ->and(SystemSetting::messengerEnabledForRole('student'))->toBeFalse()
         ->and(SystemSetting::messengerEnabledForRole('parent'))->toBeFalse()
         ->and(SystemSetting::messengerEnabledForRole('instructor'))->toBeTrue();
+    expect(SystemSetting::featureFlags()['messenger_student_excuse_letter_updates_enabled'])->toBeTrue();
 });
 
 test('sms provider settings default to unavailable and resolve the primary provider', function () {

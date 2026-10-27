@@ -2,6 +2,7 @@
 <!-- FEATURE:student-attendance-history - UI para sa attendance history. -->
 <script setup>
 import LinkedStudentSelector from '@/components/StudentPortal/LinkedStudentSelector.vue';
+import ExcuseLettersPage from '@/pages/StudentParent/ExcuseLetters/ExcuseLettersPage.vue';
 import { router } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 
@@ -12,14 +13,53 @@ const props = defineProps({
     attendance: { type: Array, default: () => [] },
     academicYears: { type: Array, default: () => [] },
     selectedAcademicYearId: { type: [Number, String, null], default: null },
+    currentUserRole: { type: String, default: 'student' },
+    absentAttendanceDays: { type: Number, default: 15 },
+    parentExcuseLettersEnabled: { type: Boolean, default: false },
+    parentApprovalRequired: { type: Boolean, default: false },
+    activeAcademicYear: { type: Object, default: null },
+    recipientSuggestions: { type: Array, default: () => [] },
+    letters: { type: Array, default: () => [] },
 });
 
 const search = ref('');
 const statusFilter = ref('');
 const currentPage = ref(1);
 const evidencePreview = ref(null);
+const selectedExcuseAttendance = ref(null);
 const expandedEvidenceRows = ref({});
 const pageSize = 10;
+
+const canRequestExcuseLetter = (record) => {
+    if (
+        props.currentUserRole !== 'student' ||
+        String(record.status || '').toLowerCase() !== 'absent' ||
+        !record.date
+    ) {
+        return false;
+    }
+
+    const [year, month, day] = String(record.date).split('-').map(Number);
+    const attendanceDate = Date.UTC(year, month - 1, day);
+    const todayParts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Manila',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(new Date()).split('-').map(Number);
+    const today = Date.UTC(todayParts[0], todayParts[1] - 1, todayParts[2]);
+    const daysSinceAttendance = Math.floor((today - attendanceDate) / 86400000);
+
+    return daysSinceAttendance >= 0 && daysSinceAttendance < props.absentAttendanceDays;
+};
+
+const openExcuseLetter = (record) => {
+    selectedExcuseAttendance.value = record;
+};
+
+const closeExcuseLetter = () => {
+    selectedExcuseAttendance.value = null;
+};
 
 const filteredAttendance = computed(() => {
     const term = search.value.trim().toLowerCase();
@@ -180,6 +220,7 @@ const toggleEvidenceEvents = (record) => {
                 <table class="w-full min-w-[720px] text-left text-sm">
                     <thead class="bg-slate-50 text-xs text-slate-500 uppercase">
                         <tr>
+                            <th class="px-3 py-2">Excuse Letter</th>
                             <th class="px-3 py-2">Date</th>
                             <th class="px-3 py-2">Class Type</th>
                             <th class="px-3 py-2">Subject</th>
@@ -206,6 +247,16 @@ const toggleEvidenceEvents = (record) => {
                                         : ''
                                 "
                             >
+                                <td class="px-3 py-3">
+                                    <button
+                                        v-if="canRequestExcuseLetter(record)"
+                                        type="button"
+                                        class="whitespace-nowrap rounded-md bg-sky-600 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-sky-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-700"
+                                        @click="openExcuseLetter(record)"
+                                    >
+                                        Write excuse letter
+                                    </button>
+                                </td>
                                 <td class="px-3 py-3">{{ record.date }}</td>
                                 <td class="px-3 py-3">
                                     <span
@@ -308,7 +359,7 @@ const toggleEvidenceEvents = (record) => {
                                 v-if="isEvidenceExpanded(record)"
                                 class="bg-slate-50"
                             >
-                                <td colspan="12" class="px-3 py-4">
+                                <td colspan="13" class="px-3 py-4">
                                     <div
                                         class="grid gap-3 md:grid-cols-2 xl:grid-cols-4"
                                     >
@@ -397,7 +448,7 @@ const toggleEvidenceEvents = (record) => {
                         </template>
                         <tr v-if="paginatedAttendance.length === 0">
                             <td
-                                colspan="11"
+                                colspan="13"
                                 class="px-3 py-8 text-center text-slate-400"
                             >
                                 No attendance records found.
@@ -431,6 +482,45 @@ const toggleEvidenceEvents = (record) => {
                         class="max-h-[70vh] w-full rounded-md bg-slate-100 object-contain"
                     />
                 </div>
+            </div>
+
+            <div
+                v-if="selectedExcuseAttendance"
+                class="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-slate-950/60 p-3 pt-6 sm:p-6"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Write an excuse letter"
+                @click.self="closeExcuseLetter"
+            >
+                <section class="relative w-full max-w-7xl rounded-lg bg-white p-3 shadow-2xl sm:p-5">
+                    <div class="mb-3 flex items-center justify-between gap-3">
+                        <div>
+                            <h2 class="text-lg font-bold text-slate-900">Excuse letter for {{ selectedExcuseAttendance.subject }}</h2>
+                            <p class="text-sm text-slate-500">Absent on {{ selectedExcuseAttendance.date }}</p>
+                        </div>
+                        <button
+                            type="button"
+                            class="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                            aria-label="Close excuse letter"
+                            @click="closeExcuseLetter"
+                        >
+                            Close
+                        </button>
+                    </div>
+                    <ExcuseLettersPage
+                        :key="selectedExcuseAttendance.attendance_id"
+                        :student="student"
+                        :linked-students="linkedStudents"
+                        :selected-student-id="selectedStudentId"
+                        :current-user-role="currentUserRole"
+                        :letters="letters"
+                        :recipient-suggestions="recipientSuggestions"
+                        :parent-excuse-letters-enabled="parentExcuseLettersEnabled"
+                        :parent-approval-required="parentApprovalRequired"
+                        :active-academic-year="activeAcademicYear"
+                        :initial-date="selectedExcuseAttendance.date"
+                    />
+                </section>
             </div>
 
             <div class="mt-4 flex justify-end gap-2 text-sm">

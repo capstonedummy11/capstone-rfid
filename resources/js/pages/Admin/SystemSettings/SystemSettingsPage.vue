@@ -2,7 +2,7 @@
 <script setup>
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
-import { computed, reactive } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { confirmActionModal } from '@/lib/feedbackModal';
 
 const props = defineProps({
@@ -24,6 +24,7 @@ const props = defineProps({
             messenger_registrar_enabled: true,
             messenger_student_enabled: true,
             messenger_parent_enabled: true,
+            messenger_student_excuse_letter_updates_enabled: false,
         }),
     },
     faceRecognitionAvailability: {
@@ -202,6 +203,9 @@ const form = useForm({
     messenger_registrar_enabled: Boolean(props.featureSettings.messenger_registrar_enabled ?? true),
     messenger_student_enabled: Boolean(props.featureSettings.messenger_student_enabled ?? true),
     messenger_parent_enabled: Boolean(props.featureSettings.messenger_parent_enabled ?? true),
+    messenger_student_excuse_letter_updates_enabled: Boolean(
+        props.featureSettings.messenger_student_excuse_letter_updates_enabled ?? false,
+    ),
     demo_attendance_panel_enabled: Boolean(
         props.demoAttendancePanelSettings.enabled,
     ),
@@ -253,6 +257,8 @@ const form = useForm({
         ]),
     ),
 });
+
+const expandedMessengerRole = ref(null);
 
 const soundUploadForm = useForm({
     name: '',
@@ -781,7 +787,7 @@ const toggleFaceSetting = (field) => {
                             Control access to Messenger separately for each account role. System notifications, including excuse-letter updates, remain available.
                         </p>
                         <div class="mt-3 grid gap-3 sm:grid-cols-2">
-                            <label
+                            <div
                                 v-for="role in [
                                     { key: 'admin', label: 'Admin' },
                                     { key: 'instructor', label: 'Instructor' },
@@ -791,16 +797,52 @@ const toggleFaceSetting = (field) => {
                                     { key: 'parent', label: 'Parent' },
                                 ]"
                                 :key="role.key"
-                                class="flex items-center justify-between gap-3 rounded-md bg-slate-50 p-3"
+                                class="rounded-md bg-slate-50 p-3"
                             >
-                                <span class="text-sm font-semibold text-slate-800">{{ role.label }}</span>
-                                <input
-                                    v-model="form[`messenger_${role.key}_enabled`]"
-                                    type="checkbox"
-                                    :aria-label="`Enable direct messages for ${role.label}`"
-                                    class="h-5 w-5 shrink-0 accent-brand"
-                                />
-                            </label>
+                                <div class="flex items-center justify-between gap-3">
+                                    <button
+                                        v-if="role.key === 'student'"
+                                        type="button"
+                                        class="text-sm font-semibold text-slate-800 hover:text-brand"
+                                        :aria-expanded="expandedMessengerRole === role.key"
+                                        @click="expandedMessengerRole = expandedMessengerRole === role.key ? null : role.key"
+                                    >
+                                        {{ role.label }}
+                                    </button>
+                                    <span v-else class="text-sm font-semibold text-slate-800">{{ role.label }}</span>
+                                    <label class="inline-flex cursor-pointer items-center">
+                                        <input
+                                            v-model="form[`messenger_${role.key}_enabled`]"
+                                            type="checkbox"
+                                            role="switch"
+                                            :aria-label="`Enable direct messages for ${role.label}`"
+                                            class="peer sr-only"
+                                        />
+                                        <span aria-hidden="true" class="relative h-6 w-11 rounded-full bg-slate-300 transition-colors after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-blue-600 peer-checked:after:translate-x-5 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-blue-600"></span>
+                                    </label>
+                                </div>
+                                <div
+                                    v-if="role.key === 'student' && expandedMessengerRole === role.key"
+                                    class="mt-3 border-t border-slate-200 pt-3"
+                                >
+                                    <label class="flex items-center justify-between gap-3">
+                                        <span class="min-w-0">
+                                            <span class="block text-sm font-semibold text-slate-800">Excuse letter updates in Messenger</span>
+                                            <span class="block text-xs text-slate-500">Show automated excuse-letter updates in the Student’s Messages inbox. Notifications remain available when this is off.</span>
+                                        </span>
+                                        <span class="inline-flex shrink-0 cursor-pointer items-center">
+                                            <input
+                                                v-model="form.messenger_student_excuse_letter_updates_enabled"
+                                                type="checkbox"
+                                                role="switch"
+                                                aria-label="Show Student excuse letter updates in Messenger"
+                                                class="peer sr-only"
+                                            />
+                                            <span aria-hidden="true" class="relative h-6 w-11 rounded-full bg-slate-300 transition-colors after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-blue-600 peer-checked:after:translate-x-5 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-blue-600"></span>
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
                         </div>
                     </section>
 

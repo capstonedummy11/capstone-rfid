@@ -140,7 +140,7 @@ Legacy academic compatibility:
 
 System and audit tables:
 
-- `system_settings` - feature flags and configurable settings, including independent Direct Messages access switches for Admin, Instructor, Clinic, Registrar, Student, and Parent.
+- `system_settings` - feature flags and configurable settings, including independent Direct Messages access switches for Admin, Instructor, Clinic, Registrar, Student, and Parent, plus the default-off Student excuse-letter Messenger visibility switch. Student notifications remain available when the Messenger visibility switch is off.
 - `activity_logs` - general activity/audit log records.
 
 Panel PIN behavior:

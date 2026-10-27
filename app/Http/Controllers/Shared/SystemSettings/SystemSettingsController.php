@@ -71,6 +71,7 @@ class SystemSettingsController
             'messenger_registrar_enabled' => ['sometimes', 'boolean'],
             'messenger_student_enabled' => ['sometimes', 'boolean'],
             'messenger_parent_enabled' => ['sometimes', 'boolean'],
+            'messenger_student_excuse_letter_updates_enabled' => ['sometimes', 'boolean'],
             'face_recognition_enabled' => ['required', 'boolean'],
             'temporary_movement_liveness_enabled' => ['sometimes', 'boolean'],
             'demo_attendance_panel_enabled' => ['required', 'boolean'],
@@ -152,6 +153,12 @@ class SystemSettingsController
             if (array_key_exists($field, $validated)) {
                 SystemSetting::setBoolean($key, (bool) $validated[$field]);
             }
+        }
+        if (array_key_exists('messenger_student_excuse_letter_updates_enabled', $validated)) {
+            SystemSetting::setBoolean(
+                SystemSetting::MESSENGER_STUDENT_EXCUSE_LETTER_UPDATES_ENABLED,
+                (bool) $validated['messenger_student_excuse_letter_updates_enabled'],
+            );
         }
         SystemSetting::setBoolean(SystemSetting::FACE_RECOGNITION_ENABLED, (bool) $validated['face_recognition_enabled']);
         if (array_key_exists('temporary_movement_liveness_enabled', $validated)) {

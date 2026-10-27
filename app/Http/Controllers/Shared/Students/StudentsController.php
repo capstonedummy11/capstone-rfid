@@ -730,6 +730,7 @@ class StudentsController
     {
         $student = $this->currentStudent($request);
         $enrollment = $this->portalEnrollment($request, $student);
+        $parentPortalEnabled = SystemSetting::boolean(SystemSetting::PARENT_PORTAL_ENABLED, false);
 
         return Inertia::render('StudentParent/Attendance/AttendancePage', [
             'title' => 'My Attendance',
@@ -737,8 +738,23 @@ class StudentsController
             'linkedStudents' => $this->linkedStudentsPayload($request),
             'selectedStudentId' => $student?->student_id,
             'attendance' => $this->combinedAttendancePayloads($student, $enrollment),
+            'absentAttendanceDays' => max(1, SystemSetting::integer(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 15)),
             'academicYears' => $this->portalAcademicYearOptions($student),
             'selectedAcademicYearId' => $enrollment?->academic_year_id,
+            'currentUserRole' => strtolower((string) $request->user()?->role),
+            'parentExcuseLettersEnabled' => $parentPortalEnabled
+                && SystemSetting::boolean(SystemSetting::PARENT_EXCUSE_LETTERS_ENABLED, false),
+            'parentApprovalRequired' => $parentPortalEnabled
+                && SystemSetting::boolean(SystemSetting::PARENT_EXCUSE_LETTER_APPROVAL_REQUIRED, false),
+            'activeAcademicYear' => $enrollment?->academicYear ? [
+                'name' => $enrollment->academicYear->name,
+                'starts_on' => $enrollment->academicYear->starts_on?->toDateString(),
+                'ends_on' => $enrollment->academicYear->ends_on?->toDateString(),
+            ] : null,
+            'recipientSuggestions' => $student ? $this->teacherSuggestionPayload($student, $enrollment) : [],
+            'letters' => $student
+                ? $student->excuseLetters()->with(['submittedBy', 'academicYear'])->when($enrollment, fn ($query) => $query->where('academic_year_id', $enrollment->academic_year_id))->latest()->get()->map(fn (StudentExcuseLetter $letter) => $this->letterPayload($letter, $request))
+                : [],
         ]);
     }
 
