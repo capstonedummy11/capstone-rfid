@@ -4,6 +4,8 @@ This is the non-technical page catalog for the current application. Each row ans
 
 Management pages use in-application warning, error, and confirmation modals instead of browser-native dialogs. Delete confirmations default keyboard focus to Cancel so destructive actions require a deliberate confirmation.
 
+Settings switches keep their visually hidden checkbox inputs positioned inside their visible controls to avoid an extra outer scrollbar and focus-induced scrolling. Navigation to pages such as Settings and Students resets the content scroll position; browser back/forward navigation can restore it through Inertia's scroll-region handling. Long content and the sidebar remain scrollable when needed.
+
 ## Public and sign-in pages
 
 | Page and route                                                 | 1. Purpose                                                     | 2. Access                                                      | 3. Information displayed                                                                          | 4. User actions                                                                                                               | 5. Result                                                                                                                    | 6. Automatic behavior                                                                                                                                         | 7. Conditions and restrictions                                                                                                                                                                                                             |

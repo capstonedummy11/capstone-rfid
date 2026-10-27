@@ -542,7 +542,7 @@ watch(
                 </div>
             </header>
             <!-- Page Content -->
-            <main class="min-h-0 flex-1 overflow-y-auto bg-gray-100">
+            <main scroll-region class="min-h-0 flex-1 overflow-y-auto bg-gray-100">
                 <div
                     class="mx-auto min-h-full w-full max-w-7xl p-4 sm:p-6"
                 >

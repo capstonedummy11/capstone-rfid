@@ -814,7 +814,7 @@ const toggleFaceSetting = (field) => {
                                         {{ role.label }}
                                     </button>
                                     <span v-else class="text-sm font-semibold text-slate-800">{{ role.label }}</span>
-                                    <label class="inline-flex cursor-pointer items-center">
+                                    <label class="relative inline-flex cursor-pointer items-center">
                                         <input
                                             v-model="form[`messenger_${role.key}_enabled`]"
                                             type="checkbox"
@@ -837,7 +837,7 @@ const toggleFaceSetting = (field) => {
                                     <span class="block text-sm font-semibold text-slate-800">Student excuse letter updates in Messenger</span>
                                     <span class="block text-xs text-slate-600">Show automated excuse-letter updates in the Student’s Messages inbox. Notifications remain available when this is off.</span>
                                 </span>
-                                <span class="inline-flex shrink-0 cursor-pointer items-center">
+                                <span class="relative inline-flex shrink-0 cursor-pointer items-center">
                                     <input
                                         v-model="form.messenger_student_excuse_letter_updates_enabled"
                                         type="checkbox"
