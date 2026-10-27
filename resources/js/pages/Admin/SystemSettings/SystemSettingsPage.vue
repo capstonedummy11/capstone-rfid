@@ -260,6 +260,10 @@ const form = useForm({
 
 const expandedMessengerRole = ref(null);
 
+const revealStudentExcuseLetterSetting = () => {
+    expandedMessengerRole.value = 'student';
+};
+
 const soundUploadForm = useForm({
     name: '',
     sound: null,
@@ -817,32 +821,33 @@ const toggleFaceSetting = (field) => {
                                             role="switch"
                                             :aria-label="`Enable direct messages for ${role.label}`"
                                             class="peer sr-only"
+                                            @change="role.key === 'student' && revealStudentExcuseLetterSetting()"
                                         />
                                         <span aria-hidden="true" class="relative h-6 w-11 rounded-full bg-slate-300 transition-colors after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-blue-600 peer-checked:after:translate-x-5 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-blue-600"></span>
                                     </label>
                                 </div>
-                                <div
-                                    v-if="role.key === 'student' && expandedMessengerRole === role.key"
-                                    class="mt-3 border-t border-slate-200 pt-3"
-                                >
-                                    <label class="flex items-center justify-between gap-3">
-                                        <span class="min-w-0">
-                                            <span class="block text-sm font-semibold text-slate-800">Excuse letter updates in Messenger</span>
-                                            <span class="block text-xs text-slate-500">Show automated excuse-letter updates in the Student’s Messages inbox. Notifications remain available when this is off.</span>
-                                        </span>
-                                        <span class="inline-flex shrink-0 cursor-pointer items-center">
-                                            <input
-                                                v-model="form.messenger_student_excuse_letter_updates_enabled"
-                                                type="checkbox"
-                                                role="switch"
-                                                aria-label="Show Student excuse letter updates in Messenger"
-                                                class="peer sr-only"
-                                            />
-                                            <span aria-hidden="true" class="relative h-6 w-11 rounded-full bg-slate-300 transition-colors after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-blue-600 peer-checked:after:translate-x-5 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-blue-600"></span>
-                                        </span>
-                                    </label>
-                                </div>
                             </div>
+                        </div>
+                        <div
+                            v-if="expandedMessengerRole === 'student'"
+                            class="mt-3 rounded-md border border-sky-200 bg-sky-50/60 p-3"
+                        >
+                            <label class="flex items-center justify-between gap-3">
+                                <span class="min-w-0">
+                                    <span class="block text-sm font-semibold text-slate-800">Student excuse letter updates in Messenger</span>
+                                    <span class="block text-xs text-slate-600">Show automated excuse-letter updates in the Student’s Messages inbox. Notifications remain available when this is off.</span>
+                                </span>
+                                <span class="inline-flex shrink-0 cursor-pointer items-center">
+                                    <input
+                                        v-model="form.messenger_student_excuse_letter_updates_enabled"
+                                        type="checkbox"
+                                        role="switch"
+                                        aria-label="Show Student excuse letter updates in Messenger"
+                                        class="peer sr-only"
+                                    />
+                                    <span aria-hidden="true" class="relative h-6 w-11 rounded-full bg-slate-300 transition-colors after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-blue-600 peer-checked:after:translate-x-5 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-blue-600"></span>
+                                </span>
+                            </label>
                         </div>
                     </section>
 

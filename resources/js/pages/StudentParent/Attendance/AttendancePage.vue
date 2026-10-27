@@ -4,7 +4,8 @@
 import LinkedStudentSelector from '@/components/StudentPortal/LinkedStudentSelector.vue';
 import ExcuseLettersPage from '@/pages/StudentParent/ExcuseLetters/ExcuseLettersPage.vue';
 import { router } from '@inertiajs/vue3';
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { FileText } from 'lucide-vue-next';
 
 const props = defineProps({
     student: { type: Object, default: null },
@@ -29,6 +30,21 @@ const evidencePreview = ref(null);
 const selectedExcuseAttendance = ref(null);
 const expandedEvidenceRows = ref({});
 const pageSize = 10;
+let previousBodyOverflow = '';
+
+watch(selectedExcuseAttendance, (selected) => {
+    if (selected) {
+        previousBodyOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return;
+    }
+
+    document.body.style.overflow = previousBodyOverflow;
+});
+
+onBeforeUnmount(() => {
+    document.body.style.overflow = previousBodyOverflow;
+});
 
 const canRequestExcuseLetter = (record) => {
     if (
@@ -220,7 +236,6 @@ const toggleEvidenceEvents = (record) => {
                 <table class="w-full min-w-[720px] text-left text-sm">
                     <thead class="bg-slate-50 text-xs text-slate-500 uppercase">
                         <tr>
-                            <th class="px-3 py-2">Excuse Letter</th>
                             <th class="px-3 py-2">Date</th>
                             <th class="px-3 py-2">Class Type</th>
                             <th class="px-3 py-2">Subject</th>
@@ -247,16 +262,6 @@ const toggleEvidenceEvents = (record) => {
                                         : ''
                                 "
                             >
-                                <td class="px-3 py-3">
-                                    <button
-                                        v-if="canRequestExcuseLetter(record)"
-                                        type="button"
-                                        class="whitespace-nowrap rounded-md bg-sky-600 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-sky-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-700"
-                                        @click="openExcuseLetter(record)"
-                                    >
-                                        Write excuse letter
-                                    </button>
-                                </td>
                                 <td class="px-3 py-3">{{ record.date }}</td>
                                 <td class="px-3 py-3">
                                     <span
@@ -349,17 +354,38 @@ const toggleEvidenceEvents = (record) => {
                                 <td class="px-3 py-3">
                                     {{ record.duration || '-' }}
                                 </td>
-                                <td
-                                    class="px-3 py-3 font-semibold text-slate-800"
-                                >
-                                    {{ record.status }}
+                                <td class="px-3 py-3">
+                                    <div class="flex items-center gap-2 font-semibold text-slate-800">
+                                        <span>{{ record.status }}</span>
+                                        <span
+                                            v-if="canRequestExcuseLetter(record)"
+                                            class="group relative inline-flex"
+                                        >
+                                            <button
+                                                type="button"
+                                                class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-sky-200 bg-white text-sky-700 transition hover:bg-sky-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-700"
+                                                :aria-label="`Write excuse letter for ${record.subject} absent on ${record.date}`"
+                                                :aria-describedby="`excuse-letter-tooltip-${record.attendance_id}`"
+                                                @click="openExcuseLetter(record)"
+                                            >
+                                                <FileText class="h-4 w-4" aria-hidden="true" />
+                                            </button>
+                                            <span
+                                                :id="`excuse-letter-tooltip-${record.attendance_id}`"
+                                                role="tooltip"
+                                                class="pointer-events-none absolute bottom-full right-0 z-20 mb-2 hidden whitespace-nowrap rounded bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white shadow group-hover:block group-focus-within:block"
+                                            >
+                                                Write excuse letter
+                                            </span>
+                                        </span>
+                                    </div>
                                 </td>
                             </tr>
                             <tr
                                 v-if="isEvidenceExpanded(record)"
                                 class="bg-slate-50"
                             >
-                                <td colspan="13" class="px-3 py-4">
+                                <td colspan="12" class="px-3 py-4">
                                     <div
                                         class="grid gap-3 md:grid-cols-2 xl:grid-cols-4"
                                     >
@@ -448,7 +474,7 @@ const toggleEvidenceEvents = (record) => {
                         </template>
                         <tr v-if="paginatedAttendance.length === 0">
                             <td
-                                colspan="13"
+                                colspan="12"
                                 class="px-3 py-8 text-center text-slate-400"
                             >
                                 No attendance records found.
@@ -486,13 +512,13 @@ const toggleEvidenceEvents = (record) => {
 
             <div
                 v-if="selectedExcuseAttendance"
-                class="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-slate-950/60 p-3 pt-6 sm:p-6"
+                class="fixed inset-0 z-[60] flex items-center justify-center overflow-hidden bg-slate-950/60 p-3 sm:p-6"
                 role="dialog"
                 aria-modal="true"
                 aria-label="Write an excuse letter"
                 @click.self="closeExcuseLetter"
             >
-                <section class="relative w-full max-w-7xl rounded-lg bg-white p-3 shadow-2xl sm:p-5">
+                <section class="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-7xl overflow-y-auto overscroll-contain rounded-lg bg-white p-3 shadow-2xl sm:max-h-[calc(100dvh-3rem)] sm:p-5">
                     <div class="mb-3 flex items-center justify-between gap-3">
                         <div>
                             <h2 class="text-lg font-bold text-slate-900">Excuse letter for {{ selectedExcuseAttendance.subject }}</h2>
