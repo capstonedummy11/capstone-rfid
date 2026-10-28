@@ -1,0 +1,1 @@
+import e from"./RegistrationForm-B22HElxO.js";import{c as t,a as r,o}from"./app-b8LgKN6d.js";import"./RegistrationInput-OJfBRMLH.js";import"./PasswordField-uCsc7L46.js";import"./EyeOff-DD1XVtsi.js";const s={class:"flex h-screen w-full items-center justify-center drop-shadow-2xl"},f={__name:"RegisterPage",setup(c){return(a,i)=>(o(),t("div",s,[r(e)]))}};export{f as default};
