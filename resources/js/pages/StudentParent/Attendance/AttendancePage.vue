@@ -545,6 +545,7 @@ const toggleEvidenceEvents = (record) => {
                         :parent-approval-required="parentApprovalRequired"
                         :active-academic-year="activeAcademicYear"
                         :initial-date="selectedExcuseAttendance.date"
+                        :initial-subject="selectedExcuseAttendance.subject"
                     />
                 </section>
             </div>

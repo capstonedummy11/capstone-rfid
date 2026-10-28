@@ -18,6 +18,7 @@ const props = defineProps({
     parentApprovalRequired: { type: Boolean, default: false },
     activeAcademicYear: { type: Object, default: null },
     initialDate: { type: String, default: '' },
+    initialSubject: { type: String, default: '' },
 });
 
 const page = usePage();
@@ -51,11 +52,13 @@ const form = useForm<{
     recipient_user_ids: number[];
     attachment: File | null;
 }>({
-    subject: '',
+    subject: props.initialSubject,
     from_date: props.initialDate,
     to_date: props.initialDate,
     reason: '',
-    recipient_user_ids: [],
+    recipient_user_ids: props.initialSubject
+        ? props.recipientSuggestions.map((recipient) => Number(recipient.user_id))
+        : [],
     attachment: null,
 });
 

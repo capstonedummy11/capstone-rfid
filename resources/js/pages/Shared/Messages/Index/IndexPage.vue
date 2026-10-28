@@ -15,6 +15,7 @@ import {
 } from 'lucide-vue-next';
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
 import LinkedStudentSelector from '@/components/StudentPortal/LinkedStudentSelector.vue';
+import ExcuseLetterReviewModal from '@/components/ExcuseLetterReviewModal.vue';
 import { useRealtimePolling } from '@/composables/useRealtimePolling';
 import { redirectOnExpiredSession } from '@/lib/idleSession';
 
@@ -1006,151 +1007,21 @@ const reviewedStatusLabel = (status) => {
             </div>
         </div>
 
-        <div
-            v-if="reviewMessage"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
-            @click.self="closeReviewModal"
-        >
-            <div
-                class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white shadow-2xl"
-            >
-                <div
-                    class="flex items-start justify-between border-b border-slate-200 px-5 py-4"
-                >
-                    <div>
-                        <h3 class="text-lg font-bold text-slate-900">
-                            {{ reviewDecisionLabel }} excuse letter
-                        </h3>
-                        <p class="text-sm text-slate-500">
-                            Select who receives the result, then review the
-                            email before sending.
-                        </p>
-                    </div>
-                    <button
-                        type="button"
-                        class="rounded-md p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                        @click="closeReviewModal"
-                    >
-                        <X class="h-5 w-5" />
-                    </button>
-                </div>
-
-                <form class="space-y-4 p-5" @submit.prevent="submitReview">
-                    <fieldset>
-                        <legend
-                            class="text-xs font-bold text-slate-500 uppercase"
-                        >
-                            Send email to
-                        </legend>
-                        <div class="mt-2 grid gap-2">
-                            <label
-                                class="flex items-start gap-3 rounded-lg border border-slate-200 p-3"
-                                :class="
-                                    reviewMessage.excuse_letter_review?.student
-                                        ?.available
-                                        ? 'cursor-pointer hover:bg-slate-50'
-                                        : 'cursor-not-allowed bg-slate-50 opacity-60'
-                                "
-                            >
-                                <input
-                                    v-model="reviewForm.recipients"
-                                    type="checkbox"
-                                    value="student"
-                                    class="mt-1 h-4 w-4 rounded border-slate-300"
-                                    :disabled="
-                                        !reviewMessage.excuse_letter_review
-                                            ?.student?.available
-                                    "
-                                />
-                                <span class="min-w-0 text-sm">
-                                    <strong class="block text-slate-800"
-                                        >Student</strong
-                                    >
-                                    <span class="block truncate text-slate-500">
-                                        {{
-                                            reviewMessage.excuse_letter_review
-                                                ?.student?.email ||
-                                            'No valid email'
-                                        }}
-                                    </span>
-                                </span>
-                            </label>
-                        </div>
-                        <p
-                            v-if="reviewForm.errors.recipients"
-                            class="mt-1 text-sm font-semibold text-rose-600"
-                        >
-                            {{ reviewForm.errors.recipients }}
-                        </p>
-                    </fieldset>
-
-                    <div>
-                        <label
-                            class="text-xs font-bold text-slate-500 uppercase"
-                            >Subject</label
-                        >
-                        <input
-                            v-model="reviewForm.email_subject"
-                            type="text"
-                            maxlength="255"
-                            required
-                            class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                        />
-                        <p
-                            v-if="reviewForm.errors.email_subject"
-                            class="mt-1 text-sm font-semibold text-rose-600"
-                        >
-                            {{ reviewForm.errors.email_subject }}
-                        </p>
-                    </div>
-
-                    <div>
-                        <label
-                            class="text-xs font-bold text-slate-500 uppercase"
-                            >Email template</label
-                        >
-                        <textarea
-                            v-model="reviewForm.email_body"
-                            maxlength="5000"
-                            required
-                            class="mt-1 min-h-48 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
-                        />
-                        <p
-                            v-if="reviewForm.errors.email_body"
-                            class="mt-1 text-sm font-semibold text-rose-600"
-                        >
-                            {{ reviewForm.errors.email_body }}
-                        </p>
-                    </div>
-
-                    <div class="flex justify-end gap-2">
-                        <button
-                            type="button"
-                            class="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
-                            @click="closeReviewModal"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            class="inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
-                            :class="
-                                reviewForm.decision === 'approved'
-                                    ? 'bg-emerald-600 hover:bg-emerald-700'
-                                    : 'bg-rose-600 hover:bg-rose-700'
-                            "
-                            :disabled="reviewForm.processing"
-                        >
-                            <Send class="h-4 w-4" />
-                            {{
-                                reviewForm.processing
-                                    ? 'Sending...'
-                                    : `${reviewDecisionLabel} and send email`
-                            }}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+        <ExcuseLetterReviewModal
+            :open="Boolean(reviewMessage)"
+            :decision="reviewForm.decision"
+            :recipients="reviewForm.recipients"
+            :student-available="Boolean(reviewMessage?.excuse_letter_review?.student?.available)"
+            :student-email="reviewMessage?.excuse_letter_review?.student?.email || ''"
+            :email-subject="reviewForm.email_subject"
+            :email-body="reviewForm.email_body"
+            :errors="reviewForm.errors"
+            :processing="reviewForm.processing"
+            @update:recipients="reviewForm.recipients = $event"
+            @update:email-subject="reviewForm.email_subject = $event"
+            @update:email-body="reviewForm.email_body = $event"
+            @close="closeReviewModal"
+            @submit="submitReview"
+        />
     </div>
 </template>

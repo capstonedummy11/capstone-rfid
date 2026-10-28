@@ -10,6 +10,8 @@ use App\Models\Section;
 use App\Models\Strand;
 use App\Models\StudentEnrollment;
 use App\Models\Students;
+use App\Models\StudentExcuseLetter;
+use App\Models\StudentPortalMessage;
 use App\Models\Subject;
 use App\Models\SystemSetting;
 use App\Models\User;
@@ -354,6 +356,174 @@ test('instructor attendance module skips subject selection when exactly one subj
         ->withSession(['instructor_verified' => true])
         ->get(route('admin.attendance.logs'))
         ->assertRedirect(route('admin.attendance.subject', $subject));
+});
+
+test('instructor attendance logs expose only matching excuse letters inside the configured absence window', function () {
+    Carbon::setTestNow('2026-10-20 12:00:00');
+    $fixture = attendanceVerificationFixture();
+    $subject = Subject::query()->where('subject_code', 'ATT-SEC-101')->firstOrFail();
+    SystemSetting::setInteger(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 3);
+    DB::table('attendance_sessions')->where('attendance_id', $fixture['attendanceSessionId'])->update([
+        'date' => '2026-10-19',
+        'time_end' => '09:00:00',
+    ]);
+    $studentUser = User::factory()->create([
+        'role' => 'student',
+        'email' => $fixture['student']->email,
+    ]);
+    $letter = StudentExcuseLetter::query()->create([
+        'student_id' => $fixture['student']->student_id,
+        'submitted_by_user_id' => $studentUser->user_id,
+        'submitted_by_role' => 'student',
+        'subject' => $subject->subject_name,
+        'from_date' => '2026-10-19',
+        'to_date' => '2026-10-19',
+        'reason' => 'Medical appointment.',
+        'status' => 'pending_instructor_approval',
+    ]);
+    $portalMessage = StudentPortalMessage::query()->create([
+        'student_id' => $fixture['student']->student_id,
+        'student_excuse_letter_id' => $letter->student_excuse_letter_id,
+        'sender_user_id' => $studentUser->user_id,
+        'recipient_user_id' => $fixture['instructorUser']->user_id,
+        'sender_role' => 'student',
+        'instructor_user_id' => $fixture['instructorUser']->user_id,
+        'subject' => 'Excuse Letter Submitted: '.$subject->subject_name,
+        'body' => 'Awaiting review.',
+    ]);
+
+    $this->actingAs($fixture['instructorUser'])
+        ->withSession(['instructor_verified' => true])
+        ->get(route('admin.attendance.logs.legacy'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Shared/Attendance/AttendanceLogs/AttendanceLogsPage')
+            ->where('canReviewExcuseLetters', true)
+            ->where('logs.0.status', 'Absent')
+            ->where('logs.0.excuse_letter.message_id', $portalMessage->student_portal_message_id)
+            ->where('logs.0.excuse_letter.status', 'pending')
+            ->where('logs.0.excuse_letter.reason', 'Medical appointment.'));
+
+    DB::table('attendance_sessions')->where('attendance_id', $fixture['attendanceSessionId'])->update([
+        'date' => '2026-10-16',
+    ]);
+    $this->actingAs($fixture['instructorUser'])
+        ->withSession(['instructor_verified' => true])
+        ->get(route('admin.attendance.logs.legacy'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('logs', 0));
+});
+
+test('instructor student attendance shows all excuse decisions only inside the configured threshold', function () {
+    Carbon::setTestNow('2026-10-20 12:00:00');
+    $fixture = attendanceVerificationFixture();
+    $subject = Subject::query()->where('subject_code', 'ATT-SEC-101')->firstOrFail();
+    SystemSetting::setInteger(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 3);
+    DB::table('attendance_sessions')->where('attendance_id', $fixture['attendanceSessionId'])->update([
+        'date' => '2026-10-19',
+        'time_end' => '09:00:00',
+    ]);
+    $studentUser = User::factory()->create(['role' => 'student', 'email' => $fixture['student']->email]);
+
+    foreach (['approved', 'denied', 'pending_instructor_approval'] as $status) {
+        $letter = StudentExcuseLetter::query()->create([
+            'student_id' => $fixture['student']->student_id,
+            'submitted_by_user_id' => $studentUser->user_id,
+            'submitted_by_role' => 'student',
+            'subject' => $subject->subject_name,
+            'from_date' => '2026-10-19',
+            'to_date' => '2026-10-19',
+            'reason' => $status,
+            'status' => $status,
+        ]);
+        StudentPortalMessage::query()->create([
+            'student_id' => $fixture['student']->student_id,
+            'student_excuse_letter_id' => $letter->student_excuse_letter_id,
+            'sender_user_id' => $studentUser->user_id,
+            'recipient_user_id' => $fixture['instructorUser']->user_id,
+            'sender_role' => 'student',
+            'instructor_user_id' => $fixture['instructorUser']->user_id,
+            'subject' => 'Excuse Letter Submitted: '.$subject->subject_name,
+            'body' => 'Review record.',
+            'excuse_letter_review_decision' => in_array($status, ['approved', 'denied'], true) ? $status : null,
+            'excuse_letter_reviewed_by_user_id' => in_array($status, ['approved', 'denied'], true) ? $fixture['instructorUser']->user_id : null,
+            'excuse_letter_reviewed_at' => in_array($status, ['approved', 'denied'], true) ? now()->subDays(2) : null,
+        ]);
+    }
+
+    $this->actingAs($fixture['instructorUser'])
+        ->withSession(['instructor_verified' => true])
+        ->get(route('admin.attendance.student', [$subject, $fixture['student']]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Shared/Attendance/StudentHistory/StudentHistoryPage')
+            ->where('absentDefaultDays', 3)
+            ->has('history.0.excuse_letters', 3)
+            ->where('history.0.excuse_letters', fn ($letters) => collect($letters)->pluck('status')->sort()->values()->all() === ['approved', 'denied', 'pending']
+                && collect($letters)->firstWhere('status', 'pending')['can_review'] === true));
+
+    DB::table('attendance_sessions')->where('attendance_id', $fixture['attendanceSessionId'])->update(['date' => '2026-10-16']);
+    $this->actingAs($fixture['instructorUser'])
+        ->withSession(['instructor_verified' => true])
+        ->get(route('admin.attendance.student', [$subject, $fixture['student']]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->has('history.0.excuse_letters', 0));
+
+    $letter->update(['from_date' => '2026-10-16', 'to_date' => '2026-10-16']);
+    $expiredMessage = StudentPortalMessage::query()
+        ->where('student_excuse_letter_id', $letter->student_excuse_letter_id)
+        ->where('recipient_user_id', $fixture['instructorUser']->user_id)
+        ->firstOrFail();
+    $this->actingAs($fixture['instructorUser'])
+        ->put(route('messages.excuse-letters.review', $expiredMessage), [
+            'decision' => 'approved',
+            'recipients' => ['student'],
+            'email_subject' => 'Late review',
+            'email_body' => 'This expired decision should not be accepted.',
+        ])
+        ->assertSessionHasErrors('decision');
+});
+
+test('instructor student attendance warns at 24 hours before an excuse letter leaves the attendance window', function () {
+    Carbon::setTestNow('2026-10-21 00:00:00');
+    $fixture = attendanceVerificationFixture();
+    $subject = Subject::query()->where('subject_code', 'ATT-SEC-101')->firstOrFail();
+    SystemSetting::setInteger(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 3);
+    DB::table('attendance_sessions')->where('attendance_id', $fixture['attendanceSessionId'])->update([
+        'date' => '2026-10-19',
+        'time_end' => '09:00:00',
+    ]);
+    $studentUser = User::factory()->create(['role' => 'student', 'email' => $fixture['student']->email]);
+    $letter = StudentExcuseLetter::query()->create([
+        'student_id' => $fixture['student']->student_id,
+        'submitted_by_user_id' => $studentUser->user_id,
+        'submitted_by_role' => 'student',
+        'subject' => $subject->subject_name,
+        'from_date' => '2026-10-19',
+        'to_date' => '2026-10-19',
+        'reason' => 'Pending decision.',
+        'status' => 'pending_instructor_approval',
+    ]);
+    StudentPortalMessage::query()->create([
+        'student_id' => $fixture['student']->student_id,
+        'student_excuse_letter_id' => $letter->student_excuse_letter_id,
+        'sender_user_id' => $studentUser->user_id,
+        'recipient_user_id' => $fixture['instructorUser']->user_id,
+        'sender_role' => 'student',
+        'instructor_user_id' => $fixture['instructorUser']->user_id,
+        'subject' => 'Excuse Letter Submitted: '.$subject->subject_name,
+        'body' => 'Awaiting review.',
+    ]);
+
+    $this->actingAs($fixture['instructorUser'])
+        ->withSession(['instructor_verified' => true])
+        ->get(route('admin.attendance.student', [$subject, $fixture['student']]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('history.0.excuse_letters.0.can_review', true)
+            ->where('history.0.excuse_letters.0.hours_remaining', 24)
+            ->where('history.0.excuse_letters.0.expires_at', '2026-10-21 23:59:59'));
 });
 
 test('administrator can browse all attendance subjects and open subject analytics', function () {

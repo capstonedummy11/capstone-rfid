@@ -22,6 +22,8 @@ use App\Models\StudentEnrollment;
 use App\Models\Students;
 use App\Models\Subject;
 use App\Models\SystemSetting;
+use App\Models\StudentExcuseLetter;
+use App\Models\StudentPortalMessage;
 use App\Models\User;
 use App\Services\AwsFaceRecognitionService;
 use App\Services\AwsFaceLivenessService;
@@ -31,6 +33,7 @@ use App\Support\AuthenticatedSession;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -2540,6 +2543,9 @@ class AttendanceController
 
         $logs = $this->appendAbsentAttendanceLogs($logs, $filters, $isAdmin, $isInstructor, $instructorId, $absentDefaultDays);
         $logs = $this->combineAttendanceLogRows($logs);
+        if ($isInstructor) {
+            $logs = $this->attachExcuseLetterStatuses($logs, (int) $user->user_id, $absentDefaultDays);
+        }
 
         $sessionOptionsQuery = DB::table('attendance_sessions');
         $sessionJoin($sessionOptionsQuery);
@@ -2616,6 +2622,7 @@ class AttendanceController
             'canInspectAllAttendance' => $isAdmin,
             'absentDefaultDays' => $absentDefaultDays,
             'canEditAttendance' => $isInstructor,
+            'canReviewExcuseLetters' => $isInstructor,
             'attendanceSessionOptions' => $sessionOptions,
             'subjectOptions' => $subjectOptionsQuery
                 ->when($isInstructor, fn ($subjectQuery) => $subjectQuery->where('schedules.instructor_id', $instructorId ?: 0))
@@ -2651,6 +2658,65 @@ class AttendanceController
                 ])
                 ->values() : [],
         ]);
+    }
+
+    private function attachExcuseLetterStatuses(Collection $logs, int $instructorUserId, int $thresholdDays): Collection
+    {
+        $thresholdDays = max(1, min(365, $thresholdDays));
+        $today = now()->startOfDay();
+        $cutoff = now()->subDays($thresholdDays - 1)->startOfDay();
+        $eligibleLogs = $logs->filter(function (array $log) use ($today, $cutoff) {
+            if (($log['status'] ?? null) !== 'Absent' || empty($log['date'])) return false;
+            $date = Carbon::parse($log['date'])->startOfDay();
+            return $date->betweenIncluded($cutoff, $today);
+        });
+        if ($eligibleLogs->isEmpty()) return $logs;
+
+        $studentIds = $eligibleLogs->pluck('student_id')->unique()->all();
+        $letters = StudentExcuseLetter::query()
+            ->whereIn('student_id', $studentIds)
+            ->whereIn('status', ['pending_instructor_approval', 'approved', 'denied'])
+            ->whereDate('from_date', '<=', $today->toDateString())
+            ->whereDate('to_date', '>=', $cutoff->toDateString())
+            ->with([
+                'student',
+                'studentPortalMessages' => fn ($query) => $query->where('recipient_user_id', $instructorUserId),
+            ])
+            ->latest('created_at')
+            ->get();
+
+        $lettersByStudent = $letters->groupBy('student_id');
+        return $logs->map(function (array $log) use ($eligibleLogs, $lettersByStudent, $instructorUserId) {
+            if (! $eligibleLogs->contains(fn (array $eligible) => $eligible['id'] === $log['id'])) return $log;
+            $letter = $lettersByStudent->get($log['student_id'], collect())
+                ->first(fn (StudentExcuseLetter $candidate) =>
+                    strcasecmp(trim($candidate->subject), trim((string) ($log['subject'] ?? ''))) === 0
+                    && $candidate->from_date->toDateString() <= $log['date']
+                    && $candidate->to_date->toDateString() >= $log['date']
+                    && $candidate->studentPortalMessages->isNotEmpty());
+            if (! $letter) return $log;
+
+            $message = $letter->studentPortalMessages->first();
+            $status = $letter->status === 'pending_instructor_approval'
+                ? 'pending'
+                : ($message->excuse_letter_review_decision ?: $letter->status);
+            return $log + [
+                'excuse_letter' => [
+                    'message_id' => $message->student_portal_message_id,
+                    'status' => $status,
+                    'subject' => $letter->subject,
+                    'from_date' => $letter->from_date->toDateString(),
+                    'to_date' => $letter->to_date->toDateString(),
+                    'reason' => $letter->reason,
+                'attachment_url' => $message->attachment_path
+                    ? route('messages.attachments.show', $message->student_portal_message_id)
+                    : null,
+                    'attachment_name' => $message->attachment_name,
+                    'student_email_available' => filter_var($letter->student?->email, FILTER_VALIDATE_EMAIL) !== false,
+                    'student_email' => $letter->student?->email,
+                ],
+            ];
+        });
     }
 
     // @function updateAttendanceStatus: Ina-update ang attendance status sa Attendance flow.

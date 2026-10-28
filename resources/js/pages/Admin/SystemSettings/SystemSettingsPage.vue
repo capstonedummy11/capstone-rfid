@@ -258,12 +258,6 @@ const form = useForm({
     ),
 });
 
-const expandedMessengerRole = ref(null);
-
-const revealStudentExcuseLetterSetting = () => {
-    expandedMessengerRole.value = 'student';
-};
-
 const soundUploadForm = useForm({
     name: '',
     sound: null,
@@ -804,16 +798,7 @@ const toggleFaceSetting = (field) => {
                                 class="rounded-md bg-slate-50 p-3"
                             >
                                 <div class="flex items-center justify-between gap-3">
-                                    <button
-                                        v-if="role.key === 'student'"
-                                        type="button"
-                                        class="text-sm font-semibold text-slate-800 hover:text-brand"
-                                        :aria-expanded="expandedMessengerRole === role.key"
-                                        @click="expandedMessengerRole = expandedMessengerRole === role.key ? null : role.key"
-                                    >
-                                        {{ role.label }}
-                                    </button>
-                                    <span v-else class="text-sm font-semibold text-slate-800">{{ role.label }}</span>
+                                    <span class="text-sm font-semibold text-slate-800">{{ role.label }}</span>
                                     <label class="relative inline-flex cursor-pointer items-center">
                                         <input
                                             v-model="form[`messenger_${role.key}_enabled`]"
@@ -821,7 +806,6 @@ const toggleFaceSetting = (field) => {
                                             role="switch"
                                             :aria-label="`Enable direct messages for ${role.label}`"
                                             class="peer sr-only"
-                                            @change="role.key === 'student' && revealStudentExcuseLetterSetting()"
                                         />
                                         <span aria-hidden="true" class="relative h-6 w-11 rounded-full bg-slate-300 transition-colors after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-blue-600 peer-checked:after:translate-x-5 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-blue-600"></span>
                                     </label>
@@ -829,7 +813,7 @@ const toggleFaceSetting = (field) => {
                             </div>
                         </div>
                         <div
-                            v-if="expandedMessengerRole === 'student'"
+                            v-if="form.messenger_student_enabled"
                             class="mt-3 rounded-md border border-sky-200 bg-sky-50/60 p-3"
                         >
                             <label class="flex items-center justify-between gap-3">

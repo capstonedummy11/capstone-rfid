@@ -408,6 +408,19 @@
                                                 :class="statusClass(log.status)"
                                                 >{{ log.status }}</span
                                             >
+                                            <div v-if="canReviewExcuseLetters && log.status === 'Absent' && log.editable && log.excuse_letter" class="mt-2 space-y-1">
+                                                <button type="button" class="inline-flex items-center gap-1 rounded-md border border-blue-300 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50" @click="openExcusePreview(log)">
+                                                    <FileText class="h-3.5 w-3.5" />
+                                                    Preview excuse letter
+                                                </button>
+                                                <span v-if="log.excuse_letter" class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold capitalize" :class="log.excuse_letter.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : log.excuse_letter.status === 'denied' ? 'bg-rose-100 text-rose-700' : 'bg-blue-100 text-blue-700'">
+                                                    {{ log.excuse_letter.status }}
+                                                </span>
+                                                <div v-if="log.excuse_letter?.status === 'pending'" class="flex gap-1">
+                                                    <button type="button" class="rounded bg-emerald-600 px-2 py-1 text-xs font-bold text-white hover:bg-emerald-700" @click="openExcuseDecision(log, 'approved')">Approve</button>
+                                                    <button type="button" class="rounded bg-rose-600 px-2 py-1 text-xs font-bold text-white hover:bg-rose-700" @click="openExcuseDecision(log, 'denied')">Deny</button>
+                                                </div>
+                                            </div>
                                             <button
                                                 v-if="canEditAttendance && log.editable"
                                                 type="button"
@@ -646,12 +659,53 @@
                 </div>
             </div>
         </div>
+
+        <div v-if="excuseLetter" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4" @click.self="closeExcusePreview">
+            <section class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white shadow-2xl">
+                <header class="flex items-center justify-between border-b border-slate-200 p-5">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900">Excuse letter preview</h2>
+                        <p class="text-sm text-slate-500">{{ excuseLetter.student }} · {{ excuseLetter.from_date }} to {{ excuseLetter.to_date }}</p>
+                    </div>
+                    <button type="button" class="rounded-md p-2 text-slate-500 hover:bg-slate-100" aria-label="Close preview" @click="closeExcusePreview"><X class="h-5 w-5" /></button>
+                </header>
+                <div class="space-y-4 p-5">
+                    <p><strong>Subject:</strong> {{ excuseLetter.subject }}</p>
+                    <p class="whitespace-pre-line"><strong>Reason:</strong> {{ excuseLetter.reason }}</p>
+                    <a v-if="excuseLetter.attachment_url" :href="excuseLetter.attachment_url" class="inline-flex items-center gap-2 text-sm font-semibold text-blue-700 underline">{{ excuseLetter.attachment_name || 'Open attachment' }}</a>
+                    <div v-if="excuseLetter.status === 'pending'" class="flex justify-end gap-2 border-t border-slate-200 pt-4">
+                        <button type="button" class="rounded-md bg-emerald-600 px-4 py-2 text-sm font-bold text-white" @click="openExcuseDecision({ student: excuseLetter.student, excuse_letter: excuseLetter }, 'approved')">Approve</button>
+                        <button type="button" class="rounded-md bg-rose-600 px-4 py-2 text-sm font-bold text-white" @click="openExcuseDecision({ student: excuseLetter.student, excuse_letter: excuseLetter }, 'denied')">Deny</button>
+                    </div>
+                    <p v-else class="rounded-md px-3 py-2 text-sm font-bold capitalize" :class="excuseLetter.status === 'approved' ? 'bg-emerald-50 text-emerald-700' : excuseLetter.status === 'denied' ? 'bg-rose-50 text-rose-700' : 'bg-blue-50 text-blue-700'">{{ excuseLetter.status }}</p>
+                </div>
+            </section>
+        </div>
+
+        <ExcuseLetterReviewModal
+            :open="Boolean(excuseLetter && excuseReviewForm.email_subject)"
+            :decision="excuseReviewForm.decision"
+            :recipients="excuseReviewForm.recipients"
+            :student-available="Boolean(excuseLetter?.student_email_available)"
+            :student-email="excuseLetter?.student_email || ''"
+            :email-subject="excuseReviewForm.email_subject"
+            :email-body="excuseReviewForm.email_body"
+            :errors="excuseReviewForm.errors"
+            :processing="excuseReviewForm.processing"
+            @update:recipients="excuseReviewForm.recipients = $event"
+            @update:email-subject="excuseReviewForm.email_subject = $event"
+            @update:email-body="excuseReviewForm.email_body = $event"
+            @close="closeExcuseDecision"
+            @submit="submitExcuseDecision"
+        />
     </div>
 </template>
 
 <script setup>
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, defineComponent, h, ref } from 'vue';
+import { FileText, X } from 'lucide-vue-next';
+import ExcuseLetterReviewModal from '@/components/ExcuseLetterReviewModal.vue';
 
 const props = defineProps({
     logs: { type: Array, default: () => [] },
@@ -673,6 +727,7 @@ const props = defineProps({
     canInspectAllAttendance: { type: Boolean, default: false },
     absentDefaultDays: { type: Number, default: 15 },
     canEditAttendance: { type: Boolean, default: false },
+    canReviewExcuseLetters: { type: Boolean, default: false },
 });
 
 const page = usePage();
@@ -703,6 +758,50 @@ const statusForm = useForm({
     status: 'present',
     remarks: '',
 });
+const excuseLetter = ref(null);
+const excuseReviewForm = useForm({
+    decision: 'approved',
+    recipients: [],
+    email_subject: '',
+    email_body: '',
+});
+const canReviewExcuseLetters = computed(
+    () => props.canReviewExcuseLetters && currentRole.value === 'instructor',
+);
+
+const openExcusePreview = (log) => {
+    excuseLetter.value = log.excuse_letter
+        ? { ...log.excuse_letter, student: log.student }
+        : null;
+};
+const closeExcusePreview = () => {
+    excuseLetter.value = null;
+};
+const openExcuseDecision = (log, decision) => {
+    const letter = log.excuse_letter;
+    if (!letter) return;
+    const studentName = log.student || 'Student';
+    const action = decision === 'approved' ? 'approved' : 'denied';
+    excuseLetter.value = { ...letter, student: studentName };
+    excuseReviewForm.clearErrors();
+    excuseReviewForm.decision = decision;
+    excuseReviewForm.recipients = letter.student_email_available ? ['student'] : [];
+    excuseReviewForm.email_subject = `Excuse Letter ${action === 'approved' ? 'Approved' : 'Denied'} - ${studentName}`;
+    excuseReviewForm.email_body = `Dear ${studentName},\n\nYour excuse letter has been ${action} by the instructor.\n\nSubject: ${letter.subject}\n\nRegards,\n${page.props.auth?.user?.name || 'Instructor'}`;
+};
+const closeExcuseDecision = () => {
+    if (excuseReviewForm.processing) return;
+    closeExcusePreview();
+    excuseReviewForm.reset();
+    excuseReviewForm.clearErrors();
+};
+const submitExcuseDecision = () => {
+    if (!excuseLetter.value?.message_id) return;
+    excuseReviewForm.put(
+        route('messages.excuse-letters.review', { message: excuseLetter.value.message_id }),
+        { preserveScroll: true, onSuccess: closeExcuseDecision },
+    );
+};
 
 // @function openStatusEditor: Binubuksan ang status editor sa Attendance Logs flow.
 // @useIn openStatusEditor: resources/js/pages/Shared/Attendance/AttendanceLogs/AttendanceLogsPage.vue template @click

@@ -496,6 +496,8 @@ Use the session page to check:
 
 Instructor view is scoped to instructor assignments. Admin view is broader.
 
+On a student's Instructor Attendance history, matching excuse letters within **Absent Attendance Days** appear with blue pending, green approved, and red denied badges. The history shows all three decisions while their attendance date remains inside that window. A pending letter can be previewed, approved, or denied only inside the window; the history shows a 24-hour reminder before it expires, then removes the letter from this view. Approval and denial open the same editable Student email template used in Messenger and use the same review action. The legacy Attendance Logs page also offers preview and review for matching absent rows still within the threshold.
+
 ## 20. Use Reports
 
 Go to:
@@ -638,9 +640,9 @@ Students and parents use excuse letters from:
 Student-created excuse letter flow:
 
 1. Student logs in.
-2. Student opens Excuse Letters.
-3. Student creates an excuse letter.
-4. Student adds the reason, date details, and attachment if needed.
+2. Student opens Attendance and selects **Write excuse letter** beside an eligible absent record.
+3. The form pre-fills the absent date for both date fields, the recorded subject, and all Instructors assigned to the Student's current enrollment. The Student can change the dates or remove/add recipients before submitting.
+4. Student adds the reason and attachment if needed.
    When the Student selects a From date while To is empty, To automatically uses the same date and can still be changed. Both dates must remain within the displayed active academic-year range. An invalid date is shown in the form and does not upload the attachment or create a letter.
 5. The letter is saved as pending Instructor review.
 6. Selected instructors, or all assigned instructors when none were selected, receive an `Excuse Letter Submitted: ...` Messenger item and email.

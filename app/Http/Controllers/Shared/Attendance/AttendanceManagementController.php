@@ -12,6 +12,8 @@ use App\Models\OnlineClass;
 use App\Models\OnlineClassAttendance;
 use App\Models\Schedule;
 use App\Models\Students;
+use App\Models\StudentExcuseLetter;
+use App\Models\StudentPortalMessage;
 use App\Models\Subject;
 use App\Models\SystemSetting;
 use App\Services\OnlineClassAttendanceFinalizer;
@@ -148,7 +150,7 @@ class AttendanceManagementController extends Controller
         $sessions = $this->sessionsFor($subject, $context['instructor_id'])
             ->get()
             ->filter(fn ($session) => $this->studentBelongsToContext($student, $session));
-        $history = $sessions->map(function ($session) use ($student) {
+        $history = $sessions->map(function ($session) use ($student, $subject, $context) {
             $attendance = Attendance::query()
                 ->where('schedule_id', $session->schedule_id)
                 ->where('student_id', $student->student_id)
@@ -163,10 +165,11 @@ class AttendanceManagementController extends Controller
                 return null;
             }
 
+            $date = Carbon::parse($session->date)->toDateString();
             return [
                 'session_id' => $session->attendance_id,
                 'session_type' => 'physical',
-                'date' => Carbon::parse($session->date)->toDateString(),
+                'date' => $date,
                 'date_label' => Carbon::parse($session->date)->format('F j, Y'),
                 'schedule' => $this->timeRange($session->time_start, $session->time_end),
                 'room' => $session->room,
@@ -174,6 +177,12 @@ class AttendanceManagementController extends Controller
                 'time_in' => $this->formatTime($attendance?->time_in),
                 'time_out' => $this->formatTime($attendance?->time_out),
                 'remarks' => $attendance?->remarks,
+                'excuse_letters' => $this->excuseLettersForAttendanceDate(
+                    $student,
+                    $date,
+                    $subject,
+                    $context['role'] === 'instructor',
+                ),
             ];
         })->filter()->merge(
             $this->onlineClassesFor($subject, $context['instructor_id'])
@@ -209,7 +218,54 @@ class AttendanceManagementController extends Controller
                 'student_number' => $student->student_number,
             ],
             'history' => $history->values(),
+            'absentDefaultDays' => max(1, min(365, SystemSetting::integer(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 15))),
         ]);
+    }
+
+    private function excuseLettersForAttendanceDate(Students $student, string $date, Subject $subject, bool $isInstructor): array
+    {
+        $cutoff = now()->subDays(max(1, min(365, SystemSetting::integer(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 15))) - 1)->startOfDay();
+        $withinThreshold = Carbon::parse($date)->betweenIncluded($cutoff, now()->endOfDay());
+        if (! $isInstructor || ! $withinThreshold) return [];
+
+        return StudentExcuseLetter::query()
+            ->where('student_id', $student->student_id)
+            ->whereIn('status', ['pending_instructor_approval', 'approved', 'denied'])
+            ->whereDate('from_date', '<=', $date)
+            ->whereDate('to_date', '>=', $date)
+            ->whereRaw('LOWER(TRIM(subject)) = ?', [mb_strtolower(trim((string) $subject->subject_name))])
+            ->with(['student', 'studentPortalMessages' => fn ($query) => $query
+                ->where('recipient_user_id', request()->user()->user_id)
+                ->latest('student_portal_message_id')])
+            ->latest('created_at')
+            ->get()
+            ->filter(fn (StudentExcuseLetter $letter) => $letter->studentPortalMessages->isNotEmpty())
+            ->map(function (StudentExcuseLetter $letter) use ($withinThreshold, $date) {
+                $message = $letter->studentPortalMessages->first();
+                $status = $letter->status === 'pending_instructor_approval'
+                    ? 'pending'
+                    : ($message->excuse_letter_review_decision ?: $letter->status);
+                $expiresAt = Carbon::parse($date)->endOfDay()->addDays(max(1, min(365, SystemSetting::integer(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 15))) - 1);
+                $hoursRemaining = (int) ceil(max(0, now()->diffInHours($expiresAt, false)));
+
+                return [
+                    'message_id' => $message->student_portal_message_id,
+                    'status' => $status,
+                    'subject' => $letter->subject,
+                    'from_date' => $letter->from_date->toDateString(),
+                    'to_date' => $letter->to_date->toDateString(),
+                    'reason' => $letter->reason,
+                    'attachment_url' => $message->attachment_path ? route('messages.attachments.show', $message->student_portal_message_id) : null,
+                    'attachment_name' => $message->attachment_name,
+                    'student_email_available' => filter_var($letter->student?->email, FILTER_VALIDATE_EMAIL) !== false,
+                    'student_email' => $letter->student?->email,
+                    'can_review' => $withinThreshold && $status === 'pending',
+                    'hours_remaining' => max(0, $hoursRemaining),
+                    'expires_at' => $expiresAt->toDateTimeString(),
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     // @function session: Ibinabalik ang Attendance/SessionDetails page at data para sa request.

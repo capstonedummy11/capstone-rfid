@@ -40,6 +40,10 @@ Console-only `/attendance-control-panel` endpoints include page GET plus POST op
 Prefix `/admin`, auth:
 
 - Admin or verified Instructor: dashboard; attendance scanner/logs/subject/summary/student/session/export/status; messages/reply; online-class CRUD/cancel; Student list; Schedule list.
+
+The legacy Instructor Attendance Logs page exposes matching excuse-letter preview and review actions only for absent records inside the configured Absent Attendance Days window. Approval/denial reuses `PUT /messages/{message}/excuse-letter-review`, preserving its Instructor recipient authorization, editable Student email, audit data, and notifications.
+
+Instructor Student Attendance history includes the delivered excuse-letter statuses only while each attendance date remains inside that same configured window. Pending decisions show a reminder when 24 hours remain; the review action is hidden after the window closes.
 - Admin only: Academic Year lifecycle/rollover; Laboratory CRUD; Borrowing/return; RFID update/clear; Section, Subject/Offering, Schedule, Inventory/Item, Strand, Student/Parent, Instructor, User CRUD; Student, Instructor, Clinic, and Registrar administrative password resets; Activity and Online Class log exports; Active Device/PIN/session management; System Settings/SMS provider checks/sound library; prototype students-management route.
 
 Endpoint names and controller methods are declared in the route files loaded by `routes/web.php`; the runtime route list is authoritative when duplicate URIs exist. In particular, the final `GET /admin/inventory` closure in `admin.php` is named `admin.inventory` and supersedes the earlier same-URI index route in the runtime list.

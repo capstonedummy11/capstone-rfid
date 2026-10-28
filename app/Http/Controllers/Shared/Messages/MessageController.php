@@ -243,7 +243,8 @@ class MessageController
                 'can_review_excuse_letter' => $role === 'instructor'
                     && (int) $message->recipient_user_id === (int) $user->user_id
                     && (string) $message->excuseLetter?->status === 'pending_instructor_approval'
-                    && ! $message->excuse_letter_reviewed_at,
+                    && ! $message->excuse_letter_reviewed_at
+                    && $this->excuseLetterWithinAttendanceWindow($message->excuseLetter),
                 'excuse_letter_review' => $message->excuseLetter ? [
                     'reviewed_by' => $message->excuseLetterReviewedBy
                         ? trim($message->excuseLetterReviewedBy->name.' '.($message->excuseLetterReviewedBy->last_name ?? ''))
@@ -356,6 +357,12 @@ class MessageController
             ]);
         }
 
+        if (! $this->excuseLetterWithinAttendanceWindow($letter)) {
+            throw ValidationException::withMessages([
+                'decision' => 'This excuse letter is outside the configured attendance review window.',
+            ]);
+        }
+
         $validated = $request->validate([
             'decision' => ['required', Rule::in(['approved', 'denied'])],
             'recipients' => ['required', 'array', 'min:1'],
@@ -438,6 +445,15 @@ class MessageController
         );
 
         return back()->with('success', 'Excuse letter '.$decisionLabel.' and emailed to the student.');
+    }
+
+    private function excuseLetterWithinAttendanceWindow(?\App\Models\StudentExcuseLetter $letter): bool
+    {
+        if (! $letter?->from_date || ! $letter?->to_date) return false;
+
+        $days = max(1, min(365, SystemSetting::integer(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 15)));
+        $cutoff = now()->subDays($days - 1)->toDateString();
+        return $letter->to_date->toDateString() >= $cutoff;
     }
 
     // @function sendConversationMessage: Ipinapadala ang conversation message sa Message flow.
