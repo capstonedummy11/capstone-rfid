@@ -335,7 +335,7 @@ class EmergencyController
             ? $selectedPeople->pluck('student_name')->implode(', ')
             : ($student
                 ? trim($student->first_name.' '.$student->last_name)
-                : ($alert->triggered_by_name ?: 'Unknown Patient')));
+                : 'Unidentified patient'));
 
         $dispatchedAt = now();
         $alert->update([

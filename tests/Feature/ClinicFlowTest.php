@@ -408,7 +408,7 @@ test('clinic dashboard shows only open emergency details cards', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('Clinic/Dashboard/DashboardPage')
             ->has('emergencyDetails', 1)
-            ->where('emergencyDetails.0.patient_name', 'Open Alert')
+            ->where('emergencyDetails.0.patient_name', 'Unidentified patient')
         );
 });
 
@@ -864,7 +864,7 @@ test('clinic dispatch creates case record and writes activity log', function () 
     $this->actingAs($fixture['clinic'])
         ->get(route('clinic.case-logs'))
         ->assertInertia(fn (Assert $page) => $page
-            ->where('cases.0.patient_name', 'Sample Instructor')
+            ->where('cases.0.patient_name', 'Unidentified patient')
             ->where('cases.0.assigned_responder_name', 'Assigned Clinic Responder')
             ->where('cases.0.assigned_responder_email', 'assigned.clinic@example.com'));
 });

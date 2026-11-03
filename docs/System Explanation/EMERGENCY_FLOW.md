@@ -15,8 +15,8 @@ This is the canonical reference for emergency alerts sent from the Attendance Co
 
 ## 2. Complete Emergency Sequence
 
-1. During an active class session, the instructor taps their RFID again.
-2. The instructor selects **Emergency Call**.
+1. During an active class session, the instructor taps their RFID again and selects **Emergency Call**, or taps a third time to open the emergency flow directly.
+2. The panel opens the emergency flow.
 3. The instructor selects the emergency type.
 4. The system resolves the hotline before opening the assistance/details modal:
     - One matching active hotline is selected automatically.
@@ -106,10 +106,10 @@ One **Who needs assistance?** modal contains:
 When **Specific person(s)** is selected:
 
 - Student identification controls are visible.
-- The instructor can scan RFID or search by student name or student number.
+- The instructor may scan a student RFID and press Enter. No student list is shown.
 - Multiple students can be added.
 - Incorrect selections can be removed.
-- At least one student is required before review.
+- A student scan is optional. Without one, Clinic receives the room and an unidentified-patient alert; no parent-specific notification is attempted.
 
 When **Everyone / area-wide** is selected:
 
