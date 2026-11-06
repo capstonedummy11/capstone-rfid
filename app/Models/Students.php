@@ -86,7 +86,7 @@ class Students extends Model
     }
 
     // @function currentEnrollment: Kinukuha ang current enrollment result para sa Students.
-    // @useIn currentEnrollment: app/Http/Controllers/StudentsController.php
+    // @useIn currentEnrollment: app/Http/Controllers/Shared/Students/StudentsController.php
     public function currentEnrollment(): ?StudentEnrollment
     {
         $activeYearId = AcademicYear::currentOrLatest()?->academic_year_id;

@@ -62,6 +62,12 @@ test('new non console account must change temporary password before dashboard ac
     $this->actingAs($user)
         ->get(route('admin.dashboard'))
         ->assertRedirect(route('password.first-login'));
+
+    $this->actingAs($user)
+        ->get(route('password.first-login'))
+        ->assertOk()
+        ->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page
+            ->component('Shared/Auth/FirstLoginPassword/FirstLoginPasswordPage'));
 });
 
 test('user can replace a temporary password and continue', function () {
@@ -97,6 +103,29 @@ test('first login password rejects fewer than twelve characters with the specifi
         ->assertSessionHasErrors([
             'password' => 'Password must be at least 12 characters long.',
         ]);
+});
+
+test('first login password returns a field error when the temporary password is reused', function () {
+    $user = User::factory()->create([
+        'role' => 'student',
+        'password' => Hash::make('Temporary123!'),
+        'must_change_password' => true,
+    ]);
+
+    $this->actingAs($user)
+        ->from(route('password.first-login'))
+        ->put(route('password.first-login.update'), [
+            'password' => 'Temporary123!',
+            'password_confirmation' => 'Temporary123!',
+        ])
+        ->assertRedirect(route('password.first-login'))
+        ->assertSessionHasErrors([
+            'password' => 'Choose a password different from your temporary password.',
+        ]);
+
+    $user->refresh();
+    expect($user->must_change_password)->toBeTrue()
+        ->and(Hash::check('Temporary123!', $user->password))->toBeTrue();
 });
 
 test('first login password page is not throttled while password updates keep a dedicated limiter', function () {

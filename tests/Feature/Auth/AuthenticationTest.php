@@ -42,7 +42,7 @@ test('admin password login requires the emailed otp before protected access', fu
     $this->get(route('admin.login-verification.show'))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->component('Auth/AdminLoginVerification')
+            ->component('Admin/LoginVerification/AdminLoginVerificationPage')
             ->where('email', fn ($email) => str_contains($email, '@'))
         );
 
@@ -126,7 +126,7 @@ test('admin sees a delivery failure and receives no usable code when email fails
     $this->get(route('admin.login-verification.show'))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->component('Auth/AdminLoginVerification')
+            ->component('Admin/LoginVerification/AdminLoginVerificationPage')
             ->where('expiresAt', null)
             ->where('errors.otp', AdminLoginOtpService::DELIVERY_ERROR)
         );
@@ -257,6 +257,87 @@ test('the same browser session cannot sign into a second account', function () {
         ])->assertRedirect(route('admin.login-verification.show'));
 
     $this->assertAuthenticatedAs($admin);
+});
+
+test('an old temporary password cannot reauthenticate the current account after first-login replacement', function (string $role, string $loginRoute, string $loginPage, string $destination) {
+    $user = User::factory()->create([
+        'role' => $role,
+        'password' => \Illuminate\Support\Facades\Hash::make('Temporary123!'),
+        'must_change_password' => true,
+    ]);
+
+    $this->post(route($loginRoute), [
+        'email' => $user->email,
+        'password' => 'Temporary123!',
+    ]);
+
+    $this->put(route('password.first-login.update'), [
+        'password' => 'PrivatePassword123!',
+        'password_confirmation' => 'PrivatePassword123!',
+    ])->assertRedirect(route('dashboard'));
+
+    $this->from(route($loginPage))
+        ->post(route($loginRoute), [
+            'email' => $user->email,
+            'password' => 'Temporary123!',
+        ])
+        ->assertRedirect(route($loginPage))
+        ->assertSessionHasErrors('email');
+
+    $this->assertGuest();
+
+    $this->post(route($loginRoute), [
+        'email' => $user->email,
+        'password' => 'PrivatePassword123!',
+    ])->assertRedirect(route($destination));
+    $this->assertAuthenticatedAs($user);
+
+    $this->post(route('logout'))->assertRedirect();
+    $this->post(route($loginRoute), [
+        'email' => $user->email,
+        'password' => 'Temporary123!',
+    ])->assertSessionHasErrors('email');
+    $this->assertGuest();
+})->with([
+    'student portal' => ['student', 'student-parent.login.store', 'landingPage', 'student-parent.dashboard'],
+    'clinic staff' => ['clinic', 'staff.login.store', 'staff.login', 'clinic.dashboard'],
+]);
+
+test('admin reauthentication after the first password change requires the new password and a fresh email code', function () {
+    Mail::fake();
+    $admin = User::factory()->create([
+        'role' => 'admin',
+        'must_change_password' => true,
+        'password' => \Illuminate\Support\Facades\Hash::make('Temporary123!'),
+    ]);
+
+    $this->post(route('staff.login.store'), [
+        'email' => $admin->email,
+        'password' => 'Temporary123!',
+    ])->assertRedirect(route('admin.login-verification.show'));
+
+    $this->put(route('password.first-login.update'), [
+        'password' => 'PrivatePassword123!',
+        'password_confirmation' => 'PrivatePassword123!',
+    ])->assertRedirect(route('dashboard'));
+
+    $this->from(route('staff.login'))
+        ->post(route('staff.login.store'), [
+            'email' => $admin->email,
+            'password' => 'Temporary123!',
+        ])
+        ->assertRedirect(route('staff.login'))
+        ->assertSessionHasErrors('email');
+    $this->assertGuest();
+
+    $this->post(route('staff.login.store'), [
+        'email' => $admin->email,
+        'password' => 'PrivatePassword123!',
+    ])->assertRedirect(route('admin.login-verification.show'));
+
+    $this->assertAuthenticatedAs($admin);
+    Mail::assertSent(AdminLoginOtpMail::class, 2);
+    $this->get(route('admin.dashboard'))->assertRedirect(route('admin.login-verification.show'));
 });
 
 test('a mismatched session identity is invalidated instead of switching users', function () {

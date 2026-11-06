@@ -26,19 +26,20 @@ import {
     UserRound,
 } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
-import Navlinks from '@/components/Auth/Navlinks.vue';
+import NavTab from '@/components/Auth/NavTab.vue';
 import ActivityLogs from '@/components/Icon/ActivityLogs.vue';
 import Attendance from '@/components/Icon/Attendance.vue';
-import Borrowing from '@/components/Icon/Borrowing.vue';
+// import Borrowing from '@/components/Icon/Borrowing.vue';
 import Dashboard from '@/components/Icon/Dashboard.vue';
 import Graduation from '@/components/Icon/Graduation.vue';
 import Instructor from '@/components/Icon/Instructor.vue';
 import LogoutIcon from '@/components/Icon/LogoutIcon.vue';
+import { broadcastIdleLogout } from '@/lib/idleSession';
 import Reports from '@/components/Icon/Reports.vue';
 // import RFID from '@/components/Icon/RFID.vue';
 import Schedule from '@/components/Icon/Schedule.vue';
 import Section from '@/components/Icon/Section.vue';
-import Inventory from '@/components/Icon/Inventory.vue';
+// import Inventory from '@/components/Icon/Inventory.vue';
 
 const isNavOpen = defineModel('isNavOpen', { default: true });
 const props = defineProps({
@@ -150,6 +151,7 @@ const sections = [
                 text: 'Messages',
                 route: route('messages.index'),
                 roles: ['admin', 'instructor', 'clinic', 'registrar'],
+                feature: `messenger_${currentRole.value}_enabled`,
             },
             {
                 icon: MonitorCheck,
@@ -191,13 +193,14 @@ const sections = [
                 icon: FileText,
                 text: 'Excuse Letters',
                 route: route('student-parent.excuse-letters.index'),
-                roles: ['student', 'parent'],
+                roles: ['parent'],
             },
             {
                 icon: MessageSquare,
                 text: 'Messages',
                 route: route('messages.index'),
                 roles: ['student', 'parent'],
+                feature: `messenger_${currentRole.value}_enabled`,
             },
             {
                 icon: Bell,
@@ -216,6 +219,7 @@ const sections = [
                 route: route('profile.edit'),
                 roles: ['admin', 'instructor', 'clinic', 'registrar'],
             },
+            /* Temporarily hide borrowing and inventory navigation.
             {
                 icon: Borrowing,
                 text: 'Borrowing',
@@ -230,6 +234,7 @@ const sections = [
                 roles: ['admin'],
                 feature: 'inventory_enabled',
             },
+            */
             {
                 icon: Reports,
                 text: 'Reports',
@@ -332,7 +337,13 @@ const confirmLogout = async () => {
         return;
     }
 
-    router.post(route('logout'));
+    router.post(
+        route('logout'),
+        {},
+        {
+            onSuccess: () => broadcastIdleLogout(),
+        },
+    );
 };
 </script>
 
@@ -348,7 +359,7 @@ const confirmLogout = async () => {
                 </header>
 
                 <div class="mb-5">
-                    <Navlinks
+                    <NavTab
                         v-for="item in section.links"
                         :key="item.text"
                         :icon="item.icon"

@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\SystemSetting;
+use App\Support\AuthenticatedSession;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -47,6 +48,7 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            'idleTimeout' => fn () => $this->idleTimeoutSettings($request),
             'featureSettings' => fn () => SystemSetting::featureFlags(),
             'flash' => [
                 'success' => session('success'),
@@ -54,6 +56,31 @@ class HandleInertiaRequests extends Middleware
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'title' => session('title', 'Dashboard'),
+        ];
+    }
+
+    private function idleTimeoutSettings(Request $request): array
+    {
+        $user = $request->user();
+        $role = strtolower(trim((string) $user?->role));
+        $exemptRoles = config('idle_timeout.exempt_roles', ['clinic', 'console']);
+        $enabledRoles = config('idle_timeout.enabled_roles', []);
+        $enabled = $user
+            && in_array($role, $enabledRoles, true)
+            && ! in_array($role, $exemptRoles, true);
+
+        return [
+            'enabled' => (bool) $enabled,
+            'idle_timeout_seconds' => (int) config('idle_timeout.idle_minutes', 15) * 60,
+            'warning_countdown_seconds' => (int) config('idle_timeout.warning_seconds', 30),
+            'activity_ping_seconds' => (int) config('idle_timeout.activity_ping_seconds', 60),
+            'exempt_roles' => $exemptRoles,
+            'session_key' => (string) $request->session()->get(AuthenticatedSession::LOGIN_ID, ''),
+            'keep_alive_url' => route('session.keep-alive'),
+            'logout_url' => route('session.idle-logout'),
+            'login_url' => in_array($role, ['admin', 'instructor'], true)
+                ? route('staff.login')
+                : route('landingPage'),
         ];
     }
 }

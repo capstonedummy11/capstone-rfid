@@ -31,7 +31,7 @@ class AdminLoginOtpService
     public const ATTEMPTS = 'admin_login_otp.attempts';
 
     // @function issue: Sinusuri ang issue condition para sa Admin Login Otp.
-    // @useIn issue: app/Http/Controllers/StaffLoginController.php
+    // @useIn issue: app/Http/Controllers/Shared/Auth/StaffLogin/StaffLoginController.php
     public function issue(Request $request, User $user): bool
     {
         abort_unless(strtolower((string) $user->role) === 'admin', 403);
@@ -69,7 +69,7 @@ class AdminLoginOtpService
     }
 
     // @function verify: Vini-verify ang admin login otp sa Admin Login Otp flow.
-    // @useIn verify: app/Http/Controllers/AdminLoginVerificationController.php
+    // @useIn verify: app/Http/Controllers/Admin/LoginVerification/AdminLoginVerificationController.php
     public function verify(Request $request, User $user, string $code): void
     {
         $this->assertBoundToCurrentLogin($request, $user);
@@ -105,7 +105,7 @@ class AdminLoginOtpService
     }
 
     // @function requiresVerification: Sinusuri kung verification para sa Admin Login Otp.
-    // @useIn requiresVerification: app/Http/Controllers/AdminLoginVerificationController.php
+    // @useIn requiresVerification: app/Http/Controllers/Admin/LoginVerification/AdminLoginVerificationController.php
     public function requiresVerification(Request $request, User $user): bool
     {
         if (strtolower((string) $user->role) !== 'admin') {
@@ -121,7 +121,7 @@ class AdminLoginOtpService
     }
 
     // @function secondsUntilResend: Kinukuha ang seconds until resend result para sa Admin Login Otp.
-    // @useIn secondsUntilResend: app/Http/Controllers/AdminLoginVerificationController.php
+    // @useIn secondsUntilResend: app/Http/Controllers/Admin/LoginVerification/AdminLoginVerificationController.php
     public function secondsUntilResend(Request $request): int
     {
         return max(0, (int) $request->session()->get(self::RESEND_AT, 0) - now()->timestamp);

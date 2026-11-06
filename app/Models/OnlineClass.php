@@ -85,7 +85,7 @@ class OnlineClass extends Model
     // @useIn subject: Eloquent relationship property at eager loading
     public function subject(): BelongsTo
     {
-        return $this->belongsTo(Subject::class, 'subject_code', 'subject_code');
+        return $this->belongsTo(Subject::class, 'subject_code', 'subject_code')->withTrashed();
     }
 
     // @function attachments: Ibinabalik ang attachments Eloquent hasMany relationship.

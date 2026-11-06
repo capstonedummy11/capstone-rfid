@@ -112,7 +112,7 @@ test('reports are role specific and include different chart types', function () 
         ->get(route('reports.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Reports/Index')
+            ->component('Shared/Reports/Index/IndexPage')
             ->where('role', 'admin')
             ->has('charts', fn (Assert $charts) => $charts
                 ->where('0.type', 'donut')
@@ -125,7 +125,7 @@ test('reports are role specific and include different chart types', function () 
         ->get(route('reports.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Reports/Index')
+            ->component('Shared/Reports/Index/IndexPage')
             ->where('role', 'student')
             ->where('charts.0.title', 'My Attendance by Status')
             ->where('charts.0.data.0.value', 1)
@@ -135,7 +135,7 @@ test('reports are role specific and include different chart types', function () 
         ->get(route('reports.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Reports/Index')
+            ->component('Shared/Reports/Index/IndexPage')
             ->where('role', 'parent')
             ->where('summaryCards.0.label', 'Linked Students')
             ->where('summaryCards.0.value', 1)
@@ -186,5 +186,15 @@ test('report academic year filter matches the exported dataset', function () {
 
     $export = $this->actingAs($admin)->get(route('reports.export', ['academic_year_id' => $yearA->academic_year_id]));
     $export->assertOk();
-    expect($export->streamedContent())->toContain($yearA->name);
+    $csv = $export->streamedContent();
+    expect($csv)
+        ->toStartWith("\xEF\xBB\xBFReport,Generated At,Date From,Date To,Academic Year,Semester,Category,Metric,Value,Group")
+        ->toContain($yearA->name)
+        ->toContain(',Summary,');
+
+    $this->actingAs($admin)
+        ->get(route('reports.export.pdf', ['academic_year_id' => $yearA->academic_year_id]))
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf')
+        ->assertDownload();
 });

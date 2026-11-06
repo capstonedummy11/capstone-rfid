@@ -152,7 +152,7 @@ Talk track:
 
 - Student can view attendance and join online classes.
 - Student can create excuse letters.
-- Parent approval is required for student-created excuse letters before download.
+- Instructor approval is required for Student and Parent excuse-letter submissions before download.
 
 ## 7. Messenger Demo
 

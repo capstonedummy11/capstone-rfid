@@ -5,13 +5,16 @@ This folder is the technical source of truth for developers, reviewers, maintain
 ## Recommended reading order
 
 1. [Architecture and Feature Flows](ARCHITECTURE_AND_FEATURE_FLOWS.md)
-2. [Implementation Catalog](IMPLEMENTATION_CATALOG.md)
-3. [Routes and Endpoint Reference](ROUTES_AND_ENDPOINTS.md)
-4. [Database Schema Reference](DATABASE_SCHEMA_REFERENCE.md)
-5. [Database Documentation](DATABASE.md)
-6. [System Flow](SYSTEM_FLOW.md)
-7. [Page and Database Impact Map](PAGE_DATABASE_IMPACT_MAP.md)
-8. [Testing and Regression Guide](TESTING.md)
+2. [System Use-Case Model](USE_CASE_MODEL.md)
+3. [Implementation Catalog](IMPLEMENTATION_CATALOG.md)
+4. [Routes and Endpoint Reference](ROUTES_AND_ENDPOINTS.md)
+5. [Error Handling Guide](ERROR_HANDLING.md)
+6. [Database Schema Reference](DATABASE_SCHEMA_REFERENCE.md)
+7. [Database Relationship Reference](DATABASE_RELATIONSHIPS.md)
+8. [Database Documentation](DATABASE.md)
+9. [System Flow](SYSTEM_FLOW.md)
+10. [Page and Database Impact Map](PAGE_DATABASE_IMPACT_MAP.md)
+11. [Testing and Regression Guide](TESTING.md)
 
 The implementation is authoritative when it conflicts with documentation. The review date for the generated catalog is 2026-09-17 on branch `development`.
 

@@ -175,7 +175,7 @@ test('current enrollment instructor can be searched and receives an excuse lette
         ->get(route('admin.attendance.logs'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Attendance/SubjectSelection')
+            ->component('Shared/Attendance/SubjectSelection/SubjectSelectionPage')
             ->has('subjects', 1)
             ->where('subjects.0.id', $subject->subject_id)
             ->where('subjects.0.code', $subject->subject_code)
@@ -191,7 +191,7 @@ test('current enrollment instructor can be searched and receives an excuse lette
         ->get(route('admin.attendance.subject', $subject))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Attendance/Dashboard')
+            ->component('Shared/Attendance/Dashboard/DashboardPage')
             ->where('subject.id', $subject->subject_id)
             ->where('overview.total_students', 1)
             ->where('overview.total_sessions', 1)
@@ -201,7 +201,7 @@ test('current enrollment instructor can be searched and receives an excuse lette
         ->get(route('student-parent.excuse-letters.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('StudentParent/ExcuseLetters')
+            ->component('StudentParent/ExcuseLetters/ExcuseLettersPage')
             ->where('student.section', $currentSection->section_name)
             ->where('activeAcademicYear.starts_on', '2026-06-01')
             ->where('activeAcademicYear.ends_on', '2027-03-31')
@@ -256,14 +256,19 @@ test('current enrollment instructor can be searched and receives an excuse lette
             'attachment' => UploadedFile::fake()->create('medical-certificate.pdf', 100, 'application/pdf'),
         ])
         ->assertRedirect()
-        ->assertSessionHas('success', 'Excuse letter submitted and sent to the teacher.');
+        ->assertSessionHas('success', 'Excuse letter submitted for instructor review.');
 
     $letter = StudentExcuseLetter::query()->firstOrFail();
     expect($letter->student_enrollment_id)->toBe($enrollment->student_enrollment_id)
         ->and($letter->recipient_user_ids)->toBe([$instructorUser->user_id])
         ->and($letter->attachment_name)->toBe('medical-certificate.pdf')
-        ->and($letter->status)->toBe('approved');
+        ->and($letter->status)->toBe('pending_instructor_approval');
     Storage::disk('public')->assertExists($letter->attachment_path);
+
+    $this->actingAs($studentUser)
+        ->get(route('student-parent.dashboard'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('recentMessages.0.subject', 'Excuse Letter Submitted: '.$subject->subject_name));
 
     $this->assertDatabaseHas('student_portal_messages', [
         'student_id' => $student->student_id,
@@ -278,7 +283,7 @@ test('current enrollment instructor can be searched and receives an excuse lette
         ->get(route('messages.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Messages/Index')
+            ->component('Shared/Messages/Index/IndexPage')
             ->has('messages', 1)
             ->where('messages.0.excuse_letter_id', $letter->student_excuse_letter_id)
             ->where('messages.0.can_review_excuse_letter', true)
@@ -310,8 +315,17 @@ test('current enrollment instructor can be searched and receives an excuse lette
             'email_subject' => 'Excuse Letter Approved - Workflow Student',
             'email_body' => 'Your excuse letter was approved.',
         ])
+        ->assertSessionHasErrors('recipients.1');
+
+    $this->actingAs($instructorUser)
+        ->put(route('messages.excuse-letters.review', $portalMessage), [
+            'decision' => 'approved',
+            'recipients' => ['student'],
+            'email_subject' => 'Excuse Letter Approved - Workflow Student',
+            'email_body' => 'Your excuse letter was approved.',
+        ])
         ->assertRedirect()
-        ->assertSessionHas('success', 'Excuse letter approved and email sent to 2 recipient(s).');
+        ->assertSessionHas('success', 'Excuse letter approved and emailed to the student.');
 
     $letter->refresh();
     $portalMessage->refresh();
@@ -319,7 +333,21 @@ test('current enrollment instructor can be searched and receives an excuse lette
         ->and($portalMessage->excuse_letter_review_decision)->toBe('approved')
         ->and($portalMessage->excuse_letter_reviewed_by_user_id)->toBe($instructorUser->user_id)
         ->and($portalMessage->excuse_letter_review_email_subject)->toBe('Excuse Letter Approved - Workflow Student')
-        ->and($portalMessage->excuse_letter_review_recipients)->toHaveCount(2);
+        ->and($portalMessage->excuse_letter_review_recipients)->toHaveCount(1)
+        ->and($portalMessage->excuse_letter_review_recipients[0]['email'])->toBe($student->email);
+
+    $this->assertDatabaseHas('student_portal_messages', [
+        'student_id' => $student->student_id,
+        'student_excuse_letter_id' => $letter->student_excuse_letter_id,
+        'sender_user_id' => $instructorUser->user_id,
+        'recipient_user_id' => $studentUser->user_id,
+        'subject' => 'Encrypted message',
+    ]);
+    expect(StudentPortalMessage::query()
+        ->where('student_excuse_letter_id', $letter->student_excuse_letter_id)
+        ->where('sender_user_id', $instructorUser->user_id)
+        ->where('recipient_user_id', $studentUser->user_id)
+        ->firstOrFail()->subject)->toBe('Approved Excuse Letter: '.$subject->subject_name);
 
     $this->actingAs($instructorUser)
         ->put(route('messages.excuse-letters.review', $portalMessage), [
@@ -350,18 +378,23 @@ test('current enrollment instructor can be searched and receives an excuse lette
             'email_body' => 'Your excuse letter was denied. Please contact your instructor.',
         ])
         ->assertRedirect()
-        ->assertSessionHas('success', 'Excuse letter denied and email sent to 1 recipient(s).');
+        ->assertSessionHas('success', 'Excuse letter denied and emailed to the student.');
 
     $deniedLetter->refresh();
     $deniedPortalMessage->refresh();
-    expect($deniedLetter->status)->toBe('approved')
+    expect($deniedLetter->status)->toBe('denied')
         ->and($deniedPortalMessage->excuse_letter_review_decision)->toBe('denied')
         ->and($deniedPortalMessage->excuse_letter_reviewed_by_user_id)->toBe($instructorUser->user_id)
         ->and($deniedPortalMessage->excuse_letter_review_recipients)->toHaveCount(1)
         ->and($deniedPortalMessage->excuse_letter_review_recipients[0]['email'])->toBe($student->email);
 
+    expect(StudentPortalMessage::query()
+        ->where('student_excuse_letter_id', $deniedLetter->student_excuse_letter_id)
+        ->where('recipient_user_id', $studentUser->user_id)
+        ->firstOrFail()->subject)->toBe('Denied Excuse Letter: Second excuse letter');
+
     $sentEmails = app('mailer')->getSymfonyTransport()->messages();
-    expect($sentEmails)->toHaveCount(5);
+    expect($sentEmails)->toHaveCount(4);
 
     $emailRecipients = $sentEmails
         ->flatMap(fn ($sentEmail) => $sentEmail->getEnvelope()->getRecipients())
@@ -369,8 +402,7 @@ test('current enrollment instructor can be searched and receives an excuse lette
     expect($emailRecipients)->toContain(
         $instructorUser->email,
         $student->email,
-        $parentUser->email,
-    );
+    )->not->toContain($parentUser->email);
 
     $this->actingAs($studentUser)
         ->post(route('student-parent.excuse-letters.store'), [
@@ -384,5 +416,5 @@ test('current enrollment instructor can be searched and receives an excuse lette
         ->assertSessionHasErrors('recipient_user_ids');
 
     $this->assertDatabaseCount('student_excuse_letters', 2);
-    $this->assertDatabaseCount('student_portal_messages', 2);
+    $this->assertDatabaseCount('student_portal_messages', 4);
 });

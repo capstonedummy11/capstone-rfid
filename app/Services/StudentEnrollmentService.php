@@ -32,7 +32,7 @@ class StudentEnrollmentService
     }
 
     // @function syncPlacement: Sini-sync ang placement sa Student Enrollment flow.
-    // @useIn syncPlacement: app/Http/Controllers/StudentsController.php
+    // @useIn syncPlacement: app/Http/Controllers/Shared/Students/StudentsController.php
     public function syncPlacement(Students $student, array $placement): StudentEnrollment
     {
         $academicYear = $this->yearForLabel((string) $placement['school_year']);

@@ -94,7 +94,7 @@ Messaging and portal tables:
 - `messages` - public/student-to-instructor and instructor inbox messages.
 - `parent_student_links` - parent account to student links.
 - `student_excuse_letters` - student/parent excuse letter submissions with parent approval and signature metadata.
-- `student_portal_messages` - authenticated Messenger conversations for students, parents, clinic, registrar, instructors, and admins; console users are excluded from Messenger.
+- `student_portal_messages` - authenticated direct conversations and linked automated excuse-letter workflow notices for students, parents, clinic, registrar, instructors, and admins; console users are excluded. Student/Parent Notifications reads recipient-owned excuse-letter records even when Messenger access is disabled.
 
 Online Class tables:
 
@@ -140,7 +140,7 @@ Legacy academic compatibility:
 
 System and audit tables:
 
-- `system_settings` - feature flags and configurable settings.
+- `system_settings` - feature flags and configurable settings, including independent Direct Messages access switches for Admin, Instructor, Clinic, Registrar, Student, and Parent, plus the default-off Student excuse-letter Messenger visibility switch. Student notifications remain available when the Messenger visibility switch is off.
 - `activity_logs` - general activity/audit log records.
 
 Panel PIN behavior:
@@ -153,6 +153,8 @@ Panel PIN behavior:
 
 `panel_devices.laboratory_id` links one managed device to one physical laboratory. See [Laboratories and Devices](../System%20Explanation/LABORATORIES_AND_DEVICES.md) for CRUD and operational ownership.
 
+For the exhaustive list of enforced foreign keys, delete rules, and logical links without constraints, see [Database Relationship Reference](DATABASE_RELATIONSHIPS.md). The bullets below explain business meaning and do not imply that every named link is a database foreign key.
+
 - `users.role` controls dashboard access and major account behavior.
 - `students.section_id` links students to `sections`.
 - `student_enrollments.student_id` links every historical enrollment to the permanent student identity.
@@ -162,11 +164,13 @@ Panel PIN behavior:
 - `sections.academic_year_id` links each migrated/new section to its academic year. Section names are unique within an academic year and semester, allowing the same name to be reused in another year.
 - `subjects.section_id` links subjects to sections.
 - `subject_offerings.subject_id` links an offering to its reusable catalog subject.
+- Archiving a subject sets `subjects.deleted_at` without deleting `subject_offerings`, schedules, or attendance. Active catalog/selection queries exclude archived subjects; historical offering, schedule, online-class, and attendance relationships can still load the archived subject. A current-year schedule blocks archiving until removed; historical schedules do not.
 - `subject_offerings.academic_year_id`, `section_id`, and `instructor_id` preserve the year-specific class assignment.
 - `schedules.section_id` links schedules to sections.
 - `schedules.academic_year_id` and `schedules.subject_offering_id` preserve the schedule's year, semester, subject, section, and instructor context.
 - `schedules.subject_code` links schedules to subjects.
 - `schedules.instructor_id` links schedules to instructor profiles.
+- Changing a writable Subject Offering's Instructor synchronizes its linked `schedules.instructor_id` and the `instructor_id` of scheduled online classes that have not ended. Removing the Instructor sets these current assignments to null. Completed/cancelled online classes retain historical Instructor attribution; Instructor access to online classes and their attendance history follows the schedule's current assignment.
 - `schedules.laboratory_id` links schedules to laboratories.
 - `instructors.user_id` links instructor profiles to user accounts.
 - `attendances.student_id` links main attendance rows to students.
@@ -177,24 +181,21 @@ Panel PIN behavior:
 - `borrowings.student_id` is used for student borrowers.
 - `borrowings.user_id` is used for instructor/user borrowers.
 - `borrowing_items.borrowing_id` links item lines to borrowing headers.
-- `borrowing_items.item_id` links borrowed lines to `inventory_items`.
+- `borrowing_items.item_id` logically links borrowed lines to `inventory_items`; the migration does not declare an FK, so application validation must preserve this connection.
 - `emergency_alerts.emergency_type_id` links alerts to emergency types.
 - `clinic_cases.emergency_alert_id` can link clinic cases to alerts.
+- `patient_histories.clinic_case_id` optionally and uniquely links one generated history row to its source Clinic Case.
 - `parent_student_links.parent_user_id` links parent users to students.
 - Parent portal accounts are stored in `users` with `role = parent`; Admin Student Management creates or links these accounts and stores the relationship label on `parent_student_links.relationship`.
 - `online_classes.schedule_id`, `instructor_id`, and `section_id` connect online classes to the academic setup.
 
-Student excuse-letter approval fields:
+Student excuse-letter legacy Parent-approval fields and current review behavior:
 
-- `parent_signature` stores the typed parent signature shown on generated PDFs.
-- `parent_approval_notes` stores optional parent approval notes.
-- `parent_approved_by_user_id` links to the parent `users` row that approved the letter.
-- `parent_approved_at` stores the approval timestamp.
-- `recipient_user_ids` optionally stores selected teacher recipients. When empty, approved letters are sent to all assigned teachers for the student's section.
-- Student-created letters use `pending_parent_approval` until a linked parent approves them; parent-created letters are saved as `approved`.
-- Excuse-letter attachments are downloaded through an authenticated student/parent route and remain scoped to the selected student.
-- Student submission emails each linked parent with a valid email address and a portal link for review and signature.
-- Approval generates an official signed PDF stored under `student-excuse-letters/generated`; the generated file metadata is copied to the instructor Messenger record and the PDF is also attached to the instructor email.
+- `parent_signature`, `parent_approved_by_user_id`, and `parent_approved_at` record the first approval step when the Parent-approval setting is enabled; `parent_approval_notes` remains for compatibility with historical records.
+- `recipient_user_ids` optionally stores selected Instructor recipients. When empty, submitted letters are sent to all Instructors assigned to the Student's current section and enrollment context.
+- By default, every new Student or permitted Parent submission uses `pending_instructor_approval`. When Parent approval is required, submission starts at `pending_parent_approval`; a linked Parent moves it to `pending_instructor_approval`, after which only an assigned Instructor can set it to `approved` or `denied` through the linked Messenger review action.
+- Submission creates an `Excuse Letter Submitted: ...` Messenger item for each recipient. Instructor approval creates an `Approved Excuse Letter: ...` portal message for the Student only.
+- Excuse-letter attachments are downloaded through an authenticated student/parent route and remain scoped to the selected student. Generated PDFs are available only after Instructor approval.
 
 Messenger data behavior:
 

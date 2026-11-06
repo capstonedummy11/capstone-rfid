@@ -76,7 +76,7 @@ test('academic year controller creates updates and changes lifecycle state', fun
     $this->actingAs($admin)->get(route('admin.academic-years.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/AcademicYears')
+            ->component('Admin/AcademicYears/AcademicYearsPage')
             ->where('academicYears.0.name', '2026-2027'));
 
     $this->actingAs($admin)->put(route('admin.academic-years.update', $year), [
@@ -117,7 +117,7 @@ test('strand controller creates then reuses the strand for update index and dele
     $this->actingAs($admin)->get(route('admin.strands.index', ['search' => 'ENT']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Strands')
+            ->component('Admin/Strands/StrandsPage')
             ->where('strands.0.strand_id', $strand->strand_id));
 
     $this->actingAs($admin)->put(route('admin.strands.update', $strand->strand_id), [
@@ -168,7 +168,7 @@ test('section controller creates then reuses the section for index update and de
     $this->actingAs($admin)->get(route('admin.sections.index', ['search' => 'SEC 11-A']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Sections')
+            ->component('Admin/Sections/SectionsPage')
             ->where('sections.0.section_id', $section->section_id));
 
     $this->actingAs($admin)->put(route('admin.sections.update', $section->section_id), [
@@ -194,7 +194,7 @@ test('section controller creates then reuses the section for index update and de
     $this->actingAs($admin)->get(route('admin.sections.index', ['academic_year' => 'all']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Sections')
+            ->component('Admin/Sections/SectionsPage')
             ->missing('sections.0'));
 
     $this->actingAs($admin)->put(route('admin.sections.update', $section->section_id), [
@@ -231,7 +231,7 @@ test('subject controller creates catalog subject offering then updates removes o
     $this->actingAs($admin)->get(route('admin.subjects.index', ['search' => 'CTRL-101']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Subjects')
+            ->component('Admin/Subjects/SubjectsPage')
             ->where('subjects.0.subject_id', $subject->subject_id)
             ->where('subjects.0.offerings.0.academic_year', $year->name));
 
@@ -264,7 +264,7 @@ test('subject controller creates catalog subject offering then updates removes o
     $this->actingAs($admin)->get(route('admin.subjects.index', ['academic_year_id' => 'all']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Subjects')
+            ->component('Admin/Subjects/SubjectsPage')
             ->missing('subjects.0'));
 
     $this->actingAs($admin)->put(route('admin.subjects.update', $subject->subject_id), [
@@ -278,6 +278,458 @@ test('subject controller creates catalog subject offering then updates removes o
 
     $this->actingAs($admin)->delete(route('admin.subjects.destroy', $subject->subject_id))
         ->assertNotFound();
+});
+
+test('subject archives with an offering after its current schedule is removed', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    ['year' => $year, 'section' => $section] = controllerEntityAcademicContext();
+    $subject = Subject::create(['subject_name' => 'Archive Subject', 'subject_code' => 'ARCH-101', 'unit' => 3]);
+    $offering = SubjectOffering::create([
+        'academic_year_id' => $year->academic_year_id,
+        'subject_id' => $subject->subject_id,
+        'section_id' => $section->section_id,
+        'semester' => '1st Semester',
+        'status' => 'active',
+    ]);
+    $schedule = Schedule::create([
+        'academic_year_id' => $year->academic_year_id,
+        'subject_offering_id' => $offering->subject_offering_id,
+        'section_id' => $section->section_id,
+        'subject_code' => $subject->subject_code,
+        'semester' => '1st Semester',
+        'weekdays' => 'Mon',
+        'time_start' => '08:00:00',
+        'time_end' => '09:00:00',
+        'room' => 'Archive Room',
+    ]);
+
+    $this->actingAs($admin)->delete(route('admin.subjects.destroy', $subject->subject_id))
+        ->assertSessionHasErrors('subject');
+    $schedule->delete();
+    $this->actingAs($admin)->delete(route('admin.subjects.destroy', $subject->subject_id))
+        ->assertSessionHas('success');
+
+    $this->assertSoftDeleted('subjects', ['subject_id' => $subject->subject_id]);
+    $this->assertDatabaseHas('subject_offerings', ['subject_offering_id' => $offering->subject_offering_id]);
+    expect($offering->fresh()->subject->subject_name)->toBe('Archive Subject')
+        ->and($offering->fresh()->isWritable())->toBeFalse();
+    $this->actingAs($admin)->get(route('admin.subjects.index', ['academic_year_id' => 'all']))
+        ->assertInertia(fn (Assert $page) => $page->missing('subjects.0'));
+    $this->actingAs($admin)->get(route('admin.subjects.index', ['view' => 'archived']))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('subjects.0.subject_id', $subject->subject_id)
+            ->where('subjects.0.offerings.0.subject_offering_id', $offering->subject_offering_id)
+            ->where('subjects.0.offerings.0.schedules', []));
+    $this->actingAs($admin)->get(route('admin.schedules.index'))
+        ->assertInertia(fn (Assert $page) => $page->missing('subjectOfferingOptions.0'));
+    $this->actingAs($admin)->post(route('admin.schedules.store'), [
+        'subject_offering_id' => $offering->subject_offering_id,
+        'weekdays' => 'Mon',
+        'time_start' => '08:00',
+        'time_end' => '09:00',
+        'room' => 'Archive Room',
+    ])->assertSessionHasErrors('subject_offering_id');
+});
+
+test('archived subject remains named in historical schedules when its code is reused', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    ['year' => $year, 'section' => $section] = controllerEntityAcademicContext();
+    $subject = Subject::create(['subject_name' => 'Original Subject', 'subject_code' => 'HIST-CODE', 'unit' => 3]);
+    $offering = SubjectOffering::create([
+        'academic_year_id' => $year->academic_year_id,
+        'subject_id' => $subject->subject_id,
+        'section_id' => $section->section_id,
+        'semester' => '1st Semester',
+        'status' => 'active',
+    ]);
+    $schedule = Schedule::create([
+        'academic_year_id' => $year->academic_year_id,
+        'subject_offering_id' => $offering->subject_offering_id,
+        'section_id' => $section->section_id,
+        'subject_code' => $subject->subject_code,
+        'semester' => '1st Semester',
+        'weekdays' => 'Tue',
+        'time_start' => '10:00:00',
+        'time_end' => '11:00:00',
+        'room' => 'History Room',
+    ]);
+    $year->update(['status' => AcademicYear::STATUS_CLOSED]);
+
+    $this->actingAs($admin)->delete(route('admin.subjects.destroy', $subject->subject_id))
+        ->assertSessionHas('success');
+    Subject::create(['subject_name' => 'Replacement Subject', 'subject_code' => 'HIST-CODE', 'unit' => 3]);
+    $onlineClass = OnlineClass::create([
+        'schedule_id' => $schedule->scheduled_id,
+        'section_id' => $section->section_id,
+        'subject_code' => $subject->subject_code,
+        'title' => 'Historical online class',
+        'meeting_link' => 'https://example.test/history',
+        'scheduled_date' => now()->subDays(2)->toDateString(),
+        'start_time' => '10:00:00',
+        'end_time' => '11:00:00',
+        'status' => 'scheduled',
+    ]);
+
+    $this->actingAs($admin)->get(route('admin.schedules.index', ['academic_year_id' => 'all']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('schedules.0.scheduled_id', $schedule->scheduled_id)
+            ->where('schedules.0.subject_name', 'Original Subject'));
+    $this->actingAs($admin)->get(route('admin.subjects.index', ['view' => 'archived']))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('subjects.0.offerings.0.schedules.0.scheduled_id', $schedule->scheduled_id)
+            ->where('subjects.0.offerings.0.schedules.0.room', 'History Room')
+            ->where('subjects.0.offerings.0.schedules.0.time_start', '10:00'));
+    $this->actingAs($admin)->get(route('admin.online-classes.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('onlineClasses.0.online_class_id', $onlineClass->online_class_id)
+            ->where('onlineClasses.0.subject_name', 'Original Subject'));
+});
+
+test('admin can assign an active instructor to an unassigned writable offering', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    ['year' => $year, 'strand' => $strand, 'section' => $section] = controllerEntityAcademicContext();
+    $subject = Subject::create(['subject_name' => 'Assignment Subject', 'subject_code' => 'ASSIGN-101', 'unit' => 3]);
+    $offering = SubjectOffering::create([
+        'academic_year_id' => $year->academic_year_id,
+        'subject_id' => $subject->subject_id,
+        'section_id' => $section->section_id,
+        'instructor_id' => null,
+        'semester' => '1st Semester',
+        'status' => 'active',
+    ]);
+    $instructorUser = User::factory()->create(['role' => 'instructor']);
+    $instructor = Instructor::create([
+        'user_id' => $instructorUser->user_id,
+        'strand_id' => $strand->strand_id,
+        'instructor_number' => 'INS-ASSIGN-101',
+        'status' => 'active',
+    ]);
+    $unprofiledUser = User::factory()->create(['role' => 'instructor']);
+
+    $this->actingAs($admin)->get(route('admin.subjects.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Admin/Subjects/SubjectsPage')
+            ->where('subjects.0.offerings.0.instructor_id', null)
+            ->where('subjects.0.offerings.0.is_writable', true));
+
+    $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.assign', $offering), [
+        'user_id' => $unprofiledUser->user_id,
+    ])->assertSessionHasErrors('user_id');
+    $this->assertDatabaseHas('activity_logs', [
+        'route_name' => 'admin.subjects.offerings.instructor.assign',
+        'outcome' => 'failure',
+    ]);
+
+    $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.assign', $offering), [
+        'user_id' => $instructorUser->user_id,
+    ])->assertRedirect()->assertSessionHas('success');
+    $this->assertDatabaseHas('activity_logs', [
+        'route_name' => 'admin.subjects.offerings.instructor.assign',
+        'outcome' => 'success',
+    ]);
+
+    $this->assertDatabaseHas('subject_offerings', [
+        'subject_offering_id' => $offering->subject_offering_id,
+        'instructor_id' => $instructor->instructor_id,
+    ]);
+
+    $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.assign', $offering), [
+        'user_id' => $instructorUser->user_id,
+    ])->assertSessionHasErrors('user_id');
+
+    $replacementUser = User::factory()->create(['role' => 'instructor']);
+    $replacement = Instructor::create([
+        'user_id' => $replacementUser->user_id,
+        'strand_id' => $strand->strand_id,
+        'instructor_number' => 'INS-REPLACE-101',
+        'status' => 'active',
+    ]);
+    $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.assign', $offering), [
+        'user_id' => $replacementUser->user_id,
+    ])->assertRedirect()->assertSessionHas('success');
+    $this->assertDatabaseHas('subject_offerings', [
+        'subject_offering_id' => $offering->subject_offering_id,
+        'instructor_id' => $replacement->instructor_id,
+    ]);
+
+    $replacementUser->delete();
+    $this->actingAs($admin)->get(route('admin.subjects.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('subjects.0.offerings.0.instructor_id', $replacement->instructor_id)
+            ->where('subjects.0.offerings.0.instructor_name', null));
+    $schedule = Schedule::create([
+        'academic_year_id' => $year->academic_year_id,
+        'subject_offering_id' => $offering->subject_offering_id,
+        'instructor_id' => $replacement->instructor_id,
+        'section_id' => $section->section_id,
+        'subject_code' => $subject->subject_code,
+        'semester' => '1st Semester',
+        'weekdays' => 'Mon',
+        'time_start' => '08:00:00',
+        'time_end' => '09:00:00',
+        'room' => 'Assignment Room',
+    ]);
+    $futureClass = OnlineClass::create([
+        'schedule_id' => $schedule->scheduled_id,
+        'instructor_id' => $replacement->instructor_id,
+        'section_id' => $section->section_id,
+        'subject_code' => $subject->subject_code,
+        'title' => 'Upcoming assignment class',
+        'meeting_link' => 'https://example.test/upcoming',
+        'scheduled_date' => now()->addDays(2)->toDateString(),
+        'start_time' => '08:00:00',
+        'end_time' => '09:00:00',
+        'status' => 'scheduled',
+    ]);
+    $completedClass = OnlineClass::create([
+        'schedule_id' => $schedule->scheduled_id,
+        'instructor_id' => $replacement->instructor_id,
+        'section_id' => $section->section_id,
+        'subject_code' => $subject->subject_code,
+        'title' => 'Completed assignment class',
+        'meeting_link' => 'https://example.test/completed',
+        'scheduled_date' => now()->subDays(2)->toDateString(),
+        'start_time' => '08:00:00',
+        'end_time' => '09:00:00',
+        'status' => 'scheduled',
+    ]);
+    $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.assign', $offering), [
+        'user_id' => $instructorUser->user_id,
+    ])->assertRedirect()->assertSessionHas('success');
+    $this->assertDatabaseHas('subject_offerings', [
+        'subject_offering_id' => $offering->subject_offering_id,
+        'instructor_id' => $instructor->instructor_id,
+    ]);
+    $this->assertDatabaseHas('schedules', [
+        'scheduled_id' => $schedule->scheduled_id,
+        'instructor_id' => $instructor->instructor_id,
+    ]);
+    $this->assertDatabaseHas('online_classes', [
+        'online_class_id' => $futureClass->online_class_id,
+        'instructor_id' => $instructor->instructor_id,
+    ]);
+    $this->assertDatabaseHas('online_classes', [
+        'online_class_id' => $completedClass->online_class_id,
+        'instructor_id' => $replacement->instructor_id,
+    ]);
+
+    $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.remove', $offering))
+        ->assertRedirect()->assertSessionHas('success');
+    $this->assertDatabaseHas('subject_offerings', [
+        'subject_offering_id' => $offering->subject_offering_id,
+        'instructor_id' => null,
+    ]);
+    $this->assertDatabaseHas('schedules', [
+        'scheduled_id' => $schedule->scheduled_id,
+        'instructor_id' => null,
+    ]);
+    $this->assertDatabaseHas('online_classes', [
+        'online_class_id' => $futureClass->online_class_id,
+        'instructor_id' => null,
+    ]);
+    $this->assertDatabaseHas('online_classes', [
+        'online_class_id' => $completedClass->online_class_id,
+        'instructor_id' => $replacement->instructor_id,
+    ]);
+    $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.assign', $offering), [
+        'user_id' => $instructorUser->user_id,
+    ])->assertRedirect()->assertSessionHas('success');
+    $this->assertDatabaseHas('schedules', [
+        'scheduled_id' => $schedule->scheduled_id,
+        'instructor_id' => $instructor->instructor_id,
+    ]);
+    $this->assertDatabaseHas('online_classes', [
+        'online_class_id' => $futureClass->online_class_id,
+        'instructor_id' => $instructor->instructor_id,
+    ]);
+    DB::table('schedules')->where('scheduled_id', $schedule->scheduled_id)
+        ->update(['instructor_id' => null]);
+    DB::table('online_classes')->where('online_class_id', $futureClass->online_class_id)
+        ->update(['instructor_id' => null]);
+    (require database_path('migrations/2026_10_09_000001_allow_unassigned_online_classes.php'))->up();
+    $this->assertDatabaseHas('schedules', [
+        'scheduled_id' => $schedule->scheduled_id,
+        'instructor_id' => $instructor->instructor_id,
+    ]);
+    $this->assertDatabaseHas('online_classes', [
+        'online_class_id' => $futureClass->online_class_id,
+        'instructor_id' => $instructor->instructor_id,
+    ]);
+    $this->assertDatabaseHas('online_classes', [
+        'online_class_id' => $completedClass->online_class_id,
+        'instructor_id' => $replacement->instructor_id,
+    ]);
+    $schedule->delete();
+    $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.remove', $offering))
+        ->assertRedirect()->assertSessionHas('success');
+    $year->update(['status' => AcademicYear::STATUS_CLOSED]);
+
+    $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.assign', $offering), [
+        'user_id' => $instructorUser->user_id,
+    ])->assertSessionHasErrors('offering');
+    $this->assertDatabaseHas('subject_offerings', [
+        'subject_offering_id' => $offering->subject_offering_id,
+        'instructor_id' => null,
+    ]);
+});
+
+test('completed online classes retain attribution but follow current schedule instructor visibility', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    ['strand' => $strand, 'section' => $section] = controllerEntityAcademicContext();
+    $oldUser = User::factory()->create(['role' => 'instructor']);
+    $newUser = User::factory()->create(['role' => 'instructor']);
+    $oldInstructor = Instructor::create([
+        'user_id' => $oldUser->user_id,
+        'strand_id' => $strand->strand_id,
+        'instructor_number' => 'INS-OLD-CLASS',
+        'status' => 'active',
+    ]);
+    $newInstructor = Instructor::create([
+        'user_id' => $newUser->user_id,
+        'strand_id' => $strand->strand_id,
+        'instructor_number' => 'INS-NEW-CLASS',
+        'status' => 'active',
+    ]);
+    $subject = Subject::create(['subject_name' => 'Class Ownership', 'subject_code' => 'CLASS-OWN', 'unit' => 3]);
+    $offering = SubjectOffering::create([
+        'academic_year_id' => $section->academic_year_id,
+        'subject_id' => $subject->subject_id,
+        'section_id' => $section->section_id,
+        'instructor_id' => $oldInstructor->instructor_id,
+        'semester' => '1st Semester',
+        'status' => 'active',
+    ]);
+    $schedule = Schedule::create([
+        'academic_year_id' => $section->academic_year_id,
+        'subject_offering_id' => $offering->subject_offering_id,
+        'section_id' => $section->section_id,
+        'instructor_id' => $oldInstructor->instructor_id,
+        'subject_code' => $subject->subject_code,
+        'semester' => '1st Semester',
+        'weekdays' => 'Mon',
+        'time_start' => '08:00:00',
+        'time_end' => '09:00:00',
+        'room' => 'Class Ownership Room',
+    ]);
+    $completedClass = OnlineClass::create([
+        'schedule_id' => $schedule->scheduled_id,
+        'instructor_id' => $oldInstructor->instructor_id,
+        'section_id' => $section->section_id,
+        'subject_code' => $subject->subject_code,
+        'title' => 'Completed class',
+        'meeting_link' => 'https://example.test/completed',
+        'scheduled_date' => now()->subDays(2)->toDateString(),
+        'start_time' => '08:00:00',
+        'end_time' => '09:00:00',
+        'status' => 'scheduled',
+    ]);
+
+    $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.assign', $offering), [
+        'user_id' => $newUser->user_id,
+    ])->assertSessionHas('success');
+    $this->assertDatabaseHas('online_classes', [
+        'online_class_id' => $completedClass->online_class_id,
+        'instructor_id' => $oldInstructor->instructor_id,
+    ]);
+
+    $this->actingAs($oldUser)->withSession(['instructor_verified' => true])
+        ->get(route('admin.online-classes.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->missing('onlineClasses.0'));
+    $this->actingAs($newUser)->withSession(['instructor_verified' => true])
+        ->get(route('admin.online-classes.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('onlineClasses.0.title', 'Completed class')
+            ->where('onlineClasses.0.instructor_name', $oldUser->name));
+
+    $this->actingAs($oldUser)->withSession(['instructor_verified' => true])
+        ->put(route('admin.online-classes.update', $completedClass), [])
+        ->assertForbidden();
+    $this->actingAs($oldUser)->withSession(['instructor_verified' => true])
+        ->get(route('admin.attendance.subject', $subject))
+        ->assertForbidden();
+    $this->actingAs($newUser)->withSession(['instructor_verified' => true])
+        ->get(route('admin.attendance.subject', $subject))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('overview.total_sessions', 1));
+    $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.remove', $offering))
+        ->assertSessionHas('success');
+    $this->actingAs($newUser)->withSession(['instructor_verified' => true])
+        ->get(route('admin.online-classes.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->missing('onlineClasses.0'));
+});
+
+test('instructor assignment rolls back and shows a form error when auditing fails', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    ['year' => $year, 'strand' => $strand, 'section' => $section] = controllerEntityAcademicContext();
+    $subject = Subject::create(['subject_name' => 'Audit Subject', 'subject_code' => 'AUDIT-101', 'unit' => 3]);
+    $offering = SubjectOffering::create([
+        'academic_year_id' => $year->academic_year_id,
+        'subject_id' => $subject->subject_id,
+        'section_id' => $section->section_id,
+        'semester' => '1st Semester',
+        'status' => 'active',
+    ]);
+    $instructorUser = User::factory()->create(['role' => 'instructor']);
+    Instructor::create([
+        'user_id' => $instructorUser->user_id,
+        'strand_id' => $strand->strand_id,
+        'instructor_number' => 'INS-AUDIT-101',
+        'status' => 'active',
+    ]);
+    \App\Models\ActivityLog::creating(fn () => throw new \RuntimeException('Simulated audit failure'));
+
+    $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.assign', $offering), [
+        'user_id' => $instructorUser->user_id,
+    ])->assertRedirect()->assertSessionHasErrors('offering');
+
+    $this->assertDatabaseHas('subject_offerings', [
+        'subject_offering_id' => $offering->subject_offering_id,
+        'instructor_id' => null,
+    ]);
+    \App\Models\ActivityLog::flushEventListeners();
+});
+
+test('an unexpected assignment error is visible as a failed system activity event', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    ['year' => $year, 'strand' => $strand, 'section' => $section] = controllerEntityAcademicContext();
+    $subject = Subject::create(['subject_name' => 'Failure Subject', 'subject_code' => 'FAIL-101', 'unit' => 3]);
+    $offering = SubjectOffering::create([
+        'academic_year_id' => $year->academic_year_id,
+        'subject_id' => $subject->subject_id,
+        'section_id' => $section->section_id,
+        'semester' => '1st Semester',
+        'status' => 'active',
+    ]);
+    $instructorUser = User::factory()->create(['role' => 'instructor']);
+    Instructor::create([
+        'user_id' => $instructorUser->user_id,
+        'strand_id' => $strand->strand_id,
+        'instructor_number' => 'INS-FAIL-101',
+        'status' => 'active',
+    ]);
+    SubjectOffering::updating(fn () => throw new \RuntimeException('Simulated offering save failure'));
+
+    $this->actingAs($admin)->patch(route('admin.subjects.offerings.instructor.assign', $offering), [
+        'user_id' => $instructorUser->user_id,
+    ])->assertRedirect()->assertSessionHasErrors('offering');
+
+    $this->assertDatabaseHas('subject_offerings', [
+        'subject_offering_id' => $offering->subject_offering_id,
+        'instructor_id' => null,
+    ]);
+    $this->assertDatabaseHas('activity_logs', [
+        'route_name' => 'admin.subjects.offerings.instructor.assign',
+        'outcome' => 'failure',
+        'severity' => 'warning',
+    ]);
+    SubjectOffering::flushEventListeners();
 });
 
 test('instructor controller creates linked user then updates index and deletes through the user', function () {
@@ -307,7 +759,7 @@ test('instructor controller creates linked user then updates index and deletes t
     $this->actingAs($admin)->get(route('admin.instructors.index', ['search' => 'INS-CTRL-001']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Instructors')
+            ->component('Admin/Instructors/InstructorsPage')
             ->where('instructors.0.instructor_id', $instructor->instructor_id));
 
     $this->actingAs($admin)->put(route('admin.instructors.update', $instructor->instructor_id), [
@@ -490,7 +942,8 @@ test('schedule controller creates from offering then updates indexes and deletes
     $this->actingAs($admin)->delete(route('admin.schedules.destroy', $quarterHourSchedule->scheduled_id))
         ->assertRedirect()
         ->assertSessionHas('success');
-    $this->assertDatabaseCount('schedules', 0);
+    $this->assertSoftDeleted('schedules', ['scheduled_id' => $quarterHourSchedule->scheduled_id]);
+    expect(Schedule::query()->count())->toBe(0);
 
     $this->actingAs($admin)->post(route('admin.schedules.store'), [
         'subject_offering_id' => $offering->subject_offering_id,
@@ -517,7 +970,7 @@ test('schedule controller creates from offering then updates indexes and deletes
         'time_end' => '13:00',
         'room' => 'A101',
     ])->assertRedirect()->assertSessionHasErrors('weekdays');
-    $this->assertDatabaseCount('schedules', 1);
+    expect(Schedule::query()->count())->toBe(1);
 
     $conflictResponse = $this->actingAs($admin)->post(route('admin.schedules.store'), [
         'subject_offering_id' => $offering->subject_offering_id,
@@ -537,7 +990,7 @@ test('schedule controller creates from offering then updates indexes and deletes
         ->toContain("Instructor \"{$instructorUser->name}\" is already assigned to the overlapping class")
         ->toContain('Laboratory "Schedule Lab" is already in use')
         ->toContain('Room "A101" is already in use');
-    $this->assertDatabaseCount('schedules', 1);
+    expect(Schedule::query()->count())->toBe(1);
 
     $this->actingAs($admin)->post(route('admin.schedules.store'), [
         'subject_offering_id' => $offering->subject_offering_id,
@@ -559,19 +1012,16 @@ test('schedule controller creates from offering then updates indexes and deletes
         ->assertRedirect()
         ->assertSessionHas('success');
 
-    $sundaySchedule = Schedule::query()->create([
-        'academic_year_id' => $section->academic_year_id,
+    $this->actingAs($admin)->post(route('admin.schedules.store'), [
         'subject_offering_id' => $offering->subject_offering_id,
         'laboratory_id' => $laboratory->laboratory_id,
-        'instructor_id' => $instructor->instructor_id,
-        'section_id' => $section->section_id,
-        'subject_code' => $subject->subject_code,
-        'semester' => '1st Semester',
-        'weekdays' => 'Sun',
-        'time_start' => '08:00:00',
-        'time_end' => '12:00:00',
+        'weekdays' => 'Sunday',
+        'time_start' => '08:00',
+        'time_end' => '12:00',
         'room' => 'A101',
-    ]);
+    ])->assertRedirect()->assertSessionHas('success');
+
+    $sundaySchedule = Schedule::query()->where('weekdays', 'Sun')->firstOrFail();
 
     $this->actingAs($admin)->put(route('admin.schedules.update', $sundaySchedule->scheduled_id), [
         'subject_offering_id' => $offering->subject_offering_id,
@@ -592,14 +1042,23 @@ test('schedule controller creates from offering then updates indexes and deletes
         'time_end' => '12:00:00',
     ]);
 
+    $this->actingAs($admin)->get(route('admin.schedules.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('schedules', fn ($schedules) => collect($schedules)->contains(
+                fn ($item) => $item['scheduled_id'] === $sundaySchedule->scheduled_id
+                    && $item['weekdays'] === 'Sun'
+            )));
+
     $this->actingAs($admin)->delete(route('admin.schedules.destroy', $sundaySchedule->scheduled_id))
         ->assertRedirect()
         ->assertSessionHas('success');
+    $this->assertSoftDeleted('schedules', ['scheduled_id' => $sundaySchedule->scheduled_id]);
 
     $this->actingAs($admin)->get(route('admin.schedules.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Schedules')
+            ->component('Shared/Schedules/SchedulesPage')
             ->where('schedules.0.scheduled_id', $schedule->scheduled_id));
 
     $this->actingAs($admin)->put(route('admin.schedules.update', $schedule->scheduled_id), [
@@ -657,15 +1116,9 @@ test('schedule controller creates from offering then updates indexes and deletes
 
     $this->actingAs($admin)->delete(route('admin.schedules.destroy', $schedule->scheduled_id))
         ->assertRedirect()
-        ->assertSessionHasErrors('schedule');
-    $this->assertDatabaseHas('schedules', ['scheduled_id' => $schedule->scheduled_id]);
-
-    DB::table('online_classes')->where('schedule_id', $schedule->scheduled_id)->delete();
-
-    $this->actingAs($admin)->delete(route('admin.schedules.destroy', $schedule->scheduled_id))
-        ->assertRedirect()
         ->assertSessionHas('success');
-    $this->assertDatabaseMissing('schedules', ['scheduled_id' => $schedule->scheduled_id]);
+    $this->assertSoftDeleted('schedules', ['scheduled_id' => $schedule->scheduled_id]);
+    $this->assertDatabaseHas('online_classes', ['schedule_id' => $schedule->scheduled_id]);
 });
 
 test('schedule update and delete guard is limited to the running time and matching room', function () {
@@ -754,10 +1207,12 @@ test('schedule update and delete guard is limited to the running time and matchi
     Carbon::setTestNow('2026-09-21 10:00:00');
 
     $this->actingAs($admin)
+        ->withSession([\App\Http\Middleware\EnforceIdleTimeout::LAST_ACTIVITY_AT => now()->timestamp])
         ->delete(route('admin.schedules.destroy', $schedule->scheduled_id))
         ->assertRedirect()
+        ->assertSessionHasNoErrors()
         ->assertSessionHas('success');
-    $this->assertDatabaseMissing('schedules', ['scheduled_id' => $schedule->scheduled_id]);
+    $this->assertSoftDeleted('schedules', ['scheduled_id' => $schedule->scheduled_id]);
 
     Carbon::setTestNow();
 });
@@ -796,7 +1251,7 @@ test('student controller creates enrollment account parent link reset update and
     $this->actingAs($admin)->get(route('admin.students.index', ['search' => 'STU-CTRL-001']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Students')
+            ->component('Shared/Students/StudentsPage')
             ->where('students.0.student_id', $student->student_id));
 
     $this->actingAs($admin)->post(route('admin.students.parents.store', $student->student_id), [
@@ -873,7 +1328,7 @@ test('student controller creates enrollment account parent link reset update and
     $this->actingAs($admin)->get(route('admin.students.index', ['academic_year' => 'all']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Students')
+            ->component('Shared/Students/StudentsPage')
             ->missing('students.0'));
 
     $this->actingAs($admin)->put(route('admin.students.update', $student->student_id), [
@@ -1069,7 +1524,7 @@ test('laboratory and active device controllers create update index pin and delet
     $this->actingAs($admin)->get(route('admin.active-devices.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/ActiveDevices')
+            ->component('Admin/ActiveDevices/ActiveDevicesPage')
             ->where('devices', fn ($devices) => collect($devices)->contains(
                 fn (array $row) => (int) $row['panel_device_id'] === (int) $device->panel_device_id
                     && $row['device_label'] === 'ENTITY-LAB-PANEL',
@@ -1178,8 +1633,8 @@ test('admin user controller creates managed user then updates indexes and delete
     $this->actingAs($root)->post(route('admin.users.store'), [
         'name' => 'Managed Registrar',
         'email' => 'managed.registrar@example.test',
-        'password' => 'password123',
-        'password_confirmation' => 'password123',
+        'password' => 'StrongPass123!',
+        'password_confirmation' => 'StrongPass123!',
         'role' => 'registrar',
         'phone' => '09170000007',
         'is_root_admin' => false,
@@ -1189,7 +1644,7 @@ test('admin user controller creates managed user then updates indexes and delete
     $this->actingAs($root)->get(route('admin.users.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/UserManagement')
+            ->component('Admin/UserManagement/UserManagementPage')
             ->where('users.1.id', $registrar->user_id));
 
     $this->actingAs($root)->put(route('admin.users.update', $registrar->user_id), [
@@ -1255,7 +1710,7 @@ test('emergency type and hotline controllers create update index and soft delete
     $this->actingAs($clinic)->get(route('clinic.emergency-hotlines.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Clinic/EmergencyHotlines')
+            ->component('Clinic/EmergencyHotlines/EmergencyHotlinesPage')
             ->where('hotlines.0.emergency_hotline_id', $hotline->emergency_hotline_id));
 
     $this->actingAs($clinic)->put(route('clinic.emergency-hotlines.update', $hotline->emergency_hotline_id), [
@@ -1308,7 +1763,7 @@ test('clinic case and patient history controllers create update index convert an
     $this->actingAs($clinic)->get(route('clinic.case-logs'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Clinic/CaseLogs')
+            ->component('Clinic/CaseLogs/CaseLogsPage')
             ->where('cases.0.id', $case->clinic_case_id));
 
     $this->actingAs($clinic)->put(route('clinic.case-logs.update', $case->clinic_case_id), [
@@ -1347,7 +1802,7 @@ test('clinic case and patient history controllers create update index convert an
     $this->actingAs($clinic)->get(route('clinic.patient-history'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Clinic/PatientHistory')
+            ->component('Clinic/PatientHistory/PatientHistoryPage')
             ->where('histories.0.id', $manualHistory->patient_history_id));
 
     $this->actingAs($clinic)->put(route('clinic.patient-history.update', $manualHistory->patient_history_id), [

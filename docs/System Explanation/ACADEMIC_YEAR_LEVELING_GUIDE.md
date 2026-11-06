@@ -92,9 +92,9 @@ Semester-only rollover is unavailable when the selected academic year is already
 
 Only enrollments from the source current semester are processed. Dropped, transferred, or inactive enrollments do not create a destination enrollment.
 
-| Rollover type     | Destination semester                 | Student level                              | Grade 12                                                |
-| ----------------- | ------------------------------------ | ------------------------------------------ | ------------------------------------------------------- |
-| Semester-only     | 2nd Semester                         | Remains in the same grade                  | Remains enrolled for 2nd Semester                       |
+| Rollover type     | Destination semester                  | Student level                              | Grade 12                                                |
+| ----------------- | ------------------------------------- | ------------------------------------------ | ------------------------------------------------------- |
+| Semester-only     | 2nd Semester                          | Remains in the same grade                  | Remains enrolled for 2nd Semester                       |
 | Academic rollover | Same semester in the destination year | Grade 11 becomes Grade 12, unless retained | Graduated by default; may be retained or sent to review |
 
 ## How the Admin Uses Rollover
@@ -201,6 +201,7 @@ After rollover, administrators should complete the teaching setup for the destin
 - The Subjects page can filter sections by academic year and grade level before selecting a section.
 - Subject offerings inherit their academic year and semester from the selected section.
 - Rollover-created Subject Offerings have no Instructor assignment until an administrator assigns one.
+- For an unassigned offering in a draft or active academic year, use **Assign Instructor** on the Subjects page. Move or remove a linked Schedule first; closed and archived offerings remain locked to preserve history.
 - Removing an instructor removes only the instructor assignment; the subject offering and section assignment remain.
 - New Schedules should use the reviewed rollover Subject Offerings from the intended academic year and semester.
 - Historical schedules remain viewable through filters but should not be reused as current schedules.

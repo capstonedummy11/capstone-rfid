@@ -1,0 +1,932 @@
+<?php
+// File purpose: Messenger at Instructor excuse-letter review para sa signed-in actors.
+
+namespace App\Http\Controllers\Shared\Messages;
+
+use App\Models\ActivityLog;
+use App\Models\Instructor;
+use App\Models\Message;
+use App\Models\StudentPortalMessage;
+use App\Models\SystemSetting;
+use App\Models\Students;
+use App\Models\User;
+use App\Services\MessengerEmailNotificationService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
+
+// Used by roles: Admin, Instructor, Clinic, Registrar, Student, and Parent; legacy create/store endpoints are also public.
+class MessageController
+{
+    // @function __construct: Tinatanggap ang dependencies ng Message sa pagbuo ng object.
+    // @useIn __construct: Laravel dependency injection kapag ginagamit ang MessageController
+    public function __construct(
+        private readonly MessengerEmailNotificationService $emailNotifications,
+    ) {}
+
+    // @function create: Ibinabalik ang Messages/Create page at data para sa request.
+    // @useIn create: routes/web.php:122 (messages.create)
+    public function create()
+    {
+        return Inertia::render('Shared/Messages/Create/CreatePage', [
+            'title' => 'Message Instructor',
+            'instructors' => $this->instructorOptions(),
+        ]);
+    }
+
+    // @function store: Pinoproseso ang bagong Message record.
+    // @useIn store: routes/web.php:123 (messages.store)
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'instructor_user_id' => ['required', 'integer', 'exists:users,user_id'],
+            'sender_type' => ['required', 'in:student,parent'],
+            'sender_name' => ['required', 'string', 'max:255'],
+            'sender_email' => ['nullable', 'email', 'max:255'],
+            'student_number' => ['nullable', 'string', 'max:255'],
+            'subject' => ['nullable', 'string', 'max:255'],
+            'body' => ['required', 'string', 'max:5000'],
+            'attachment' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:5120'],
+        ]);
+
+        $instructorExists = User::query()
+            ->where('user_id', $validated['instructor_user_id'])
+            ->whereRaw('LOWER(role) = ?', ['instructor'])
+            ->exists();
+
+        abort_unless($instructorExists, 422, 'Selected instructor is not available.');
+
+        $attachment = $request->file('attachment');
+        if ($attachment) {
+            $validated['attachment_path'] = $attachment->store('message-attachments', 'public');
+            $validated['attachment_name'] = $attachment->getClientOriginalName();
+            $validated['attachment_mime'] = $attachment->getClientMimeType();
+            $validated['attachment_size'] = $attachment->getSize();
+        }
+
+        unset($validated['attachment']);
+
+        $validated['subject'] = filled($validated['subject'] ?? null)
+            ? $validated['subject']
+            : 'Instructor conversation';
+
+        $message = Message::query()->create($validated);
+
+        $this->logActivity('create', 'messages', 'Created instructor inbox message '.$message->message_id.' from '.$validated['sender_type'].' '.$validated['sender_name']);
+
+        return back()->with('success', 'Message sent to the instructor.');
+    }
+
+    // @function index: Ibinabalik ang Messages/Index page at data para sa request.
+    // @useIn index: routes/web.php:126 (messages.index)
+    /**
+    * WHAT IT DOES: Binubuksan ang private messages at mga pinadalang attachment.
+    * WHO USES IT: Admin, Instructor, Clinic, Registrar, Student, at Parent.
+    * WHAT HAPPENS: Maaaring magpadala, tumanggap, magbasa, at mag-download ng pinahintulutang files.
+    */
+    public function index(Request $request)
+    {
+        $user = $request->user();
+        $role = strtolower(trim((string) $user?->role));
+        $student = $this->currentStudentContext($request);
+
+        $inboxMessages = Message::query()
+            ->with('instructor:user_id,name,email')
+            ->where('instructor_user_id', $user->user_id)
+            ->latest('created_at')
+            ->get();
+
+        $studentIds = Students::query()
+            ->whereIn('student_number', $inboxMessages->pluck('student_number')->filter()->unique())
+            ->pluck('student_id', 'student_number');
+        $participantIds = User::query()
+            ->whereIn('email', $inboxMessages->pluck('sender_email')->filter()->unique())
+            ->pluck('user_id', 'email');
+        $portalThreadMessages = StudentPortalMessage::query()
+            ->with(['sender:user_id,name,email', 'recipient:user_id,name,email'])
+            ->where('instructor_user_id', $user->user_id)
+            ->whereIn('student_id', $studentIds->values())
+            ->oldest('created_at')
+            ->get();
+
+        $conversations = $inboxMessages
+            ->groupBy(fn (Message $message) => strtolower((string) $message->sender_email).'|'.(string) $message->student_number)
+            ->map(function ($messages, string $key) use ($participantIds, $portalThreadMessages, $studentIds, $user) {
+                /** @var Message $latestInbox */
+                $latestInbox = $messages->first();
+                $participantId = $participantIds->get($latestInbox->sender_email);
+                $studentId = $studentIds->get($latestInbox->student_number);
+
+                $thread = $portalThreadMessages
+                    ->filter(function (StudentPortalMessage $portalMessage) use ($participantId, $studentId, $user) {
+                        if (! $participantId || (int) $portalMessage->student_id !== (int) $studentId) {
+                            return false;
+                        }
+
+                        return in_array((int) $participantId, [
+                            (int) $portalMessage->sender_user_id,
+                            (int) $portalMessage->recipient_user_id,
+                        ], true) && in_array((int) $user->user_id, [
+                            (int) $portalMessage->sender_user_id,
+                            (int) $portalMessage->recipient_user_id,
+                        ], true);
+                    })
+                    ->map(fn (StudentPortalMessage $portalMessage) => $this->portalThreadMessage($portalMessage, (int) $user->user_id));
+
+                $messages->each(function (Message $inboxMessage) use (&$thread) {
+                    $isMirrored = $thread->contains(function (array $threadMessage) use ($inboxMessage) {
+                        if ($threadMessage['direction'] !== 'incoming' || $threadMessage['body'] !== $inboxMessage->body) {
+                            return false;
+                        }
+
+                        return abs(strtotime((string) $threadMessage['created_at']) - $inboxMessage->created_at->timestamp) <= 5;
+                    });
+
+                    if (! $isMirrored) {
+                        $thread->push($this->inboxThreadMessage($inboxMessage));
+                    }
+                });
+                $thread = $thread->sort(function (array $left, array $right) {
+                    $timeComparison = strcmp((string) $left['created_at'], (string) $right['created_at']);
+
+                    if ($timeComparison !== 0) {
+                        return $timeComparison;
+                    }
+
+                    return ($left['direction'] === 'incoming' ? 0 : 1) <=> ($right['direction'] === 'incoming' ? 0 : 1);
+                })->values();
+
+                $latestThreadMessage = $thread->last();
+
+                return [
+                    'key' => sha1($key),
+                    'reply_message_id' => $latestInbox->message_id,
+                    'participant' => [
+                        'user_id' => $participantId,
+                        'name' => $latestInbox->sender_name,
+                        'email' => $latestInbox->sender_email,
+                        'role' => $latestInbox->sender_type,
+                        'student_number' => $latestInbox->student_number,
+                    ],
+                    'messages' => $thread->values(),
+                    'preview' => str($latestThreadMessage['body'] ?? '')->squish()->limit(82)->toString(),
+                    'latest_at' => $latestThreadMessage['created_at'] ?? null,
+                    'latest_label' => $latestThreadMessage['created_label'] ?? null,
+                    'unread' => $messages->contains(fn (Message $message) => ! $message->read_at),
+                ];
+            })
+            ->sortByDesc('latest_at')
+            ->values();
+
+        $messages = StudentPortalMessage::query()
+            ->with([
+                'sender:user_id,name,email,role',
+                'recipient:user_id,name,email,role',
+                'student.parentUsers:user_id,name,email,role',
+                'excuseLetter',
+                'excuseLetterReviewedBy:user_id,name,last_name',
+            ])
+            ->where(function ($query) use ($user) {
+                $query
+                    ->where('sender_user_id', $user->user_id)
+                    ->orWhere('recipient_user_id', $user->user_id);
+            })
+            ->when(
+                $role === 'student'
+                    && ! SystemSetting::boolean(SystemSetting::MESSENGER_STUDENT_EXCUSE_LETTER_UPDATES_ENABLED, false),
+                fn ($query) => $query->whereNull('student_excuse_letter_id'),
+            )
+            ->latest('created_at')
+            ->get()
+            ->map(fn (StudentPortalMessage $message) => [
+                'id' => $message->student_portal_message_id,
+                'student_id' => $message->student_id,
+                'student_name' => $message->student ? trim($message->student->first_name.' '.$message->student->last_name) : null,
+                'parents' => $message->student?->parentUsers
+                    ?->filter(fn (User $parent) => filter_var($parent->email, FILTER_VALIDATE_EMAIL))
+                    ->map(fn (User $parent) => [
+                        'user_id' => $parent->user_id,
+                        'name' => $parent->name,
+                        'email' => $parent->email,
+                    ])
+                    ->values()
+                    ->all() ?? [],
+                'sender_user_id' => $message->sender_user_id,
+                'recipient_user_id' => $message->recipient_user_id,
+                'sender' => $message->sender?->name,
+                'sender_email' => $message->sender?->email,
+                'sender_role' => $message->sender_role,
+                'recipient' => $message->recipient?->name,
+                'recipient_email' => $message->recipient?->email,
+                'recipient_role' => $message->recipient?->role,
+                'subject' => $message->subject ?: 'Conversation',
+                'body' => $message->body,
+                'preview' => str($message->body ?: $message->attachment_name ?: 'Attachment')->squish()->limit(82)->toString(),
+                'attachment_name' => $message->attachment_name,
+                'attachment_url' => $message->attachment_path ? route('messages.attachments.show', $message) : null,
+                'attachment_preview_url' => $message->attachment_path && $this->isImageAttachment($message)
+                    ? route('messages.attachments.show', ['message' => $message, 'preview' => 1])
+                    : null,
+                'attachment_mime' => $message->attachment_mime,
+                'attachment_size' => $message->attachment_size,
+                'is_image' => $this->isImageAttachment($message),
+                'is_pdf' => strtolower((string) $message->attachment_mime) === 'application/pdf'
+                    || str_ends_with(strtolower((string) $message->attachment_name), '.pdf'),
+                'excuse_letter_id' => $message->student_excuse_letter_id,
+                'excuse_letter_status' => $message->excuse_letter_review_decision
+                    ? 'instructor_'.$message->excuse_letter_review_decision
+                    : $message->excuseLetter?->status,
+                'can_review_excuse_letter' => $role === 'instructor'
+                    && (int) $message->recipient_user_id === (int) $user->user_id
+                    && (string) $message->excuseLetter?->status === 'pending_instructor_approval'
+                    && ! $message->excuse_letter_reviewed_at
+                    && $this->excuseLetterWithinAttendanceWindow($message->excuseLetter),
+                'excuse_letter_review' => $message->excuseLetter ? [
+                    'reviewed_by' => $message->excuseLetterReviewedBy
+                        ? trim($message->excuseLetterReviewedBy->name.' '.($message->excuseLetterReviewedBy->last_name ?? ''))
+                        : null,
+                    'reviewed_at' => $message->excuse_letter_reviewed_at?->toDateTimeString(),
+                    'student' => [
+                        'available' => filter_var($message->student?->email, FILTER_VALIDATE_EMAIL) !== false,
+                        'name' => $message->student ? trim($message->student->first_name.' '.$message->student->last_name) : 'Student',
+                        'email' => $message->student?->email,
+                    ],
+                    'parents' => $message->student?->parentUsers
+                        ?->filter(fn (User $parent) => filter_var($parent->email, FILTER_VALIDATE_EMAIL))
+                        ->map(fn (User $parent) => [
+                            'name' => trim($parent->name.' '.($parent->last_name ?? '')),
+                            'email' => $parent->email,
+                        ])
+                        ->values()
+                        ->all() ?? [],
+                ] : null,
+                'read_at' => $message->read_at?->toDateTimeString(),
+                'created_at' => $message->created_at?->toDateTimeString(),
+                'created_label' => $message->created_at?->diffForHumans(),
+            ])
+            ->values();
+
+        return Inertia::render('Shared/Messages/Index/IndexPage', [
+            'title' => 'Messages',
+            'messages' => $messages,
+            'conversations' => $conversations,
+            'recipients' => $this->recipientOptions($user),
+            'currentUserRole' => $role,
+            'linkedStudents' => $role === 'parent' ? $this->linkedStudentsPayload($request) : [],
+            'selectedStudentId' => $student?->student_id,
+        ]);
+    }
+
+    // @function forwardExcuseLetterToParent: Kinukuha ang forward excuse letter to parent result para sa Message.
+    // @useIn forwardExcuseLetterToParent: routes/web.php:131 (messages.forward-to-parent)
+    public function forwardExcuseLetterToParent(Request $request, StudentPortalMessage $message)
+    {
+        $user = $request->user();
+        abort_unless(in_array(strtolower((string) $user?->role), ['admin', 'instructor'], true), 403);
+
+        $message->loadMissing(['student.parentUsers']);
+        abort_unless($message->student && $message->attachment_path, 422, 'This message has no student PDF attachment.');
+        abort_unless(Storage::disk('public')->exists($message->attachment_path), 404);
+        abort_unless(
+            strtolower((string) $message->attachment_mime) === 'application/pdf'
+                || str_ends_with(strtolower((string) $message->attachment_name), '.pdf'),
+            422,
+            'Only PDF excuse letters can be forwarded by email.',
+        );
+
+        $validated = $request->validate([
+            'parent_user_id' => ['required', 'integer', 'exists:users,user_id'],
+            'body' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $parent = $message->student->parentUsers
+            ->first(fn (User $candidate) => (int) $candidate->user_id === (int) $validated['parent_user_id']);
+        abort_unless($parent && filter_var($parent->email, FILTER_VALIDATE_EMAIL), 422, 'That parent is not linked to this student.');
+
+        $studentName = trim($message->student->first_name.' '.$message->student->last_name);
+        $date = $message->created_at?->format('F j, Y') ?: now()->format('F j, Y');
+        $subject = 'Excuse Letter - '.$studentName.' - '.$date;
+        $body = trim($validated['body']);
+        $html = '<p>Dear Parent,</p><p>'.nl2br(e($body)).'</p>'
+            .'<p><strong>Student: '.$this->escapeMailText($studentName).'</strong><br>'
+            .'<strong>Date: '.$this->escapeMailText($date).'</strong></p>';
+
+        Mail::html($html, function ($mail) use ($parent, $subject, $message) {
+            $mail->to($parent->email)
+                ->subject($subject)
+                ->attach(Storage::disk('public')->path($message->attachment_path), [
+                    'as' => $message->attachment_name ?: 'excuse-letter.pdf',
+                    'mime' => 'application/pdf',
+                ]);
+        });
+
+        $this->logActivity('create', 'student_portal_messages', 'Forwarded excuse letter '.$message->student_portal_message_id.' for '.$studentName.' to parent '.$parent->email);
+
+        return back()->with('success', 'Excuse letter emailed to '.$parent->name.'.');
+    }
+
+    // @function reviewExcuseLetter: Kinukuha ang review excuse letter result para sa Message.
+    // @useIn reviewExcuseLetter: routes/web.php:133 (messages.excuse-letters.review)
+    /**
+    * WHAT IT DOES: Tinatanggap o tinatanggihan ang excuse letter na ipinadala sa Instructor.
+    * WHO USES IT: Instructor.
+    * WHAT HAPPENS: Nase-save ang desisyon at ipinapadala ang resulta sa Student.
+    */
+    public function reviewExcuseLetter(Request $request, StudentPortalMessage $message)
+    {
+        $instructor = $request->user();
+        abort_unless(strtolower((string) $instructor?->role) === 'instructor', 403);
+
+        abort_unless(
+            $message->student_excuse_letter_id
+                && (int) $message->recipient_user_id === (int) $instructor->user_id,
+            403,
+            'This excuse letter was not assigned to this instructor.',
+        );
+        $message->loadMissing(['excuseLetter', 'student.parentUsers']);
+        $letter = $message->excuseLetter;
+        abort_unless($letter, 404);
+
+        if ((string) $letter->status !== 'pending_instructor_approval' || $message->excuse_letter_reviewed_at) {
+            throw ValidationException::withMessages([
+                'decision' => 'This excuse letter has already been reviewed or is not ready for instructor review.',
+            ]);
+        }
+
+        if (! $this->excuseLetterWithinAttendanceWindow($letter)) {
+            throw ValidationException::withMessages([
+                'decision' => 'This excuse letter is outside the configured attendance review window.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'decision' => ['required', Rule::in(['approved', 'denied'])],
+            'recipients' => ['required', 'array', 'min:1'],
+            'recipients.*' => ['required', 'string', 'distinct', Rule::in(['student'])],
+            'email_subject' => ['required', 'string', 'max:255'],
+            'email_body' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $student = $message->student;
+        abort_unless($student, 422, 'The student for this excuse letter is unavailable.');
+
+        $emailRecipients = collect();
+        if (in_array('student', $validated['recipients'], true)) {
+            if (! filter_var($student->email, FILTER_VALIDATE_EMAIL)) {
+                throw ValidationException::withMessages([
+                    'recipients' => 'The student does not have a valid email address.',
+                ]);
+            }
+            $emailRecipients->push([
+                'role' => 'student',
+                'name' => trim($student->first_name.' '.$student->last_name),
+                'email' => $student->email,
+            ]);
+        }
+
+        $emailRecipients = $emailRecipients->unique('email')->values();
+        $attachmentPath = $message->attachment_path;
+        $hasAttachment = $attachmentPath && Storage::disk('public')->exists($attachmentPath);
+
+        foreach ($emailRecipients as $recipient) {
+            Mail::raw($validated['email_body'], function ($mail) use ($recipient, $validated, $message, $attachmentPath, $hasAttachment) {
+                $mail->to($recipient['email'])->subject($validated['email_subject']);
+                if ($hasAttachment) {
+                    $mail->attach(Storage::disk('public')->path($attachmentPath), [
+                        'as' => $message->attachment_name ?: 'excuse-letter.pdf',
+                        'mime' => 'application/pdf',
+                    ]);
+                }
+            });
+        }
+
+        $message->update([
+            'excuse_letter_review_decision' => $validated['decision'],
+            'excuse_letter_reviewed_by_user_id' => $instructor->user_id,
+            'excuse_letter_reviewed_at' => now(),
+            'excuse_letter_review_email_subject' => $validated['email_subject'],
+            'excuse_letter_review_email_body' => $validated['email_body'],
+            'excuse_letter_review_recipients' => $emailRecipients->all(),
+        ]);
+
+        $letter->update(['status' => $validated['decision'] === 'approved' ? 'approved' : 'denied']);
+
+        $studentUser = User::query()
+            ->where('email', $student->email)
+            ->whereRaw('LOWER(role) = ?', ['student'])
+            ->first();
+        $decisionLabel = $validated['decision'] === 'approved' ? 'approved' : 'denied';
+        $notificationSubject = ucfirst($decisionLabel).' Excuse Letter: '.$letter->subject;
+        $notificationBody = 'Your excuse letter for '.$letter->subject.' covering '
+            .$letter->from_date?->format('F j, Y').' to '.$letter->to_date?->format('F j, Y')
+            .' was '.$decisionLabel.' by Instructor '.$instructor->name.'.';
+
+        foreach (collect([$studentUser])->filter() as $recipient) {
+            StudentPortalMessage::query()->create([
+                'student_id' => $student->student_id,
+                'student_excuse_letter_id' => $letter->student_excuse_letter_id,
+                'sender_user_id' => $instructor->user_id,
+                'recipient_user_id' => $recipient->user_id,
+                'sender_role' => 'instructor',
+                'instructor_user_id' => $instructor->user_id,
+                'subject' => $notificationSubject,
+                'body' => $notificationBody,
+            ]);
+        }
+
+        $this->logActivity(
+            'update',
+            'student_excuse_letters',
+            'Instructor '.$decisionLabel.' excuse letter '.$letter->student_excuse_letter_id.' and emailed '.$emailRecipients->count().' recipient(s).',
+        );
+
+        return back()->with('success', 'Excuse letter '.$decisionLabel.' and emailed to the student.');
+    }
+
+    private function excuseLetterWithinAttendanceWindow(?\App\Models\StudentExcuseLetter $letter): bool
+    {
+        if (! $letter?->from_date || ! $letter?->to_date) return false;
+
+        $days = max(1, min(365, SystemSetting::integer(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 15)));
+        $cutoff = now()->subDays($days - 1)->toDateString();
+        return $letter->to_date->toDateString() >= $cutoff;
+    }
+
+    // @function sendConversationMessage: Ipinapadala ang conversation message sa Message flow.
+    // @useIn sendConversationMessage: routes/web.php:130 (messages.conversation.store)
+    public function sendConversationMessage(Request $request)
+    {
+        $user = $request->user();
+        $role = strtolower(trim((string) $user?->role));
+        $student = $this->currentStudentContext($request);
+
+        $validated = $request->validate([
+            'recipient_user_id' => ['required', 'integer', 'exists:users,user_id', Rule::notIn([$user->user_id])],
+            'body' => ['nullable', 'required_without:attachment', 'string', 'max:5000'],
+            'subject' => ['nullable', 'string', 'max:255'],
+            'student_id' => ['nullable', 'integer', 'exists:students,student_id'],
+            'attachment' => ['nullable', 'file', 'max:10240', 'mimes:pdf,doc,docx,jpg,jpeg,png,webp,gif,txt'],
+        ]);
+
+        $recipient = User::query()->findOrFail($validated['recipient_user_id']);
+        abort_unless(in_array(strtolower((string) $recipient->role), $this->messageRoles(), true), 422, 'Selected recipient is not available.');
+
+        $attachment = $request->file('attachment');
+        $attachmentPath = null;
+        $attachmentName = null;
+        $attachmentMime = null;
+        $attachmentSize = null;
+
+        if ($attachment) {
+            $attachmentPath = $attachment->store('student-portal-messages', 'public');
+            $attachmentName = $attachment->getClientOriginalName();
+            $attachmentMime = $attachment->getClientMimeType();
+            $attachmentSize = $attachment->getSize();
+        }
+
+        $message = StudentPortalMessage::query()->create([
+            'student_id' => $student?->student_id,
+            'sender_user_id' => $user->user_id,
+            'recipient_user_id' => $recipient->user_id,
+            'sender_role' => $role,
+            'instructor_user_id' => strtolower((string) $recipient->role) === 'instructor' ? $recipient->user_id : null,
+            'subject' => filled($validated['subject'] ?? null) ? $validated['subject'] : 'Conversation',
+            'body' => $validated['body'] ?? '',
+            'attachment_path' => $attachmentPath,
+            'attachment_name' => $attachmentName,
+            'attachment_mime' => $attachmentMime,
+            'attachment_size' => $attachmentSize,
+        ]);
+
+        $this->logActivity('create', 'student_portal_messages', 'Sent messenger message '.$message->student_portal_message_id.' from '.$user->email.' to '.$recipient->email);
+        $this->emailNotifications->notify($user, $recipient, $message);
+
+        return back()->with('success', 'Message sent.');
+    }
+
+    // @function unreadStatus: Pinoproseso ang unread status at nagbabalik ng JSON response.
+    // @useIn unreadStatus: routes/web.php:128 (messages.unread-status)
+    public function unreadStatus(Request $request)
+    {
+        $recipientId = (int) $request->user()->user_id;
+        $recentMessages = StudentPortalMessage::query()
+            ->with('sender:user_id,name')
+            ->where('recipient_user_id', $recipientId)
+            ->latest('created_at')
+            ->limit(20)
+            ->get();
+        $latest = StudentPortalMessage::query()
+            ->with('sender:user_id,name')
+            ->where('recipient_user_id', $recipientId)
+            ->whereNull('read_at')
+            ->latest('created_at')
+            ->first();
+
+        return response()->json([
+            'unread_count' => StudentPortalMessage::query()
+                ->where('recipient_user_id', $recipientId)
+                ->whereNull('read_at')
+                ->count(),
+            'items' => $recentMessages->reverse()->values()->map(fn (StudentPortalMessage $message) => [
+                'id' => 'message-'.$message->student_portal_message_id,
+                'kind' => 'message',
+                'message_id' => $message->student_portal_message_id,
+                'conversation_user_id' => $message->sender_user_id,
+                'student_id' => $message->student_id,
+                'sender' => $message->sender?->name ?: 'Someone',
+                'title' => 'Message from '.($message->sender?->name ?: 'Someone'),
+                'text' => str($message->body ?: $message->attachment_name ?: 'Attachment')
+                    ->squish()
+                    ->limit(120)
+                    ->toString(),
+                'timestamp' => $message->created_at?->toDateTimeString(),
+                'read_at' => $message->read_at?->toDateTimeString(),
+            ])->values(),
+            'latest' => $latest ? [
+                'id' => $latest->student_portal_message_id,
+                'conversation_user_id' => $latest->sender_user_id,
+                'student_id' => $latest->student_id,
+                'sender' => $latest->sender?->name ?: 'Someone',
+                'preview' => str($latest->body ?: $latest->attachment_name ?: 'Attachment')
+                    ->squish()
+                    ->limit(80)
+                    ->toString(),
+                'created_at' => $latest->created_at?->toDateTimeString(),
+            ] : null,
+        ]);
+    }
+
+    // @function pollConversation: Returns only new messages in a conversation and unread counts.
+    // @useIn pollConversation: routes/shared.php (messages.poll)
+    public function pollConversation(Request $request)
+    {
+        $validated = $request->validate([
+            'conversation_user_id' => ['required', 'integer'],
+            'student_id' => ['nullable', 'integer'],
+            'after_id' => ['nullable', 'integer', 'min:0'],
+            'since' => ['nullable', 'date'],
+        ]);
+
+        $user = $request->user();
+        abort_if((int) $validated['conversation_user_id'] === (int) $user->user_id, 422);
+        $partner = User::query()->findOrFail($validated['conversation_user_id']);
+        abort_unless(in_array(strtolower((string) $partner->role), $this->messageRoles(), true), 403);
+
+        $role = strtolower((string) $user->role);
+        $student = in_array($role, ['student', 'parent'], true)
+            ? $this->currentStudentContext($request)
+            : null;
+        if ($request->filled('student_id')) {
+            abort_unless($student && (int) $student->student_id === (int) $request->input('student_id'), 403);
+        }
+        $studentId = $student?->student_id;
+
+        $conversationQuery = StudentPortalMessage::query()
+            ->where(function ($query) use ($user, $partner) {
+                $query
+                    ->where(function ($pair) use ($user, $partner) {
+                        $pair->where('sender_user_id', $user->user_id)
+                            ->where('recipient_user_id', $partner->user_id);
+                    })
+                    ->orWhere(function ($pair) use ($user, $partner) {
+                        $pair->where('sender_user_id', $partner->user_id)
+                            ->where('recipient_user_id', $user->user_id);
+                    });
+            })
+            ->when($studentId, fn ($query) => $query->where('student_id', $studentId));
+
+        $newMessagesQuery = (clone $conversationQuery)
+            ->with('sender:user_id,name')
+            ->select([
+                'student_portal_message_id',
+                'sender_user_id',
+                'recipient_user_id',
+                'body',
+                'body_ciphertext',
+                'attachment_name',
+                'read_at',
+                'created_at',
+            ]);
+
+        if (isset($validated['after_id'])) {
+            $newMessagesQuery->where('student_portal_message_id', '>', $validated['after_id']);
+        }
+        if (isset($validated['since'])) {
+            $newMessagesQuery->where('created_at', '>', $validated['since']);
+        }
+
+        $newMessages = isset($validated['after_id']) || isset($validated['since'])
+            ? $newMessagesQuery->orderBy('student_portal_message_id')->limit(100)->get()
+            : $newMessagesQuery->latest('student_portal_message_id')->limit(50)->get()->reverse()->values();
+
+        $unreadByConversation = StudentPortalMessage::query()
+            ->where('recipient_user_id', $user->user_id)
+            ->whereNull('read_at')
+            ->when($studentId, fn ($query) => $query->where('student_id', $studentId))
+            ->selectRaw('sender_user_id, COUNT(*) as unread_count')
+            ->groupBy('sender_user_id')
+            ->pluck('unread_count', 'sender_user_id');
+
+        return response()->json([
+            'messages' => $newMessages->map(fn (StudentPortalMessage $message) => [
+                'id' => $message->student_portal_message_id,
+                'sender' => $message->sender?->name ?: 'Someone',
+                'direction' => (int) $message->sender_user_id === (int) $user->user_id ? 'outgoing' : 'incoming',
+                'text' => $message->body ?: ($message->attachment_name ? 'Attachment' : ''),
+                'timestamp' => $message->created_at?->toDateTimeString(),
+                'read_at' => $message->read_at?->toDateTimeString(),
+            ])->values(),
+            'unread_count' => (int) $unreadByConversation->sum(),
+            'unread_by_conversation' => $unreadByConversation,
+        ]);
+    }
+
+    // @function markRead: Minamark ang read sa Message flow.
+    // @useIn markRead: routes/web.php:135 (messages.read)
+    public function markRead(Request $request, StudentPortalMessage $message)
+    {
+        $user = $request->user();
+
+        abort_unless((int) $message->recipient_user_id === (int) $user->user_id, 403);
+
+        if (! $message->read_at) {
+            $message->update(['read_at' => now()]);
+            $this->logActivity('update', 'student_portal_messages', 'Marked messenger message '.$message->student_portal_message_id.' as read');
+        }
+
+        return back();
+    }
+
+    public function markAllRead(Request $request)
+    {
+        $updated = StudentPortalMessage::query()
+            ->where('recipient_user_id', $request->user()->user_id)
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
+
+        if ($updated > 0) {
+            $this->logActivity('update', 'student_portal_messages', 'Marked '.$updated.' Messenger notifications as read');
+        }
+
+        return back();
+    }
+
+    // @function downloadAttachment: Idinodownload ang attachment sa Message flow.
+    // @useIn downloadAttachment: routes/web.php:137 (messages.attachments.show)
+    public function downloadAttachment(Request $request, StudentPortalMessage $message)
+    {
+        $userId = (int) $request->user()?->user_id;
+
+        abort_unless(
+            $userId === (int) $message->sender_user_id || $userId === (int) $message->recipient_user_id,
+            403,
+        );
+        abort_unless($message->attachment_path && Storage::disk('public')->exists($message->attachment_path), 404);
+
+        if ($request->boolean('preview') && $this->isImageAttachment($message)) {
+            return response()->file(Storage::disk('public')->path($message->attachment_path), [
+                'Content-Type' => $message->attachment_mime ?: 'image/*',
+                'Content-Disposition' => 'inline; filename="'.addslashes($message->attachment_name ?: 'message-image').'"',
+            ]);
+        }
+
+        return Storage::disk('public')->download($message->attachment_path, $message->attachment_name ?: 'message-attachment');
+    }
+
+    // @function reply: Kinukuha ang reply result para sa Message.
+    // @useIn reply: routes/web.php:276 (messages.reply)
+    public function reply(Request $request, Message $message)
+    {
+        $user = $request->user();
+        $role = strtolower(trim((string) $user?->role));
+
+        abort_unless((int) $message->instructor_user_id === (int) $user->user_id, 403);
+
+        $validated = $request->validate([
+            'body' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $student = Students::query()
+            ->where('student_number', $message->student_number)
+            ->first();
+
+        abort_unless($student, 422, 'The original message is not linked to a student record.');
+
+        $recipientUserId = User::query()
+            ->where('email', $message->sender_email)
+            ->value('user_id');
+
+        $reply = StudentPortalMessage::query()->create([
+            'student_id' => $student->student_id,
+            'sender_user_id' => $user->user_id,
+            'recipient_user_id' => $recipientUserId,
+            'sender_role' => 'instructor',
+            'instructor_user_id' => $message->instructor_user_id,
+            'subject' => 'Re: '.($message->subject ?: 'Instructor conversation'),
+            'body' => $validated['body'],
+        ]);
+
+        if (! $message->read_at) {
+            $message->update(['read_at' => now()]);
+        }
+
+        $this->logActivity('create', 'student_portal_messages', 'Replied to student portal message thread via inbox message '.$message->message_id.' with portal message '.$reply->student_portal_message_id);
+        $recipient = $recipientUserId ? User::query()->find($recipientUserId) : null;
+        if ($recipient) {
+            $this->emailNotifications->notify($user, $recipient, $reply);
+        }
+
+        return back()->with('success', 'Reply sent to the student portal.');
+    }
+
+    // @function logActivity: Nilolog ang activity sa Message flow.
+    // @useIn logActivity: MessageController::store (app/Http/Controllers/Shared/Messages/MessageController.php)
+    private function logActivity(string $action, string $tableName, string $description): void
+    {
+        ActivityLog::query()->create([
+            'user_id' => Auth::id(),
+            'action' => $action,
+            'table_name' => $tableName,
+            'description' => $description,
+        ]);
+    }
+
+    // @function escapeMailText: Binubuo ang escape mail text string para sa Message.
+    // @useIn escapeMailText: MessageController::forwardExcuseLetterToParent (app/Http/Controllers/Shared/Messages/MessageController.php)
+    private function escapeMailText(string $value): string
+    {
+        return e($value);
+    }
+
+    // @function inboxThreadMessage: Kinukuha ang inbox thread message result para sa Message.
+    // @useIn inboxThreadMessage: MessageController::index (app/Http/Controllers/Shared/Messages/MessageController.php)
+    private function inboxThreadMessage(Message $message): array
+    {
+        return [
+            'id' => 'inbox-'.$message->message_id,
+            'direction' => 'incoming',
+            'sender_name' => $message->sender_name,
+            'body' => $message->body,
+            'attachment_name' => $message->attachment_name,
+            'attachment_url' => $message->attachment_path ? Storage::disk('public')->url($message->attachment_path) : null,
+            'attachment_preview_url' => $message->attachment_path && $this->isInboxImageAttachment($message)
+                ? Storage::disk('public')->url($message->attachment_path)
+                : null,
+            'attachment_mime' => $message->attachment_mime,
+            'attachment_size' => $message->attachment_size,
+            'is_image' => $this->isInboxImageAttachment($message),
+            'created_at' => $message->created_at?->toDateTimeString(),
+            'created_label' => $message->created_at?->diffForHumans(),
+        ];
+    }
+
+    // @function portalThreadMessage: Kinukuha ang portal thread message result para sa Message.
+    // @useIn portalThreadMessage: MessageController::index (app/Http/Controllers/Shared/Messages/MessageController.php)
+    private function portalThreadMessage(StudentPortalMessage $message, int $currentUserId): array
+    {
+        $attachmentExtension = strtolower(pathinfo((string) $message->attachment_name, PATHINFO_EXTENSION));
+
+        return [
+            'id' => 'portal-'.$message->student_portal_message_id,
+            'direction' => (int) $message->sender_user_id === $currentUserId ? 'outgoing' : 'incoming',
+            'sender_name' => $message->sender?->name,
+            'body' => $message->body,
+            'attachment_name' => $message->attachment_name,
+            'attachment_url' => $message->attachment_path ? Storage::disk('public')->url($message->attachment_path) : null,
+            'attachment_preview_url' => $message->attachment_path && in_array($attachmentExtension, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true)
+                ? Storage::disk('public')->url($message->attachment_path)
+                : null,
+            'attachment_mime' => $message->attachment_mime,
+            'attachment_size' => $message->attachment_size,
+            'is_image' => in_array($attachmentExtension, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true),
+            'created_at' => $message->created_at?->toDateTimeString(),
+            'created_label' => $message->created_at?->diffForHumans(),
+        ];
+    }
+
+    // @function instructorOptions: Binubuo ang instructor options value.
+    // @useIn instructorOptions: MessageController::create (app/Http/Controllers/Shared/Messages/MessageController.php)
+    private function instructorOptions()
+    {
+        return Instructor::query()
+            ->with('user:user_id,name,email')
+            ->whereHas('user', fn ($query) => $query->whereRaw('LOWER(role) = ?', ['instructor']))
+            ->where(function ($query) {
+                $query->whereNull('status')->orWhere('status', 'active');
+            })
+            ->get()
+            ->filter(fn (Instructor $instructor) => $instructor->user)
+            ->map(fn (Instructor $instructor) => [
+                'value' => $instructor->user->user_id,
+                'label' => $instructor->user->name,
+                'email' => $instructor->user->email,
+            ])
+            ->sortBy('label')
+            ->values();
+    }
+
+    // @function recipientOptions: Binubuo ang recipient options value.
+    // @useIn recipientOptions: MessageController::index (app/Http/Controllers/Shared/Messages/MessageController.php)
+    private function recipientOptions(?User $currentUser)
+    {
+        return User::query()
+            ->where('user_id', '!=', $currentUser?->user_id)
+            ->where(function ($query) {
+                foreach ($this->messageRoles() as $role) {
+                    $query->orWhereRaw('LOWER(role) = ?', [$role]);
+                }
+            })
+            ->orderBy('name')
+            ->get(['user_id', 'name', 'email', 'role'])
+            ->map(fn (User $user) => [
+                'user_id' => $user->user_id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => strtolower((string) $user->role),
+            ])
+            ->values();
+    }
+
+    // @function messageRoles: Kinukuha ang message roles result para sa Message.
+    // @useIn messageRoles: MessageController::sendConversationMessage (app/Http/Controllers/Shared/Messages/MessageController.php)
+    private function messageRoles(): array
+    {
+        return ['admin', 'instructor', 'clinic', 'registrar', 'student', 'parent'];
+    }
+
+    // @function isImageAttachment: Sinusuri kung image attachment para sa Message.
+    // @useIn isImageAttachment: MessageController::index (app/Http/Controllers/Shared/Messages/MessageController.php)
+    private function isImageAttachment(StudentPortalMessage $message): bool
+    {
+        if ($message->attachment_mime && str_starts_with($message->attachment_mime, 'image/')) {
+            return true;
+        }
+
+        $extension = strtolower(pathinfo((string) $message->attachment_name, PATHINFO_EXTENSION));
+
+        return in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true);
+    }
+
+    // @function isInboxImageAttachment: Sinusuri kung inbox image attachment para sa Message.
+    // @useIn isInboxImageAttachment: MessageController::inboxThreadMessage (app/Http/Controllers/Shared/Messages/MessageController.php)
+    private function isInboxImageAttachment(Message $message): bool
+    {
+        if ($message->attachment_mime && str_starts_with($message->attachment_mime, 'image/')) {
+            return true;
+        }
+
+        $extension = strtolower(pathinfo((string) $message->attachment_name, PATHINFO_EXTENSION));
+
+        return in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true);
+    }
+
+    // @function currentStudentContext: Kinukuha ang current student context result para sa Message.
+    // @useIn currentStudentContext: MessageController::index (app/Http/Controllers/Shared/Messages/MessageController.php)
+    private function currentStudentContext(Request $request): ?Students
+    {
+        $role = strtolower((string) $request->user()?->role);
+
+        if ($role === 'parent') {
+            $query = $request->user()?->linkedStudents()->orderBy('students.student_id');
+
+            if ($request->filled('student_id')) {
+                $selected = (clone $query)->where('students.student_id', (int) $request->input('student_id'))->first();
+                if ($selected) {
+                    return $selected;
+                }
+            }
+
+            return $query?->first();
+        }
+
+        if ($role === 'student') {
+            return Students::query()->where('email', $request->user()?->email)->first();
+        }
+
+        return null;
+    }
+
+    // @function linkedStudentsPayload: Binubuo ang linked students payload value.
+    // @useIn linkedStudentsPayload: MessageController::index (app/Http/Controllers/Shared/Messages/MessageController.php)
+    private function linkedStudentsPayload(Request $request)
+    {
+        return $request->user()
+            ?->linkedStudents()
+            ->with(['section', 'strand'])
+            ->orderBy('students.student_id')
+            ->get()
+            ->map(fn (Students $student) => [
+                'student_id' => $student->student_id,
+                'student_number' => $student->student_number,
+                'name' => trim($student->first_name.' '.$student->last_name),
+                'section' => $student->section?->section_name,
+                'strand' => $student->strand?->strand_code,
+                'school_year' => $student->school_year,
+            ])
+            ->values() ?? [];
+    }
+}

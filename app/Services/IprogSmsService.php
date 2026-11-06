@@ -1,4 +1,5 @@
 <?php
+
 // FEATURE:emergency-alerts - konektadong model, service, route, o UI para sa feature na ito.
 
 namespace App\Services;
@@ -7,12 +8,15 @@ use App\Contracts\SmsProvider;
 use App\Models\EmergencyAlert;
 use App\Models\EmergencyHotline;
 use App\Models\Students;
+use App\Models\SystemSetting;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class IprogSmsService implements SmsProvider
 {
+    public function __construct(private readonly ?array $credentials = null) {}
+
     // @function send: Ipinapadala ang iprog sms sa Iprog Sms flow.
     // @useIn send: TODO(verify): walang direct caller na nakita sa static search
     public function send(string $recipient, string $message): array
@@ -24,7 +28,7 @@ class IprogSmsService implements SmsProvider
     // @useIn check: TODO(verify): walang direct caller na nakita sa static search
     public function check(): array
     {
-        $token = trim((string) config('services.iprog.token', ''));
+        $token = ($this->credentials ?? SystemSetting::smsCredentials('iprog'))['token'];
         if (! config('services.iprog.enabled', true)) {
             return ['success' => false, 'message' => 'IPROG SMS is disabled by environment configuration.'];
         }
@@ -99,7 +103,7 @@ class IprogSmsService implements SmsProvider
             return ['sent' => false, 'reason' => 'disabled'];
         }
 
-        $token = trim((string) config('services.iprog.token', ''));
+        $token = ($this->credentials ?? SystemSetting::smsCredentials('iprog'))['token'];
         if ($token === '') {
             return ['sent' => false, 'reason' => 'missing_api_token'];
         }
@@ -126,7 +130,7 @@ class IprogSmsService implements SmsProvider
                     'alert_id' => $alert?->emergency_alert_id,
                     ...$logContext,
                     'http_status' => $response->status(),
-                    'provider_status' => $providerStatus,
+                    'provider_status' => is_numeric($providerStatus) ? (int) $providerStatus : 'unexpected',
                 ]);
             }
 
@@ -139,7 +143,7 @@ class IprogSmsService implements SmsProvider
             Log::warning('IPROG SMS request errored.', [
                 'alert_id' => $alert?->emergency_alert_id,
                 ...$logContext,
-                'message' => $exception->getMessage(),
+                'exception' => $exception::class,
             ]);
 
             return ['sent' => false, 'reason' => 'request_failed'];

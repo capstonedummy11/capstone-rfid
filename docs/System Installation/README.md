@@ -60,7 +60,7 @@ Never commit the real `.env`. Generate a unique `APP_KEY`, use production-only s
 | `APP_ENV` | `local`, `staging`, or `production`. | Production changes password strength and destructive-command protection. |
 | `APP_KEY` | Encryption key. | Required; changing it makes encrypted data unreadable, including encrypted message values. |
 | `APP_DEBUG` | Detailed errors. | `false` in production. |
-| `APP_URL` | Canonical URL. | Use HTTPS production URL; affects storage URLs. |
+| `APP_URL` | Canonical URL. | Match the browser origin, including the development port (for example, `http://127.0.0.1:8000`); use HTTPS in production. A mismatch can send generated login links to a different origin. |
 | `APP_TIMEZONE` | Server-side application time. | Example uses `Asia/Manila`; schedules/attendance depend on this. |
 | `SECURE_LOGIN_ROUTE` | Private staff-login path. | Do not publish the production value; omit leading/trailing slash for clarity. |
 
@@ -109,6 +109,8 @@ The deployed web-server account must have write access to `storage` and `bootstr
 
 The Instructor excuse-letter review migration uses short explicit foreign-key names because MySQL limits identifiers to 64 characters. It also detects existing columns and keys, so rerunning `php artisan migrate --force` safely resumes an earlier attempt that stopped at the foreign-key creation step. Do not manually remove the partially added columns before retrying.
 
+The 2026-10-09 Instructor-sync migration makes upcoming online-class assignments nullable and reconciles Schedules and unfinished Online Classes linked to draft/active Subject Offerings. Run `php artisan migrate --force` before using the updated Subject Instructor actions. Completed and cancelled Online Classes keep their original Instructor attribution. Rolling this migration back requires assigning an Instructor to every online class with a null `instructor_id` first.
+
 ### Attendance panel and face services
 
 | Variable | Purpose |
@@ -116,7 +118,7 @@ The Instructor excuse-letter review migration uses short explicit foreign-key na
 | `PANEL_PIN` | Configuration fallback; normal runtime global/device hashes are stored in System Settings/Panel Devices. |
 | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, `AWS_DEFAULT_REGION` | Backend-only AWS credentials and the region used for still-image comparison. Use a role or short-lived credentials outside local development; never expose these values to Vite/browser code. |
 | `AWS_REKOGNITION_SIMILARITY_THRESHOLD` | Match threshold; example is 90. |
-| `AWS_REKOGNITION_LIVENESS_ENABLED`, `AWS_REKOGNITION_LIVENESS_REGION`, `AWS_REKOGNITION_LIVENESS_CONFIDENCE_THRESHOLD` | Enables the video-selfie liveness gate, selects a Face Liveness-supported region, and sets the server-side pass threshold. Enable only after the IAM and Cognito setup below is complete. |
+| `AWS_REKOGNITION_LIVENESS_ENABLED`, `AWS_REKOGNITION_LIVENESS_REGION`, `LIVENESS_MIN_CONFIDENCE_STUDENT`, `LIVENESS_MIN_CONFIDENCE_INSTRUCTOR` | Enables the video-selfie liveness gate, selects a supported region, and configures validated server-side Student/Instructor thresholds. Defaults are 60 and 70; invalid values outside 0–100 fall back to those defaults. |
 | `VITE_AWS_COGNITO_IDENTITY_POOL_ID` | Public Cognito Identity Pool identifier used only to obtain short-lived browser credentials for `StartFaceLivenessSession`. Its unauthenticated role must have no other application/AWS access. |
 | `COMPREFACE_URL`, `COMPREFACE_API_KEY` | Alternative/legacy CompreFace service configuration. `COMPREFACE_URL` has a code default but is not shown in the example file. |
 
@@ -163,7 +165,8 @@ Face Liveness is a separate Rekognition workflow. The Laravel backend creates a 
 ```dotenv
 AWS_REKOGNITION_LIVENESS_ENABLED=true
 AWS_REKOGNITION_LIVENESS_REGION=us-east-1
-AWS_REKOGNITION_LIVENESS_CONFIDENCE_THRESHOLD=90
+LIVENESS_MIN_CONFIDENCE_STUDENT=60
+LIVENESS_MIN_CONFIDENCE_INSTRUCTOR=70
 VITE_AWS_COGNITO_IDENTITY_POOL_ID=us-east-1:replace-with-your-pool-uuid
 ```
 

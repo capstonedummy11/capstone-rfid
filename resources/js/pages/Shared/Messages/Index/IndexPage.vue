@@ -1,0 +1,1027 @@
+<!-- FEATURE:messenger - UI para sa messenger and attachments. -->
+<!-- FEATURE:excuse-letter-review - UI para sa excuse letter review. -->
+<script setup lang="ts">
+import { router, useForm, usePage } from '@inertiajs/vue3';
+import {
+    CheckCircle2,
+    FileText,
+    Forward,
+    Image,
+    Paperclip,
+    Search,
+    Send,
+    X,
+    XCircle,
+} from 'lucide-vue-next';
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
+import LinkedStudentSelector from '@/components/StudentPortal/LinkedStudentSelector.vue';
+import ExcuseLetterReviewModal from '@/components/ExcuseLetterReviewModal.vue';
+import { useRealtimePolling } from '@/composables/useRealtimePolling';
+import { redirectOnExpiredSession } from '@/lib/idleSession';
+
+const props = defineProps({
+    messages: { type: Array, default: () => [] },
+    recipients: { type: Array, default: () => [] },
+    linkedStudents: { type: Array, default: () => [] },
+    selectedStudentId: { type: [Number, String, null], default: null },
+    currentUserRole: { type: String, default: '' },
+});
+
+const page = usePage();
+const messageRows = ref([...props.messages]);
+const flashSuccess = computed(() => page.props.flash?.success);
+const currentUserId = computed(() =>
+    Number(page.props.auth?.user?.user_id ?? page.props.auth?.user?.id ?? 0),
+);
+const currentRole = computed(() =>
+    String(
+        props.currentUserRole || page.props.auth?.user?.role || '',
+    ).toLowerCase(),
+);
+const search = ref('');
+const selectedConversationKey = ref('');
+const selectedRecipient = ref(null);
+const messageThread = ref(null);
+const conversationCursors = new Map();
+const unreadConversationCounts = ref({});
+const numericMessageId = (id) =>
+    Number(String(id).replace(/^portal-/, '')) || 0;
+
+const selectedStudentQuery = computed(() =>
+    props.selectedStudentId ? { student_id: props.selectedStudentId } : {},
+);
+
+const form = useForm({
+    recipient_user_id: '',
+    body: '',
+    attachment: null,
+});
+const fileInput = ref(null);
+const canSend = computed(
+    () =>
+        Boolean(form.recipient_user_id) &&
+        (form.body.trim().length > 0 || Boolean(form.attachment)),
+);
+
+const filteredRecipients = computed(() => {
+    const term = search.value.trim().toLowerCase();
+    if (term.length < 3) return [];
+
+    const list = props.recipients.filter(
+        (recipient) => Number(recipient.user_id) !== currentUserId.value,
+    );
+
+    return list.filter((recipient) =>
+        [recipient.name, recipient.email, recipient.role].some((value) =>
+            String(value || '')
+                .toLowerCase()
+                .includes(term),
+        ),
+    );
+});
+
+// @function partnerFor: Kinukuha ang partner for result para sa Index.
+// @useIn partnerFor: resources/js/pages/Shared/Messages/Index/IndexPage.vue:89
+const partnerFor = (message) => {
+    const senderIsMe = Number(message.sender_user_id) === currentUserId.value;
+
+    return {
+        id: senderIsMe ? message.recipient_user_id : message.sender_user_id,
+        name: senderIsMe ? message.recipient : message.sender,
+        email: senderIsMe ? message.recipient_email : message.sender_email,
+        role: senderIsMe ? message.recipient_role : message.sender_role,
+    };
+};
+
+const conversations = computed(() => {
+    const grouped = new Map();
+
+    messageRows.value.forEach((message) => {
+        const partner = partnerFor(message);
+        if (!partner.id) return;
+
+        const key = `user-${partner.id}`;
+        if (!grouped.has(key)) {
+            grouped.set(key, {
+                key,
+                partner,
+                messages: [],
+                latest: message,
+            });
+        }
+
+        grouped.get(key).messages.push(message);
+    });
+
+    return Array.from(grouped.values())
+        .map((conversation) => {
+            const sortedMessages = conversation.messages.sort(
+                (a, b) => new Date(a.created_at) - new Date(b.created_at),
+            );
+
+            return {
+                ...conversation,
+                messages: sortedMessages,
+                latest: sortedMessages[sortedMessages.length - 1],
+            };
+        })
+        .sort(
+            (a, b) =>
+                new Date(b.latest.created_at) - new Date(a.latest.created_at),
+        );
+});
+
+watch(
+    conversations,
+    (items) => {
+        const requestedUserId = Number(
+            new URLSearchParams(page.url.split('?')[1] || '').get(
+                'conversation_user_id',
+            ) || 0,
+        );
+        const requestedConversation = requestedUserId
+            ? items.find(
+                  (conversation) =>
+                      Number(conversation.partner.id) === requestedUserId,
+              )
+            : null;
+        if (requestedConversation) {
+            selectedConversationKey.value = requestedConversation.key;
+            form.recipient_user_id = requestedConversation.partner.id;
+            return;
+        }
+        if (!selectedConversationKey.value && items.length > 0) {
+            selectedConversationKey.value = items[0].key;
+            form.recipient_user_id = items[0].partner.id;
+        }
+    },
+    { immediate: true },
+);
+
+const selectedConversation = computed(
+    () =>
+        conversations.value.find(
+            (conversation) =>
+                conversation.key === selectedConversationKey.value,
+        ) ?? null,
+);
+
+const isConversationOpen = computed(() =>
+    Boolean(selectedConversation.value?.partner?.id),
+);
+
+const { pollNow: pollConversation } = useRealtimePolling(async () => {
+    const conversation = selectedConversation.value;
+    if (!conversation?.partner?.id) return;
+    const afterId = conversationCursors.get(conversation.key) || 0;
+    const params = {
+        conversation_user_id: conversation.partner.id,
+        after_id: afterId,
+        ...selectedStudentQuery.value,
+    };
+    const response = await fetch(route('messages.poll', params), {
+        headers: {
+            Accept: 'application/json',
+            'X-Background-Poll': '1',
+        },
+        credentials: 'same-origin',
+    });
+    if (
+        redirectOnExpiredSession(
+            response,
+            String(page.props.idleTimeout?.login_url || '/'),
+        )
+    ) {
+        return;
+    }
+    if (!response.ok) {
+        throw new Error(`Conversation poll failed (${response.status}).`);
+    }
+    const result = await response.json();
+    unreadConversationCounts.value = result.unread_by_conversation || {};
+    if (!result.messages?.length) return;
+
+    const container = messageThread.value;
+    const shouldStickToBottom = container
+        ? container.scrollHeight -
+              container.scrollTop -
+              container.clientHeight <
+          80
+        : true;
+    const existingIds = new Set(
+        messageRows.value.map((message) => numericMessageId(message.id)),
+    );
+    result.messages.forEach((message) => {
+        conversationCursors.set(
+            conversation.key,
+            Math.max(
+                conversationCursors.get(conversation.key) || 0,
+                Number(message.id) || 0,
+            ),
+        );
+        if (existingIds.has(Number(message.id))) return;
+        messageRows.value.push({
+            id: Number(message.id),
+            sender_user_id:
+                message.direction === 'outgoing'
+                    ? currentUserId.value
+                    : conversation.partner.id,
+            recipient_user_id:
+                message.direction === 'outgoing'
+                    ? conversation.partner.id
+                    : currentUserId.value,
+            sender: message.sender,
+            recipient:
+                message.sender_user_id === currentUserId.value
+                    ? conversation.partner.name
+                    : page.props.auth?.user?.name,
+            subject: 'Conversation',
+            body: message.text,
+            preview: message.text,
+            read_at: message.read_at,
+            created_at: message.timestamp,
+            created_label: message.timestamp,
+            attachment_name:
+                message.text === 'Attachment' ? 'Attachment' : null,
+        });
+    });
+    await nextTick();
+    if (shouldStickToBottom && container) {
+        container.scrollTop = container.scrollHeight;
+    }
+}, isConversationOpen);
+
+watch(
+    () => props.messages,
+    (messages) => {
+        const localIds = new Set(
+            messageRows.value.map((message) => message.id),
+        );
+        messages.forEach((message) => {
+            if (!localIds.has(message.id)) messageRows.value.push(message);
+        });
+    },
+);
+
+watch(
+    selectedConversation,
+    (conversation) => {
+        if (!conversation) return;
+        const maxId = conversation.messages.reduce(
+            (max, message) => Math.max(max, numericMessageId(message.id)),
+            conversationCursors.get(conversation.key) || 0,
+        );
+        conversationCursors.set(conversation.key, maxId);
+        void pollConversation();
+    },
+    { flush: 'post' },
+);
+
+onUnmounted(() => conversationCursors.clear());
+
+watch(
+    selectedConversation,
+    (conversation) => {
+        if (conversation && !selectedRecipient.value) {
+            form.recipient_user_id = conversation.partner.id;
+        }
+    },
+    { immediate: true },
+);
+
+// @function conversationForUser: Pinoproseso ang conversation for user para sa Index.
+// @useIn conversationForUser: resources/js/pages/Shared/Messages/Index/IndexPage.vue:184
+const conversationForUser = (userId) =>
+    conversations.value.find(
+        (conversation) => Number(conversation.partner.id) === Number(userId),
+    ) ?? null;
+
+watch(
+    () => selectedConversation.value?.messages,
+    (messages) => {
+        if (!messages) return;
+
+        messages.forEach((message) => {
+            if (
+                Number(message.recipient_user_id) === currentUserId.value &&
+                !message.read_at
+            ) {
+                message.read_at = new Date().toISOString();
+                router.put(
+                    route('messages.read', { message: message.id }),
+                    {},
+                    {
+                        preserveScroll: true,
+                        preserveState: true,
+                        replace: true,
+                    },
+                );
+            }
+        });
+    },
+    { immediate: true },
+);
+
+// @function selectRecipient: Pinipili ang recipient sa Index flow.
+// @useIn selectRecipient: resources/js/pages/Shared/Messages/Index/IndexPage.vue template @click
+const selectRecipient = (recipient) => {
+    search.value = '';
+    const existingConversation = conversationForUser(recipient.user_id);
+    if (existingConversation) {
+        selectConversation(existingConversation);
+        return;
+    }
+
+    selectedRecipient.value = recipient;
+    selectedConversationKey.value = '';
+    form.recipient_user_id = recipient.user_id;
+    form.body = '';
+    clearAttachment();
+};
+
+// @function selectConversation: Pinipili ang conversation sa Index flow.
+// @useIn selectConversation: resources/js/pages/Shared/Messages/Index/IndexPage.vue template @click
+const selectConversation = (conversation) => {
+    selectedConversationKey.value = conversation.key;
+    selectedRecipient.value = null;
+    form.recipient_user_id = conversation.partner.id;
+    clearAttachment();
+};
+
+// @function sendMessage: Ipinapadala ang message sa Index flow.
+// @useIn sendMessage: resources/js/pages/Shared/Messages/Index/IndexPage.vue template
+const sendMessage = () => {
+    const recipientId = form.recipient_user_id;
+
+    form.transform((data) => ({
+        ...data,
+        ...selectedStudentQuery.value,
+    })).post(route('messages.conversation.store'), {
+        forceFormData: true,
+        preserveScroll: true,
+        onSuccess: () => {
+            form.reset('body', 'attachment');
+            if (fileInput.value) fileInput.value.value = '';
+            selectedRecipient.value = null;
+            form.recipient_user_id = recipientId;
+            selectedConversationKey.value = `user-${recipientId}`;
+            router.reload({
+                only: ['messages'],
+                onSuccess: () => {
+                    selectedConversationKey.value = `user-${recipientId}`;
+                    form.recipient_user_id = recipientId;
+                },
+            });
+        },
+    });
+};
+
+// @function roleLabel: Pinoproseso ang role label para sa Index.
+// @useIn roleLabel: resources/js/pages/Shared/Messages/Index/IndexPage.vue template
+const roleLabel = (role) =>
+    String(role || '')
+        .split('_')
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+
+// @function formatBytes: Fino-format ang bytes sa Index flow.
+// @useIn formatBytes: resources/js/pages/Shared/Messages/Index/IndexPage.vue template
+const formatBytes = (bytes) => {
+    const size = Number(bytes || 0);
+    if (!size) return '';
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+    return `${(size / 1024 / 1024).toFixed(1)} MB`;
+};
+
+// @function clearAttachment: Nililinis ang attachment sa Index flow.
+// @useIn clearAttachment: resources/js/pages/Shared/Messages/Index/IndexPage.vue template @click
+const clearAttachment = () => {
+    form.attachment = null;
+    if (fileInput.value) fileInput.value.value = '';
+};
+
+const forwardMessage = ref(null);
+const forwardForm = useForm({
+    parent_user_id: '',
+    body: '',
+});
+
+// @function canForwardToParent: Sinusuri kung forward to parent para sa Index.
+// @useIn canForwardToParent: resources/js/pages/Shared/Messages/Index/IndexPage.vue template
+const canForwardToParent = (message) =>
+    ['admin', 'instructor'].includes(currentRole.value) &&
+    Number(message.sender_user_id) !== currentUserId.value &&
+    message.student_id &&
+    message.is_pdf &&
+    message.parents?.length > 0;
+
+const forwardStudentName = computed(
+    () => forwardMessage.value?.student_name || 'Student',
+);
+const forwardDate = computed(() => {
+    if (!forwardMessage.value?.created_at) return '';
+
+    return new Date(forwardMessage.value.created_at).toLocaleDateString(
+        undefined,
+        { month: 'long', day: 'numeric', year: 'numeric' },
+    );
+});
+const forwardSubject = computed(
+    () => `Excuse Letter - ${forwardStudentName.value} - ${forwardDate.value}`,
+);
+
+// @function openForwardModal: Binubuksan ang forward modal sa Index flow.
+// @useIn openForwardModal: resources/js/pages/Shared/Messages/Index/IndexPage.vue template
+const openForwardModal = (message) => {
+    forwardMessage.value = message;
+    forwardForm.parent_user_id = message.parents?.[0]?.user_id || '';
+    forwardForm.body = `Please find attached the excuse letter for your child.\n\nKindly review the attached document.\n\nRegards,\n${page.props.auth?.user?.name || 'School Staff'}`;
+};
+
+// @function closeForwardModal: Isinasara ang forward modal sa Index flow.
+// @useIn closeForwardModal: resources/js/pages/Shared/Messages/Index/IndexPage.vue template @click
+const closeForwardModal = () => {
+    if (forwardForm.processing) return;
+    forwardMessage.value = null;
+    forwardForm.reset();
+};
+
+// @function sendForwardEmail: Ipinapadala ang forward email sa Index flow.
+// @useIn sendForwardEmail: resources/js/pages/Shared/Messages/Index/IndexPage.vue template
+const sendForwardEmail = () => {
+    if (!forwardMessage.value) return;
+
+    forwardForm.post(
+        route('messages.forward-to-parent', {
+            message: forwardMessage.value.id,
+        }),
+        {
+            preserveScroll: true,
+            onSuccess: closeForwardModal,
+        },
+    );
+};
+
+const reviewMessage = ref(null);
+const reviewForm = useForm({
+    decision: 'approved',
+    recipients: [],
+    email_subject: '',
+    email_body: '',
+});
+
+const reviewDecisionLabel = computed(() =>
+    reviewForm.decision === 'approved' ? 'Approve' : 'Deny',
+);
+
+// @function openReviewModal: Binubuksan ang review modal sa Index flow.
+// @useIn openReviewModal: resources/js/pages/Shared/Messages/Index/IndexPage.vue template
+const openReviewModal = (message, decision) => {
+    const student = message.excuse_letter_review?.student;
+    const studentName = student?.name || message.student_name || 'Student';
+    const result = decision === 'approved' ? 'approved' : 'denied';
+    const recipients = [];
+
+    if (student?.available) recipients.push('student');
+
+    reviewMessage.value = message;
+    reviewForm.clearErrors();
+    reviewForm.decision = decision;
+    reviewForm.recipients = recipients;
+    reviewForm.email_subject = `Excuse Letter ${result === 'approved' ? 'Approved' : 'Denied'} - ${studentName}`;
+    reviewForm.email_body = `Dear ${studentName},\n\nYour excuse letter has been ${result} by the instructor.\n\nSubject: ${message.subject}\n\nRegards,\n${page.props.auth?.user?.name || 'Instructor'}`;
+};
+
+// @function closeReviewModal: Isinasara ang review modal sa Index flow.
+// @useIn closeReviewModal: resources/js/pages/Shared/Messages/Index/IndexPage.vue template @click
+const closeReviewModal = () => {
+    if (reviewForm.processing) return;
+    reviewMessage.value = null;
+    reviewForm.reset();
+    reviewForm.clearErrors();
+};
+
+// @function submitReview: Isinusumite ang review sa Index flow.
+// @useIn submitReview: resources/js/pages/Shared/Messages/Index/IndexPage.vue template
+const submitReview = () => {
+    if (!reviewMessage.value || reviewForm.recipients.length === 0) {
+        reviewForm.setError(
+            'recipients',
+            'Select at least one available email recipient.',
+        );
+        return;
+    }
+
+    reviewForm.put(
+        route('messages.excuse-letters.review', {
+            message: reviewMessage.value.id,
+        }),
+        {
+            preserveScroll: true,
+            onSuccess: closeReviewModal,
+        },
+    );
+};
+
+// @function reviewedStatusLabel: Kinukuha ang reviewed status label result para sa Index.
+// @useIn reviewedStatusLabel: resources/js/pages/Shared/Messages/Index/IndexPage.vue template
+const reviewedStatusLabel = (status) => {
+    if (status === 'instructor_approved') return 'Instructor approved';
+    if (status === 'instructor_denied') return 'Instructor denied';
+    return '';
+};
+</script>
+
+<template>
+    <div class="min-h-0 bg-slate-50">
+        <div
+            class="grid h-[calc(100vh-7rem)] min-h-0 gap-4 lg:grid-cols-[340px_1fr]"
+        >
+            <aside
+                class="flex min-h-0 flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm"
+            >
+                <div class="border-b border-slate-100 p-4">
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <h1 class="text-lg font-bold text-slate-900">
+                                Messenger
+                            </h1>
+                            <p class="text-xs text-slate-500">
+                                {{ roleLabel(currentRole) }}
+                            </p>
+                        </div>
+                        <LinkedStudentSelector
+                            v-if="linkedStudents.length"
+                            :students="linkedStudents"
+                            :selected-student-id="selectedStudentId"
+                        />
+                    </div>
+                </div>
+
+                <div class="border-b border-slate-100 p-4">
+                    <label class="text-xs font-bold text-slate-500 uppercase">
+                        Search User
+                    </label>
+                    <div
+                        class="mt-2 flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2"
+                    >
+                        <Search class="h-4 w-4 text-slate-400" />
+                        <input
+                            v-model="search"
+                            type="search"
+                            placeholder="Name, email, or role"
+                            class="w-full bg-transparent text-sm outline-none"
+                        />
+                    </div>
+                    <div
+                        v-if="search.trim().length > 0"
+                        class="mt-2 max-h-44 overflow-y-auto rounded-md border border-slate-100"
+                    >
+                        <button
+                            v-for="recipient in filteredRecipients"
+                            :key="recipient.user_id"
+                            type="button"
+                            class="block w-full border-b border-slate-100 px-3 py-2 text-left text-sm hover:bg-slate-50"
+                            @click="selectRecipient(recipient)"
+                        >
+                            <span class="block font-semibold text-slate-800">
+                                {{ recipient.name }}
+                            </span>
+                            <span class="block text-xs text-slate-500">
+                                {{ recipient.email }} /
+                                {{ roleLabel(recipient.role) }}
+                            </span>
+                        </button>
+                        <p
+                            v-if="
+                                search.trim().length > 0 &&
+                                search.trim().length < 3
+                            "
+                            class="p-3 text-sm text-slate-400"
+                        >
+                            Type at least 3 characters to search.
+                        </p>
+                        <p
+                            v-else-if="
+                                search.trim().length >= 3 &&
+                                filteredRecipients.length === 0
+                            "
+                            class="p-3 text-sm text-slate-400"
+                        >
+                            No users found.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="min-h-0 flex-1 overflow-y-auto">
+                    <button
+                        v-for="conversation in conversations"
+                        :key="conversation.key"
+                        type="button"
+                        class="block w-full border-b border-slate-100 px-4 py-3 text-left hover:bg-slate-50"
+                        :class="
+                            selectedConversationKey === conversation.key
+                                ? 'bg-sky-50'
+                                : 'bg-white'
+                        "
+                        @click="selectConversation(conversation)"
+                    >
+                        <div class="flex items-center justify-between gap-2">
+                            <p
+                                class="truncate text-sm font-bold text-slate-900"
+                            >
+                                {{ conversation.partner.name }}
+                            </p>
+                            <span class="text-[11px] text-slate-400">
+                                {{ conversation.latest.created_label }}
+                            </span>
+                        </div>
+                        <p class="mt-1 truncate text-xs text-slate-500">
+                            {{ conversation.latest.preview }}
+                        </p>
+                        <span
+                            v-if="
+                                unreadConversationCounts[
+                                    conversation.partner.id
+                                ]
+                            "
+                            class="mt-1 inline-block rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-sky-800"
+                        >
+                            {{
+                                unreadConversationCounts[
+                                    conversation.partner.id
+                                ]
+                            }}
+                            unread
+                        </span>
+                    </button>
+                    <p
+                        v-if="conversations.length === 0"
+                        class="p-6 text-center text-sm text-slate-400"
+                    >
+                        No conversations yet. Search for a user to start one.
+                    </p>
+                </div>
+            </aside>
+
+            <section
+                class="flex min-h-0 flex-col rounded-md border border-slate-200 bg-white shadow-sm"
+            >
+                <div class="border-b border-slate-100 px-5 py-4">
+                    <p
+                        v-if="flashSuccess"
+                        class="mb-3 rounded-md bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700"
+                    >
+                        {{ flashSuccess }}
+                    </p>
+                    <h2 class="text-lg font-bold text-slate-900">
+                        {{
+                            selectedConversation?.partner.name ||
+                            selectedRecipient?.name ||
+                            'Select a user'
+                        }}
+                    </h2>
+                    <p class="text-xs text-slate-500">
+                        {{
+                            selectedConversation?.partner.email ||
+                            selectedRecipient?.email ||
+                            'Search for another user to start a conversation.'
+                        }}
+                    </p>
+                </div>
+
+                <div
+                    v-if="selectedConversation"
+                    ref="messageThread"
+                    class="min-h-0 flex-1 space-y-3 overflow-y-auto bg-slate-50 p-5"
+                >
+                    <article
+                        v-for="message in selectedConversation.messages"
+                        :key="message.id"
+                        class="max-w-[78%] rounded-2xl p-3 shadow-sm"
+                        :class="
+                            Number(message.sender_user_id) === currentUserId
+                                ? 'ml-auto rounded-br-sm bg-brand text-white'
+                                : 'rounded-bl-sm bg-white text-slate-700'
+                        "
+                    >
+                        <p class="text-xs font-bold opacity-80">
+                            {{ message.sender }}
+                        </p>
+                        <p
+                            v-if="message.body"
+                            class="mt-2 text-sm whitespace-pre-line"
+                        >
+                            {{ message.body }}
+                        </p>
+                        <a
+                            v-if="
+                                message.is_image &&
+                                message.attachment_preview_url
+                            "
+                            :href="message.attachment_url"
+                            class="mt-3 block overflow-hidden rounded-lg bg-black/10"
+                            :title="
+                                message.attachment_name || 'Image attachment'
+                            "
+                        >
+                            <img
+                                :src="message.attachment_preview_url"
+                                :alt="
+                                    message.attachment_name ||
+                                    'Image attachment'
+                                "
+                                class="max-h-72 w-full object-cover"
+                                loading="lazy"
+                            />
+                        </a>
+                        <a
+                            v-if="message.attachment_url"
+                            :href="message.attachment_url"
+                            class="mt-2 inline-flex max-w-full items-center gap-2 rounded-md bg-white/15 px-2 py-1 text-xs font-semibold underline"
+                        >
+                            <Image
+                                v-if="message.is_image"
+                                class="h-4 w-4 shrink-0"
+                            />
+                            <FileText v-else class="h-4 w-4 shrink-0" />
+                            <span class="truncate">
+                                {{ message.attachment_name || 'Attachment' }}
+                            </span>
+                            <span
+                                v-if="message.attachment_size"
+                                class="shrink-0 opacity-75"
+                            >
+                                {{ formatBytes(message.attachment_size) }}
+                            </span>
+                        </a>
+                        <button
+                            v-if="canForwardToParent(message)"
+                            type="button"
+                            class="mt-2 inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-100"
+                            title="Forward excuse letter to parent by email"
+                            @click.stop="openForwardModal(message)"
+                        >
+                            <Forward class="h-3.5 w-3.5" />
+                            Email parent
+                        </button>
+                        <div
+                            v-if="message.can_review_excuse_letter"
+                            class="mt-3 flex flex-wrap gap-2"
+                        >
+                            <button
+                                type="button"
+                                class="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700"
+                                @click.stop="
+                                    openReviewModal(message, 'approved')
+                                "
+                            >
+                                <CheckCircle2 class="h-3.5 w-3.5" />
+                                Approve
+                            </button>
+                            <button
+                                type="button"
+                                class="inline-flex items-center gap-1 rounded-md bg-rose-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-700"
+                                @click.stop="openReviewModal(message, 'denied')"
+                            >
+                                <XCircle class="h-3.5 w-3.5" />
+                                Deny
+                            </button>
+                        </div>
+                        <p
+                            v-else-if="
+                                reviewedStatusLabel(
+                                    message.excuse_letter_status,
+                                )
+                            "
+                            class="mt-2 inline-flex rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-700"
+                        >
+                            {{
+                                reviewedStatusLabel(
+                                    message.excuse_letter_status,
+                                )
+                            }}
+                        </p>
+                        <p class="mt-2 text-[11px] opacity-70">
+                            {{ message.created_label }}
+                        </p>
+                    </article>
+                </div>
+
+                <div
+                    v-else
+                    class="flex min-h-0 flex-1 items-center justify-center bg-slate-50 p-6 text-center text-slate-400"
+                >
+                    <p class="font-semibold">
+                        Select a conversation or search for a user to start one.
+                    </p>
+                </div>
+
+                <form
+                    v-if="selectedRecipient || selectedConversation"
+                    class="border-t border-slate-100 bg-white p-4"
+                    @submit.prevent="sendMessage"
+                >
+                    <div
+                        class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3"
+                    >
+                        <textarea
+                            v-model="form.body"
+                            class="min-h-20 w-full resize-none bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                            placeholder="Type a message or attach a file..."
+                        />
+                        <div
+                            class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+                        >
+                            <div class="flex min-w-0 flex-1 items-center gap-2">
+                                <label
+                                    class="inline-flex cursor-pointer items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+                                >
+                                    <Paperclip class="h-4 w-4" />
+                                    Attach
+                                    <input
+                                        ref="fileInput"
+                                        type="file"
+                                        class="sr-only"
+                                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,.gif,.txt"
+                                        @change="
+                                            form.attachment =
+                                                $event.target.files?.[0] || null
+                                        "
+                                    />
+                                </label>
+                                <div
+                                    v-if="form.attachment"
+                                    class="flex min-w-0 items-center gap-2 rounded-md bg-white px-3 py-2 text-xs text-slate-600"
+                                >
+                                    <FileText class="h-4 w-4 shrink-0" />
+                                    <span class="truncate">
+                                        {{ form.attachment.name }}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        class="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                                        @click="clearAttachment"
+                                    >
+                                        <X class="h-3.5 w-3.5" />
+                                    </button>
+                                </div>
+                            </div>
+                            <button
+                                class="inline-flex items-center gap-2 rounded-md bg-brand px-5 py-2 text-sm font-bold text-white disabled:opacity-60"
+                                :disabled="form.processing || !canSend"
+                            >
+                                <Send class="h-4 w-4" />
+                                {{ form.processing ? 'Sending...' : 'Send' }}
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </section>
+        </div>
+
+        <div
+            v-if="forwardMessage"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
+            @click.self="closeForwardModal"
+        >
+            <div
+                class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white shadow-2xl"
+            >
+                <div
+                    class="flex items-center justify-between border-b border-slate-200 px-5 py-4"
+                >
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900">
+                            Forward excuse letter by email
+                        </h3>
+                        <p class="text-sm text-slate-500">
+                            Review the email template before sending the PDF.
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        class="rounded-md p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                        @click="closeForwardModal"
+                    >
+                        <X class="h-5 w-5" />
+                    </button>
+                </div>
+
+                <form class="space-y-4 p-5" @submit.prevent="sendForwardEmail">
+                    <div>
+                        <label
+                            class="text-xs font-bold text-slate-500 uppercase"
+                            >Send to parent</label
+                        >
+                        <select
+                            v-model="forwardForm.parent_user_id"
+                            class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                            required
+                        >
+                            <option
+                                v-for="parent in forwardMessage.parents"
+                                :key="parent.user_id"
+                                :value="parent.user_id"
+                            >
+                                {{ parent.name }} — {{ parent.email }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label
+                            class="text-xs font-bold text-slate-500 uppercase"
+                            >Subject</label
+                        >
+                        <input
+                            :value="forwardSubject"
+                            readonly
+                            class="mt-1 w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700"
+                        />
+                    </div>
+
+                    <div>
+                        <label
+                            class="text-xs font-bold text-slate-500 uppercase"
+                            >Message template</label
+                        >
+                        <textarea
+                            v-model="forwardForm.body"
+                            class="mt-1 min-h-32 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                            required
+                        />
+                    </div>
+
+                    <div
+                        class="rounded-lg border border-slate-200 bg-slate-50 p-4"
+                    >
+                        <p
+                            class="text-xs font-bold tracking-wide text-slate-500 uppercase"
+                        >
+                            Email preview
+                        </p>
+                        <p class="mt-3 text-sm text-slate-700">Dear Parent,</p>
+                        <p
+                            class="mt-3 text-sm whitespace-pre-line text-slate-700"
+                        >
+                            {{ forwardForm.body }}
+                        </p>
+                        <p class="mt-3 text-sm text-slate-700">
+                            Student:
+                            <strong>{{ forwardStudentName }}</strong>
+                            <br />
+                            Date: <strong>{{ forwardDate }}</strong>
+                        </p>
+                        <p class="mt-3 text-sm text-slate-700">
+                            Attachment:
+                            <strong>{{
+                                forwardMessage.attachment_name
+                            }}</strong>
+                        </p>
+                    </div>
+
+                    <div class="flex justify-end gap-2">
+                        <button
+                            type="button"
+                            class="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+                            @click="closeForwardModal"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            class="inline-flex items-center gap-2 rounded-md bg-brand px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
+                            :disabled="forwardForm.processing"
+                        >
+                            <Send class="h-4 w-4" />
+                            {{
+                                forwardForm.processing
+                                    ? 'Sending...'
+                                    : 'Send email'
+                            }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <ExcuseLetterReviewModal
+            :open="Boolean(reviewMessage)"
+            :decision="reviewForm.decision"
+            :recipients="reviewForm.recipients"
+            :student-available="Boolean(reviewMessage?.excuse_letter_review?.student?.available)"
+            :student-email="reviewMessage?.excuse_letter_review?.student?.email || ''"
+            :email-subject="reviewForm.email_subject"
+            :email-body="reviewForm.email_body"
+            :errors="reviewForm.errors"
+            :processing="reviewForm.processing"
+            @update:recipients="reviewForm.recipients = $event"
+            @update:email-subject="reviewForm.email_subject = $event"
+            @update:email-body="reviewForm.email_body = $event"
+            @close="closeReviewModal"
+            @submit="submitReview"
+        />
+    </div>
+</template>

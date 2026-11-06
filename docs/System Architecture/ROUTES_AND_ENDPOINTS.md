@@ -4,16 +4,18 @@
 
 All application endpoints use Laravel's `web` middleware and session/CSRF model. GET requests usually return Inertia pages; mutations return redirects with flash/errors or JSON for the Console; exports/files return streamed responses. This is not a stateless REST API.
 
+`routes/web.php` loads the role files within Laravel's `web` middleware group. Public/login routes remain in `web.php`; `admin.php` contains Admin-only routes; `admin-instructor.php` contains routes shared by Admin and verified Instructors under the existing `/admin` prefix; `instructor.php`, `registrar.php`, `clinic.php`, `student-parent.php`, and `attendance-console.php` hold their respective role flows. `shared.php` holds cross-role messages, reports, face liveness, and attendance evidence. Laravel's Artisan command routes remain in `routes/console.php`. File placement does not grant access: each protected route group retains its explicit auth and role middleware.
+
 ## Public and authentication endpoints
 
 | Methods and URI | Name/purpose | Main protection |
 | --- | --- | --- |
 | `GET /`, `GET /home`, `GET /dashboard` | Landing and role redirects. | Dashboard requires auth. |
 | `GET /about`, `GET /up` | Public About Us page and health response. | Public. |
-| `GET/POST /{SECURE_LOGIN_ROUTE}` | Staff login page/submit. | Guest + login throttle on POST. |
+| `GET/POST /{SECURE_LOGIN_ROUTE}` | Staff login page/submit. | Same-account reauthentication, guest guard, and login throttle on POST. |
 | `GET/POST /admin/login-verification`, `POST /admin/login-verification/resend` | Display, verify, or rotate the mandatory per-login Admin email OTP. | Authenticated Admin; separate verification/resend throttles. |
 | `GET /secure-login` | Compatibility redirect to configured staff path. | Public. |
-| `POST /login` | Student/Parent login submit. | Guest + login throttle. |
+| `POST /login` | Student/Parent login submit. | Same-account reauthentication, guest guard, and login throttle. |
 | Fortify reset/verify/2FA routes | Password reset, confirmation, verification, two factor, logout. | Fortify/web middleware. |
 | `GET/PUT /first-login/password` | Required temporary-password replacement. | Auth; GET is unthrottled and PUT uses the named `first-login-password` limiter at 15 attempts per minute per user. |
 | `GET/POST /register` | Public registration UI/submit. | Public. |
@@ -25,7 +27,7 @@ All use prefix `/instructor`, auth, and `role:instructor`: `GET /verify`; `POST 
 
 ## Shared messages and reports
 
-Authenticated roles Admin, Instructor, Clinic, Registrar, Student, Parent use `GET /messages`, unread status, conversation POST, read PUT, authorized attachment GET, and excuse-forward POST. `PUT /messages/{message}/excuse-letter-review` is restricted in the controller to the Instructor who received that explicitly linked letter message; it accepts the approve/deny decision, Student/Parent choices, and editable email subject/body. Decisions are per delivered Instructor message. `GET /reports` and `/reports/export` use the same roles. `EnsureParentPortalEnabled` additionally blocks Parent when disabled.
+Authenticated roles Admin, Instructor, Clinic, Registrar, Student, Parent use Messenger routes only when the matching `messenger_{role}_enabled` System Setting is on. The role middleware blocks direct inbox, unread polling, conversation send/reply, read, attachment, and excuse-forward endpoints when off. The poll accepts `conversation_user_id` plus `after_id` or `since`, and returns only the authenticated user's newer conversation messages and unread counts. Poll endpoints share a 60-requests-per-minute per-user limit. Student/Parent additionally use `GET /student-parent/notifications/poll` for online-class and automated excuse-letter notifications, plus individual/all read PUT actions; notifications are limited to the current Student or explicitly linked Parent-selected Student. Browser polling pauses while hidden, runs every five seconds without overlapping requests, and backs off after failures. `PUT /messages/{message}/excuse-letter-review` remains an Instructor workflow endpoint and is restricted to the Instructor who received that explicitly linked letter message; it accepts the approve/deny decision and editable email subject/body. Both decisions email the Student and add an automated notice to the Student/Parent Notifications feed. Parent approval notices also appear there. `GET /reports` and `/reports/export` use the same roles. `EnsureParentPortalEnabled` additionally blocks Parent when disabled.
 
 ## Attendance Panel
 
@@ -38,9 +40,13 @@ Console-only `/attendance-control-panel` endpoints include page GET plus POST op
 Prefix `/admin`, auth:
 
 - Admin or verified Instructor: dashboard; attendance scanner/logs/subject/summary/student/session/export/status; messages/reply; online-class CRUD/cancel; Student list; Schedule list.
+
+The legacy Instructor Attendance Logs page exposes matching excuse-letter preview and review actions only for absent records inside the configured Absent Attendance Days window. Approval/denial reuses `PUT /messages/{message}/excuse-letter-review`, preserving its Instructor recipient authorization, editable Student email, audit data, and notifications.
+
+Instructor Student Attendance history includes the delivered excuse-letter statuses only while each attendance date remains inside that same configured window. Pending decisions show a reminder when 24 hours remain; the review action is hidden after the window closes.
 - Admin only: Academic Year lifecycle/rollover; Laboratory CRUD; Borrowing/return; RFID update/clear; Section, Subject/Offering, Schedule, Inventory/Item, Strand, Student/Parent, Instructor, User CRUD; Student, Instructor, Clinic, and Registrar administrative password resets; Activity and Online Class log exports; Active Device/PIN/session management; System Settings/SMS provider checks/sound library; prototype students-management route.
 
-Endpoint names and controller methods are declared in `routes/web.php`; the runtime route list is authoritative when duplicate URIs exist. In particular, the final `GET /admin/inventory` closure is named `admin.inventory` and supersedes the earlier same-URI index route in the runtime list.
+Endpoint names and controller methods are declared in the route files loaded by `routes/web.php`; the runtime route list is authoritative when duplicate URIs exist. In particular, the final `GET /admin/inventory` closure in `admin.php` is named `admin.inventory` and supersedes the earlier same-URI index route in the runtime list.
 
 ## Registrar endpoints
 
@@ -52,7 +58,7 @@ Prefix `/clinic`, auth + `role:clinic,admin`: dashboard; Case Log GET/POST/PUT a
 
 ## Student/Parent endpoints
 
-Prefix `/student-parent`, auth + `role:student,parent` + Parent Portal middleware: dashboard; profile GET/PUT; password PUT; attendance GET; excuse-letter GET/POST/approve/download/attachment; messages GET/POST; notifications GET/read; online classes GET/join.
+Prefix `/student-parent`, auth + `role:student,parent` + Parent Portal middleware: dashboard; profile GET/PUT; password PUT; attendance GET; excuse-letter GET/POST/approve/download/attachment; messages GET/POST; notifications GET/poll/read/read-all; online classes GET/join. Excuse-letter `/approve` is Parent-only and applies only when the Parent-approval setting is enabled; Instructor approval remains the final decision.
 
 ## Settings endpoints
 

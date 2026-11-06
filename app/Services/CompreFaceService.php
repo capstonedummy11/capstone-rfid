@@ -20,7 +20,7 @@ class CompreFaceService
     }
 
     // @function enrollFace: Binubuo ang enroll face string para sa Compre Face.
-    // @useIn enrollFace: app/Http/Controllers/StudentsController.php
+    // @useIn enrollFace: app/Http/Controllers/Shared/Students/StudentsController.php
     /**
      * Enroll a face image for a subject (student_number is used as the subject name).
      * Returns the CompreFace image_id on success, null on failure.
@@ -53,7 +53,7 @@ class CompreFaceService
     }
 
     // @function recognizeBase64: Kinukuha ang recognize base64 result para sa Compre Face.
-    // @useIn recognizeBase64: app/Http/Controllers/AttendanceController.php
+    // @useIn recognizeBase64: app/Http/Controllers/Shared/Attendance/AttendanceController.php
     /**
      * Recognize who is in the image (base64 data URL from the webcam capture).
      * Returns ['subject' => 'student_number', 'similarity' => 0.98] or null if no match / error.
@@ -107,7 +107,7 @@ class CompreFaceService
     }
 
     // @function deleteSubject: Sinusuri ang delete subject condition para sa Compre Face.
-    // @useIn deleteSubject: app/Http/Controllers/StudentsController.php
+    // @useIn deleteSubject: app/Http/Controllers/Shared/Students/StudentsController.php
     /**
      * Delete all enrolled faces for a subject.
      * Called when a student is deleted or their face images are cleared.

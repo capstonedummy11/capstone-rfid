@@ -20,6 +20,7 @@ Technical documentation for developers, reviewers, testers, and maintainers.
 - [Routes and endpoints](System%20Architecture/ROUTES_AND_ENDPOINTS.md)
 - [Instructor excuse-letter review contract](System%20Architecture/EXCUSE_LETTER_INSTRUCTOR_REVIEW.md)
 - [Complete database schema reference](System%20Architecture/DATABASE_SCHEMA_REFERENCE.md)
+- [Complete database relationship map](System%20Architecture/DATABASE_RELATIONSHIPS.md)
 - [Testing and regression guide](System%20Architecture/TESTING.md)
 
 ## 3. System Installation
@@ -34,6 +35,6 @@ Setup, configuration, local runtime, build, production deployment, scheduler, pe
 
 The system implements academic setup, accounts/roles, Registrar biometric enrollment, RFID/face attendance, online classes, Student/Parent portal, excuse letters, Messenger, reports, inventory/borrowing, Clinic cases, emergency alerts/SMS attempts, devices/settings, and audit logs.
 
-Important current-code limitations are documented rather than hidden: some enrollment queries use `active` while normalized records default to `enrolled`; the Online Classes switch does not block every direct route; Student Management face buttons reference missing Admin route names; public registration and a legacy public message form remain enabled; and database queue tables are absent from migrations.
+Important current-code limitations are documented rather than hidden: some enrollment queries use `active` while normalized records default to `enrolled`; the Online Classes switch does not block every direct route; Student Management face buttons reference missing Admin route names; and public registration and a legacy public message form remain enabled. Database queue migrations create `jobs` and `failed_jobs`, but not `job_batches`.
 
 Use [Documentation Index](DOCUMENTATION_INDEX.md) for the full file map and source-of-truth rules.

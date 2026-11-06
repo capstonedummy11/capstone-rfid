@@ -11,11 +11,15 @@ Admin controls the switches on **System Settings**. The application shares their
 | Borrowing | Shows Borrowing in the Admin menu and borrowing mode on the panel. | Disabled requests are rejected; the Admin page redirects to Settings. |
 | Inventory | Shows Inventory in the Admin menu. | The main Inventory page redirects to Settings when disabled. |
 | Parent Portal | Shows the Parent option on the public login. | Parent login and parent-protected routes are rejected when off. Students remain able to use their own portal. |
-| Parent Excuse Letters | Shows parent creation/approval controls only while Parent Portal is also on. | A parent cannot submit or approve when disabled. Turning off Parent Portal also stores this setting as off. |
+| Parent Excuse Letters | Controls whether Parents may submit letters while Parent Portal is on. **Require Parent Approval Before Instructor Review** controls whether Parent approval is a required first step. | Parents cannot submit when submission is disabled. Turning off Parent Portal disables both Parent letter settings. |
 | Face Recognition | Enables attendance and online-class face checks when AWS Rekognition is configured. | Settings automatically keep it off when the provider is unavailable. Attendance can use documented instructor fallback paths. |
 | Demo Attendance Panel | Shows configured demonstration tap buttons and sample RFID values. | Intended for demonstrations, not production. |
 | Online Classes | Hides the staff Online Classes and Admin Online Class Logs menu links. | Current implementation does not consistently block all direct online-class routes; treat it as a visibility switch, not a complete shutdown control. |
 | Online-class face default | Preselects face verification for new online classes. | Automatically turns off if the main face-recognition switch/provider is unavailable. |
+| Temporary movement Student Liveness | Requires a Student liveness challenge before Temporary Exit/Return when enabled. | Off by default. Scheduled Instructor RFID approval remains required. When on, this checks liveness only and does not compare against an enrolled Student face. AWS Face Liveness must be configured before enabling it. |
+| Direct Messages by Role | Shows or hides Messenger for Admin, Instructor, Clinic, Registrar, Student, or Parent independently. Selecting Student reveals a separate switch for excuse-letter updates in the Student Messenger inbox; it is off by default. | Disabled roles cannot open Messenger or use its authenticated inbox, send, reply, attachment, or polling endpoints. Student excuse-letter notifications continue when the separate Messenger visibility switch is off. |
+
+Excuse-letter automation sends linked Parent-approval and Instructor-decision messages into the Student/Parent Notifications feed while retaining the workflow record. Student and Parent read state is scoped to the signed-in recipient. Existing online-class notifications remain in the same feed. Disabling Messenger only removes direct conversation access; it does not disable notifications.
 
 ## Sign-in and access automation
 
@@ -45,6 +49,7 @@ Admin controls the switches on **System Settings**. The application shares their
 - A verification grant is short-lived and tied to one student and one attendance session. It is consumed after the tap.
 - First valid tap creates a Pending attendance result and records Present or Late as the check-in basis. Late uses the configured number of minutes after class start.
 - Before the last 15 minutes, another tap requires the scheduled Instructor's RFID and becomes Temporary Exit or Temporary Return.
+- Temporary Exit/Return skip Student face recognition by default. Admin may enable the separate Student Liveness setting; it then requires live video verification as well as scheduled Instructor RFID approval.
 - During the final 15 minutes, Dismiss Class, or an accepted fallback verification path, the next valid tap becomes official checkout.
 - Once checkout exists, later taps are logged as ignored and do not change the official result.
 - Leaving attendance mode finalizes students who left temporarily and did not return as Absent with a cutting reason.
@@ -55,30 +60,33 @@ Admin controls the switches on **System Settings**. The application shares their
 
 ## Online-class automation
 
+- Subject Offering Instructor changes synchronize linked Schedules and online classes that have not ended. Completed/cancelled classes keep their original Instructor attribution, but only the Schedule's current Instructor sees them in the Instructor workspace. Admins can still see them.
+- An online class without a currently assigned Schedule Instructor cannot be joined or create automatic absent results until an Instructor is assigned.
 - Creating, updating, rescheduling, or cancelling a class creates per-student portal notifications and attempts email delivery.
 - Students may join only from the scheduled start through the scheduled end. Joining again returns the existing success state instead of adding a duplicate.
 - The normal late threshold also determines whether an online join is Present or Late.
 - When face verification is required but unavailable, the system can remove the requirement and record/notify the bypass depending on the current provider state.
 - `online-classes:finalize-attendance` runs every minute when Laravel's scheduler is running. It inserts missing Absent rows for ended, non-cancelled classes and is designed to be safe when repeated.
 - Opening an online-class page also performs a lazy finalization pass, so records may still be completed when the scheduler was briefly unavailable.
-- Current-code caution: some online-class enrollment queries require status `active`, while normal yearly enrollments default to `enrolled`. Verify this workflow in the deployed database before relying on automatic online attendance.
+- Online-class absence finalization includes yearly enrollments in either `active` or `enrolled` status, matching the enrollment lifecycle and default status.
 
 ## Messages and notifications
 
 - Signed-in non-Console roles can message permitted recipients. Conversation rows store sender and recipient IDs; only those users can open attachments.
 - Message subject/body have encrypted columns and compatibility fallback columns.
-- The layout checks unread messages every 10 seconds and shows an on-screen toast when a new message is detected.
+- The authenticated layout polls unread messages and Student/Parent online-class notifications every five seconds without reloading the page. Conversation pages fetch only messages newer than their current message ID and show per-conversation unread counts. The notification bell and dropdown update in place; new notifications produce a toast.
+- Polling pauses while the browser tab is hidden and immediately resumes when it becomes visible. Requests do not overlap; repeated failures back off to 10 and then 30 seconds before automatically returning to five seconds. Leaving a conversation/page or signing out stops its polling lifecycle.
+- Notification rows can be marked read individually or all at once, with the badge updated optimistically. Only the signed-in Student or a Parent's explicitly selected linked Student's online-class notifications are returned; notifications for soft-deleted Online Classes are omitted.
 - Email alerts for repeated messages from the same sender to the same recipient are limited by an atomic cache cooldown (five minutes by default). A failed email removes the cooldown key so a later message can retry.
 - Online-class notifications have read timestamps and email delivery/error fields.
 
 ## Excuse-letter automation
 
-- A Student letter becomes `pending_parent_approval` when the Parent Portal is on. Linked parents with valid email addresses receive a review link.
-- If Parent Portal is off, a Student letter is approved immediately and sent to teachers without parent review.
-- A permitted Parent-created letter is approved immediately and requires a typed signature.
-- Parent approval stores the approving account, time, signature, and optional notes; generates a signed PDF; stores it; creates teacher Messenger records; and attempts teacher email with the PDF attached.
-- Selected teacher recipients must be valid for the student's schedule. When none are selected, assigned teachers are determined from the student's class schedules.
-- Parent approval never changes official attendance by itself.
+- With Parent approval required off, every Student or permitted Parent submission is saved as `pending_instructor_approval` and routed to assigned Instructors. With it on, submission is saved as `pending_parent_approval` and only linked Parents get an approval reminder.
+- The system sends an `Excuse Letter Submitted: ...` Messenger item and email to selected Instructors, or all Instructors assigned to the Student's current enrollment context.
+- Only an assigned Instructor can approve or deny the linked Messenger item. Approval changes the letter to `approved`, enables PDF download, and emails and creates an `Approved Excuse Letter: ...` reminder for the Student only. Denial changes it to `denied` and emails and creates a `Denied Excuse Letter: ...` reminder for the Student only. When Parent approval is required, linked Parents alone receive the initial `Excuse Letter Needs Parent Approval: ...` reminder; Parent approval then sends the letter to assigned Instructors.
+- When Parent approval is required, a linked Parent records their name to approve; the letter then becomes `pending_instructor_approval` and routes to assigned Instructors. Instructor approval remains the final decision.
+- Excuse-letter decisions do not change official attendance; attendance remains controlled by attendance workflows.
 
 ## Emergency and clinic automation
 
@@ -102,6 +110,7 @@ Admin controls the switches on **System Settings**. The application shares their
 
 ## General auditing
 
-- Mutating web requests and selected exports/log views are automatically written to `activity_logs` when possible.
+- Mutating web requests, selected exports/log views, and web error responses (including failed page loads) are automatically written to `activity_logs` when possible. Successful ordinary page views are not recorded.
 - The audit middleware records user, role, route, HTTP method, subject, IP address, user agent, outcome, severity, and status code. Audit failure is deliberately prevented from breaking the user's operation.
+- A form submission that redirects with validation or operation errors is recorded as a failed request even though the HTTP response is a redirect. Unhandled exceptions retain Laravel's HTTP error response and application report; their audit entries store status and request metadata, not exception details. If audit storage itself is unavailable, that failure is reported to the application log where possible, without replacing the original response.
 - Attendance, online classes, registrar enrollment, rollover, and some emergency/message operations also write specialized records.

@@ -13,6 +13,7 @@ uses(RefreshDatabase::class);
 test('admin can enable demo attendance panel and configure demo rfids', function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
     $admin = User::factory()->create(['role' => 'admin']);
+    expect(SystemSetting::featureFlags()['messenger_student_excuse_letter_updates_enabled'])->toBeFalse();
 
     $this->actingAs($admin)
         ->put(route('admin.settings.update'), [
@@ -20,7 +21,15 @@ test('admin can enable demo attendance panel and configure demo rfids', function
             'inventory_enabled' => false,
             'parent_portal_enabled' => false,
             'face_recognition_enabled' => false,
+            'temporary_movement_liveness_enabled' => false,
             'online_classes_enabled' => true,
+            'messenger_admin_enabled' => true,
+            'messenger_instructor_enabled' => true,
+            'messenger_clinic_enabled' => true,
+            'messenger_registrar_enabled' => true,
+            'messenger_student_enabled' => false,
+            'messenger_parent_enabled' => false,
+            'messenger_student_excuse_letter_updates_enabled' => true,
             'online_class_face_recognition_default' => false,
             'demo_attendance_panel_enabled' => true,
             'demo_attendance_panel_rfids' => [
@@ -44,6 +53,13 @@ test('admin can enable demo attendance panel and configure demo rfids', function
             'second_professor_tap' => 'PROF-TWO',
         ],
     ]);
+    expect(SystemSetting::featureFlags()['temporary_movement_liveness_enabled'])->toBeFalse();
+    expect(SystemSetting::featureFlags())
+        ->toMatchArray(['messenger_student_enabled' => false, 'messenger_parent_enabled' => false])
+        ->and(SystemSetting::messengerEnabledForRole('student'))->toBeFalse()
+        ->and(SystemSetting::messengerEnabledForRole('parent'))->toBeFalse()
+        ->and(SystemSetting::messengerEnabledForRole('instructor'))->toBeTrue();
+    expect(SystemSetting::featureFlags()['messenger_student_excuse_letter_updates_enabled'])->toBeTrue();
 });
 
 test('sms provider settings default to unavailable and resolve the primary provider', function () {

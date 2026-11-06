@@ -4,8 +4,8 @@ Documentation home: [Documentation Index and Source-of-Truth Map](../DOCUMENTATI
 
 These files are intended to be stashed and moved to another branch:
 
-- `resources/js/pages/ReusableLandingIndex.vue`
-- `resources/js/pages/ReusableAboutPage.vue`
+- `resources/js/pages/Public/ReusableLandingIndex/ReusableLandingIndexPage.vue`
+- `resources/js/pages/Public/ReusableAbout/ReusableAboutPage.vue`
 
 Add these routes in `routes/web.php` on the target branch:
 

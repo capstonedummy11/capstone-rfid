@@ -50,7 +50,10 @@ return [
             'enabled' => env('AWS_REKOGNITION_LIVENESS_ENABLED', false),
             'region' => env('AWS_REKOGNITION_LIVENESS_REGION', 'us-east-1'),
             'identity_pool_id' => env('VITE_AWS_COGNITO_IDENTITY_POOL_ID'),
-            'confidence_threshold' => env('AWS_REKOGNITION_LIVENESS_CONFIDENCE_THRESHOLD', 90),
+            'minimum_confidence' => [
+                'student' => env('LIVENESS_MIN_CONFIDENCE_STUDENT', 60),
+                'instructor' => env('LIVENESS_MIN_CONFIDENCE_INSTRUCTOR', 70),
+            ],
         ],
     ],
 
@@ -60,6 +63,13 @@ return [
         'endpoint' => env('SEMAPHORE_ENDPOINT', 'https://api.semaphore.co/api/v4/messages'),
         'account_endpoint' => env('SEMAPHORE_ACCOUNT_ENDPOINT', 'https://api.semaphore.co/api/v4/account'),
         'enabled' => env('SEMAPHORE_ENABLED', true),
+    ],
+
+    'philsms' => [
+        'token' => env('PHILSMS_API_TOKEN'),
+        'sender_id' => env('PHILSMS_SENDER_ID', 'PhilSMS'),
+        'enabled' => env('PHILSMS_ENABLED', true),
+        'endpoint' => env('PHILSMS_ENDPOINT', 'https://dashboard.philsms.com/api/v3/sms/send'),
     ],
 
     'iprog' => [

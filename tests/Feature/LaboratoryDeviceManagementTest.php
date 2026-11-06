@@ -28,14 +28,14 @@ test('admin can open laboratory and device pages when a managed device has no pa
         ->get(route('admin.laboratories'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/Laboratories')
+            ->component('Admin/Laboratories/LaboratoriesPage')
             ->where('laboratories.0.laboratory_id', $laboratory->laboratory_id));
 
     $this->actingAs($admin)
         ->get(route('admin.active-devices.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/ActiveDevices')
+            ->component('Admin/ActiveDevices/ActiveDevicesPage')
             ->where('devices', fn ($devices) => collect($devices)->contains(
                 fn ($row) => (int) $row['panel_device_id'] === $device->panel_device_id
                     && $row['panel_session_id'] === null

@@ -6,23 +6,25 @@ import { initializeTheme } from './composables/useAppearance';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import AuthLayout from './layouts/AuthLayout.vue';
 import AppVersionBadge from './components/AppVersionBadge.vue';
+import IdleTimeoutManager from './components/IdleTimeoutManager.vue';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 const noLayoutPages = [
-    'Auth/Register',
-    'Auth/Login',
-    'Auth/StaffLogin',
-    'Auth/StudentParentLogin',
-    'Auth/FirstLoginPassword',
+    'Public/Register/RegisterPage',
+    'Shared/Auth/Login/LoginPage',
+    'Shared/Auth/StaffLogin/StaffLoginPage',
+    'StudentParent/Login/StudentParentLoginPage',
+    'Shared/Auth/FirstLoginPassword/FirstLoginPasswordPage',
 ];
 
 createInertiaApp({
     title: (title) => `RFID - Attendance Monitoring, Borrowing, and Inventory`,
     resolve: (name) => {
+        const pageFile = name.endsWith('Page') ? name : `${name}Page`;
         const page = resolvePageComponent(
-            `./pages/${name}.vue`,
+            `./pages/${pageFile}.vue`,
             import.meta.glob('./pages/**/*.vue'),
         );
 
@@ -44,7 +46,11 @@ createInertiaApp({
     setup({ el, App, props, plugin }) {
         createApp({
             render: () =>
-                h(Fragment, [h(App, props), h(AppVersionBadge)]),
+                h(Fragment, [
+                    h(App, props),
+                    h(AppVersionBadge),
+                    h(IdleTimeoutManager),
+                ]),
         })
             .use(plugin)
             .use(ZiggyVue)

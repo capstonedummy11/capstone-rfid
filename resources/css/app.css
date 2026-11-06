@@ -7,6 +7,17 @@
 
 @custom-variant dark (&:is(.dark *));
 
+:root {
+    /* Adjust this one token to change the default surface color across the app. */
+    --app-surface: #f8fafc;
+}
+
+@layer utilities {
+    .bg-white {
+        background-color: var(--app-surface);
+    }
+}
+
 @layer components {
     .text-secondary {
         color: '#0084C7';

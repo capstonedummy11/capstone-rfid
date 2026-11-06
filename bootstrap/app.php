@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnforceIdleTimeout;
 use App\Http\Middleware\EnsureAdminLoginOtpVerified;
 use App\Http\Middleware\EnsureAuthenticatedSessionIdentity;
 use App\Http\Middleware\HandleAppearance;
@@ -40,6 +41,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             EnsureAuthenticatedSessionIdentity::class,
+            EnforceIdleTimeout::class,
             EnsureAdminLoginOtpVerified::class,
             HandleAppearance::class,
             HandleInertiaRequests::class,
@@ -52,8 +54,18 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,
             'instructor.verified' => \App\Http\Middleware\EnsureInstructorVerified::class,
+            'messenger.enabled' => \App\Http\Middleware\EnsureMessengerEnabled::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        // Laravel's default exception handler reports unexpected failures.
+        // Laravel catches unhandled exceptions for every request; attach safe identifiers to its reports.
+        $exceptions->context(function (): array {
+            $request = request();
+
+            return [
+                'route_name' => $request->route()?->getName(),
+                'http_method' => $request->method(),
+                'actor_id' => $request->user()?->getAuthIdentifier(),
+            ];
+        });
     })->create();

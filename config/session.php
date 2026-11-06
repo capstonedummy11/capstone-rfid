@@ -2,6 +2,21 @@
 
 use Illuminate\Support\Str;
 
+$integerInRange = static function (mixed $value, int $default, int $minimum, int $maximum): int {
+    if (! is_numeric($value)) {
+        return $default;
+    }
+
+    $value = (int) $value;
+
+    return $value >= $minimum && $value <= $maximum ? $value : $default;
+};
+
+$idleMinutes = $integerInRange(env('IDLE_TIMEOUT_MINUTES', 15), 15, 1, 1440);
+$warningSeconds = $integerInRange(env('IDLE_WARNING_COUNTDOWN_SECONDS', 30), 30, 5, 300);
+$minimumLifetime = (int) ceil((($idleMinutes * 60) + $warningSeconds + 30) / 60);
+$configuredLifetime = is_numeric(env('SESSION_LIFETIME', 17)) ? (int) env('SESSION_LIFETIME', 17) : 17;
+
 return [
 
     /*
@@ -32,7 +47,7 @@ return [
     |
     */
 
-    'lifetime' => (int) env('SESSION_LIFETIME', 120),
+    'lifetime' => max($minimumLifetime, $configuredLifetime),
 
     'expire_on_close' => env('SESSION_EXPIRE_ON_CLOSE', true),
 

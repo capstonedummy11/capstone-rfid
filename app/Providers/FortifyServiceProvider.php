@@ -88,16 +88,16 @@ class FortifyServiceProvider extends ServiceProvider
      */
     private function configureViews(): void
     {
-        Fortify::loginView(fn (Request $request) => Inertia::render('Auth/StaffLogin', [
+        Fortify::loginView(fn (Request $request) => Inertia::render('Shared/Auth/StaffLogin/StaffLoginPage', [
             'status' => $request->session()->get('status'),
         ]));
 
-        Fortify::resetPasswordView(fn (Request $request) => Inertia::render('Auth/ResetPassword', [
+        Fortify::resetPasswordView(fn (Request $request) => Inertia::render('Shared/Auth/ResetPassword/ResetPasswordPage', [
             'email' => $request->email,
             'token' => $request->route('token'),
         ]));
 
-        Fortify::requestPasswordResetLinkView(fn (Request $request) => Inertia::render('Auth/ForgotPassword', [
+        Fortify::requestPasswordResetLinkView(fn (Request $request) => Inertia::render('Shared/Auth/ForgotPassword/ForgotPasswordPage', [
             'status' => $request->session()->get('status'),
             'backUrl' => $request->query('from') === 'staff'
                 ? route('staff.login')
@@ -111,11 +111,11 @@ class FortifyServiceProvider extends ServiceProvider
             'status' => $request->session()->get('status'),
         ]));
 
-        Fortify::registerView(fn () => Inertia::render('auth/Register'));
+        Fortify::registerView(fn () => Inertia::render('Public/Register/RegisterPage'));
 
-        Fortify::twoFactorChallengeView(fn () => Inertia::render('auth/TwoFactorChallenge'));
+        Fortify::twoFactorChallengeView(fn () => Inertia::render('Shared/Auth/TwoFactorChallenge/TwoFactorChallengePage'));
 
-        Fortify::confirmPasswordView(fn () => Inertia::render('auth/ConfirmPassword'));
+        Fortify::confirmPasswordView(fn () => Inertia::render('Shared/Auth/ConfirmPassword/ConfirmPasswordPage'));
     }
 
     // @function configureAuthentication: Kinukuha ang configure authentication result para sa Fortify Service.
@@ -158,6 +158,11 @@ class FortifyServiceProvider extends ServiceProvider
      */
     private function configureRateLimiting(): void
     {
+        RateLimiter::for('realtime-poll', function (Request $request) {
+            return Limit::perMinute(60)
+                ->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip()));
+        });
+
         RateLimiter::for('root-ownership', function (Request $request) {
             return Limit::perMinute((int) config('root_ownership.rate_limit_per_minute', 5))
                 ->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip()));

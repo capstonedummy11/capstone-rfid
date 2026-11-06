@@ -15,8 +15,8 @@ This is the canonical reference for emergency alerts sent from the Attendance Co
 
 ## 2. Complete Emergency Sequence
 
-1. During an active class session, the instructor taps their RFID again.
-2. The instructor selects **Emergency Call**.
+1. During an active class session, the instructor taps their RFID again and selects **Emergency Call**, or taps a third time to open the emergency flow directly.
+2. The panel opens the emergency flow.
 3. The instructor selects the emergency type.
 4. The system resolves the hotline before opening the assistance/details modal:
     - One matching active hotline is selected automatically.
@@ -30,6 +30,9 @@ This is the canonical reference for emergency alerts sent from the Attendance Co
 7. The final confirmation modal starts a five-second countdown.
 8. Unless cancelled, the system saves the in-app alert and attempts hotline SMS when configured.
 9. For a **Specific person(s)** alert, the system loads the linked parent accounts for each identified student and attempts both parent email and parent SMS notification. Delivery results are recorded with the alert; a missing contact method or provider failure does not discard the emergency alert.
+    - A linked parent with a valid email address receives email even when they have no phone number or SMS is unavailable.
+    - The email includes the student's name and number, emergency type, room, emergency message, and entered symptoms or notes.
+    - If email delivery fails, the panel warns the instructor to contact the parent directly. The Clinic alert remains saved.
 10. Clinic receives the Open alert on `/clinic/dashboard`.
 11. Clinic selects an available Clinic responder and selects **Dispatch**.
 12. Dispatch acknowledges the alert, records response metrics, creates the necessary Clinic Case records, assigns the responder, and attempts the responder notification.
@@ -103,10 +106,10 @@ One **Who needs assistance?** modal contains:
 When **Specific person(s)** is selected:
 
 - Student identification controls are visible.
-- The instructor can scan RFID or search by student name or student number.
+- The instructor may scan a student RFID and press Enter. No student list is shown.
 - Multiple students can be added.
 - Incorrect selections can be removed.
-- At least one student is required before review.
+- A student scan is optional. Without one, Clinic receives the room and an unidentified-patient alert; no parent-specific notification is attempted.
 
 When **Everyone / area-wide** is selected:
 
@@ -235,6 +238,19 @@ Symptoms/details: submitted incident details or default emergency message
 | `response_seconds` | Seconds from alert creation to Dispatch.                 |
 
 Current implementation note: acknowledgement and dispatch are recorded together when Clinic selects **Dispatch**. A separate acknowledgement-only action is not currently implemented.
+
+### Dashboard and Case Log status synchronization
+
+Emergency Notification status and every linked Clinic Case status are synchronized in both directions:
+
+| Emergency Notification | Linked Clinic Case |
+| --- | --- |
+| Open | Open |
+| Acknowledged | Monitoring |
+| Resolved | Resolved |
+| Cancelled | Cancelled |
+
+Changing the notification status updates all linked cases. In the reverse direction, all linked cases being Open, Resolved, or Cancelled sets the notification to that equivalent status. A mixture of patient-case states, or a Monitoring/Referred case, keeps the notification Acknowledged so one patient's completion cannot prematurely close a multi-patient emergency.
 
 ```mermaid
 stateDiagram-v2

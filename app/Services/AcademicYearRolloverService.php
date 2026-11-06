@@ -16,11 +16,25 @@ class AcademicYearRolloverService
     public function preview(AcademicYear $source, AcademicYear $destination, string $mode = 'year', ?string $destinationSemester = null): array
     {
         $this->validateYears($source, $destination, $mode);
-        $allEnrollments = DB::table('student_enrollments')->where('academic_year_id', $source->academic_year_id)->get();
+        $allEnrollments = DB::table('student_enrollments')
+            ->leftJoin('students', 'students.student_id', '=', 'student_enrollments.student_id')
+            ->where('student_enrollments.academic_year_id', $source->academic_year_id)
+            ->select(
+                'student_enrollments.*',
+                'students.first_name',
+                'students.middle_name',
+                'students.last_name',
+            )
+            ->get();
         $transition = $this->transition($source, $allEnrollments, $mode, $destinationSemester);
         $enrollments = $allEnrollments->where('semester', $transition['current_semester'])->values();
         $items = $enrollments->map(fn ($enrollment) => [
             'student_id' => $enrollment->student_id,
+            'student_name' => trim(implode(' ', array_filter([
+                $enrollment->first_name,
+                $enrollment->middle_name,
+                $enrollment->last_name,
+            ]))),
             'source_student_enrollment_id' => $enrollment->student_enrollment_id,
             'source_section_id' => $enrollment->section_id,
             'year_level' => $enrollment->year_level,
@@ -108,7 +122,7 @@ class AcademicYearRolloverService
     }
 
     // @function execute: Isinasagawa ang academic year rollover sa Academic Year Rollover flow.
-    // @useIn execute: app/Http/Controllers/AcademicYearController.php
+    // @useIn execute: app/Http/Controllers/Admin/AcademicYears/AcademicYearController.php
     public function execute(AcademicYear $source, AcademicYear $destination, User $actor, array $decisions, array $sectionMappings, string $mode = 'year', ?string $destinationSemester = null, ?array $subjectSelections = null): AcademicYearRollover
     {
         $preview = $this->preview($source, $destination, $mode, $destinationSemester);

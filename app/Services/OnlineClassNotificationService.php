@@ -16,7 +16,7 @@ class OnlineClassNotificationService
     public function __construct(private OnlineClassAuditLogger $auditLogger) {}
 
     // @function notifyStudents: Nagnonotify ang students sa Online Class Notification flow.
-    // @useIn notifyStudents: app/Http/Controllers/OnlineClassController.php
+    // @useIn notifyStudents: app/Http/Controllers/Shared/OnlineClasses/OnlineClassController.php
     public function notifyStudents(OnlineClass $onlineClass, string $event): void
     {
         $onlineClass->loadMissing(['section', 'subject', 'instructor.user']);

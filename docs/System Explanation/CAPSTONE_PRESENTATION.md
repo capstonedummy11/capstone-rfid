@@ -296,14 +296,13 @@ Demo conversation:
 
 - Student creates excuse letter
 - Optional attachment upload
-- Parent approval required for student-created letters
-- Parent can create signed excuse letters
+- Instructor approval required for Student and Parent submissions
 - Approved letter download
 - Student/parent history view
-- Linked parents receive an email link when a student letter needs a signature
-- Selected or assigned instructors receive the signed PDF through email and Messenger
+- Selected or assigned instructors receive `Excuse Letter Submitted` items through email and Messenger
+- the Student receives an `Approved Excuse Letter` dashboard reminder after approval
 
-Key demo point: student-created letters are not downloadable until linked parent approval; approval generates and delivers the signed PDF to the instructor.
+Key demo point: submitting a letter never approves it; only an assigned Instructor can approve it and enable its generated PDF download.
 
 ## Slide 23: Emergency And Clinic Capabilities
 

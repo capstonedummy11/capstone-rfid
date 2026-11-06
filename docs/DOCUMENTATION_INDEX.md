@@ -5,6 +5,8 @@
 | Need | Source of truth |
 | --- | --- |
 | Plain-language system overview | [System Explanation](System%20Explanation/README.md) |
+| Compact whole-system context | [System Context Memo](SYSTEM_CONTEXT_MEMO.md) |
+| UML actors and industry-style use cases | [System Use-Case Model](System%20Architecture/USE_CASE_MODEL.md) |
 | Every page, action, condition, and result | [Pages and Features](System%20Explanation/PAGES_AND_FEATURES.md) |
 | Role capabilities and boundaries | [Roles and Functionality](System%20Explanation/ROLES_AND_FUNCTIONALITY.md) |
 | Human operating steps | [User Operations Tutorial](System%20Explanation/USER_OPERATIONS_TUTORIAL.md) |
@@ -12,8 +14,10 @@
 | Internal architecture and feature data flows | [Architecture and Feature Flows](System%20Architecture/ARCHITECTURE_AND_FEATURE_FLOWS.md) |
 | Controllers, services, models, middleware, and components | [Implementation Catalog](System%20Architecture/IMPLEMENTATION_CATALOG.md) |
 | Routes and endpoints | [Routes and Endpoints](System%20Architecture/ROUTES_AND_ENDPOINTS.md) |
+| Error responses, exception reporting, and audit failures | [Error Handling Guide](System%20Architecture/ERROR_HANDLING.md) |
 | Instructor excuse-letter review contract | [Instructor Excuse-Letter Review](System%20Architecture/EXCUSE_LETTER_INSTRUCTOR_REVIEW.md) |
 | Tables, fields, and relationships | [Database Schema Reference](System%20Architecture/DATABASE_SCHEMA_REFERENCE.md) |
+| Every enforced and logical database connection | [Database Relationship Reference](System%20Architecture/DATABASE_RELATIONSHIPS.md) |
 | Install, configure, run, build, and deploy | [System Installation](System%20Installation/README.md) |
 | Tests and release checks | [Testing](System%20Architecture/TESTING.md) |
 
@@ -39,8 +43,10 @@
 - `ARCHITECTURE_AND_FEATURE_FLOWS.md` — stack, layers, authentication, services, data flow, external integrations, and known gaps.
 - `IMPLEMENTATION_CATALOG.md` — every controller/service group plus models, middleware, commands, frontend layouts/components, and composables.
 - `ROUTES_AND_ENDPOINTS.md` — HTTP and command surface.
+- `ERROR_HANDLING.md` — validation, exceptions, application logs, and System Activity Logs.
 - `EXCUSE_LETTER_INSTRUCTOR_REVIEW.md` — discovered Instructor review flow, per-delivery authorization, email behavior, validation, and verification contract.
 - `DATABASE_SCHEMA_REFERENCE.md` — final migrated tables, fields, foreign keys, and storage boundary.
+- `DATABASE_RELATIONSHIPS.md` — exhaustive foreign-key/delete-action matrix and logical links that are not database constrained.
 - `DATABASE.md` — migration groups, seeders, attendance data, and compatibility notes.
 - `SYSTEM_FLOW.md` — detailed business/data flow.
 - `PAGE_DATABASE_IMPACT_MAP.md` — page-level read/write impact.

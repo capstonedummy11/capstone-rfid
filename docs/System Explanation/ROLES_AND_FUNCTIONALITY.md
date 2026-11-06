@@ -276,7 +276,7 @@ Student uses the self-service portal to view personal school information and com
 ### Boundaries
 
 - Student sees only their own records.
-- Student-created excuse letters require linked Parent approval before final Instructor delivery.
+- Students can submit excuse letters for Instructor review; only an assigned Instructor can approve or deny them.
 - Student cannot change official attendance.
 - Student cannot access staff, Clinic, Registrar, Admin, or Console functions.
 

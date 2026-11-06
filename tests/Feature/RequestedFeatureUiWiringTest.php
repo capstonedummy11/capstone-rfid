@@ -2,7 +2,7 @@
 
 test('standalone rfid navigation is hidden and registrar navigation uses student biometric enrollment', function () {
     $navbar = file_get_contents(resource_path('js/layouts/AuthNavbar.vue'));
-    $studentEnrollment = file_get_contents(resource_path('js/pages/Registrar/BiometricEnrollment.vue'));
+    $studentEnrollment = file_get_contents(resource_path('js/pages/Registrar/BiometricEnrollment/BiometricEnrollmentPage.vue'));
 
     expect($navbar)
         ->toContain("text: 'Student Biometric Enrollment'")
@@ -12,8 +12,8 @@ test('standalone rfid navigation is hidden and registrar navigation uses student
 });
 
 test('registrar face enrollment panels follow refreshed server props without a browser refresh', function () {
-    $studentEnrollment = file_get_contents(resource_path('js/pages/Registrar/BiometricEnrollment.vue'));
-    $instructorEnrollment = file_get_contents(resource_path('js/pages/Registrar/InstructorFaceEnrollment.vue'));
+    $studentEnrollment = file_get_contents(resource_path('js/pages/Registrar/BiometricEnrollment/BiometricEnrollmentPage.vue'));
+    $instructorEnrollment = file_get_contents(resource_path('js/pages/Registrar/InstructorFaceEnrollment/InstructorFaceEnrollmentPage.vue'));
 
     expect($studentEnrollment)
         ->toContain('const selectedPersonKey = ref(null)')
@@ -39,9 +39,9 @@ test('face liveness requests use the laravel xsrf cookie instead of a missing me
 
 test('instructor liveness displays test diagnostics without enabling them for other flows', function () {
     $faceLiveness = file_get_contents(resource_path('js/lib/faceLiveness.tsx'));
-    $instructorVerify = file_get_contents(resource_path('js/pages/Auth/InstructorVerify.vue'));
-    $attendancePanel = file_get_contents(resource_path('js/pages/AttendanceControlPanel.vue'));
-    $onlineClasses = file_get_contents(resource_path('js/pages/StudentParent/OnlineClasses.vue'));
+    $instructorVerify = file_get_contents(resource_path('js/pages/Instructor/Verification/InstructorVerifyPage.vue'));
+    $attendancePanel = file_get_contents(resource_path('js/pages/AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage.vue'));
+    $onlineClasses = file_get_contents(resource_path('js/pages/StudentParent/OnlineClasses/OnlineClassesPage.vue'));
 
     expect($faceLiveness)
         ->toContain('diagnosticMode = false')
@@ -56,9 +56,9 @@ test('instructor liveness displays test diagnostics without enabling them for ot
 });
 
 test('large admin relationship inputs use searchable autosuggestion controls', function () {
-    $subjects = file_get_contents(resource_path('js/pages/Auth/Admin/Subjects.vue'));
-    $schedules = file_get_contents(resource_path('js/pages/Auth/Admin/Schedules.vue'));
-    $onlineClasses = file_get_contents(resource_path('js/pages/Auth/Admin/OnlineClasses.vue'));
+    $subjects = file_get_contents(resource_path('js/pages/Admin/Subjects/SubjectsPage.vue'));
+    $schedules = file_get_contents(resource_path('js/pages/Shared/Schedules/SchedulesPage.vue'));
+    $onlineClasses = file_get_contents(resource_path('js/pages/Shared/OnlineClasses/OnlineClassesPage.vue'));
 
     expect($subjects)
         ->toContain("import SearchableSelect from '@/components/SearchableSelect.vue'")
@@ -72,7 +72,7 @@ test('large admin relationship inputs use searchable autosuggestion controls', f
 });
 
 test('public student and parent recovery page does not expose staff login', function () {
-    $forgotPassword = file_get_contents(resource_path('js/pages/Auth/ForgotPassword.vue'));
+    $forgotPassword = file_get_contents(resource_path('js/pages/Shared/Auth/ForgotPassword/ForgotPasswordPage.vue'));
 
     expect($forgotPassword)
         ->toContain('Student / Parent login')
@@ -82,9 +82,10 @@ test('public student and parent recovery page does not expose staff login', func
 
 test('password change and reset forms explain the twelve character minimum', function () {
     $passwordPolicy = file_get_contents(resource_path('js/lib/passwordPolicy.ts'));
-    $resetPassword = file_get_contents(resource_path('js/pages/Auth/ResetPassword.vue'));
-    $firstLoginPassword = file_get_contents(resource_path('js/pages/Auth/FirstLoginPassword.vue'));
-    $portalProfile = file_get_contents(resource_path('js/pages/StudentParent/Profile.vue'));
+    $resetPassword = file_get_contents(resource_path('js/pages/Shared/Auth/ResetPassword/ResetPasswordPage.vue'));
+    $firstLoginPassword = file_get_contents(resource_path('js/pages/Shared/Auth/FirstLoginPassword/FirstLoginPasswordPage.vue'));
+    $portalProfile = file_get_contents(resource_path('js/pages/StudentParent/Profile/ProfilePage.vue'));
+    $userManagement = file_get_contents(resource_path('js/pages/Admin/UserManagement/UserManagementPage.vue'));
 
     expect($passwordPolicy)
         ->toContain('MIN_PASSWORD_LENGTH = 12')
@@ -103,15 +104,21 @@ test('password change and reset forms explain the twelve character minimum', fun
         ->and($portalProfile)
         ->toContain(':minlength="MIN_PASSWORD_LENGTH"')
         ->toContain('PASSWORD_LENGTH_HELPER')
-        ->toContain('PASSWORD_LENGTH_ERROR');
+        ->toContain('PASSWORD_LENGTH_ERROR')
+        ->and($userManagement)
+        ->toContain(':minlength="MIN_PASSWORD_LENGTH"')
+        ->toContain('evaluatePasswordRequirements')
+        ->toContain('Password strength')
+        ->toContain('Password must contain:')
+        ->toContain('passwordFormInvalid');
 });
 
 test('first-login password page is standalone and provides sign out', function () {
     $app = file_get_contents(resource_path('js/app.js'));
-    $firstLoginPassword = file_get_contents(resource_path('js/pages/Auth/FirstLoginPassword.vue'));
+    $firstLoginPassword = file_get_contents(resource_path('js/pages/Shared/Auth/FirstLoginPassword/FirstLoginPasswordPage.vue'));
 
     expect($app)
-        ->toContain("'Auth/FirstLoginPassword'")
+        ->toContain("'Shared/Auth/FirstLoginPassword/FirstLoginPasswordPage'")
         ->and($firstLoginPassword)
         ->toContain("router.post(")
         ->toContain("route('logout')")
@@ -120,9 +127,9 @@ test('first-login password page is standalone and provides sign out', function (
 });
 
 test('password change and reset actions prevent duplicate rapid submissions', function () {
-    $resetPassword = file_get_contents(resource_path('js/pages/Auth/ResetPassword.vue'));
-    $firstLoginPassword = file_get_contents(resource_path('js/pages/Auth/FirstLoginPassword.vue'));
-    $portalProfile = file_get_contents(resource_path('js/pages/StudentParent/Profile.vue'));
+    $resetPassword = file_get_contents(resource_path('js/pages/Shared/Auth/ResetPassword/ResetPasswordPage.vue'));
+    $firstLoginPassword = file_get_contents(resource_path('js/pages/Shared/Auth/FirstLoginPassword/FirstLoginPasswordPage.vue'));
+    $portalProfile = file_get_contents(resource_path('js/pages/StudentParent/Profile/ProfilePage.vue'));
 
     expect($resetPassword)
         ->toContain('if (isSubmitting.value) return;')
@@ -147,8 +154,8 @@ test('password change and reset actions prevent duplicate rapid submissions', fu
 });
 
 test('portal login forms remember email without requesting persistent authentication', function () {
-    $studentParentLogin = file_get_contents(resource_path('js/pages/Auth/StudentParentLogin.vue'));
-    $staffLogin = file_get_contents(resource_path('js/pages/Auth/StaffLogin.vue'));
+    $studentParentLogin = file_get_contents(resource_path('js/pages/StudentParent/Login/StudentParentLoginPage.vue'));
+    $staffLogin = file_get_contents(resource_path('js/pages/Shared/Auth/StaffLogin/StaffLoginPage.vue'));
     $savedProfiles = file_get_contents(resource_path('js/composables/useSavedStudentParentProfiles.js'));
 
     expect($studentParentLogin)
@@ -167,7 +174,7 @@ test('portal login forms remember email without requesting persistent authentica
 });
 
 test('instructor password reset uses application confirmation and success modals', function () {
-    $instructors = file_get_contents(resource_path('js/pages/Auth/Admin/Instructors.vue'));
+    $instructors = file_get_contents(resource_path('js/pages/Admin/Instructors/InstructorsPage.vue'));
 
     expect($instructors)
         ->toContain('Reset Instructor password?')
@@ -187,7 +194,7 @@ test('instructor password reset uses application confirmation and success modals
 });
 
 test('student default password preview removes spaces and uses lowercase', function () {
-    $students = file_get_contents(resource_path('js/pages/Auth/Admin/Students.vue'));
+    $students = file_get_contents(resource_path('js/pages/Shared/Students/StudentsPage.vue'));
 
     expect($students)
         ->toContain('const defaultStudentPassword')
@@ -195,9 +202,9 @@ test('student default password preview removes spaces and uses lowercase', funct
 });
 
 test('section subject and student delete actions display server errors', function () {
-    $sections = file_get_contents(resource_path('js/pages/Auth/Admin/Sections.vue'));
-    $subjects = file_get_contents(resource_path('js/pages/Auth/Admin/Subjects.vue'));
-    $students = file_get_contents(resource_path('js/pages/Auth/Admin/Students.vue'));
+    $sections = file_get_contents(resource_path('js/pages/Admin/Sections/SectionsPage.vue'));
+    $subjects = file_get_contents(resource_path('js/pages/Admin/Subjects/SubjectsPage.vue'));
+    $students = file_get_contents(resource_path('js/pages/Shared/Students/StudentsPage.vue'));
 
     expect($sections)
         ->toContain("route('admin.sections.destroy', { id: section.section_id })")
@@ -206,7 +213,7 @@ test('section subject and student delete actions display server errors', functio
         ->and($subjects)
         ->toContain("route('admin.subjects.destroy', { id: subject.subject_id })")
         ->toContain('onError: (errors) =>')
-        ->toContain('Subject not deleted')
+        ->toContain('Subject not archived')
         ->and($students)
         ->toContain("route('admin.students.destroy', { id: student.student_id })")
         ->toContain('onError: (errors) =>')
@@ -214,7 +221,7 @@ test('section subject and student delete actions display server errors', functio
 });
 
 test('clinic and registrar rows expose an application password reset flow', function () {
-    $users = file_get_contents(resource_path('js/pages/Auth/Admin/UserManagement.vue'));
+    $users = file_get_contents(resource_path('js/pages/Admin/UserManagement/UserManagementPage.vue'));
 
     expect($users)
         ->toContain('user.can_reset_password')
@@ -230,7 +237,7 @@ test('clinic and registrar rows expose an application password reset flow', func
 });
 
 test('schedule create and update time inputs use quarter hour intervals', function () {
-    $schedules = file_get_contents(resource_path('js/pages/Auth/Admin/Schedules.vue'));
+    $schedules = file_get_contents(resource_path('js/pages/Shared/Schedules/SchedulesPage.vue'));
 
     expect($schedules)
         ->toContain('step="900"')
@@ -241,7 +248,7 @@ test('schedule create and update time inputs use quarter hour intervals', functi
 });
 
 test('schedule landing state is a laboratory and subject dashboard', function () {
-    $schedules = file_get_contents(resource_path('js/pages/Auth/Admin/Schedules.vue'));
+    $schedules = file_get_contents(resource_path('js/pages/Shared/Schedules/SchedulesPage.vue'));
 
     expect($schedules)
         ->toContain('Schedule Dashboard')
@@ -256,10 +263,10 @@ test('schedule landing state is a laboratory and subject dashboard', function ()
 });
 
 test('excuse letter defaults an empty end date to the selected start date', function () {
-    $excuseLetters = file_get_contents(resource_path('js/pages/StudentParent/ExcuseLetters.vue'));
+    $excuseLetters = file_get_contents(resource_path('js/pages/StudentParent/ExcuseLetters/ExcuseLettersPage.vue'));
 
     expect($excuseLetters)
-        ->toContain("import { computed, reactive, ref, watch } from 'vue'")
+        ->toContain("import { computed, ref, watch } from 'vue'")
         ->toContain('if (startDate && !form.to_date)')
         ->toContain('form.to_date = startDate;')
         ->toContain('const validateLetterForm = () =>')
@@ -297,7 +304,7 @@ test('frontend workflows use application modals instead of native browser dialog
 });
 
 test('about developer easter egg is temporary and removes the portrait border', function () {
-    $about = file_get_contents(resource_path('js/pages/About.vue'));
+    $about = file_get_contents(resource_path('js/pages/Public/About/AboutPage.vue'));
 
     expect($about)
         ->toContain('focus-visible:ring-4')
@@ -310,9 +317,9 @@ test('about developer easter egg is temporary and removes the portrait border', 
 });
 
 test('public navigation opens the about page and centers the team photo faces', function () {
-    $about = file_get_contents(resource_path('js/pages/About.vue'));
-    $landing = file_get_contents(resource_path('js/pages/ReusableLandingIndex.vue'));
-    $studentLogin = file_get_contents(resource_path('js/pages/Auth/StudentParentLogin.vue'));
+    $about = file_get_contents(resource_path('js/pages/Public/About/AboutPage.vue'));
+    $landing = file_get_contents(resource_path('js/pages/Public/ReusableLandingIndex/ReusableLandingIndexPage.vue'));
+    $studentLogin = file_get_contents(resource_path('js/pages/StudentParent/Login/StudentParentLoginPage.vue'));
     $layout = file_get_contents(resource_path('js/layouts/Layout.vue'));
 
     expect($about)
@@ -327,7 +334,7 @@ test('public navigation opens the about page and centers the team photo faces', 
 });
 
 test('landing portal showcase is a student feature carousel', function () {
-    $landing = file_get_contents(resource_path('js/pages/Auth/StudentParentLogin.vue'));
+    $landing = file_get_contents(resource_path('js/pages/StudentParent/Login/StudentParentLoginPage.vue'));
 
     expect($landing)
         ->toContain('Built for student access')
@@ -344,8 +351,8 @@ test('landing portal showcase is a student feature carousel', function () {
 });
 
 test('user management exposes protected root ownership workflows', function () {
-    $page = file_get_contents(resource_path('js/pages/Auth/Admin/UserManagement.vue'));
-    $panel = file_get_contents(resource_path('js/components/Admin/RootOwnershipPanel.vue'));
+    $page = file_get_contents(resource_path('js/pages/Admin/UserManagement/UserManagementPage.vue'));
+    $panel = file_get_contents(resource_path('js/pages/Admin/UserManagement/components/RootOwnershipPanel.vue'));
 
     expect($page)->toContain('RootOwnershipPanel')
         ->and($panel)->toContain('Root Admin ownership')
@@ -359,7 +366,7 @@ test('user management exposes protected root ownership workflows', function () {
 });
 
 test('admin login verification shows the required otp controls', function () {
-    $page = file_get_contents(resource_path('js/pages/Auth/AdminLoginVerification.vue'));
+    $page = file_get_contents(resource_path('js/pages/Admin/LoginVerification/AdminLoginVerificationPage.vue'));
 
     expect($page)
         ->toContain('Admin security checkpoint')

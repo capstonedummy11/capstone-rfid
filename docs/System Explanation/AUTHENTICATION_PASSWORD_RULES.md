@@ -50,11 +50,13 @@ For privacy, the request screen returns the same generic result even when an ema
 
 Console accounts cannot use email password recovery. Their access is managed through the attendance-panel administration process.
 
-Password-reset links and other application website links included in emails use the canonical `APP_URL` value. For local XAMPP operation this is `http://localhost`; production must replace it with the public HTTPS application URL and rebuild the configuration cache.
+Password-reset links and other application website links included in emails use the canonical `APP_URL` value. In local development, set it to the exact browser origin, including the port (for example, `http://127.0.0.1:8000`); production must use the public HTTPS application URL and rebuild the configuration cache.
 
 ## New Account First Login
 
 Accounts created for Admin, Instructor, Registrar, Clinic, Student, or Parent receive `must_change_password = true`.
+
+Admin User Management uses the same live strength meter and checklist for its temporary password field: at least 12 characters, lowercase and uppercase letters, at least one number, and at least one symbol. The Create/Save action remains unavailable until the entered password and confirmation satisfy the displayed rules. When editing an existing managed user, leaving both password fields blank preserves the current password.
 
 After successful authentication:
 
@@ -62,8 +64,9 @@ After successful authentication:
 - Admin and Root Admin accounts complete this password step before entering the email code sent for the current login. If the code expires during password setup, they can request a new code on the verification page.
 - Directly entering another protected URL redirects back to the password-change page.
 - The New Password field displays a live strength bar and checklist for at least 12 characters, lowercase and uppercase letters, at least one number, and at least one symbol.
-- Each checklist item turns green when satisfied, and the first-login form remains disabled until every displayed requirement is met. The password must also be confirmed and differ from the temporary password. Production additionally checks that it is not present in known compromised-password data.
+- Each checklist item turns green when satisfied, and the first-login form remains disabled until every displayed requirement is met. Length, requirement, and confirmation messages update as the user types without a page reload. The password must also differ from the temporary password; that server-only check returns an inline password-field error after submission and clears when the user edits the field. Production additionally checks that it is not present in known compromised-password data.
 - After saving, the flag is cleared and the user proceeds to the correct role dashboard.
+- A cached login form cannot bypass the changed password while the browser still has the current account's session. Submitting that form starts a fresh same-account password check: the former temporary password is rejected and signs out that session; the new password starts a new login. Switching to another account in the same browser session remains blocked.
 - Instructor verification occurs after the temporary password has been replaced.
 
 Console accounts are excluded.

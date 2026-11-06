@@ -12,10 +12,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Attendance extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'attendances';
     protected $primaryKey = 'attendance_id';
@@ -68,7 +69,7 @@ class Attendance extends Model
     // @useIn subjectRecord: Eloquent relationship property at eager loading
     public function subjectRecord(): BelongsTo
     {
-        return $this->belongsTo(Subject::class, 'subject_id', 'subject_id');
+        return $this->belongsTo(Subject::class, 'subject_id', 'subject_id')->withTrashed();
     }
 
     // @function schedule: Ibinabalik ang schedule Eloquent belongsTo relationship.

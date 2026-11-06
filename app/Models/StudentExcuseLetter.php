@@ -6,6 +6,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class StudentExcuseLetter extends Model
 {
@@ -71,5 +72,10 @@ class StudentExcuseLetter extends Model
     public function parentApprovedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'parent_approved_by_user_id', 'user_id');
+    }
+
+    public function studentPortalMessages(): HasMany
+    {
+        return $this->hasMany(StudentPortalMessage::class, 'student_excuse_letter_id', 'student_excuse_letter_id');
     }
 }

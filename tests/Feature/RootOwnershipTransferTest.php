@@ -42,6 +42,11 @@ test('accepted normal transfer completes atomically and revokes the old owner ac
     $transfer = requestTransfer($this, $root, $target);
     $acceptUrl = URL::temporarySignedRoute('root-ownership.accept.store', $transfer->expires_at, ['transfer' => $transfer->id]);
 
+    $this->actingAs($target)
+        ->get($acceptUrl)
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->component('Shared/RootOwnership/Accept/AcceptPage'));
+
     $this->actingAs($target)->post($acceptUrl)->assertRedirect(route('admin.users.index'));
     $this->travel((int) config('root_ownership.transfer_delay_days'))->days();
     app(RootTransferService::class)->processDue();
@@ -83,10 +88,10 @@ test('signed one time email link cancels a transfer without trusting an active s
         return $cancelUrl !== null;
     });
 
-    $this->get($cancelUrl)->assertOk()->assertInertia(fn ($page) => $page->component('RootOwnership/Cancel'));
-    $this->post($cancelUrl)->assertOk()->assertInertia(fn ($page) => $page->component('RootOwnership/Result'));
+    $this->get($cancelUrl)->assertOk()->assertInertia(fn ($page) => $page->component('Shared/RootOwnership/Cancel/CancelPage'));
+    $this->post($cancelUrl)->assertOk()->assertInertia(fn ($page) => $page->component('Shared/RootOwnership/Result/ResultPage'));
     expect($transfer->fresh()->status)->toBe('cancelled')->and($transfer->fresh()->cancel_token_hash)->toBeNull();
-    $this->get($cancelUrl)->assertOk()->assertInertia(fn ($page) => $page->component('RootOwnership/Result'));
+    $this->get($cancelUrl)->assertOk()->assertInertia(fn ($page) => $page->component('Shared/RootOwnership/Result/ResultPage'));
 });
 
 test('unauthorized admin cannot create a normal transfer', function () {
@@ -106,9 +111,11 @@ test('completed transfer enforces the configured cooldown', function () {
     $this->travel((int) config('root_ownership.transfer_delay_days'))->days();
     app(RootTransferService::class)->processDue();
 
-    $this->actingAs($target->fresh())->post(route('admin.root-ownership.transfers.store'), [
-        'to_user_id' => $third->user_id, 'password' => 'password', 'confirmed' => true,
-    ])->assertSessionHasErrors('to_user_id');
+    $this->actingAs($target->fresh())
+        ->withSession([\App\Http\Middleware\EnforceIdleTimeout::LAST_ACTIVITY_AT => now()->timestamp])
+        ->post(route('admin.root-ownership.transfers.store'), [
+            'to_user_id' => $third->user_id, 'password' => 'password', 'confirmed' => true,
+        ])->assertSessionHasErrors('to_user_id');
 });
 
 test('unaccepted transfers expire at the effective date', function () {

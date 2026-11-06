@@ -20,7 +20,8 @@
 | `app/Http/Middleware` | Roles, Instructor verification, Parent Portal, first-password, activity audit, appearance, shared props. |
 | `app/Models` | Eloquent records, relationships, encryption accessors, casts, and academic compatibility hooks. |
 | `app/Services` | Academic year/rollover, enrollment, face providers, online attendance/notifications/audit, SMS, Messenger mail, PDF generation. |
-| `resources/js/pages` | Route-level Vue pages and retained legacy/prototype pages. |
+| `resources/js/pages` | Route-level Vue pages grouped by role and feature; each page keeps its related UI in a local `components` folder where appropriate. Page files end in `Page.vue`, and both resolvers use the nested Inertia component path. |
+| `app/Http/Controllers` | Request controllers grouped by role and feature; shared workflows live under `Shared`, with the base Laravel controller at the root. |
 | `resources/js/layouts` | Shared authenticated navigation, role/feature visibility, unread polling, saved-profile behavior. |
 | `database/migrations` | Final schema and compatibility evolution. |
 | `database/seeders` | Minimal, reference, demo, and account datasets. |
@@ -39,11 +40,12 @@ Browser action
   -> Vue updates the page and shows success/error feedback
 ```
 
-`RecordSystemActivity` observes all POST/PUT/PATCH/DELETE requests and selected GET exports/log views. It deliberately catches its own failures so audit storage cannot break the business request.
+`RecordSystemActivity` observes all POST/PUT/PATCH/DELETE requests, selected GET exports/log views, and web error responses of any method. It also catches downstream exceptions to attempt a failed audit entry, then rethrows them to Laravel's central exception handler. Laravel reports unexpected exceptions with route, method, and actor identifiers; its normal response handling preserves validation, authorization, and server-error status codes. Audit storage errors are reported separately where possible and do not replace the business response.
 
 ## Authentication and authorization
 
 1. Each successful login regenerates the Laravel session ID and records a unique login instance plus its bound user in that server-side session. Different browser cookie jars remain independent; one browser profile keeps one active account.
+   A cached login form for the same already-authenticated account ends the existing session and performs a fresh password login, so a replaced temporary password cannot reach the dashboard through the guest redirect. Another account's email remains blocked from taking over that browser session.
 2. `EnsureAuthenticatedSessionIdentity` validates the bound user on every authenticated web request and invalidates only the affected session if an identity mismatch is detected.
 3. `StudentParentLoginController` accepts only `student`/`parent`; a disabled Parent Portal logs a Parent back out with a neutral failure.
 4. `StaffLoginController` accepts only `admin`/`instructor`/`registrar`/`clinic`; Instructor is redirected to verification.
@@ -69,7 +71,7 @@ Admin form -> Academic/Strand/Section/Subject/Schedule controller
   -> redirect with success or field errors -> page reloads filtered records
 ```
 
-The permanent `subjects` table is a catalog. `subject_offerings` owns year/semester/section/Instructor assignment. `schedules` reference the offering but retain compatibility columns. Closed/archived years are immutable through normal controllers. No schedule-overlap algorithm exists.
+The permanent `subjects` table is a catalog; its legacy `user_id` is not the current Instructor assignment. `subject_offerings` owns year/semester/section/Instructor assignment. Assignment changes update the offering, every schedule linked by `subject_offering_id`, and unfinished scheduled online classes in one transaction. Completed or cancelled online classes retain their original Instructor attribution, while Instructor visibility follows the linked schedule's current Instructor. A one-time migration reconciles existing draft/active-year schedule and unfinished-class mismatches. Closed/archived years are immutable through normal controllers. No schedule-overlap algorithm exists.
 
 ## Student and Parent provisioning flow
 
@@ -136,7 +138,7 @@ Only sender/recipient may download/preview an attachment. The older public `mess
 
 ## Excuse-letter flow
 
-Student/Parent form -> resolve owned/linked Student and active enrollment -> validate dates, teachers, attachment, signature rules -> `student_excuse_letters`. Student letters wait for Parent approval only when Parent Portal is enabled. Approval calls `ExcuseLetterPdfService`, writes the PDF, creates teacher Messenger messages, and attempts email attachments. The letter is evidence/communication; attendance status changes only through attendance controls.
+Student/Parent form -> resolve owned/linked Student and active enrollment -> validate dates, selected Instructors, and attachment -> save `student_excuse_letters` as `pending_instructor_approval` -> create `Excuse Letter Submitted: ...` Instructor Messenger items and emails. An assigned Instructor approves or denies the linked message; approval enables generated PDF download and creates an `Approved Excuse Letter: ...` dashboard reminder for the Student only. If the separate Parent approval setting is enabled, only linked Parents receive the initial approval reminder; after a Parent approves, the letter proceeds to Instructor review. The letter is evidence/communication; attendance status changes only through attendance controls.
 
 ## Borrowing and inventory flow
 
@@ -177,7 +179,7 @@ The unused private `copyOfferingsAndSchedules` helper remains in the service, bu
 
 | Integration | Trigger | Failure behavior |
 | --- | --- | --- |
-| AWS Rekognition | Attendance/online/instructor face comparison plus optional Face Liveness video challenge. Laravel creates and binds each session, Amplify streams with a start-only Cognito role, Laravel evaluates the result, and the returned reference frame still must match an enrolled image. | Disabled liveness preserves the documented still-capture flow; enabled liveness fails closed on missing/expired/replayed tokens or a low confidence score. Existing documented Instructor fallbacks remain separate explicit paths. |
+| AWS Rekognition | Attendance/online/instructor face comparison plus optional Face Liveness video challenge. Laravel creates and binds each session to its authenticated starter, verified subject, purpose, and subject role; Amplify streams with a start-only Cognito role; Laravel requires `SUCCEEDED` and applies the configured Student (default 60) or Instructor (default 70) confidence threshold. The returned reference frame then follows the separate face-similarity check. | Disabled liveness preserves the documented still-capture flow; enabled liveness fails closed on missing, expired, cross-role, replayed, or low-confidence sessions/tokens. Existing documented Instructor fallbacks remain separate explicit paths. |
 | CompreFace | Legacy/alternative face service code path. | Service catches/logs failures; not the primary settings availability provider. |
 | SMTP/Laravel Mail | OTP, password reset, messages, class notices, dispatch, letters. | With `MAIL_MAILER=failover`, Laravel tries the primary SMTP account, then `smtp_backup` on a transport error. Both must allow the configured From address. Most user operation remains stored; email error is caught/recorded where implemented. OTP send itself returns an error if both transports fail. |
 | Semaphore | Emergency hotline SMS. | Alert remains stored and JSON/metadata reports failed/disabled result. |

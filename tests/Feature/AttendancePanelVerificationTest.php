@@ -1,17 +1,23 @@
 <?php
 
 use App\Models\AcademicYear;
+use App\Models\Attendance;
 use App\Models\Instructor;
+use App\Models\OnlineClass;
 use App\Models\RfidPanelSession;
 use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\Strand;
 use App\Models\StudentEnrollment;
 use App\Models\Students;
+use App\Models\StudentExcuseLetter;
+use App\Models\StudentPortalMessage;
 use App\Models\Subject;
 use App\Models\SystemSetting;
 use App\Models\User;
+use App\Services\AwsFaceLivenessService;
 use App\Services\AwsFaceRecognitionService;
+use App\Services\FaceLivenessPolicy;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -116,6 +122,50 @@ function attendanceVerificationFixture(bool $withFace = false): array
     return compact('academicYear', 'student', 'instructorUser', 'schedule', 'console', 'attendanceSessionId');
 }
 
+test('student dashboard counts online class absences for enrolled students', function () {
+    $fixture = attendanceVerificationFixture();
+    Attendance::query()->create([
+        'student_id' => $fixture['student']->student_id,
+        'schedule_id' => $fixture['schedule']->scheduled_id,
+        'date' => now()->toDateString(),
+        'status' => 'absent',
+        'subject_code' => 'ATT-SEC-101',
+        'room' => 'COMLAB-ATT',
+    ]);
+    $onlineClass = OnlineClass::query()->create([
+        'schedule_id' => $fixture['schedule']->scheduled_id,
+        'instructor_id' => $fixture['schedule']->instructor_id,
+        'section_id' => $fixture['schedule']->section_id,
+        'subject_code' => 'ATT-SEC-101',
+        'title' => 'Past online class',
+        'meeting_link' => 'https://example.test/attendance',
+        'scheduled_date' => now()->subDay()->toDateString(),
+        'start_time' => '08:00:00',
+        'end_time' => '09:00:00',
+        'require_face_recognition' => false,
+        'status' => 'scheduled',
+    ]);
+    $studentUser = User::factory()->create([
+        'email' => $fixture['student']->email,
+        'role' => 'student',
+    ]);
+
+    $this->actingAs($studentUser)
+        ->get(route('student-parent.dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('StudentParent/Dashboard/DashboardPage')
+            ->where('stats.absent', 2)
+            ->where('attendance.1.source', 'online')
+            ->where('attendance.1.status', 'absent'));
+
+    $this->assertDatabaseHas('online_class_attendances', [
+        'online_class_id' => $onlineClass->online_class_id,
+        'student_id' => $fixture['student']->student_id,
+        'status' => 'absent',
+    ]);
+});
+
 test('direct student tap cannot record attendance without server-side verification', function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
     $fixture = attendanceVerificationFixture();
@@ -166,6 +216,113 @@ test('instructor can manually change assigned student attendance inside configur
         'action' => 'attendance_status_changed',
         'table_name' => 'attendances',
     ]);
+
+    $studentUser = User::factory()->create([
+        'role' => 'student',
+        'email' => $fixture['student']->email,
+    ]);
+    $this->actingAs($studentUser)
+        ->get(route('student-parent.attendance'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('attendance.0.status', 'Excused'));
+});
+
+test('student and instructor see the same absence for a missed physical session', function () {
+    $fixture = attendanceVerificationFixture();
+    DB::table('attendance_sessions')
+        ->where('attendance_id', $fixture['attendanceSessionId'])
+        ->update(['status' => 'completed', 'time_end' => now()->subMinute()->format('H:i:s')]);
+    $subject = Subject::query()->where('subject_code', 'ATT-SEC-101')->firstOrFail();
+
+    $this->actingAs($fixture['instructorUser'])
+        ->withSession(['instructor_verified' => true])
+        ->get(route('admin.attendance.session', [$subject, $fixture['attendanceSessionId']]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('rows.0.status', 'Absent'));
+
+    $studentUser = User::factory()->create([
+        'role' => 'student',
+        'email' => $fixture['student']->email,
+    ]);
+    $this->actingAs($studentUser)
+        ->get(route('student-parent.attendance'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('StudentParent/Attendance/AttendancePage')
+            ->where('attendance.0.date', now()->toDateString())
+            ->where('attendance.0.status', 'Absent')
+            ->where('attendance.0.time_in', null)
+            ->where('attendance.0.time_out_image_url', null));
+});
+
+test('authorized instructor can soft delete attendance and it is excluded from session totals', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    $fixture = attendanceVerificationFixture();
+    $subject = Subject::query()->where('subject_code', 'ATT-SEC-101')->firstOrFail();
+
+    $this->actingAs($fixture['instructorUser'])
+        ->withSession(['instructor_verified' => true])
+        ->patch(route('admin.attendance.logs.status'), [
+            'session_id' => $fixture['attendanceSessionId'],
+            'student_id' => $fixture['student']->student_id,
+            'status' => 'present',
+        ])->assertRedirect();
+
+    $attendance = Attendance::query()->sole();
+
+    $this->actingAs($fixture['instructorUser'])
+        ->withSession(['instructor_verified' => true])
+        ->delete(route('admin.attendance.destroy', $attendance))
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    $this->assertSoftDeleted('attendances', ['attendance_id' => $attendance->attendance_id]);
+    $this->assertDatabaseHas('activity_logs', [
+        'action' => 'attendance_removed',
+        'subject_id' => (string) $attendance->attendance_id,
+    ]);
+
+    $this->actingAs($fixture['instructorUser'])
+        ->withSession(['instructor_verified' => true])
+        ->get(route('admin.attendance.session', [$subject, $fixture['attendanceSessionId']]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Shared/Attendance/SessionDetails/SessionDetailsPage')
+            ->has('rows', 0));
+
+    $studentUser = User::factory()->create([
+        'role' => 'student',
+        'email' => $fixture['student']->email,
+    ]);
+    $this->actingAs($studentUser)
+        ->get(route('student-parent.attendance'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->has('attendance', 0));
+});
+
+test('Sunday RFID lookup selects Sunday schedules and ignores them after soft deletion', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    Carbon::setTestNow('2026-10-11 09:00:00');
+    $fixture = attendanceVerificationFixture();
+
+    $payload = [
+        'rfid' => $fixture['instructorUser']->rfid_tag,
+        'room' => 'COMLAB-ATT',
+    ];
+
+    $this->actingAs($fixture['console'])
+        ->postJson(route('attendanceControlPanel.lookupRfid'), $payload)
+        ->assertOk()
+        ->assertJsonPath('has_valid_schedule', true)
+        ->assertJsonPath('profile.schedule_days', 'Sunday');
+
+    $fixture['schedule']->delete();
+
+    $this->postJson(route('attendanceControlPanel.lookupRfid'), $payload)
+        ->assertOk()
+        ->assertJsonPath('has_valid_schedule', false);
+
+    Carbon::setTestNow();
 });
 
 test('instructor cannot manually change attendance outside configured edit window', function () {
@@ -201,6 +358,174 @@ test('instructor attendance module skips subject selection when exactly one subj
         ->assertRedirect(route('admin.attendance.subject', $subject));
 });
 
+test('instructor attendance logs expose only matching excuse letters inside the configured absence window', function () {
+    Carbon::setTestNow('2026-10-20 12:00:00');
+    $fixture = attendanceVerificationFixture();
+    $subject = Subject::query()->where('subject_code', 'ATT-SEC-101')->firstOrFail();
+    SystemSetting::setInteger(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 3);
+    DB::table('attendance_sessions')->where('attendance_id', $fixture['attendanceSessionId'])->update([
+        'date' => '2026-10-19',
+        'time_end' => '09:00:00',
+    ]);
+    $studentUser = User::factory()->create([
+        'role' => 'student',
+        'email' => $fixture['student']->email,
+    ]);
+    $letter = StudentExcuseLetter::query()->create([
+        'student_id' => $fixture['student']->student_id,
+        'submitted_by_user_id' => $studentUser->user_id,
+        'submitted_by_role' => 'student',
+        'subject' => $subject->subject_name,
+        'from_date' => '2026-10-19',
+        'to_date' => '2026-10-19',
+        'reason' => 'Medical appointment.',
+        'status' => 'pending_instructor_approval',
+    ]);
+    $portalMessage = StudentPortalMessage::query()->create([
+        'student_id' => $fixture['student']->student_id,
+        'student_excuse_letter_id' => $letter->student_excuse_letter_id,
+        'sender_user_id' => $studentUser->user_id,
+        'recipient_user_id' => $fixture['instructorUser']->user_id,
+        'sender_role' => 'student',
+        'instructor_user_id' => $fixture['instructorUser']->user_id,
+        'subject' => 'Excuse Letter Submitted: '.$subject->subject_name,
+        'body' => 'Awaiting review.',
+    ]);
+
+    $this->actingAs($fixture['instructorUser'])
+        ->withSession(['instructor_verified' => true])
+        ->get(route('admin.attendance.logs.legacy'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Shared/Attendance/AttendanceLogs/AttendanceLogsPage')
+            ->where('canReviewExcuseLetters', true)
+            ->where('logs.0.status', 'Absent')
+            ->where('logs.0.excuse_letter.message_id', $portalMessage->student_portal_message_id)
+            ->where('logs.0.excuse_letter.status', 'pending')
+            ->where('logs.0.excuse_letter.reason', 'Medical appointment.'));
+
+    DB::table('attendance_sessions')->where('attendance_id', $fixture['attendanceSessionId'])->update([
+        'date' => '2026-10-16',
+    ]);
+    $this->actingAs($fixture['instructorUser'])
+        ->withSession(['instructor_verified' => true])
+        ->get(route('admin.attendance.logs.legacy'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('logs', 0));
+});
+
+test('instructor student attendance shows all excuse decisions only inside the configured threshold', function () {
+    Carbon::setTestNow('2026-10-20 12:00:00');
+    $fixture = attendanceVerificationFixture();
+    $subject = Subject::query()->where('subject_code', 'ATT-SEC-101')->firstOrFail();
+    SystemSetting::setInteger(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 3);
+    DB::table('attendance_sessions')->where('attendance_id', $fixture['attendanceSessionId'])->update([
+        'date' => '2026-10-19',
+        'time_end' => '09:00:00',
+    ]);
+    $studentUser = User::factory()->create(['role' => 'student', 'email' => $fixture['student']->email]);
+
+    foreach (['approved', 'denied', 'pending_instructor_approval'] as $status) {
+        $letter = StudentExcuseLetter::query()->create([
+            'student_id' => $fixture['student']->student_id,
+            'submitted_by_user_id' => $studentUser->user_id,
+            'submitted_by_role' => 'student',
+            'subject' => $subject->subject_name,
+            'from_date' => '2026-10-19',
+            'to_date' => '2026-10-19',
+            'reason' => $status,
+            'status' => $status,
+        ]);
+        StudentPortalMessage::query()->create([
+            'student_id' => $fixture['student']->student_id,
+            'student_excuse_letter_id' => $letter->student_excuse_letter_id,
+            'sender_user_id' => $studentUser->user_id,
+            'recipient_user_id' => $fixture['instructorUser']->user_id,
+            'sender_role' => 'student',
+            'instructor_user_id' => $fixture['instructorUser']->user_id,
+            'subject' => 'Excuse Letter Submitted: '.$subject->subject_name,
+            'body' => 'Review record.',
+            'excuse_letter_review_decision' => in_array($status, ['approved', 'denied'], true) ? $status : null,
+            'excuse_letter_reviewed_by_user_id' => in_array($status, ['approved', 'denied'], true) ? $fixture['instructorUser']->user_id : null,
+            'excuse_letter_reviewed_at' => in_array($status, ['approved', 'denied'], true) ? now()->subDays(2) : null,
+        ]);
+    }
+
+    $this->actingAs($fixture['instructorUser'])
+        ->withSession(['instructor_verified' => true])
+        ->get(route('admin.attendance.student', [$subject, $fixture['student']]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Shared/Attendance/StudentHistory/StudentHistoryPage')
+            ->where('absentDefaultDays', 3)
+            ->has('history.0.excuse_letters', 3)
+            ->where('history.0.excuse_letters', fn ($letters) => collect($letters)->pluck('status')->sort()->values()->all() === ['approved', 'denied', 'pending']
+                && collect($letters)->firstWhere('status', 'pending')['can_review'] === true));
+
+    DB::table('attendance_sessions')->where('attendance_id', $fixture['attendanceSessionId'])->update(['date' => '2026-10-16']);
+    $this->actingAs($fixture['instructorUser'])
+        ->withSession(['instructor_verified' => true])
+        ->get(route('admin.attendance.student', [$subject, $fixture['student']]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->has('history.0.excuse_letters', 0));
+
+    $letter->update(['from_date' => '2026-10-16', 'to_date' => '2026-10-16']);
+    $expiredMessage = StudentPortalMessage::query()
+        ->where('student_excuse_letter_id', $letter->student_excuse_letter_id)
+        ->where('recipient_user_id', $fixture['instructorUser']->user_id)
+        ->firstOrFail();
+    $this->actingAs($fixture['instructorUser'])
+        ->put(route('messages.excuse-letters.review', $expiredMessage), [
+            'decision' => 'approved',
+            'recipients' => ['student'],
+            'email_subject' => 'Late review',
+            'email_body' => 'This expired decision should not be accepted.',
+        ])
+        ->assertSessionHasErrors('decision');
+});
+
+test('instructor student attendance warns at 24 hours before an excuse letter leaves the attendance window', function () {
+    Carbon::setTestNow('2026-10-21 00:00:00');
+    $fixture = attendanceVerificationFixture();
+    $subject = Subject::query()->where('subject_code', 'ATT-SEC-101')->firstOrFail();
+    SystemSetting::setInteger(SystemSetting::ATTENDANCE_ABSENT_DEFAULT_DAYS, 3);
+    DB::table('attendance_sessions')->where('attendance_id', $fixture['attendanceSessionId'])->update([
+        'date' => '2026-10-19',
+        'time_end' => '09:00:00',
+    ]);
+    $studentUser = User::factory()->create(['role' => 'student', 'email' => $fixture['student']->email]);
+    $letter = StudentExcuseLetter::query()->create([
+        'student_id' => $fixture['student']->student_id,
+        'submitted_by_user_id' => $studentUser->user_id,
+        'submitted_by_role' => 'student',
+        'subject' => $subject->subject_name,
+        'from_date' => '2026-10-19',
+        'to_date' => '2026-10-19',
+        'reason' => 'Pending decision.',
+        'status' => 'pending_instructor_approval',
+    ]);
+    StudentPortalMessage::query()->create([
+        'student_id' => $fixture['student']->student_id,
+        'student_excuse_letter_id' => $letter->student_excuse_letter_id,
+        'sender_user_id' => $studentUser->user_id,
+        'recipient_user_id' => $fixture['instructorUser']->user_id,
+        'sender_role' => 'student',
+        'instructor_user_id' => $fixture['instructorUser']->user_id,
+        'subject' => 'Excuse Letter Submitted: '.$subject->subject_name,
+        'body' => 'Awaiting review.',
+    ]);
+
+    $this->actingAs($fixture['instructorUser'])
+        ->withSession(['instructor_verified' => true])
+        ->get(route('admin.attendance.student', [$subject, $fixture['student']]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('history.0.excuse_letters.0.can_review', true)
+            ->where('history.0.excuse_letters.0.hours_remaining', 24)
+            ->where('history.0.excuse_letters.0.expires_at', '2026-10-21 23:59:59'));
+});
+
 test('administrator can browse all attendance subjects and open subject analytics', function () {
     $fixture = attendanceVerificationFixture();
     $admin = User::factory()->create(['role' => 'admin']);
@@ -210,7 +535,7 @@ test('administrator can browse all attendance subjects and open subject analytic
         ->get(route('admin.attendance.logs'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Attendance/SubjectSelection')
+            ->component('Shared/Attendance/SubjectSelection/SubjectSelectionPage')
             ->has('subjects', 1)
             ->where('subjects.0.id', $subject->subject_id)
             ->where('currentUserRole', 'admin'));
@@ -219,7 +544,7 @@ test('administrator can browse all attendance subjects and open subject analytic
         ->get(route('admin.attendance.subject', $subject))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Attendance/Dashboard')
+            ->component('Shared/Attendance/Dashboard/DashboardPage')
             ->where('subject.id', $subject->subject_id)
             ->where('overview.total_students', 1)
             ->where('overview.total_sessions', 1)
@@ -229,7 +554,7 @@ test('administrator can browse all attendance subjects and open subject analytic
         ->get(route('admin.attendance.summary', $subject))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Attendance/Summary')
+            ->component('Shared/Attendance/Summary/SummaryPage')
             ->where('statuses', ['Present', 'Absent', 'Late', 'Excused', 'Unexcused', 'Online Class'])
             ->has('rows', 1)
             ->where('rows.0.student_id', $fixture['student']->student_id));
@@ -310,7 +635,7 @@ test('online class participation is counted as online class and present attendan
         ->get(route('admin.attendance.session', [$subject, 'online-'.$onlineClassId]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Attendance/SessionDetails')
+            ->component('Shared/Attendance/SessionDetails/SessionDetailsPage')
             ->where('session.type', 'online')
             ->where('statusTotals.Present', 1)
             ->where('statusTotals.Absent', 1));
@@ -319,7 +644,7 @@ test('online class participation is counted as online class and present attendan
         ->get(route('admin.online-classes.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Auth/Admin/OnlineClasses')
+            ->component('Shared/OnlineClasses/OnlineClassesPage')
             ->where('onlineClasses.0.attendance_subject_id', $subject->subject_id)
             ->where(
                 'onlineClasses.0.attendance_url',
@@ -353,9 +678,9 @@ test('online class participation is counted as online class and present attendan
         ->get(route('student-parent.attendance'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('StudentParent/Attendance')
-            ->where('attendance.0.source', 'online')
-            ->where('attendance.0.status', 'present'));
+            ->component('StudentParent/Attendance/AttendancePage')
+            ->where('attendance.1.source', 'online')
+            ->where('attendance.1.status', 'present'));
 });
 
 test('online class uses the configured late threshold', function () {
@@ -530,49 +855,112 @@ test('administrator can edit attendance and export subject reports', function ()
 });
 
 test('attendance panel room remains unlocked on refresh until panel logout', function () {
+    // The fixture has an 08:00 class; freeze before it so the test remains valid at any wall-clock time.
+    $this->travelTo(Carbon::parse('2026-10-12 07:00:00', 'Asia/Manila'), function () {
+        $this->withoutMiddleware(ValidateCsrfToken::class);
+        $fixture = attendanceVerificationFixture();
+
+        $this->actingAs($fixture['console'])
+            ->postJson(route('attendanceControlPanel.room'), [
+                'room' => 'COMLAB-ATT',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertDatabaseHas('rfid_panel_sessions', [
+            'room' => 'COMLAB-ATT',
+            'opened_by_user_id' => $fixture['console']->user_id,
+            'status' => 'online',
+            'ended_at' => null,
+        ]);
+
+        $this->flushSession();
+
+        $this->actingAs($fixture['console'])
+            ->get(route('attendanceControlPanel'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage')
+                ->where('panelRoom', 'COMLAB-ATT')
+            );
+
+        $this->actingAs($fixture['console'])
+            ->withSession(['panel.room' => 'COMLAB-ATT'])
+            ->postJson(route('attendanceControlPanel.logout'), [
+                'room' => 'COMLAB-ATT',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        expect(RfidPanelSession::query()
+            ->where('room', 'COMLAB-ATT')
+            ->whereNull('ended_at')
+            ->exists())->toBeFalse();
+
+        $this->actingAs($fixture['console'])
+            ->get(route('attendanceControlPanel'))
+            ->assertRedirect(route('attendanceControlPanel.login'));
+    });
+});
+
+test('ongoing Sunday class is restored in its panel and locks the room against another login', function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
+    Carbon::setTestNow(Carbon::parse('2026-10-11 09:00:00', 'Asia/Manila'));
     $fixture = attendanceVerificationFixture();
 
-    $this->actingAs($fixture['console'])
-        ->postJson(route('attendanceControlPanel.room'), [
-            'room' => 'COMLAB-ATT',
-        ])
-        ->assertOk()
-        ->assertJsonPath('success', true);
-
-    $this->assertDatabaseHas('rfid_panel_sessions', [
-        'room' => 'COMLAB-ATT',
-        'opened_by_user_id' => $fixture['console']->user_id,
-        'status' => 'online',
-        'ended_at' => null,
-    ]);
-
-    $this->flushSession();
-
-    $this->actingAs($fixture['console'])
-        ->get(route('attendanceControlPanel'))
+    $this->get(route('attendanceControlPanel.login'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('AttendanceControlPanel')
-            ->where('panelRoom', 'COMLAB-ATT')
-        );
+            ->component('AttendanceConsole/AttendancePanelLogin/AttendancePanelLoginPage')
+            ->where('rooms.0.name', 'COMLAB-ATT')
+            ->where('rooms.0.is_ongoing', true)
+            ->where('rooms.0.label', 'Ongoing')
+            ->where('rooms.0.ongoing_schedule.subject', 'Attendance Security')
+            ->where('rooms.0.ongoing_schedule.section', '11 - ICT ATT 11-A')
+            ->where('rooms.0.ongoing_schedule.instructor', $fixture['instructorUser']->name)
+            ->where('rooms.0.ongoing_schedule.time_start', '8:00 AM')
+            ->where('rooms.0.ongoing_schedule.time_end', '5:00 PM'));
+
+    $this->postJson(route('panelVerify'), [
+        'room' => 'COMLAB-ATT',
+        'pin' => (string) config('panel.pin'),
+    ])->assertStatus(423)->assertJson([
+        'success' => false,
+        'message' => 'This room is locked because a class is currently ongoing.',
+    ]);
 
     $this->actingAs($fixture['console'])
         ->withSession(['panel.room' => 'COMLAB-ATT'])
-        ->postJson(route('attendanceControlPanel.logout'), [
-            'room' => 'COMLAB-ATT',
-        ])
-        ->assertOk()
-        ->assertJsonPath('success', true);
-
-    expect(RfidPanelSession::query()
-        ->where('room', 'COMLAB-ATT')
-        ->whereNull('ended_at')
-        ->exists())->toBeFalse();
-
-    $this->actingAs($fixture['console'])
         ->get(route('attendanceControlPanel'))
-        ->assertRedirect(route('attendanceControlPanel.login'));
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage')
+            ->where('ongoingClass.status', 'attendance')
+            ->where('ongoingClass.professor.schedule_id', $fixture['schedule']->scheduled_id)
+            ->where('ongoingClass.professor.schedule_days', 'Sunday'));
+
+    $this->postJson(route('attendanceControlPanel.status'), [
+        'room' => 'COMLAB-ATT',
+    ])->assertOk()
+        ->assertJsonPath('logout_required', false)
+        ->assertJsonPath('ongoing_class.schedule_id', $fixture['schedule']->scheduled_id);
+
+    $this->postJson(route('attendanceControlPanel.room'), [
+        'room' => 'COMLAB-ATT',
+    ])->assertStatus(423)->assertJsonPath('success', false);
+
+    DB::table('attendance_sessions')
+        ->where('attendance_id', $fixture['attendanceSessionId'])
+        ->update([
+            'status' => 'online',
+            'time_end' => now()->format('H:i:s'),
+        ]);
+
+    $this->postJson(route('attendanceControlPanel.room'), [
+        'room' => 'COMLAB-ATT',
+    ])->assertOk()->assertJsonPath('success', true);
+
+    Carbon::setTestNow();
 });
 
 test('attendance panel demo buttons are disabled by default and use configured rfids when enabled', function () {
@@ -583,7 +971,7 @@ test('attendance panel demo buttons are disabled by default and use configured r
         ->get(route('attendanceControlPanel'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('AttendanceControlPanel')
+            ->component('AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage')
             ->where('featureSettings.demo_attendance_panel_enabled', false)
             ->where('demoAttendancePanel.enabled', false)
         );
@@ -601,7 +989,7 @@ test('attendance panel demo buttons are disabled by default and use configured r
         ->get(route('attendanceControlPanel'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('AttendanceControlPanel')
+            ->component('AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage')
             ->where('featureSettings.demo_attendance_panel_enabled', true)
             ->where('demoAttendancePanel.enabled', true)
             ->where('demoAttendancePanel.rfids.professor_tap', 'PROF-ONE')
@@ -647,6 +1035,36 @@ test('student without a face requires the active instructor rfid before attendan
     $this->assertDatabaseCount('attendance_logs', 1);
 });
 
+test('instructor approved camera captures are saved for official check-out', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    Carbon::setTestNow('2026-09-25 16:50:00');
+    Storage::fake('public');
+    $fixture = attendanceVerificationFixture();
+    $payload = [
+        'rfid' => $fixture['student']->rfid_tag,
+        'room' => 'COMLAB-ATT',
+        'subject_code' => 'ATT-SEC-101',
+        'schedule_id' => $fixture['schedule']->scheduled_id,
+        'instructor_rfid' => $fixture['instructorUser']->rfid_tag,
+        'image' => 'data:image/jpeg;base64,'.base64_encode('approved-camera-image'),
+    ];
+
+    $this->actingAs($fixture['console'])
+        ->postJson(route('attendanceControlPanel.studentFaceCheck'), $payload)
+        ->assertOk()->assertJsonPath('capture_recorded', true);
+    $this->postJson(route('attendanceControlPanel.studentTap'), $payload)
+        ->assertOk()->assertJsonPath('action', 'time_in');
+    $this->postJson(route('attendanceControlPanel.studentFaceCheck'), $payload)
+        ->assertOk()->assertJsonPath('capture_recorded', true);
+    $this->postJson(route('attendanceControlPanel.studentTap'), $payload)
+        ->assertOk()->assertJsonPath('action', 'time_out');
+
+    $checkoutLog = DB::table('attendance_logs')->where('tap_type', 'Check-out')->first();
+    expect($checkoutLog->time_out_face_path)->not->toBeNull();
+    Storage::disk('public')->assertExists($checkoutLog->time_out_face_path);
+    Carbon::setTestNow();
+});
+
 test('fallback verification keeps temporary exit and return rules before the checkout window', function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
     Carbon::setTestNow('2026-09-25 12:00:00');
@@ -669,8 +1087,13 @@ test('fallback verification keeps temporary exit and return rules before the che
         ->assertOk()
         ->assertJsonPath('action', 'time_in');
 
-    $this->postJson(route('attendanceControlPanel.studentFaceCheck'), $verificationPayload)
-        ->assertOk();
+    $this->postJson(route('attendanceControlPanel.studentFaceCheck'), [
+        ...$payload,
+        'temporary_movement_candidate' => true,
+    ])
+        ->assertOk()
+        ->assertJsonPath('temporary_movement_eligible', true)
+        ->assertJsonPath('liveness_required', false);
     $this->postJson(route('attendanceControlPanel.studentTap'), $payload)
         ->assertStatus(428)
         ->assertJsonPath('requires_temporary_movement_instructor', true);
@@ -682,8 +1105,13 @@ test('fallback verification keeps temporary exit and return rules before the che
         ->assertJsonPath('action', 'temporary_exit')
         ->assertJsonPath('record.room_status', 'Outside');
 
-    $this->postJson(route('attendanceControlPanel.studentFaceCheck'), $verificationPayload)
-        ->assertOk();
+    $this->postJson(route('attendanceControlPanel.studentFaceCheck'), [
+        ...$payload,
+        'temporary_movement_candidate' => true,
+    ])
+        ->assertOk()
+        ->assertJsonPath('temporary_movement_eligible', true)
+        ->assertJsonPath('liveness_required', false);
     $this->postJson(route('attendanceControlPanel.studentTap'), [
         ...$payload,
         'temporary_movement_instructor_rfid' => $fixture['instructorUser']->rfid_tag,
@@ -715,7 +1143,7 @@ test('fallback verification keeps temporary exit and return rules before the che
         ->get(route('admin.attendance.session', [$subject, $fixture['attendanceSessionId']]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Attendance/SessionDetails')
+            ->component('Shared/Attendance/SessionDetails/SessionDetailsPage')
             ->where('rows.0.time_out', null)
             ->has('rows.0.tap_events', 3)
             ->where('rows.0.tap_events.0.tap_type', 'Check-in')
@@ -724,6 +1152,71 @@ test('fallback verification keeps temporary exit and return rules before the che
             ->where('rows.0.tap_events.2.tap_type', 'Temporary Return')
             ->where('rows.0.tap_events.2.room_status', 'Inside'));
 
+    Carbon::setTestNow();
+});
+
+test('temporary movement can require liveness without comparing the enrolled face', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    Carbon::setTestNow('2026-09-25 12:00:00');
+    Storage::fake('public');
+    config()->set('services.aws_rekognition.liveness.enabled', true);
+    SystemSetting::setBoolean(SystemSetting::TEMPORARY_MOVEMENT_LIVENESS_ENABLED, true);
+    $fixture = attendanceVerificationFixture(true);
+    $fixture['student']->update(['face_images' => []]);
+    $payload = [
+        'rfid' => $fixture['student']->rfid_tag,
+        'room' => 'COMLAB-ATT',
+        'subject_code' => 'ATT-SEC-101',
+        'schedule_id' => $fixture['schedule']->scheduled_id,
+    ];
+
+    $faceService = Mockery::mock(AwsFaceRecognitionService::class);
+    $faceService->shouldNotReceive('compareBase64WithStoredImage');
+    $this->app->instance(AwsFaceRecognitionService::class, $faceService);
+    $livenessService = Mockery::mock(AwsFaceLivenessService::class);
+    $livenessService->shouldReceive('consumeReferenceImage')
+        ->once()
+        ->withArgs(fn ($request, $token, $purpose, $subjectKey, $subjectRole) =>
+            $token === str_repeat('l', 64)
+            && $purpose === 'attendance_student'
+            && $subjectKey === $fixture['student']->rfid_tag
+            && $subjectRole === FaceLivenessPolicy::STUDENT_ROLE
+        )
+        ->andReturn('data:image/jpeg;base64,'.base64_encode('live-reference-image'));
+    $this->app->instance(AwsFaceLivenessService::class, $livenessService);
+
+    $this->actingAs($fixture['console'])
+        ->postJson(route('attendanceControlPanel.studentFaceCheck'), [
+            ...$payload,
+            'instructor_rfid' => $fixture['instructorUser']->rfid_tag,
+        ])
+        ->assertOk();
+    $this->postJson(route('attendanceControlPanel.studentTap'), $payload)
+        ->assertOk()
+        ->assertJsonPath('action', 'time_in');
+
+    $this->postJson(route('attendanceControlPanel.studentFaceCheck'), [
+        ...$payload,
+        'temporary_movement_candidate' => true,
+        'liveness_token' => str_repeat('l', 64),
+    ])
+        ->assertOk()
+        ->assertJsonPath('temporary_movement_eligible', true)
+        ->assertJsonPath('liveness_required', true)
+        ->assertJsonPath('provider', 'aws_face_liveness');
+
+    $this->postJson(route('attendanceControlPanel.studentTap'), [
+        ...$payload,
+        'temporary_movement_instructor_rfid' => $fixture['instructorUser']->rfid_tag,
+    ])
+        ->assertOk()
+        ->assertJsonPath('action', 'temporary_exit');
+
+    $this->assertDatabaseHas('attendance_logs', [
+        'student_id' => $fixture['student']->student_id,
+        'tap_type' => 'Temporary Exit',
+        'verification_method' => 'temporary_movement_liveness',
+    ]);
     Carbon::setTestNow();
 });
 
@@ -772,10 +1265,27 @@ test('aws unavailability stores evidence for both login and logout', function ()
         ->assertJsonPath('records.0.tap_count', 2);
 
     $log = DB::table('attendance_logs')->first();
+    $checkoutLog = DB::table('attendance_logs')->where('tap_type', 'Check-out')->firstOrFail();
     expect($log->time_in_face_path)->not->toBeNull()
         ->and($log->time_out_face_path)->not->toBeNull();
     Storage::disk('public')->assertExists($log->time_in_face_path);
     Storage::disk('public')->assertExists($log->time_out_face_path);
+
+    $studentUser = User::factory()->create([
+        'role' => 'student',
+        'email' => $fixture['student']->email,
+    ]);
+    $this->actingAs($studentUser)
+        ->get(route('student-parent.attendance'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('attendance.0.status', 'Late')
+            ->where('attendance.0.time_out_image_url', route('attendance.evidence', [
+                'attendanceLog' => $checkoutLog->id,
+                'moment' => 'time-out',
+            ])));
+    $this->get(route('attendance.evidence', ['attendanceLog' => $checkoutLog->id, 'moment' => 'time-out']))
+        ->assertOk();
 
     $this->assertDatabaseCount('attendances', 1);
     Carbon::setTestNow();
@@ -810,6 +1320,45 @@ test('face comparison mismatch has a distinct message from aws unavailability', 
         ->assertJsonPath('message', 'Face recognition failed to match.');
 
     $this->assertDatabaseCount('attendances', 0);
+});
+
+test('instructor attendance verification consumes an instructor-bound liveness token', function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+    $fixture = attendanceVerificationFixture();
+    $fixture['instructorUser']->update(['face_images' => ['instructor_faces/reference.jpg']]);
+    config()->set('services.aws_rekognition.liveness.enabled', true);
+
+    $livenessService = Mockery::mock(AwsFaceLivenessService::class);
+    $livenessService->shouldReceive('consumeReferenceImage')
+        ->once()
+        ->withArgs(fn ($request, $token, $purpose, $subjectKey, $subjectRole) => $request->user()->is($fixture['console'])
+            && $token === str_repeat('l', 64)
+            && $purpose === 'attendance_instructor'
+            && $subjectKey === (string) $fixture['instructorUser']->user_id
+            && $subjectRole === FaceLivenessPolicy::INSTRUCTOR_ROLE)
+        ->andReturn('data:image/jpeg;base64,'.base64_encode('live-reference'));
+    $this->app->instance(AwsFaceLivenessService::class, $livenessService);
+
+    $faceService = Mockery::mock(AwsFaceRecognitionService::class);
+    $faceService->shouldReceive('compareBase64WithStoredImage')
+        ->once()
+        ->andReturn([
+            'verified' => true,
+            'similarity' => 95.0,
+            'threshold' => 90.0,
+            'provider' => 'aws_rekognition',
+        ]);
+    $this->app->instance(AwsFaceRecognitionService::class, $faceService);
+
+    $this->actingAs($fixture['console'])
+        ->postJson(route('attendanceControlPanel.instructorFaceCheck'), [
+            'instructor_rfid' => $fixture['instructorUser']->rfid_tag,
+            'active_instructor_user_id' => $fixture['instructorUser']->user_id,
+            'reason' => 'attendance_session_start',
+            'liveness_token' => str_repeat('l', 64),
+        ])
+        ->assertOk()
+        ->assertJsonPath('verified', true);
 });
 
 test('camera failure needs instructor rfid only once for the active class session', function () {
@@ -910,7 +1459,7 @@ test('late threshold uses the configurable admin setting', function () {
     Carbon::setTestNow();
 });
 
-test('attendance evidence is visible only to authorized attendance viewers', function () {
+test('attendance evidence is visible only to authorized attendance viewers and its active room console', function () {
     Storage::fake('public');
     $fixture = attendanceVerificationFixture();
     Storage::disk('public')->put('attendance_face_captures/test/time-in.jpg', 'time-in-image');
@@ -929,6 +1478,13 @@ test('attendance evidence is visible only to authorized attendance viewers', fun
         'email' => $fixture['student']->email,
     ]);
     $unrelatedInstructor = User::factory()->create(['role' => 'instructor']);
+    RfidPanelSession::query()->create([
+        'panel_id' => 'attendance-console-test',
+        'room' => 'COMLAB-ATT',
+        'status' => 'attendance',
+        'opened_by_user_id' => $fixture['console']->user_id,
+        'is_listening' => true,
+    ]);
 
     $url = route('attendance.evidence', ['attendanceLog' => $logId, 'moment' => 'time-in']);
 
@@ -936,4 +1492,11 @@ test('attendance evidence is visible only to authorized attendance viewers', fun
     $this->actingAs($fixture['instructorUser'])->get($url)->assertOk();
     $this->actingAs($studentUser)->get($url)->assertOk();
     $this->actingAs($unrelatedInstructor)->get($url)->assertForbidden();
+    $this->actingAs($fixture['console'])
+        ->withSession(['panel.room' => 'COMLAB-ATT'])
+        ->get($url)
+        ->assertOk();
+    $this->withSession(['panel.room' => 'OTHER-ROOM'])
+        ->get($url)
+        ->assertForbidden();
 });

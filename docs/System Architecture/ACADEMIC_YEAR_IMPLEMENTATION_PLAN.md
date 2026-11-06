@@ -270,7 +270,7 @@ This permits `ICT 11-A` in multiple years but prevents duplicate `ICT 11-A` reco
 
 ### Step 3.4: Update the Sections page
 
-Update `resources/js/pages/Auth/Admin/Sections.vue` to:
+Update `resources/js/pages/Admin/Sections/SectionsPage.vue` to:
 
 - display and filter by academic year;
 - default to the active year;

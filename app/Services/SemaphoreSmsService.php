@@ -1,4 +1,5 @@
 <?php
+
 // FEATURE:emergency-alerts - konektadong model, service, route, o UI para sa feature na ito.
 
 namespace App\Services;
@@ -7,12 +8,15 @@ use App\Contracts\SmsProvider;
 use App\Models\EmergencyAlert;
 use App\Models\EmergencyHotline;
 use App\Models\Students;
+use App\Models\SystemSetting;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class SemaphoreSmsService implements SmsProvider
 {
+    public function __construct(private readonly ?array $credentials = null) {}
+
     // @function send: Ipinapadala ang semaphore sms sa Semaphore Sms flow.
     // @useIn send: SemaphoreSmsService::sendEmergencyAlert (app/Services/SemaphoreSmsService.php)
     public function send(string $recipient, string $message): array
@@ -21,7 +25,7 @@ class SemaphoreSmsService implements SmsProvider
             return ['sent' => false, 'reason' => 'disabled'];
         }
 
-        $apiKey = (string) config('services.semaphore.key', '');
+        $apiKey = ($this->credentials ?? SystemSetting::smsCredentials('semaphore'))['token'];
         if ($apiKey === '') {
             return ['sent' => false, 'reason' => 'missing_api_key'];
         }
@@ -36,7 +40,7 @@ class SemaphoreSmsService implements SmsProvider
             'number' => $number,
             'message' => mb_substr($message, 0, 1000),
         ];
-        $senderName = trim((string) config('services.semaphore.sender_name', ''));
+        $senderName = trim(($this->credentials ?? SystemSetting::smsCredentials('semaphore'))['sender_id']);
         if ($senderName !== '') {
             $payload['sendername'] = $senderName;
         }
@@ -52,7 +56,7 @@ class SemaphoreSmsService implements SmsProvider
             ];
         } catch (\Throwable $exception) {
             Log::warning('Semaphore SMS request errored.', [
-                'message' => $exception->getMessage(),
+                'exception' => $exception::class,
             ]);
 
             return ['sent' => false, 'reason' => 'request_failed'];
@@ -67,7 +71,7 @@ class SemaphoreSmsService implements SmsProvider
             return ['success' => false, 'message' => 'Semaphore is disabled by environment configuration.'];
         }
 
-        $apiKey = (string) config('services.semaphore.key', '');
+        $apiKey = ($this->credentials ?? SystemSetting::smsCredentials('semaphore'))['token'];
         if ($apiKey === '') {
             return ['success' => false, 'message' => 'Semaphore API key is not configured.'];
         }
