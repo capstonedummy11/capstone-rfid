@@ -3,13 +3,27 @@
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\Notification;
+use Inertia\Testing\AssertableInertia as Assert;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
 test('reset password link screen can be rendered', function () {
     $response = $this->get(route('password.request'));
 
-    $response->assertOk();
+    $response->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Shared/Auth/ForgotPassword/ForgotPasswordPage')
+            ->where('backUrl', route('landingPage'))
+            ->where('backLabel', 'Back to Student / Parent login'));
+});
+
+test('forgot password opened from secure login returns to secure login', function () {
+    $this->get(route('password.request', ['from' => 'staff']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Shared/Auth/ForgotPassword/ForgotPasswordPage')
+            ->where('backUrl', route('staff.login'))
+            ->where('backLabel', 'Back to Staff login'));
 });
 
 test('reset password link can be requested', function () {
@@ -32,7 +46,9 @@ test('reset password screen can be rendered', function () {
     Notification::assertSentTo($user, ResetPassword::class, function ($notification) {
         $response = $this->get(route('password.reset', $notification->token));
 
-        $response->assertOk();
+        $response->assertOk()
+            ->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page
+                ->component('Shared/Auth/ResetPassword/ResetPasswordPage'));
 
         return true;
     });
@@ -49,13 +65,13 @@ test('password can be reset with valid token', function () {
         $response = $this->post(route('password.update'), [
             'token' => $notification->token,
             'email' => $user->email,
-            'password' => 'password',
-            'password_confirmation' => 'password',
+            'password' => 'password1234',
+            'password_confirmation' => 'password1234',
         ]);
 
         $response
             ->assertSessionHasNoErrors()
-            ->assertRedirect(route('login'));
+            ->assertRedirect(route('staff.login'));
 
         return true;
     });

@@ -13,8 +13,13 @@
                         class="m-5"
                     />
                     <NavButton
-                        href="#about_us"
+                        :href="route('about')"
                         :label="'About Us'"
+                        class="m-5"
+                    />
+                    <NavButton
+                        :href="route('attendanceControlPanel.login')"
+                        :label="'Panel'"
                         class="m-5"
                     />
                     <NavButton
@@ -40,8 +45,14 @@
                     class="m-5"
                 />
                 <NavButton
-                    href="#about_us"
+                    :href="route('about')"
                     :label="'About Us'"
+                    class="m-5"
+                    @click="isMenuOpen = false"
+                />
+                <NavButton
+                    :href="route('attendanceControlPanel.login')"
+                    :label="'Attendance Panel'"
                     class="m-5"
                     @click="isMenuOpen = false"
                 />
@@ -70,6 +81,8 @@ import { useLogin } from '@/composables/useLogin';
 const isMenuOpen = ref(false);
 const { isLoginOpen } = useLogin();
 
+// @function handleLogin: Pinoproseso ang login sa Layout flow.
+// @useIn handleLogin: resources/js/layouts/Layout.vue template @click
 function handleLogin() {
     isMenuOpen.value = false;
     isLoginOpen.value = true;

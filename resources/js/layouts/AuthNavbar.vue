@@ -1,126 +1,390 @@
+<!-- FEATURE:user-management - konektadong model, service, route, o UI para sa feature na ito. -->
+<!-- FEATURE:academic-scheduling - konektadong model, service, route, o UI para sa feature na ito. -->
+<!-- FEATURE:device-management - konektadong model, service, route, o UI para sa feature na ito. -->
+<!-- FEATURE:system-settings - konektadong model, service, route, o UI para sa feature na ito. -->
+<!-- FEATURE:inventory-management - konektadong model, service, route, o UI para sa feature na ito. -->
+<!-- FEATURE:borrowing-management - konektadong model, service, route, o UI para sa feature na ito. -->
+<!-- FEATURE:admin-logs - konektadong model, service, route, o UI para sa feature na ito. -->
+<!-- FEATURE:clinic-records - konektadong model, service, route, o UI para sa feature na ito. -->
+<!-- FEATURE:clinic-reports - konektadong model, service, route, o UI para sa feature na ito. -->
+<!-- FEATURE:online-class-management - konektadong model, service, route, o UI para sa feature na ito. -->
+<!-- FEATURE:attendance-review - konektadong model, service, route, o UI para sa feature na ito. -->
+<!-- FEATURE:messenger - konektadong model, service, route, o UI para sa feature na ito. -->
+<!-- FEATURE:reports - konektadong model, service, route, o UI para sa feature na ito. -->
 <script setup>
-import Navlinks from '@/components/Auth/Navlinks.vue';
+import { router, usePage } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import {
+    Bell,
+    FileText,
+    MessageSquare,
+    MonitorCheck,
+    PhoneCall,
+    ScanFace,
+    Settings,
+    ShieldCheck,
+    UserRound,
+} from 'lucide-vue-next';
+import Swal from 'sweetalert2';
+import NavTab from '@/components/Auth/NavTab.vue';
 import ActivityLogs from '@/components/Icon/ActivityLogs.vue';
 import Attendance from '@/components/Icon/Attendance.vue';
-import Borrowing from '@/components/Icon/Borrowing.vue';
+// import Borrowing from '@/components/Icon/Borrowing.vue';
 import Dashboard from '@/components/Icon/Dashboard.vue';
 import Graduation from '@/components/Icon/Graduation.vue';
 import Instructor from '@/components/Icon/Instructor.vue';
-import Laboratory from '@/components/Icon/Laboratory.vue';
 import LogoutIcon from '@/components/Icon/LogoutIcon.vue';
+import { broadcastIdleLogout } from '@/lib/idleSession';
 import Reports from '@/components/Icon/Reports.vue';
-import RFID from '@/components/Icon/RFID.vue';
+// import RFID from '@/components/Icon/RFID.vue';
 import Schedule from '@/components/Icon/Schedule.vue';
 import Section from '@/components/Icon/Section.vue';
-import Trash from '@/components/Icon/Trash.vue';
+// import Inventory from '@/components/Icon/Inventory.vue';
 
-const links = [
+const isNavOpen = defineModel('isNavOpen', { default: true });
+const props = defineProps({
+    unreadMessageCount: { type: Number, default: 0 },
+});
+
+const page = usePage();
+const currentRole = computed(() =>
+    String(page.props.auth?.user?.role ?? '').toLowerCase(),
+);
+const featureSettings = computed(() => page.props.featureSettings ?? {});
+// @function canSee: Sinusuri kung see para sa Auth Navbar.
+// @useIn canSee: resources/js/layouts/AuthNavbar.vue:307
+const canSee = (roles) => roles.includes(currentRole.value);
+// @function isFeatureVisible: Sinusuri kung feature visible para sa Auth Navbar.
+// @useIn isFeatureVisible: resources/js/layouts/AuthNavbar.vue:307
+const isFeatureVisible = (featureKey) =>
+    !featureKey || Boolean(featureSettings.value?.[featureKey]);
+
+const sections = [
     {
-        icon: Dashboard,
-        text: 'Dashboard',
-        route: route('admin.dashboard'),
+        title: 'Dashboard',
+        links: [
+            {
+                icon: Dashboard,
+                text: 'Dashboard',
+                route: route('admin.dashboard'),
+                roles: ['admin', 'instructor'],
+            },
+            {
+                icon: Dashboard,
+                text: 'Clinic Dashboard',
+                route: route('clinic.dashboard'),
+                roles: ['clinic'],
+            },
+            {
+                icon: Dashboard,
+                text: 'Registrar Dashboard',
+                route: route('registrar.dashboard'),
+                roles: ['registrar'],
+            },
+            {
+                icon: Graduation,
+                text: 'Academic Years',
+                route: route('admin.academic-years.index'),
+                roles: ['admin'],
+            },
+            {
+                icon: Graduation,
+                text: 'Strands',
+                route: route('admin.strands.index'),
+                roles: ['admin'],
+            },
+            {
+                icon: Section,
+                text: 'Section',
+                route: route('admin.sections.index'),
+                roles: ['admin'],
+            },
+            {
+                icon: Instructor,
+                text: 'Instructor',
+                route: route('admin.instructors.index'),
+                roles: ['admin'],
+            },
+            {
+                icon: Graduation,
+                text: 'Subjects',
+                route: route('admin.subjects.index'),
+                roles: ['admin'],
+            },
+            {
+                icon: Instructor,
+                text: 'Students',
+                route: route('admin.students.index'),
+                roles: ['admin'],
+            },
+            {
+                icon: ShieldCheck,
+                text: 'User Management',
+                route: route('admin.users.index'),
+                roles: ['admin'],
+            },
+        ],
     },
     {
-        icon: Graduation,
-        text: 'School Year',
-        //route: route('admin.instructorsManagement'),
+        title: 'Management',
+        links: [
+            {
+                icon: Schedule,
+                text: 'Schedule',
+                route: route('admin.schedules.index'),
+                roles: ['admin', 'instructor'],
+            },
+            {
+                icon: Instructor,
+                text: 'Students',
+                route: route('admin.students.index'),
+                roles: ['instructor'],
+            },
+            {
+                icon: Attendance,
+                text: 'Attendance',
+                route: route('admin.attendance.logs'),
+                roles: ['admin', 'instructor'],
+            },
+            {
+                icon: MessageSquare,
+                text: 'Messages',
+                route: route('messages.index'),
+                roles: ['admin', 'instructor', 'clinic', 'registrar'],
+                feature: `messenger_${currentRole.value}_enabled`,
+            },
+            {
+                icon: MonitorCheck,
+                text: 'Online Classes',
+                route: route('admin.online-classes.index'),
+                roles: ['admin', 'instructor'],
+                feature: 'online_classes_enabled',
+            },
+        ],
     },
     {
-        icon: Laboratory,
-        text: 'Laboratories',
-        route: route('admin.laboratories'),
+        title: 'Student Portal',
+        links: [
+            {
+                icon: Dashboard,
+                text: 'My Dashboard',
+                route: route('student-parent.dashboard'),
+                roles: ['student', 'parent'],
+            },
+            {
+                icon: UserRound,
+                text: 'My Profile',
+                route: route('student-parent.profile.show'),
+                roles: ['student', 'parent'],
+            },
+            {
+                icon: Attendance,
+                text: 'My Attendance',
+                route: route('student-parent.attendance'),
+                roles: ['student', 'parent'],
+            },
+            {
+                icon: MonitorCheck,
+                text: 'Online Classes',
+                route: route('student-parent.online-classes.index'),
+                roles: ['student', 'parent'],
+            },
+            {
+                icon: FileText,
+                text: 'Excuse Letters',
+                route: route('student-parent.excuse-letters.index'),
+                roles: ['parent'],
+            },
+            {
+                icon: MessageSquare,
+                text: 'Messages',
+                route: route('messages.index'),
+                roles: ['student', 'parent'],
+                feature: `messenger_${currentRole.value}_enabled`,
+            },
+            {
+                icon: Bell,
+                text: 'Notifications',
+                route: route('student-parent.notifications.index'),
+                roles: ['student', 'parent'],
+            },
+        ],
     },
     {
-        icon: Schedule,
-        text: 'Schedule',
-    },
-    {
-        icon: Instructor,
-        text: 'Instructor',
-    },
-    {
-        icon: Section,
-        text: 'Section',
-    },
-    {
-        icon: Attendance,
-        text: 'Attendance',
-    },
-    {
-        icon: Borrowing,
-        text: 'Borrowing',
-    },
-    {
-        icon: Reports,
-        text: 'Reports',
-    },
-    {
-        icon: ActivityLogs,
-        text: 'Activity Logs',
-    },
-    {
-        icon: Trash,
-        text: 'Trash',
-    },
-    {
-        icon: RFID,
-        text: 'RFID Remarks',
+        title: 'System',
+        links: [
+            {
+                icon: UserRound,
+                text: 'My Profile',
+                route: route('profile.edit'),
+                roles: ['admin', 'instructor', 'clinic', 'registrar'],
+            },
+            /* Temporarily hide borrowing and inventory navigation.
+            {
+                icon: Borrowing,
+                text: 'Borrowing',
+                route: route('admin.borrow'),
+                roles: ['admin'],
+                feature: 'borrowing_enabled',
+            },
+            {
+                icon: Inventory,
+                text: 'Inventory',
+                route: route('admin.inventory'),
+                roles: ['admin'],
+                feature: 'inventory_enabled',
+            },
+            */
+            {
+                icon: Reports,
+                text: 'Reports',
+                route: route('reports.index'),
+                roles: ['admin', 'instructor', 'clinic', 'registrar'],
+            },
+            {
+                icon: ActivityLogs,
+                text: 'Activity Logs',
+                route: route('admin.activity-logs.index'),
+                roles: ['admin'],
+            },
+            {
+                icon: ActivityLogs,
+                text: 'Online Class Logs',
+                route: route('admin.online-class-logs.index'),
+                roles: ['admin'],
+                feature: 'online_classes_enabled',
+            },
+            {
+                icon: MonitorCheck,
+                text: 'Laboratories & Devices',
+                route: route('admin.active-devices.index'),
+                roles: ['admin'],
+            },
+            {
+                icon: ActivityLogs,
+                text: 'Case Logs',
+                route: route('clinic.case-logs'),
+                roles: ['clinic'],
+            },
+            {
+                icon: Instructor,
+                text: 'Patient History',
+                route: route('clinic.patient-history'),
+                roles: ['clinic'],
+            },
+            {
+                icon: PhoneCall,
+                text: 'Emergency Hotlines',
+                route: route('clinic.emergency-hotlines.index'),
+                roles: ['clinic'],
+            },
+            // RFID assignment is handled inside Student and Instructor
+            // Management, so the standalone admin navigation item is hidden.
+            // {
+            //     icon: RFID,
+            //     text: 'RFID',
+            //     route: route('admin.rfid'),
+            //     roles: ['admin'],
+            // },
+            {
+                icon: Settings,
+                text: 'Settings',
+                route: route('admin.settings.edit'),
+                roles: ['admin'],
+            },
+            {
+                icon: Graduation,
+                text: 'Student Biometric Enrollment',
+                route: route('registrar.biometric-enrollment'),
+                roles: ['registrar'],
+            },
+            {
+                icon: ScanFace,
+                text: 'Instructor Faces',
+                route: route('registrar.instructor-face-enrollment'),
+                roles: ['registrar'],
+            },
+        ],
     },
 ];
+
+const visibleSections = computed(() =>
+    sections
+        .map((section) => ({
+            ...section,
+            links: section.links.filter(
+                (link) => canSee(link.roles) && isFeatureVisible(link.feature),
+            ),
+        }))
+        .filter((section) => section.links.length > 0),
+);
+
+// @function confirmLogout: Kinukuha ang confirm logout result para sa Auth Navbar.
+// @useIn confirmLogout: resources/js/layouts/AuthNavbar.vue template @click
+const confirmLogout = async () => {
+    const result = await Swal.fire({
+        title: 'Log out?',
+        text: 'You will be returned to the landing page.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, log out',
+        cancelButtonText: 'Stay signed in',
+        confirmButtonColor: '#2563eb',
+        cancelButtonColor: '#64748b',
+    });
+
+    if (!result.isConfirmed) {
+        return;
+    }
+
+    router.post(
+        route('logout'),
+        {},
+        {
+            onSuccess: () => broadcastIdleLogout(),
+        },
+    );
+};
 </script>
 
 <template>
     <nav
-        class="flex w-[250px] flex-col justify-between bg-white text-default drop-shadow-xl"
+        class="flex h-screen shrink-0 flex-col bg-white text-default drop-shadow-xl"
+        :class="isNavOpen ? 'w-[250px]' : 'w-0'"
     >
-        <div class="flex flex-col">
-            <header class="p-4 text-nav-header">
-                <h1 class="text-[18px]">Dashboard</h1>
-            </header>
+        <div class="min-h-0 flex-1 overflow-y-auto">
+            <template v-for="section in visibleSections" :key="section.title">
+                <header class="flex justify-between p-4 text-nav-header">
+                    <h1 class="text-[18px]">{{ section.title }}</h1>
+                </header>
 
-            <div class="mb-5">
-                <Navlinks
-                    v-for="(item, index) in links.slice(0, 4)"
-                    :key="index"
-                    :icon="item.icon"
-                    :text="item.text"
-                    :route="item.route"
-                />
-            </div>
-
-            <header class="p-4 text-nav-header">
-                <h1 class="text-[18px]">Management</h1>
-            </header>
-
-            <div>
-                <Navlinks
-                    v-for="(item, index) in links.slice(4, 8)"
-                    :key="index"
-                    :icon="item.icon"
-                    :text="item.text"
-                    :route="item.route"
-                />
-            </div>
-
-            <header class="p-4 text-nav-header">
-                <h1 class="text-[18px]">System</h1>
-            </header>
-
-            <div>
-                <Navlinks
-                    v-for="(item, index) in links.slice(8)"
-                    :key="index"
-                    :icon="item.icon"
-                    :text="item.text"
-                    :route="item.route"
-                />
-            </div>
+                <div class="mb-5">
+                    <NavTab
+                        v-for="item in section.links"
+                        :key="item.text"
+                        :icon="item.icon"
+                        :text="isNavOpen ? item.text : ''"
+                        :route="item.route"
+                        :badge="
+                            item.text === 'Messages'
+                                ? props.unreadMessageCount
+                                : 0
+                        "
+                        @click="isNavOpen = false"
+                    />
+                </div>
+            </template>
         </div>
 
         <!-- Logout Button -->
-        <Link class="auth-nav-link group border-t-2">
+        <button
+            v-if="isNavOpen"
+            type="button"
+            @click="confirmLogout"
+            class="auth-nav-link group w-full shrink-0 cursor-pointer border-t-2 text-left"
+        >
             <LogoutIcon class="text-[#A3AED0] group-hover:text-brand" />
             <h1>Logout</h1>
-        </Link>
+        </button>
     </nav>
 </template>

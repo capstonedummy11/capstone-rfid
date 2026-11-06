@@ -5,17 +5,16 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
+  // @function up: Ginagawa o binabago ang database schema para sa migration na ito.
+  // @useIn up: Laravel migration runner
   public function up(): void
   {
-    Schema::create('inventory', function (Blueprint $table) {
-      $table->id('device_id');
-      $table->string('device_name');
-      $table->string('device_code')->unique();
-      $table->string('device_type');
-      $table->string('barcode')->unique();
-      $table->string('brand')->nullable();
-      $table->string('model')->nullable();
-      $table->text('description')->nullable();
+    Schema::create('items', function (Blueprint $table) {
+      $table->id('item_id');
+      $table->string('item_name');
+      $table->text('item_description')->nullable();
+      $table->string('item_sku')->nullable()->unique();
+      $table->string('item_barcode')->nullable()->unique();
       $table->enum('status', [
         'available',
         'borrowed',
@@ -27,8 +26,10 @@ return new class extends Migration {
     });
   }
 
+  // @function down: Ibinabalik ang schema changes ng migration na ito.
+  // @useIn down: Laravel migration runner
   public function down(): void
   {
-    Schema::dropIfExists('inventory');
+    Schema::dropIfExists('items');
   }
 };

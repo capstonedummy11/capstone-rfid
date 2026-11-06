@@ -5,6 +5,8 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
+  // @function up: Ginagawa o binabago ang database schema para sa migration na ito.
+  // @useIn up: Laravel migration runner
   public function up(): void
   {
     Schema::create('borrowing_items', function (Blueprint $table) {
@@ -12,20 +14,23 @@ return new class extends Migration {
       $table->foreignId('borrowing_id')
         ->constrained('borrowings', 'borrowing_id')
         ->cascadeOnDelete();
-      $table->foreignId('device_id')
-        ->constrained('inventory', 'device_id')
-        ->restrictOnDelete();
+      $table->unsignedBigInteger('item_id');
       $table->unsignedInteger('quantity')->default(1);
       $table->enum('status', [
         'borrowed',
+        'borrow',
         'returned',
         'damaged',
         'lost',
       ])->default('borrowed');
       $table->timestamps();
+
+      $table->index('item_id');
     });
   }
 
+  // @function down: Ibinabalik ang schema changes ng migration na ito.
+  // @useIn down: Laravel migration runner
   public function down(): void
   {
     Schema::dropIfExists('borrowing_items');

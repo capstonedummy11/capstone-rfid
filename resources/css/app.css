@@ -7,12 +7,29 @@
 
 @custom-variant dark (&:is(.dark *));
 
+:root {
+    /* Adjust this one token to change the default surface color across the app. */
+    --app-surface: #f8fafc;
+}
+
+@layer utilities {
+    .bg-white {
+        background-color: var(--app-surface);
+    }
+}
+
 @layer components {
     .text-secondary {
         color: '#0084C7';
     }
     .auth-nav-link {
         @apply flex items-center gap-5 p-4 hover:bg-black/20 hover:text-brand;
+    }
+    .student-portal-page {
+        @apply min-h-full bg-[#f4f6fb] text-slate-900;
+    }
+    .student-portal-shell {
+        @apply mx-auto w-full max-w-[1180px];
     }
 }
 
@@ -189,7 +206,7 @@
         @apply border-border outline-ring/50;
     }
     body {
-        @apply bg-background text-foreground;
+        @apply bg-background;
     }
     html {
         scroll-behavior: smooth;

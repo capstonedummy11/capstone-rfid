@@ -3,7 +3,7 @@
         <div
             class="absolute inset-0 flex h-full w-full items-center justify-center"
         >
-            <form class="m-10 w-full">
+            <form class="m-10 w-full" @submit.prevent="submit">
                 <div class="m-5">
                     <header class="py-5">
                         <h1
@@ -18,8 +18,16 @@
                             <input
                                 type="email"
                                 name="email"
+                                v-model="form.email"
                                 class="h-[50px] w-full rounded-[10px] border-2 p-2"
+                                :class="{ 'border-red-500': form.errors.email }"
                             />
+                            <p
+                                v-if="form.errors.email"
+                                class="text-sm text-red-600"
+                            >
+                                {{ form.errors.email }}
+                            </p>
                         </div>
                         <div class="my-5 flex flex-col">
                             <label for="password">Password:</label>
@@ -27,7 +35,11 @@
                                 <input
                                     :type="showPassword ? 'text' : 'password'"
                                     name="password"
+                                    v-model="form.password"
                                     class="h-[50px] w-full rounded-[10px] border-2 p-2 pr-10"
+                                    :class="{
+                                        'border-red-500': form.errors.password,
+                                    }"
                                 />
                                 <button
                                     type="button"
@@ -40,14 +52,23 @@
                                     <EyeOff v-else />
                                 </button>
                             </div>
+                            <p
+                                v-if="form.errors.password"
+                                class="mt-2 text-sm text-red-600"
+                            >
+                                {{ form.errors.password }}
+                            </p>
                             <Link class="m-0 p-0 text-brand">
                                 Forgot Password?
                             </Link>
                         </div>
 
                         <div class="space-y-5">
-                            <LoginButton text="Login" />
-                            <LoginButton text="Login as Admin" />
+                            <LoginButton
+                                :disabled="form.processing"
+                                text="Login"
+                            />
+                            <!-- <LoginButton :disabled="form.processing" text="Login as Admin" /> -->
                         </div>
                     </div>
                 </div>
@@ -57,8 +78,22 @@
 </template>
 <script setup>
 import { ref } from 'vue';
+import { useForm } from '@inertiajs/vue3';
 import EyeOn from '../Icon/EyeOn.vue';
 import EyeOff from '../Icon/EyeOff.vue';
 import LoginButton from '../Buttons/LoginButton.vue';
+
 const showPassword = ref(false);
+
+const form = useForm({
+    email: '',
+    password: '',
+    remember: false,
+});
+
+// @function submit: Isinusumite ang login sa Login flow.
+// @useIn submit: resources/js/components/Auth/Login.vue template
+const submit = () => {
+    form.post(route('student-parent.login.store'));
+};
 </script>

@@ -37,7 +37,7 @@
     </div>
 </template>
 <script setup>
-import ShowcaseImage from '@/assets/images/Background 2.png';
+import ShowcaseImage from '@/assets/images/rfid-reader.jpg';
 import ShowcaseItem from './ShowcaseItem.vue';
 import Eye from '../Icon/Eye.vue';
 import Cube from '../Icon/Cube.vue';

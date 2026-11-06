@@ -2,18 +2,27 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
+    // @function run: Pinapatakbo ang Database Seeder task.
+    // @useIn run: php artisan db:seed
     /**
      * Seed the application's database.
      */
     public function run(): void
     {
-        $this->call(UserSeeder::class);
-        $this->call(BorrowSeeder::class);
+        // Keep the default seed order stable while the wrapper seeders remain available for partial seeding.
+        $this->call([
+            UserSeeder::class,
+            AcademicYearSeeder::class,
+            EmergencySeeder::class,
+            ComlabUserSeeder::class,
+            DemoSystemSeeder::class,
+            StudentParentAccountSeeder::class,
+            ClinicDashboardSeeder::class,
+            MessageSeeder::class,
+        ]);
     }
 }

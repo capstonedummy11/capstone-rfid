@@ -1,0 +1,212 @@
+<?php
+
+use App\Models\User;
+use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Password;
+
+uses(RefreshDatabase::class);
+
+test('non console accounts can request a password reset link', function () {
+    Notification::fake();
+    $resetUrl = null;
+    $user = User::factory()->create([
+        'role' => 'instructor',
+        'email' => 'instructor-reset@example.test',
+    ]);
+
+    $this->post(route('password.email'), ['email' => $user->email])
+        ->assertSessionHas('status');
+
+    Notification::assertSentTo($user, ResetPassword::class, function (ResetPassword $notification) use ($user, &$resetUrl) {
+        $resetUrl = $notification->toMail($user)->actionUrl;
+
+        return str_starts_with($resetUrl, rtrim((string) config('app.url'), '/').'/reset-password/')
+            && str_contains($resetUrl, 'email='.urlencode($user->email));
+    });
+
+    expect($resetUrl)->not->toBeNull();
+    $this->get($resetUrl)->assertOk();
+});
+
+test('password reset and application website links use the configured app url', function () {
+    $appUrl = rtrim((string) config('app.url'), '/');
+
+    expect(route('messages.index'))->toStartWith($appUrl.'/')
+        ->and(route('clinic.case-logs'))->toStartWith($appUrl.'/')
+        ->and(route('student-parent.excuse-letters.index', ['student_id' => 123]))
+        ->toStartWith($appUrl.'/');
+});
+
+test('console accounts do not receive password reset links', function () {
+    Notification::fake();
+    $console = User::factory()->create([
+        'role' => 'console',
+        'email' => 'console-reset@example.test',
+    ]);
+
+    $this->post(route('password.email'), ['email' => $console->email])
+        ->assertSessionHas('status');
+
+    Notification::assertNothingSent();
+});
+
+test('new non console account must change temporary password before dashboard access', function () {
+    $user = User::factory()->create([
+        'role' => 'admin',
+        'must_change_password' => true,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('admin.dashboard'))
+        ->assertRedirect(route('password.first-login'));
+
+    $this->actingAs($user)
+        ->get(route('password.first-login'))
+        ->assertOk()
+        ->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page
+            ->component('Shared/Auth/FirstLoginPassword/FirstLoginPasswordPage'));
+});
+
+test('user can replace a temporary password and continue', function () {
+    $user = User::factory()->create([
+        'role' => 'student',
+        'password' => Hash::make('Temporary123!'),
+        'must_change_password' => true,
+    ]);
+
+    $this->actingAs($user)
+        ->put(route('password.first-login.update'), [
+            'password' => 'TwelveChars!',
+            'password_confirmation' => 'TwelveChars!',
+        ])
+        ->assertRedirect(route('dashboard'));
+
+    $user->refresh();
+    expect($user->must_change_password)->toBeFalse()
+        ->and(Hash::check('TwelveChars!', $user->password))->toBeTrue();
+});
+
+test('first login password rejects fewer than twelve characters with the specific message', function () {
+    $user = User::factory()->create([
+        'role' => 'student',
+        'must_change_password' => true,
+    ]);
+
+    $this->actingAs($user)
+        ->put(route('password.first-login.update'), [
+            'password' => 'ElevenChar!',
+            'password_confirmation' => 'ElevenChar!',
+        ])
+        ->assertSessionHasErrors([
+            'password' => 'Password must be at least 12 characters long.',
+        ]);
+});
+
+test('first login password returns a field error when the temporary password is reused', function () {
+    $user = User::factory()->create([
+        'role' => 'student',
+        'password' => Hash::make('Temporary123!'),
+        'must_change_password' => true,
+    ]);
+
+    $this->actingAs($user)
+        ->from(route('password.first-login'))
+        ->put(route('password.first-login.update'), [
+            'password' => 'Temporary123!',
+            'password_confirmation' => 'Temporary123!',
+        ])
+        ->assertRedirect(route('password.first-login'))
+        ->assertSessionHasErrors([
+            'password' => 'Choose a password different from your temporary password.',
+        ]);
+
+    $user->refresh();
+    expect($user->must_change_password)->toBeTrue()
+        ->and(Hash::check('Temporary123!', $user->password))->toBeTrue();
+});
+
+test('first login password page is not throttled while password updates keep a dedicated limiter', function () {
+    $user = User::factory()->create([
+        'role' => 'student',
+        'must_change_password' => true,
+    ]);
+
+    $this->actingAs($user);
+
+    foreach (range(1, 16) as $_) {
+        $this->get(route('password.first-login'))->assertOk();
+    }
+
+    $pageRoute = app('router')->getRoutes()->getByName('password.first-login');
+    $updateRoute = app('router')->getRoutes()->getByName('password.first-login.update');
+
+    expect($pageRoute->gatherMiddleware())
+        ->toContain('auth')
+        ->not->toContain('throttle:10,1')
+        ->and($updateRoute->gatherMiddleware())
+        ->toContain('throttle:first-login-password')
+        ->not->toContain('throttle:6,1');
+
+    foreach (range(1, 15) as $_) {
+        $this->put(route('password.first-login.update'), [
+            'password' => 'short',
+            'password_confirmation' => 'short',
+        ])->assertSessionHasErrors('password');
+    }
+
+    $this->put(route('password.first-login.update'), [
+        'password' => 'short',
+        'password_confirmation' => 'short',
+    ])->assertTooManyRequests();
+});
+
+test('console accounts are excluded from first login password change', function () {
+    $console = User::factory()->create([
+        'role' => 'console',
+        'must_change_password' => true,
+    ]);
+
+    $this->actingAs($console)
+        ->get(route('password.first-login'))
+        ->assertForbidden();
+});
+
+test('staff password reset returns to staff login and clears first login flag', function () {
+    $user = User::factory()->create([
+        'role' => 'clinic',
+        'email' => 'clinic-reset@example.test',
+        'must_change_password' => true,
+    ]);
+    $token = Password::broker()->createToken($user);
+
+    $this->post(route('password.update'), [
+        'token' => $token,
+        'email' => $user->email,
+        'password' => 'RecoveredPassword123!',
+        'password_confirmation' => 'RecoveredPassword123!',
+    ])->assertRedirect(route('staff.login'));
+
+    $user->refresh();
+    expect($user->must_change_password)->toBeFalse()
+        ->and(Hash::check('RecoveredPassword123!', $user->password))->toBeTrue();
+});
+
+test('forgotten password reset rejects fewer than twelve characters with the specific message', function () {
+    $user = User::factory()->create([
+        'role' => 'clinic',
+        'email' => 'clinic-short-password@example.test',
+    ]);
+    $token = Password::broker()->createToken($user);
+
+    $this->post(route('password.update'), [
+        'token' => $token,
+        'email' => $user->email,
+        'password' => 'ElevenChar!',
+        'password_confirmation' => 'ElevenChar!',
+    ])->assertSessionHasErrors([
+        'password' => 'Password must be at least 12 characters long.',
+    ]);
+});

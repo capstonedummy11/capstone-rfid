@@ -88,6 +88,10 @@ return [
 
     'prefix' => '',
 
+    'paths' => [
+        'login' => trim(env('SECURE_LOGIN_ROUTE', '/secure-route'), '/') ?: 'secure-route',
+    ],
+
     'domain' => null,
 
     /*

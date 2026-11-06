@@ -10,6 +10,8 @@ class TwoFactorAuthenticationRequest extends FormRequest
 {
     use InteractsWithTwoFactorState;
 
+    // @function authorize: Sinusuri ang authorize condition para sa Two Factor Authentication Request.
+    // @useIn authorize: Laravel FormRequest validation lifecycle
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -18,6 +20,8 @@ class TwoFactorAuthenticationRequest extends FormRequest
         return Features::enabled(Features::twoFactorAuthentication());
     }
 
+    // @function rules: Kinukuha ang rules result para sa Two Factor Authentication Request.
+    // @useIn rules: Laravel FormRequest validation lifecycle
     /**
      * Get the validation rules that apply to the request.
      *

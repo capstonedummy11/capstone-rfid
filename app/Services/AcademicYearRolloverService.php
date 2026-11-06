@@ -1,0 +1,449 @@
+<?php
+// FEATURE:academic-year-rollover - konektadong model, service, route, o UI para sa feature na ito.
+
+namespace App\Services;
+
+use App\Models\AcademicYear;
+use App\Models\AcademicYearRollover;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+
+class AcademicYearRolloverService
+{
+    // @function preview: Kinukuha ang preview result para sa Academic Year Rollover.
+    // @useIn preview: AcademicYearRolloverService::execute (app/Services/AcademicYearRolloverService.php)
+    public function preview(AcademicYear $source, AcademicYear $destination, string $mode = 'year', ?string $destinationSemester = null): array
+    {
+        $this->validateYears($source, $destination, $mode);
+        $allEnrollments = DB::table('student_enrollments')
+            ->leftJoin('students', 'students.student_id', '=', 'student_enrollments.student_id')
+            ->where('student_enrollments.academic_year_id', $source->academic_year_id)
+            ->select(
+                'student_enrollments.*',
+                'students.first_name',
+                'students.middle_name',
+                'students.last_name',
+            )
+            ->get();
+        $transition = $this->transition($source, $allEnrollments, $mode, $destinationSemester);
+        $enrollments = $allEnrollments->where('semester', $transition['current_semester'])->values();
+        $items = $enrollments->map(fn ($enrollment) => [
+            'student_id' => $enrollment->student_id,
+            'student_name' => trim(implode(' ', array_filter([
+                $enrollment->first_name,
+                $enrollment->middle_name,
+                $enrollment->last_name,
+            ]))),
+            'source_student_enrollment_id' => $enrollment->student_enrollment_id,
+            'source_section_id' => $enrollment->section_id,
+            'year_level' => $enrollment->year_level,
+            'current_status' => $enrollment->status,
+            'destination_year_level' => $transition['advance_grade']
+                ? ((int) $enrollment->year_level === 11 ? 12 : null)
+                : (int) $enrollment->year_level,
+            'recommended_decision' => match (true) {
+                in_array($enrollment->status, ['dropped', 'transferred', 'inactive'], true) => 'dropped',
+                $transition['advance_grade'] && (int) $enrollment->year_level === 12 => 'graduated',
+                ! $transition['advance_grade'] => 'retain',
+                (int) $enrollment->year_level === 11 => 'promote',
+                default => 'review',
+            },
+        ]);
+        $sourceSections = DB::table('sections')->whereNull('sections.deleted_at')->where('academic_year_id', $source->academic_year_id)
+            ->where('semester', $transition['current_semester'])
+            ->get(['section_id', 'section_name', 'year_level', 'semester'])
+            ->map(fn ($section) => [
+                'section_id' => $section->section_id,
+                'section_name' => $section->section_name,
+                'year_level' => $section->year_level,
+                'semester' => $section->semester,
+                'will_rollover' => true,
+            ])
+            ->values();
+        $sourceOfferings = DB::table('subject_offerings as offerings')
+            ->join('subjects', 'subjects.subject_id', '=', 'offerings.subject_id')
+            ->join('sections', 'sections.section_id', '=', 'offerings.section_id')
+            ->whereNull('subjects.deleted_at')
+            ->whereNull('sections.deleted_at')
+            ->where('offerings.academic_year_id', $source->academic_year_id)
+            ->where('offerings.semester', $transition['current_semester'])
+            ->where('offerings.status', 'active')
+            ->whereIn('offerings.section_id', $sourceSections->pluck('section_id'))
+            ->orderBy('sections.year_level')
+            ->orderBy('sections.section_name')
+            ->orderBy('subjects.subject_code')
+            ->get([
+                'offerings.subject_offering_id as source_subject_offering_id',
+                'offerings.section_id as source_section_id',
+                'subjects.subject_id',
+                'subjects.subject_code',
+                'subjects.subject_name',
+                'subjects.unit',
+                'sections.section_name as source_section_name',
+                'sections.year_level as source_year_level',
+                'offerings.semester',
+            ])
+            ->map(fn ($offering) => [
+                'source_subject_offering_id' => $offering->source_subject_offering_id,
+                'source_section_id' => $offering->source_section_id,
+                'subject_id' => $offering->subject_id,
+                'subject_code' => $offering->subject_code,
+                'subject_name' => $offering->subject_name,
+                'unit' => $offering->unit,
+                'source_section_name' => $offering->source_section_name,
+                'source_year_level' => $offering->source_year_level,
+                'semester' => $offering->semester,
+                'will_rollover' => true,
+            ])
+            ->values();
+
+        return [
+            'source' => ['id' => $source->academic_year_id, 'name' => $source->name, 'status' => $source->status],
+            'destination' => ['id' => $destination->academic_year_id, 'name' => $destination->name, 'status' => $destination->status],
+            'counts' => [
+                'sections' => $sourceSections->where('will_rollover', true)->count(),
+                'offerings' => $sourceOfferings->where('will_rollover', true)->count(),
+                'schedules' => 0,
+                'students' => $items->count(),
+                'promote' => $items->where('recommended_decision', 'promote')->count(),
+                'retain' => $items->where('recommended_decision', 'retain')->count(),
+                'archived' => $items->where('recommended_decision', 'graduated')->count(),
+                'dropped' => $items->where('recommended_decision', 'dropped')->count(),
+                'review' => $items->where('recommended_decision', 'review')->count(),
+            ],
+            'items' => $items->values(),
+            'source_sections' => $sourceSections,
+            'source_offerings' => $sourceOfferings,
+            'destination_sections' => DB::table('sections')->whereNull('sections.deleted_at')->where('academic_year_id', $destination->academic_year_id)
+                ->where('semester', $transition['destination_semester'])->get(['section_id', 'section_name', 'year_level', 'semester']),
+            'transition' => $transition,
+        ];
+    }
+
+    // @function execute: Isinasagawa ang academic year rollover sa Academic Year Rollover flow.
+    // @useIn execute: app/Http/Controllers/Admin/AcademicYears/AcademicYearController.php
+    public function execute(AcademicYear $source, AcademicYear $destination, User $actor, array $decisions, array $sectionMappings, string $mode = 'year', ?string $destinationSemester = null, ?array $subjectSelections = null): AcademicYearRollover
+    {
+        $preview = $this->preview($source, $destination, $mode, $destinationSemester);
+
+        return DB::transaction(function () use ($source, $destination, $actor, $decisions, $sectionMappings, $preview, $mode, $destinationSemester, $subjectSelections) {
+            $existing = AcademicYearRollover::query()->where('source_academic_year_id', $source->academic_year_id)
+                ->where('destination_academic_year_id', $destination->academic_year_id)->lockForUpdate()->first();
+            $rollover = $existing ?? AcademicYearRollover::create([
+                'source_academic_year_id' => $source->academic_year_id, 'destination_academic_year_id' => $destination->academic_year_id,
+                'executed_by_user_id' => $actor->user_id, 'mode' => $mode, 'status' => 'processing',
+                'preview_counts' => $preview['counts'], 'started_at' => now(),
+            ]);
+            if ($existing) {
+                $rollover->update([
+                    'executed_by_user_id' => $actor->user_id,
+                    'mode' => $mode,
+                    'status' => 'processing',
+                    'preview_counts' => $preview['counts'],
+                    'started_at' => now(),
+                ]);
+            }
+
+            $sectionMap = $this->resolveSections($source, $destination, $sectionMappings, $mode, $destinationSemester);
+            $promotionSectionMap = $this->resolvePromotionSections(
+                $source,
+                $destination,
+                $sectionMappings,
+                $sectionMap,
+                $preview['transition'],
+            );
+            $offeringMap = $this->copySubjectOfferings(
+                $source,
+                $destination,
+                $sectionMap,
+                $preview['transition'],
+                $subjectSelections,
+            );
+            $counts = ['enrolled' => 0, 'retained' => 0, 'archived' => 0, 'skipped' => 0, 'sections' => count($sectionMap), 'offerings' => count($offeringMap), 'schedules' => 0];
+
+            foreach ($preview['items'] as $previewItem) {
+                $choice = collect($decisions)->firstWhere('source_student_enrollment_id', $previewItem['source_student_enrollment_id']);
+                $decision = $choice['decision'] ?? $previewItem['recommended_decision'];
+                $destinationSectionId = null;
+                $destinationEnrollmentId = null;
+                $status = 'skipped';
+                $message = null;
+
+                if (in_array($decision, ['promote', 'retain'], true)) {
+                    $selectedSourceSectionId = $choice['destination_source_section_id'] ?? null;
+                    if ($selectedSourceSectionId !== null && ! array_key_exists((int) $selectedSourceSectionId, $sectionMap)) {
+                        throw ValidationException::withMessages([
+                            'decisions' => 'A student destination must reference a section selected for rollover.',
+                        ]);
+                    }
+                    $destinationSectionId = $selectedSourceSectionId !== null
+                        ? $sectionMap[(int) $selectedSourceSectionId]
+                        : ($choice['destination_section_id'] ?? (
+                            $decision === 'promote'
+                                ? ($promotionSectionMap[$previewItem['source_section_id']] ?? null)
+                                : ($sectionMap[$previewItem['source_section_id']] ?? null)
+                        ));
+                    if (! $destinationSectionId) {
+                        throw ValidationException::withMessages(['rollover' => "Destination section is required for student {$previewItem['student_id']}."]);
+                    }
+                    $section = DB::table('sections')->whereNull('sections.deleted_at')->where('section_id', $destinationSectionId)->where('academic_year_id', $destination->academic_year_id)->first();
+                    if (! $section) {
+                        throw ValidationException::withMessages(['rollover' => 'A selected destination section does not belong to the destination year.']);
+                    }
+                    $requiredYearLevel = $decision === 'promote' ? 12 : (int) $previewItem['year_level'];
+                    if ((int) $section->year_level !== $requiredYearLevel) {
+                        throw ValidationException::withMessages(['rollover' => "Student {$previewItem['student_id']} needs a Grade {$requiredYearLevel} destination section for the selected decision."]);
+                    }
+                    $destinationEnrollmentId = DB::table('student_enrollments')->where('student_id', $previewItem['student_id'])
+                        ->where('academic_year_id', $destination->academic_year_id)->where('semester', $preview['transition']['destination_semester'])->value('student_enrollment_id');
+                    if (! $destinationEnrollmentId) {
+                        $destinationEnrollmentId = DB::table('student_enrollments')->insertGetId([
+                            'student_id' => $previewItem['student_id'], 'academic_year_id' => $destination->academic_year_id,
+                            'section_id' => $section->section_id, 'strand_id' => $section->strand_id, 'year_level' => $section->year_level,
+                            'semester' => $preview['transition']['destination_semester'], 'status' => 'enrolled', 'enrolled_at' => $destination->starts_on,
+                            'created_at' => now(), 'updated_at' => now(),
+                        ]);
+                    }
+                    DB::table('students')->whereNull('students.deleted_at')->where('student_id', $previewItem['student_id'])->update([
+                        'section_id' => $section->section_id,
+                        'strand_id' => $section->strand_id,
+                        'year_level' => $section->year_level,
+                        'semester' => $preview['transition']['destination_semester'],
+                        'school_year' => $destination->name,
+                        'updated_at' => now(),
+                    ]);
+                    $status = 'completed';
+                    $counts['enrolled']++;
+                    if ($decision === 'retain') {
+                        $counts['retained']++;
+                    }
+                } elseif ($decision === 'graduated') {
+                    DB::table('students')->whereNull('students.deleted_at')->where('student_id', $previewItem['student_id'])->update(['status' => 'graduated', 'updated_at' => now()]);
+                    $status = 'completed';
+                    $counts['archived']++;
+                } else {
+                    $message = 'No destination enrollment created.';
+                    $counts['skipped']++;
+                }
+
+                DB::table('academic_year_rollover_items')->updateOrInsert(
+                    ['academic_year_rollover_id' => $rollover->academic_year_rollover_id, 'student_id' => $previewItem['student_id']],
+                    ['source_student_enrollment_id' => $previewItem['source_student_enrollment_id'], 'destination_student_enrollment_id' => $destinationEnrollmentId,
+                        'destination_section_id' => $destinationSectionId, 'decision' => $decision, 'status' => $status, 'message' => $message,
+                        'payload' => json_encode($choice ?: $previewItem), 'created_at' => now(), 'updated_at' => now()]
+                );
+            }
+
+            $rollover->update(['status' => 'completed', 'execution_counts' => $counts, 'completed_at' => now()]);
+            DB::table('activity_logs')->insert(['user_id' => $actor->user_id, 'action' => 'academic_year_rollover_completed', 'table_name' => 'academic_year_rollovers',
+                'description' => "Completed rollover from {$source->name} to {$destination->name}.", 'created_at' => now()]);
+
+            return $rollover->fresh('items');
+        });
+    }
+
+    // @function resolveSections: Hinahanap ang sections sa Academic Year Rollover flow.
+    // @useIn resolveSections: AcademicYearRolloverService::execute (app/Services/AcademicYearRolloverService.php)
+    private function resolveSections(AcademicYear $source, AcademicYear $destination, array $mappings, string $mode = 'year', ?string $destinationSemester = null): array
+    {
+        $map = [];
+        $transition = $this->transition($source, DB::table('student_enrollments')->where('academic_year_id', $source->academic_year_id)->get(), $mode, $destinationSemester);
+        foreach ($mappings as $mapping) {
+            if (! (bool) ($mapping['include'] ?? true)) {
+                continue;
+            }
+
+            $sourceSection = DB::table('sections')->whereNull('sections.deleted_at')->where('section_id', $mapping['source_section_id'])->where('academic_year_id', $source->academic_year_id)->first();
+            if (! $sourceSection) {
+                continue;
+            }
+            $destinationId = $mapping['destination_section_id'] ?? null;
+            $destinationYearLevel = (int) $sourceSection->year_level;
+            if (isset($mapping['destination_year_level']) && (int) $mapping['destination_year_level'] !== $destinationYearLevel) {
+                throw ValidationException::withMessages([
+                    'section_mappings' => 'A rolled-over section must keep its source grade level.',
+                ]);
+            }
+            if (! $destinationId && ! empty($mapping['destination_name'])) {
+                $destinationId = DB::table('sections')->whereNull('sections.deleted_at')->where('academic_year_id', $destination->academic_year_id)->where('section_name', $mapping['destination_name'])->where('semester', $transition['destination_semester'])->value('section_id');
+                $destinationId ??= DB::table('sections')->insertGetId([
+                    'academic_year_id' => $destination->academic_year_id, 'strand_id' => $sourceSection->strand_id,
+                    'section_name' => $mapping['destination_name'], 'year_level' => $destinationYearLevel,
+                    'semester' => $transition['destination_semester'], 'school_year' => $destination->name, 'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+                ]);
+            }
+            if ($destinationId) {
+                $destinationSection = DB::table('sections')->whereNull('sections.deleted_at')->where('section_id', $destinationId)->where('academic_year_id', $destination->academic_year_id)->first();
+                if (! $destinationSection || $destinationSection->semester !== $transition['destination_semester'] || (int) $destinationSection->year_level !== $destinationYearLevel) {
+                    throw ValidationException::withMessages(['rollover' => 'Every destination section must use the destination semester and selected grade level.']);
+                }
+                $map[$sourceSection->section_id] = (int) $destinationId;
+            }
+        }
+
+        return $map;
+    }
+
+    // @function resolvePromotionSections: Hinahanap ang promotion sections sa Academic Year Rollover flow.
+    // @useIn resolvePromotionSections: AcademicYearRolloverService::execute (app/Services/AcademicYearRolloverService.php)
+    private function resolvePromotionSections(AcademicYear $source, AcademicYear $destination, array $mappings, array $sectionMap, array $transition): array
+    {
+        if (! $transition['advance_grade']) {
+            return [];
+        }
+
+        $promotionMap = [];
+        $usedDestinationIds = [];
+        foreach ($mappings as $mapping) {
+            $sourceSection = DB::table('sections')
+                ->whereNull('sections.deleted_at')
+                ->where('section_id', $mapping['source_section_id'])
+                ->where('academic_year_id', $source->academic_year_id)
+                ->first();
+            if (! $sourceSection || (int) $sourceSection->year_level !== 11) {
+                continue;
+            }
+
+            $destinationId = null;
+            $destinationSourceSectionId = $mapping['promotion_destination_source_section_id'] ?? null;
+            if ($destinationSourceSectionId !== null) {
+                if (! array_key_exists((int) $destinationSourceSectionId, $sectionMap)) {
+                    throw ValidationException::withMessages([
+                        'section_mappings' => 'Each Grade 11 promotion destination must reference a Grade 12 Section selected for rollover.',
+                    ]);
+                }
+                $destinationId = $sectionMap[(int) $destinationSourceSectionId];
+            } elseif (! empty($mapping['promotion_destination_section_id'])) {
+                $destinationId = (int) $mapping['promotion_destination_section_id'];
+            } elseif (! empty($mapping['promotion_destination_name'])) {
+                $destinationName = trim($mapping['promotion_destination_name']);
+                $destinationId = DB::table('sections')
+                    ->whereNull('sections.deleted_at')
+                    ->where('academic_year_id', $destination->academic_year_id)
+                    ->where('section_name', $destinationName)
+                    ->where('semester', $transition['destination_semester'])
+                    ->value('section_id');
+                $destinationId ??= DB::table('sections')->insertGetId([
+                    'academic_year_id' => $destination->academic_year_id,
+                    'strand_id' => $sourceSection->strand_id,
+                    'section_name' => $destinationName,
+                    'year_level' => 12,
+                    'semester' => $transition['destination_semester'],
+                    'school_year' => $destination->name,
+                    'status' => 'active',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            if (! $destinationId) {
+                continue;
+            }
+            $destinationSection = DB::table('sections')
+                ->whereNull('sections.deleted_at')
+                ->where('section_id', $destinationId)
+                ->where('academic_year_id', $destination->academic_year_id)
+                ->first();
+            if (! $destinationSection || $destinationSection->semester !== $transition['destination_semester'] || (int) $destinationSection->year_level !== 12) {
+                throw ValidationException::withMessages([
+                    'section_mappings' => 'Every Grade 11 promotion destination must be a Grade 12 Section in the destination year and semester.',
+                ]);
+            }
+            if (in_array((int) $destinationId, $usedDestinationIds, true)) {
+                throw ValidationException::withMessages([
+                    'section_mappings' => 'Each Grade 11 section must use a different Grade 12 destination Section.',
+                ]);
+            }
+            $usedDestinationIds[] = (int) $destinationId;
+            $promotionMap[(int) $sourceSection->section_id] = (int) $destinationId;
+        }
+
+        return $promotionMap;
+    }
+
+    // @function copySubjectOfferings: Kinukuha ang copy subject offerings result para sa Academic Year Rollover.
+    // @useIn copySubjectOfferings: AcademicYearRolloverService::execute (app/Services/AcademicYearRolloverService.php)
+    private function copySubjectOfferings(AcademicYear $source, AcademicYear $destination, array $sectionMap, array $transition, ?array $subjectSelections): array
+    {
+        $offeringMap = [];
+        $sourceOfferings = DB::table('subject_offerings')
+            ->where('academic_year_id', $source->academic_year_id)
+            ->where('semester', $transition['current_semester'])
+            ->where('status', 'active')
+            ->get();
+        $includedOfferingIds = $subjectSelections === null
+            ? $sourceOfferings
+                ->whereIn('section_id', array_keys($sectionMap))
+                ->pluck('subject_offering_id')
+            : collect($subjectSelections)
+                ->filter(fn (array $selection) => (bool) ($selection['include'] ?? false))
+                ->pluck('source_subject_offering_id')
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values();
+        $unknownOfferingIds = $includedOfferingIds->diff($sourceOfferings->pluck('subject_offering_id')->map(fn ($id) => (int) $id));
+        if ($unknownOfferingIds->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'subject_selections' => 'Every selected subject offering must belong to the source academic year and semester.',
+            ]);
+        }
+
+        foreach ($sourceOfferings->whereIn('subject_offering_id', $includedOfferingIds) as $offering) {
+            if (! isset($sectionMap[$offering->section_id])) {
+                throw ValidationException::withMessages([
+                    'subject_selections' => 'Every selected subject offering requires a mapped destination section.',
+                ]);
+            }
+            $targetId = DB::table('subject_offerings')->where('academic_year_id', $destination->academic_year_id)->where('semester', $transition['destination_semester'])
+                ->where('section_id', $sectionMap[$offering->section_id])->where('subject_id', $offering->subject_id)->value('subject_offering_id');
+            $targetId ??= DB::table('subject_offerings')->insertGetId(['academic_year_id' => $destination->academic_year_id, 'subject_id' => $offering->subject_id,
+                'section_id' => $sectionMap[$offering->section_id], 'instructor_id' => null, 'semester' => $transition['destination_semester'], 'status' => 'active', 'created_at' => now(), 'updated_at' => now()]);
+            $offeringMap[$offering->subject_offering_id] = $targetId;
+        }
+
+        return $offeringMap;
+    }
+
+    // @function transition: Kinukuha ang transition result para sa Academic Year Rollover.
+    // @useIn transition: AcademicYearRolloverService::preview (app/Services/AcademicYearRolloverService.php)
+    private function transition(AcademicYear $source, $enrollments, string $mode = 'year', ?string $destinationSemester = null): array
+    {
+        $currentSemester = $source->active_semester ?: $enrollments->pluck('semester')->filter()->first() ?: '2nd Semester';
+        if ($mode === 'semester') {
+            if ($currentSemester !== '1st Semester' || $destinationSemester !== '2nd Semester') {
+                throw ValidationException::withMessages(['destination_semester' => 'Semester rollover is only available from 1st Semester to 2nd Semester.']);
+            }
+
+            return [
+                'current_semester' => $currentSemester,
+                'destination_semester' => $destinationSemester,
+                'advance_grade' => false,
+                'description' => "{$currentSemester} → {$destinationSemester}: students remain in the same grade and academic year.",
+            ];
+        }
+
+        return [
+            'current_semester' => $currentSemester,
+            'destination_semester' => $currentSemester,
+            'advance_grade' => true,
+            'description' => "Academic rollover recreates selected Sections and Subject Offerings in the destination academic year without changing their {$currentSemester} semester. Grade 11 advances to Grade 12, while Grade 12 is archived unless retained for failure or review.",
+        ];
+    }
+
+    // @function validateYears: Vinavalidate ang years sa Academic Year Rollover flow.
+    // @useIn validateYears: AcademicYearRolloverService::preview (app/Services/AcademicYearRolloverService.php)
+    private function validateYears(AcademicYear $source, AcademicYear $destination, string $mode = 'year'): void
+    {
+        if ($mode === 'semester') {
+            if (! $source->is($destination) || ! in_array($source->status, [AcademicYear::STATUS_ACTIVE, AcademicYear::STATUS_DRAFT], true)) {
+                throw ValidationException::withMessages(['rollover' => 'Semester rollover must use the same active or draft academic year.']);
+            }
+
+            return;
+        }
+        if ($source->is($destination) || $destination->status !== AcademicYear::STATUS_DRAFT || ! in_array($source->status, [AcademicYear::STATUS_ACTIVE, AcademicYear::STATUS_CLOSED], true)) {
+            throw ValidationException::withMessages(['rollover' => 'Rollover requires a different draft destination and an active or closed source year.']);
+        }
+    }
+}

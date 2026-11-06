@@ -57,6 +57,8 @@ watch(
     },
 );
 
+// @function toggleMenu: Tina-toggle ang menu sa Menu flow.
+// @useIn toggleMenu: resources/js/components/Buttons/Menu.vue template @click
 function toggleMenu() {
     isOpen.value = !isOpen.value;
     emit('toggle', isOpen.value);

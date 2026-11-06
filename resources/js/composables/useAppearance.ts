@@ -10,6 +10,8 @@ export type UseAppearanceReturn = {
     updateAppearance: (value: Appearance) => void;
 };
 
+// @function updateTheme: Ina-update ang theme sa use Appearance flow.
+// @useIn updateTheme: resources/js/composables/useAppearance.ts:70
 export function updateTheme(value: Appearance): void {
     if (typeof window === 'undefined') {
         return;
@@ -30,6 +32,8 @@ export function updateTheme(value: Appearance): void {
     }
 }
 
+// @function setCookie: Sine-set ang cookie sa use Appearance flow.
+// @useIn setCookie: resources/js/composables/useAppearance.ts:114
 const setCookie = (name: string, value: string, days = 365) => {
     if (typeof document === 'undefined') {
         return;
@@ -40,6 +44,8 @@ const setCookie = (name: string, value: string, days = 365) => {
     document.cookie = `${name}=${value};path=/;max-age=${maxAge};SameSite=Lax`;
 };
 
+// @function mediaQuery: Binubuo ang media query database query.
+// @useIn mediaQuery: resources/js/composables/useAppearance.ts:83
 const mediaQuery = () => {
     if (typeof window === 'undefined') {
         return null;
@@ -48,6 +54,8 @@ const mediaQuery = () => {
     return window.matchMedia('(prefers-color-scheme: dark)');
 };
 
+// @function getStoredAppearance: Kinukuha ang stored appearance sa use Appearance flow.
+// @useIn getStoredAppearance: resources/js/composables/useAppearance.ts:68
 const getStoredAppearance = () => {
     if (typeof window === 'undefined') {
         return null;
@@ -56,6 +64,8 @@ const getStoredAppearance = () => {
     return localStorage.getItem('appearance') as Appearance | null;
 };
 
+// @function prefersDark: Kinukuha ang prefers dark result para sa use Appearance.
+// @useIn prefersDark: resources/js/composables/useAppearance.ts:101
 const prefersDark = (): boolean => {
     if (typeof window === 'undefined') {
         return false;
@@ -64,12 +74,16 @@ const prefersDark = (): boolean => {
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
 };
 
+// @function handleSystemThemeChange: Pinoproseso ang system theme change sa use Appearance flow.
+// @useIn handleSystemThemeChange: resources/js/composables/useAppearance.ts:83
 const handleSystemThemeChange = () => {
     const currentAppearance = getStoredAppearance();
 
     updateTheme(currentAppearance || 'system');
 };
 
+// @function initializeTheme: Kinukuha ang initialize theme result para sa use Appearance.
+// @useIn initializeTheme: resources/js/app.js
 export function initializeTheme(): void {
     if (typeof window === 'undefined') {
         return;
@@ -85,6 +99,8 @@ export function initializeTheme(): void {
 
 const appearance = ref<Appearance>('system');
 
+// @function useAppearance: Kinukuha ang use appearance result para sa use Appearance.
+// @useIn useAppearance: resources/js/app.js
 export function useAppearance(): UseAppearanceReturn {
     onMounted(() => {
         const savedAppearance = localStorage.getItem(
@@ -104,6 +120,8 @@ export function useAppearance(): UseAppearanceReturn {
         return appearance.value;
     });
 
+    // @function updateAppearance: Ina-update ang appearance sa use Appearance flow.
+    // @useIn updateAppearance: resources/js/composables/useAppearance.ts:10
     function updateAppearance(value: Appearance) {
         appearance.value = value;
 

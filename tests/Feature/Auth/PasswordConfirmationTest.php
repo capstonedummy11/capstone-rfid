@@ -13,12 +13,12 @@ test('confirm password screen can be rendered', function () {
     $response->assertOk();
 
     $response->assertInertia(fn (Assert $page) => $page
-        ->component('auth/ConfirmPassword')
+        ->component('Shared/Auth/ConfirmPassword/ConfirmPasswordPage')
     );
 });
 
 test('password confirmation requires authentication', function () {
     $response = $this->get(route('password.confirm'));
 
-    $response->assertRedirect(route('login'));
+    $response->assertRedirect(route('landingPage'));
 });

@@ -26,3 +26,7 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+/AI_PRIVATE.md
+
+# local AI prompt, not for the repo
+AI_INSTRUCTIONS.md
