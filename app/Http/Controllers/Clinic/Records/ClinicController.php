@@ -421,7 +421,7 @@ class ClinicController
                 : (($metadata['emergency_scope'] ?? null) === 'all'
                     ? 'Everyone / Area-wide'
                     : ($case?->patient_name
-                    ?: ($student ? trim($student->first_name.' '.$student->last_name) : ($alert->triggered_by_name ?: 'Unknown Patient'))));
+                    ?: ($student ? trim($student->first_name.' '.$student->last_name) : 'Unidentified patient')));
             $severity = strtolower((string) $alert->severity);
             $status = strtolower((string) $alert->status);
             $category = match (true) {

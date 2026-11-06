@@ -101,6 +101,7 @@ const isListening = ref(true);
 const scanPulse = ref(false);
 const lastScanned = ref('');
 const activeProfessor = ref(null);
+const instructorTapCount = ref(0);
 const activeStudent = ref(null);
 const dismissClassMode = ref(false);
 const defaultTapHeadline = 'Tap RFID';
@@ -741,6 +742,7 @@ const startAttendanceSession = (professor) => {
     sessionActive.value = true;
     currentMode.value = 'attendance';
     activeProfessor.value = professor;
+    instructorTapCount.value = 1;
     activeStudent.value = null;
     dismissClassMode.value = false;
     attendanceRecords.value = [];
@@ -850,6 +852,7 @@ const endAttendanceSession = () => {
     lastAction.value =
         'Attendance session ended. Waiting for the next instructor RFID tap.';
     activeProfessor.value = null;
+    instructorTapCount.value = 0;
     activeStudent.value = null;
     dismissClassMode.value = false;
     attendanceRecords.value = [];
@@ -1822,34 +1825,6 @@ const performEmergencyCall = async (
             )
             .join('');
     };
-    // @function renderMatches: Nire-render ang matches sa Attendance Control Panel flow.
-    // @useIn renderMatches: resources/js/pages/AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage.vue:1620
-    const renderMatches = (query) => {
-        const normalized = String(query ?? '')
-            .trim()
-            .toLowerCase();
-        if (!normalized) return '';
-
-        return studentDirectory
-            .filter(
-                (student) =>
-                    !selectedStudents.has(String(student.id)) &&
-                    [student.name, student.student_number, student.rfid]
-                        .filter(Boolean)
-                        .some((value) =>
-                            String(value).toLowerCase().includes(normalized),
-                        ),
-            )
-            .slice(0, 8)
-            .map(
-                (
-                    student,
-                ) => `<button type="button" data-add-student="${student.id}" style="display:block; width:100%; border:0; border-bottom:1px solid #e2e8f0; background:white; padding:9px; text-align:left; cursor:pointer;">
-                    <strong>${escapeHtml(student.name)}</strong><br><span style="font-size:11px; color:#64748b;">${escapeHtml(student.student_number)} · ${escapeHtml(student.section || 'No section')} · RFID ${escapeHtml(student.rfid || 'not enrolled')}</span>
-                </button>`,
-            )
-            .join('');
-    };
     let assistanceResult = { isConfirmed: true };
     if (!isAreaWideType)
         assistanceResult = await Swal.fire({
@@ -1860,7 +1835,7 @@ const performEmergencyCall = async (
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px;">
                 <label style="display:flex; gap:8px; align-items:flex-start; padding:10px; border:1px solid #fecaca; border-radius:8px; cursor:pointer;">
                     <input type="radio" name="emergency-scope" value="people" checked />
-                    <span><strong>Specific person(s)</strong><br><small>Identify one or more students.</small></span>
+                    <span><strong>Specific person(s)</strong><br><small>Student RFID is optional.</small></span>
                 </label>
                 <label style="display:flex; gap:8px; align-items:flex-start; padding:10px; border:1px solid #fed7aa; border-radius:8px; cursor:pointer;">
                     <input type="radio" name="emergency-scope" value="all" />
@@ -1868,10 +1843,9 @@ const performEmergencyCall = async (
                 </label>
             </div>
             <div id="emergency-specific-people">
-                <label for="emergency-student-search" style="display:block; margin-bottom:6px; font-size:12px; font-weight:800; color:#334155;">Scan RFID or type a student name</label>
-                <input id="emergency-student-search" class="swal2-input" style="width:100%; margin:0;" autocomplete="off" placeholder="RFID, name, or student number" />
-                <div id="emergency-student-matches" style="max-height:180px; overflow:auto; border:1px solid #e2e8f0; border-top:0;"></div>
-                <div style="margin-top:12px; font-size:12px; font-weight:800; color:#334155;">Selected students (multiple allowed)</div>
+                <label for="emergency-student-search" style="display:block; margin-bottom:6px; font-size:12px; font-weight:800; color:#334155;">Optional student RFID</label>
+                <input id="emergency-student-search" class="swal2-input" style="width:100%; margin:0;" autocomplete="off" placeholder="Scan student RFID, then press Enter" />
+                <div style="margin-top:12px; font-size:12px; font-weight:800; color:#334155;">Scanned students (optional)</div>
                 <div id="emergency-selected-students" style="margin-top:5px; max-height:190px; overflow:auto; border:1px solid #e2e8f0; border-radius:8px;">${renderSelectedStudents()}</div>
             </div>
             <label for="emergency-symptoms" style="display:block; margin:12px 0 6px; font-size:12px; font-weight:800; color:#334155;">Symptoms or short notes</label>
@@ -1884,9 +1858,6 @@ const performEmergencyCall = async (
             didOpen: () => {
                 const search = document.getElementById(
                     'emergency-student-search',
-                );
-                const matches = document.getElementById(
-                    'emergency-student-matches',
                 );
                 const selected = document.getElementById(
                     'emergency-selected-students',
@@ -1909,10 +1880,8 @@ const performEmergencyCall = async (
                 // @function refresh: Pinoproseso ang refresh para sa Attendance Control Panel.
                 // @useIn refresh: resources/js/pages/AttendanceConsole/AttendanceControlPanel/AttendanceControlPanelPage.vue:1635
                 const refresh = () => {
-                    matches.innerHTML = renderMatches(search.value);
                     selected.innerHTML = renderSelectedStudents();
                 };
-                search.addEventListener('input', refresh);
                 search.addEventListener('keydown', (event) => {
                     if (event.key !== 'Enter') return;
                     event.preventDefault();
@@ -1925,19 +1894,9 @@ const performEmergencyCall = async (
                         selectedStudents.set(String(exact.id), exact);
                         search.value = '';
                         refresh();
+                    } else {
+                        Swal.showValidationMessage('Student RFID not found. You may still send the emergency without a student.');
                     }
-                });
-                matches.addEventListener('click', (event) => {
-                    const button = event.target.closest('[data-add-student]');
-                    if (!button) return;
-                    const student = studentDirectory.find(
-                        (item) => String(item.id) === button.dataset.addStudent,
-                    );
-                    if (student)
-                        selectedStudents.set(String(student.id), student);
-                    search.value = '';
-                    refresh();
-                    search.focus();
                 });
                 selected.addEventListener('click', (event) => {
                     const button = event.target.closest(
@@ -1950,19 +1909,19 @@ const performEmergencyCall = async (
                 search.focus();
             },
             preConfirm: () => {
+                const pendingRfid = document
+                    .getElementById('emergency-student-search')
+                    ?.value.trim().toLowerCase();
+                if (pendingRfid) {
+                    const scannedStudent = studentDirectory.find(
+                        (student) => String(student.rfid ?? '').toLowerCase() === pendingRfid,
+                    );
+                    if (scannedStudent) selectedStudents.set(String(scannedStudent.id), scannedStudent);
+                }
                 emergencyScope =
                     document.querySelector(
                         'input[name="emergency-scope"]:checked',
                     )?.value ?? 'people';
-                if (
-                    emergencyScope === 'people' &&
-                    selectedStudents.size === 0
-                ) {
-                    Swal.showValidationMessage(
-                        'Scan or select at least one student.',
-                    );
-                    return false;
-                }
                 if (emergencyScope === 'all') selectedStudents.clear();
                 symptoms = document
                     .getElementById('emergency-symptoms')
@@ -2062,7 +2021,7 @@ const performEmergencyCall = async (
             </div>
             ${
                 emergencyScope === 'people'
-                    ? `<div style="font-weight:800; margin-bottom:5px;">Students needing assistance</div><div style="max-height:220px; overflow:auto; border:1px solid #e2e8f0; border-radius:8px;">${renderSelectedStudents()}</div>`
+                    ? `<div style="font-weight:800; margin-bottom:5px;">Scanned students (optional)</div><div style="max-height:220px; overflow:auto; border:1px solid #e2e8f0; border-radius:8px;">${renderSelectedStudents()}</div>`
                     : '<div style="padding:12px; border-radius:8px; background:#fff7ed; color:#9a3412; font-weight:800; text-align:center;">Everyone / area-wide emergency — student details are not required.</div>'
             }
             <div id="emergency-countdown" style="margin-top:14px; padding:10px; border-radius:8px; background:#fef2f2; color:#b91c1c; text-align:center; font-weight:900;">Sending automatically in 5 seconds…</div>
@@ -2331,6 +2290,7 @@ const logoutPanel = async () => {
     sessionActive.value = false;
     currentMode.value = 'idle';
     activeProfessor.value = null;
+    instructorTapCount.value = 0;
     activeStudent.value = null;
     dismissClassMode.value = false;
     attendanceRecords.value = [];
@@ -2517,6 +2477,12 @@ const handleRfidScan = async (rfid) => {
             return;
         }
 
+        instructorTapCount.value += 1;
+        if (instructorTapCount.value >= 3) {
+            instructorTapCount.value = 1;
+            await triggerEmergencyCall();
+            return;
+        }
         await showInstructorOptions();
         return;
     }
