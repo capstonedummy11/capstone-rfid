@@ -2,6 +2,10 @@
 
 This folder contains the complete setup, configuration, build, run, deployment, scheduler, storage, and troubleshooting guide.
 
+For a presenter-ready Lightsail setup and AWS face activation walkthrough, see [Server Installation and Face Liveness](SERVER_INSTALLATION_AND_FACE_LIVENESS.md).
+
+For a free demonstration hostname, see [DuckDNS on Lightsail](DUCKDNS_LIGHTSAIL_TUTORIAL.md).
+
 ## Supported stack
 
 | Requirement | Project evidence | Recommendation |
@@ -116,7 +120,7 @@ The 2026-10-09 Instructor-sync migration makes upcoming online-class assignments
 | Variable | Purpose |
 | --- | --- |
 | `PANEL_PIN` | Configuration fallback; normal runtime global/device hashes are stored in System Settings/Panel Devices. |
-| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, `AWS_DEFAULT_REGION` | Backend-only AWS credentials and the region used for still-image comparison. Use a role or short-lived credentials outside local development; never expose these values to Vite/browser code. |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, `AWS_DEFAULT_REGION` | Backend-only AWS credentials and the region used for still-image comparison. Current face services require an explicit key and secret; use a dedicated limited IAM user or temporary credentials with a token. Never expose secrets to Vite/browser code. |
 | `AWS_REKOGNITION_SIMILARITY_THRESHOLD` | Match threshold; example is 90. |
 | `AWS_REKOGNITION_LIVENESS_ENABLED`, `AWS_REKOGNITION_LIVENESS_REGION`, `LIVENESS_MIN_CONFIDENCE_STUDENT`, `LIVENESS_MIN_CONFIDENCE_INSTRUCTOR` | Enables the video-selfie liveness gate, selects a supported region, and configures validated server-side Student/Instructor thresholds. Defaults are 60 and 70; invalid values outside 0–100 fall back to those defaults. |
 | `VITE_AWS_COGNITO_IDENTITY_POOL_ID` | Public Cognito Identity Pool identifier used only to obtain short-lived browser credentials for `StartFaceLivenessSession`. Its unauthenticated role must have no other application/AWS access. |
@@ -160,14 +164,14 @@ Face Liveness is a separate Rekognition workflow. The Laravel backend creates a 
 }
 ```
 
-5. Set the liveness variables in `.env`, run `php artisan config:clear`, rebuild with `npm run build`, and restart Vite/Laravel:
+5. Set the liveness variables in the server `.env`, then run `php artisan optimize:clear` and `php artisan config:cache`. In this checkout Laravel returns the configured pool ID with each liveness session, so changing only the pool ID does not require a frontend rebuild. For the full console walkthrough, see [Server Installation and Face Liveness](SERVER_INSTALLATION_AND_FACE_LIVENESS.md).
 
 ```dotenv
 AWS_REKOGNITION_LIVENESS_ENABLED=true
-AWS_REKOGNITION_LIVENESS_REGION=us-east-1
+AWS_REKOGNITION_LIVENESS_REGION=ap-northeast-1
 LIVENESS_MIN_CONFIDENCE_STUDENT=60
 LIVENESS_MIN_CONFIDENCE_INSTRUCTOR=70
-VITE_AWS_COGNITO_IDENTITY_POOL_ID=us-east-1:replace-with-your-pool-uuid
+VITE_AWS_COGNITO_IDENTITY_POOL_ID=ap-northeast-1:replace-with-your-pool-uuid
 ```
 
 Use HTTPS outside `localhost`, configure AWS billing alarms, review the default Rekognition quotas, and test false accepts/rejects before choosing production thresholds. Session IDs are single-use and expire quickly; the application binds them to the Laravel user/session, purpose, and subject, then consumes the resulting token once.

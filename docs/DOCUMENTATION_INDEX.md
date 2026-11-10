@@ -19,6 +19,7 @@
 | Tables, fields, and relationships | [Database Schema Reference](System%20Architecture/DATABASE_SCHEMA_REFERENCE.md) |
 | Every enforced and logical database connection | [Database Relationship Reference](System%20Architecture/DATABASE_RELATIONSHIPS.md) |
 | Install, configure, run, build, and deploy | [System Installation](System%20Installation/README.md) |
+| Demonstrate Lightsail installation and AWS face activation | [Server Installation and Face Liveness](System%20Installation/SERVER_INSTALLATION_AND_FACE_LIVENESS.md) |
 | Tests and release checks | [Testing](System%20Architecture/TESTING.md) |
 
 ## Folder map
