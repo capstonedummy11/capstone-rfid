@@ -4,6 +4,29 @@ import { Head, useForm } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import Swal from 'sweetalert2';
 import AuthLayout from '@/layouts/AuthLayout.vue';
+import RowSettingsMenu from '@/components/RowSettingsMenu.vue';
+import { Power, Archive, RotateCcw } from 'lucide-vue-next';
+
+const closedYearActions = [
+    { id: 'activate', label: 'Activate', icon: Power },
+    { id: 'archive', label: 'Archive', icon: Archive },
+    { id: 'reopen', label: 'Reopen', icon: RotateCcw, tone: 'amber' },
+];
+const selectYearAction = (action, year) => {
+    if (action === 'activate')
+        perform(
+            year,
+            'activate',
+            'The currently active year, if any, will be closed.',
+        );
+    if (action === 'archive')
+        perform(
+            year,
+            'archive',
+            'Archived years remain available for historical reference.',
+        );
+    if (action === 'reopen') reopen(year);
+};
 
 const props = defineProps({
     academicYears: { type: Array, default: () => [] },
@@ -1807,7 +1830,14 @@ watch(
                                     </span>
                                 </td>
                                 <td class="px-4 py-4">
+                                    <RowSettingsMenu
+                                        v-if="year.status === 'closed'"
+                                        :actions="closedYearActions"
+                                        :record-label="year.name"
+                                        @select="selectYearAction($event, year)"
+                                    />
                                     <div
+                                        v-else
                                         class="flex flex-wrap justify-end gap-2"
                                     >
                                         <button

@@ -160,4 +160,41 @@ test('online class created by admin is shown to an enrolled student', function (
             ->where('onlineClasses.0.instructor_name', 'Online Workflow Instructor')
             ->where('onlineClasses.0.can_join', true)
         );
+
+    $payload = [
+        'schedule_id' => $schedule->scheduled_id,
+        'title' => 'Updated Online Class',
+        'meeting_link' => 'https://example.test/updated',
+        'scheduled_date' => now()->addDays(8)->toDateString(),
+        'start_time' => '08:00',
+        'end_time' => '09:00',
+        'require_face_recognition' => false,
+    ];
+    $this->actingAs($admin)->from(route('admin.online-classes.index'))
+        ->post(route('admin.online-classes.store'), [...$payload, 'schedule_id' => ''])
+        ->assertRedirect(route('admin.online-classes.index'))
+        ->assertSessionHasErrors('schedule_id');
+
+    $schedule->update(['instructor_id' => null]);
+    $this->actingAs($admin)->from(route('admin.online-classes.index'))
+        ->post(route('admin.online-classes.store'), $payload)
+        ->assertRedirect(route('admin.online-classes.index'))
+        ->assertSessionHasErrors(['schedule_id' => 'Assign an instructor to the schedule before creating or updating an online class.']);
+    $schedule->update(['instructor_id' => $instructor->instructor_id]);
+
+    $this->actingAs($admin)->post(route('admin.online-classes.update', $onlineClass), [...$payload, '_method' => 'PUT'])
+        ->assertRedirect()->assertSessionHasNoErrors();
+    $this->assertDatabaseHas('online_classes', ['online_class_id' => $onlineClass->online_class_id, 'title' => 'Updated Online Class']);
+
+    $academicYear->update(['status' => AcademicYear::STATUS_CLOSED]);
+    $this->actingAs($admin)->from(route('admin.online-classes.index'))
+        ->delete(route('admin.online-classes.destroy', $onlineClass))
+        ->assertRedirect(route('admin.online-classes.index'))
+        ->assertSessionHasErrors('online_class');
+    $this->assertDatabaseHas('online_classes', ['online_class_id' => $onlineClass->online_class_id, 'deleted_at' => null]);
+
+    $academicYear->update(['status' => AcademicYear::STATUS_ACTIVE]);
+    $this->actingAs($admin)->delete(route('admin.online-classes.destroy', $onlineClass))
+        ->assertRedirect()->assertSessionHasNoErrors();
+    $this->assertSoftDeleted('online_classes', ['online_class_id' => $onlineClass->online_class_id]);
 });

@@ -1,9 +1,11 @@
 <!-- FEATURE:online-class-management - UI para sa online class management. -->
 <script setup>
-import { Link, router, useForm, usePage } from '@inertiajs/vue3';
+import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import Swal from 'sweetalert2';
 import SearchableSelect from '@/components/SearchableSelect.vue';
+import RowSettingsMenu from '@/components/RowSettingsMenu.vue';
+import { CalendarDays, Pencil, Ban, Trash2 } from 'lucide-vue-next';
 
 const props = defineProps({
     onlineClasses: { type: Array, default: () => [] },
@@ -53,6 +55,7 @@ const scheduleSearchOptions = computed(() =>
 const resetForm = () => {
     editing.value = null;
     form.reset();
+    form.clearErrors();
     form.require_face_recognition = props.defaultRequireFaceRecognition;
     form.attachments = [];
 };
@@ -60,6 +63,7 @@ const resetForm = () => {
 // @function editClass: Pinoproseso ang edit class para sa Online Classes.
 // @useIn editClass: resources/js/pages/Shared/OnlineClasses/OnlineClassesPage.vue template @click
 const editClass = (onlineClass) => {
+    form.clearErrors();
     editing.value = onlineClass;
     form.schedule_id = onlineClass.schedule_id;
     form.title = onlineClass.title;
@@ -92,17 +96,32 @@ const saveClass = () => {
     };
 
     if (editing.value) {
-        form.post(
+        form.transform((data) => ({ ...data, _method: 'put' })).post(
             route('admin.online-classes.update', editing.value.online_class_id),
-            {
-                ...options,
-                _method: 'put',
-            },
+            options,
         );
         return;
     }
 
+    form.transform((data) => data);
     form.post(route('admin.online-classes.store'), options);
+};
+
+const classActions = (onlineClass) => [
+    ...(onlineClass.attendance_url
+        ? [{ id: 'attendance', label: 'View attendance', icon: CalendarDays }]
+        : []),
+    { id: 'edit', label: 'Edit class', icon: Pencil },
+    { id: 'cancel', label: 'Cancel class', icon: Ban, tone: 'amber' },
+    { id: 'delete', label: 'Delete class', icon: Trash2, tone: 'rose' },
+];
+
+const selectClassAction = (action, onlineClass) => {
+    if (action === 'attendance' && onlineClass.attendance_url)
+        router.visit(onlineClass.attendance_url);
+    if (action === 'edit') editClass(onlineClass);
+    if (action === 'cancel') cancelClass(onlineClass);
+    if (action === 'delete') deleteClass(onlineClass);
 };
 
 // @function toggleFaceRequirement: Tina-toggle ang face requirement sa Online Classes flow.
@@ -124,7 +143,7 @@ const cancelClass = (onlineClass) => {
     router.put(
         route('admin.online-classes.cancel', onlineClass.online_class_id),
         {},
-        { preserveScroll: true },
+        { preserveScroll: true, onError: showActionError },
     );
 };
 
@@ -133,8 +152,16 @@ const cancelClass = (onlineClass) => {
 const deleteClass = (onlineClass) => {
     router.delete(
         route('admin.online-classes.destroy', onlineClass.online_class_id),
-        { preserveScroll: true },
+        { preserveScroll: true, onError: showActionError },
     );
+};
+
+const showActionError = (errors) => {
+    Swal.fire({
+        icon: 'error',
+        title: 'Unable to update online class',
+        text: Object.values(errors).flat().join(' '),
+    });
 };
 </script>
 
@@ -165,6 +192,15 @@ const deleteClass = (onlineClass) => {
                     class="mt-4 flex flex-col gap-3"
                     @submit.prevent="saveClass"
                 >
+                    <div
+                        v-if="Object.keys(form.errors).length"
+                        role="alert"
+                        class="rounded-md bg-red-50 p-3 text-sm text-red-700"
+                    >
+                        <p v-for="(error, field) in form.errors" :key="field">
+                            {{ error }}
+                        </p>
+                    </div>
                     <label class="text-sm font-semibold text-slate-700">
                         Class / Subject
                         <SearchableSelect
@@ -326,32 +362,17 @@ const deleteClass = (onlineClass) => {
                                 <td class="px-3 py-3">
                                     {{ onlineClass.status }}
                                 </td>
-                                <td class="space-x-2 px-3 py-3">
-                                    <Link
-                                        v-if="onlineClass.attendance_url"
-                                        :href="onlineClass.attendance_url"
-                                        class="inline-block rounded border border-violet-300 px-2 py-1 text-xs font-bold text-violet-700 hover:bg-violet-50"
-                                    >
-                                        View Attendance
-                                    </Link>
-                                    <button
-                                        class="rounded border border-slate-300 px-2 py-1 text-xs font-bold"
-                                        @click="editClass(onlineClass)"
-                                    >
-                                        Edit
-                                    </button>
-                                    <button
-                                        class="rounded border border-amber-300 px-2 py-1 text-xs font-bold text-amber-700"
-                                        @click="cancelClass(onlineClass)"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        class="rounded border border-red-300 px-2 py-1 text-xs font-bold text-red-700"
-                                        @click="deleteClass(onlineClass)"
-                                    >
-                                        Delete
-                                    </button>
+                                <td class="px-3 py-3">
+                                    <RowSettingsMenu
+                                        :actions="classActions(onlineClass)"
+                                        :record-label="onlineClass.title"
+                                        @select="
+                                            selectClassAction(
+                                                $event,
+                                                onlineClass,
+                                            )
+                                        "
+                                    />
                                 </td>
                             </tr>
                             <tr v-if="onlineClasses.length === 0">

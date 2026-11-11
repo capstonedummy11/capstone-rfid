@@ -36,7 +36,8 @@
                     tabindex="-1"
                     :aria-label="`${action.label} for ${recordLabel}`"
                     :title="action.label"
-                    class="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white shadow-md transition hover:scale-110 hover:border-indigo-300 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none"
+                    :disabled="action.disabled"
+                    class="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white shadow-md transition hover:scale-110 hover:border-indigo-300 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40"
                     :class="previewColor(action.tone)"
                     @click="select(action.id)"
                 >
@@ -58,7 +59,8 @@
                     type="button"
                     role="menuitem"
                     :data-testid="action.testId"
-                    class="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-medium hover:bg-slate-50 focus-visible:bg-slate-100 focus-visible:outline-none"
+                    :disabled="action.disabled"
+                    class="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-medium hover:bg-slate-50 focus-visible:bg-slate-100 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40"
                     :class="previewColor(action.tone)"
                     @click="select(action.id)"
                 >
@@ -80,6 +82,7 @@ interface RowAction {
     icon: Component;
     tone?: 'default' | 'amber' | 'sky' | 'emerald' | 'rose';
     testId?: string;
+    disabled?: boolean;
 }
 
 const props = defineProps<{
@@ -195,7 +198,9 @@ const onDocumentKeydown = (event: KeyboardEvent) => {
     if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
 
     const items = Array.from(
-        menu.value.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'),
+        menu.value.querySelectorAll<HTMLButtonElement>(
+            '[role="menuitem"]:not(:disabled)',
+        ),
     );
     const currentIndex = items.indexOf(
         document.activeElement as HTMLButtonElement,
@@ -232,7 +237,9 @@ const openMenu = async () => {
     window.addEventListener('scroll', onViewportChange, true);
     window.addEventListener('resize', onViewportChange);
     await nextTick();
-    menu.value?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+    menu.value
+        ?.querySelector<HTMLButtonElement>('[role="menuitem"]:not(:disabled)')
+        ?.focus();
 };
 
 const toggle = () => (open.value ? closeMenu() : openMenu());

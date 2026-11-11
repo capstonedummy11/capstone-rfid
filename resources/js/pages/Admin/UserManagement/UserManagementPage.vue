@@ -22,6 +22,24 @@ import {
     meetsPasswordRequirements,
 } from '@/lib/passwordPolicy';
 import RootOwnershipPanel from '@/pages/Admin/UserManagement/components/RootOwnershipPanel.vue';
+import RowSettingsMenu from '@/components/RowSettingsMenu.vue';
+
+const userActions = (user) => [
+    { id: 'password', label: 'Reset password', icon: KeyRound, tone: 'amber' },
+    { id: 'edit', label: 'Edit user', icon: Edit3, disabled: !user.can_update },
+    {
+        id: 'delete',
+        label: 'Delete user',
+        icon: Trash2,
+        tone: 'rose',
+        disabled: !user.can_delete,
+    },
+];
+const selectUserAction = (action, user) => {
+    if (action === 'password') openPasswordReset(user);
+    if (action === 'edit' && user.can_update) editUser(user);
+    if (action === 'delete' && user.can_delete) deleteUser(user);
+};
 
 const props = defineProps({
     users: { type: Array, default: () => [] },
@@ -760,7 +778,18 @@ const deleteUser = async (user) => {
                                         {{ user.created_at || 'Not set' }}
                                     </td>
                                     <td class="px-4 py-3">
-                                        <div class="flex justify-end gap-2">
+                                        <RowSettingsMenu
+                                            v-if="user.can_reset_password"
+                                            :actions="userActions(user)"
+                                            :record-label="user.email"
+                                            @select="
+                                                selectUserAction($event, user)
+                                            "
+                                        />
+                                        <div
+                                            v-else
+                                            class="flex justify-end gap-2"
+                                        >
                                             <div
                                                 v-if="user.can_reset_password"
                                                 class="group relative"

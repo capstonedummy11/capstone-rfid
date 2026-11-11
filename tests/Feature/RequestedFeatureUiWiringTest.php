@@ -178,9 +178,9 @@ test('instructor password reset uses application confirmation and success modals
 
     expect($instructors)
         ->toContain('Reset Instructor password?')
-        ->toContain('aria-label="Reset password"')
-        ->toContain('aria-label="Reset security questions"')
-        ->toContain('role="tooltip"')
+        ->toContain("label: 'Reset password'")
+        ->toContain("label: 'Reset security questions'")
+        ->toContain('<RowSettingsMenu')
         ->toContain('aria-modal="true"')
         ->toContain('confirmResetInstructorPassword')
         ->toContain('defaultInstructorPassword')

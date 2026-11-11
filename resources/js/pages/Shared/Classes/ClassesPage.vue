@@ -74,26 +74,13 @@
                                     {{ classItem.room }}
                                 </td>
                                 <td class="border border-gray-300 px-4 py-3">
-                                    <div class="flex space-x-2">
-                                        <button
-                                            @click="viewClassDetails(classItem)"
-                                            class="rounded bg-blue-500 px-3 py-1 text-sm text-white transition-colors hover:bg-blue-600"
-                                        >
-                                            View Details
-                                        </button>
-                                        <button
-                                            @click="editClass(classItem)"
-                                            class="rounded bg-yellow-500 px-3 py-1 text-sm text-white transition-colors hover:bg-yellow-600"
-                                        >
-                                            Edit
-                                        </button>
-                                        <button
-                                            @click="deleteClass(classItem)"
-                                            class="rounded bg-red-500 px-3 py-1 text-sm text-white transition-colors hover:bg-red-600"
-                                        >
-                                            Delete
-                                        </button>
-                                    </div>
+                                    <RowSettingsMenu
+                                        :actions="classActions"
+                                        :record-label="classItem.subject"
+                                        @select="
+                                            selectClassAction($event, classItem)
+                                        "
+                                    />
                                 </td>
                             </tr>
                         </tbody>
@@ -389,6 +376,19 @@
 <script setup>
 import { ref } from 'vue';
 import { confirmActionModal } from '@/lib/feedbackModal';
+import RowSettingsMenu from '@/components/RowSettingsMenu.vue';
+import { Eye, Pencil, Trash2 } from 'lucide-vue-next';
+
+const classActions = [
+    { id: 'view', label: 'View details', icon: Eye },
+    { id: 'edit', label: 'Edit', icon: Pencil },
+    { id: 'delete', label: 'Delete', icon: Trash2, tone: 'rose' },
+];
+const selectClassAction = (action, item) => {
+    if (action === 'view') viewClassDetails(item);
+    if (action === 'edit') editClass(item);
+    if (action === 'delete') deleteClass(item);
+};
 
 const showAddClassModal = ref(false);
 const showEditClassModal = ref(false);

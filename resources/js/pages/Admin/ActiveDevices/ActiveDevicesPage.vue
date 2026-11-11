@@ -3,6 +3,57 @@
 import { router, useForm } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
 import { computed, ref } from 'vue';
+import RowSettingsMenu from '@/components/RowSettingsMenu.vue';
+import { Pencil, Power, KeyRound, LogOut, Trash2 } from 'lucide-vue-next';
+
+const laboratoryActions = (laboratory) => [
+    { id: 'edit', label: 'Edit laboratory', icon: Pencil },
+    {
+        id: 'status',
+        label:
+            laboratory.status === 'active'
+                ? 'Disable laboratory'
+                : 'Activate laboratory',
+        icon: Power,
+    },
+    { id: 'delete', label: 'Delete laboratory', icon: Trash2, tone: 'rose' },
+];
+const deviceActions = (device) => [
+    { id: 'edit', label: 'Edit device', icon: Pencil },
+    {
+        id: 'status',
+        label: device.is_enabled ? 'Disable device' : 'Enable device',
+        icon: Power,
+    },
+    { id: 'pin', label: 'Change PIN', icon: KeyRound },
+    ...(device.can_force_logout
+        ? [
+              {
+                  id: 'logout',
+                  label: 'Log out panel',
+                  icon: LogOut,
+                  tone: 'amber',
+              },
+          ]
+        : []),
+    { id: 'delete', label: 'Delete device', icon: Trash2, tone: 'rose' },
+];
+const selectLaboratoryAction = (action, laboratory) => {
+    if (action === 'edit') editLaboratory(laboratory);
+    if (action === 'status')
+        setLaboratoryStatus(
+            laboratory,
+            laboratory.status === 'active' ? 'inactive' : 'active',
+        );
+    if (action === 'delete') deleteLaboratory(laboratory);
+};
+const selectDeviceAction = (action, device) => {
+    if (action === 'edit') editDevice(device);
+    if (action === 'status') toggleDevice(device);
+    if (action === 'pin') changePanelPin(device);
+    if (action === 'logout') forceLogout(device);
+    if (action === 'delete') deleteDevice(device);
+};
 
 const props = defineProps({
     devices: {
@@ -172,7 +223,9 @@ const saveLaboratory = () => {
                 toast: true,
                 position: 'top-end',
                 icon: 'success',
-                title: editingLabId.value ? 'Laboratory updated' : 'Laboratory saved',
+                title: editingLabId.value
+                    ? 'Laboratory updated'
+                    : 'Laboratory saved',
                 showConfirmButton: false,
                 timer: 1600,
                 timerProgressBar: true,
@@ -180,7 +233,10 @@ const saveLaboratory = () => {
         },
     };
     if (editingLabId.value) {
-        labForm.put(route('admin.laboratories.update', { id: editingLabId.value }), options);
+        labForm.put(
+            route('admin.laboratories.update', { id: editingLabId.value }),
+            options,
+        );
     } else {
         labForm.post(route('admin.laboratories.store'), options);
     }
@@ -216,7 +272,12 @@ const saveDevice = () => {
         },
     };
     if (editingDeviceId.value) {
-        deviceForm.put(route('admin.active-devices.update', { device: editingDeviceId.value }), options);
+        deviceForm.put(
+            route('admin.active-devices.update', {
+                device: editingDeviceId.value,
+            }),
+            options,
+        );
     } else {
         deviceForm.post(route('admin.active-devices.store'), options);
     }
@@ -236,12 +297,18 @@ const editDevice = (device) => {
 // @function toggleDevice: Tina-toggle ang device sa Active Devices flow.
 // @useIn toggleDevice: resources/js/pages/Admin/ActiveDevices/ActiveDevicesPage.vue template @click
 const toggleDevice = (device) => {
-    router.put(route('admin.active-devices.update', { device: device.panel_device_id }), {
-        laboratory_id: device.laboratory_id,
-        label: device.device_label,
-        description: device.description ?? '',
-        is_active: !device.is_enabled,
-    }, { preserveScroll: true });
+    router.put(
+        route('admin.active-devices.update', {
+            device: device.panel_device_id,
+        }),
+        {
+            laboratory_id: device.laboratory_id,
+            label: device.device_label,
+            description: device.description ?? '',
+            is_active: !device.is_enabled,
+        },
+        { preserveScroll: true },
+    );
 };
 
 // @function deleteDevice: Tinatanggal ang device sa Active Devices flow.
@@ -256,7 +323,12 @@ const deleteDevice = async (device) => {
         confirmButtonColor: '#dc2626',
     });
     if (!result.isConfirmed) return;
-    router.delete(route('admin.active-devices.destroy', { device: device.panel_device_id }), { preserveScroll: true });
+    router.delete(
+        route('admin.active-devices.destroy', {
+            device: device.panel_device_id,
+        }),
+        { preserveScroll: true },
+    );
 };
 
 // @function setLaboratoryStatus: Sine-set ang laboratory status sa Active Devices flow.
@@ -571,46 +643,20 @@ const changePanelPin = async (device) => {
                                             </span>
                                         </td>
                                         <td class="px-4 py-3 text-right">
-                                            <div class="flex justify-end gap-2">
-                                                <button
-                                                    type="button"
-                                                    class="rounded-md border border-blue-200 px-3 py-2 text-xs font-bold text-blue-700 transition hover:bg-blue-50"
-                                                    @click="editLaboratory(laboratory)"
-                                                >
-                                                    Edit
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    class="rounded-md border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50"
-                                                    @click="
-                                                        setLaboratoryStatus(
-                                                            laboratory,
-                                                            laboratory.status ===
-                                                                'active'
-                                                                ? 'inactive'
-                                                                : 'active',
-                                                        )
-                                                    "
-                                                >
-                                                    {{
-                                                        laboratory.status ===
-                                                        'active'
-                                                            ? 'Disable'
-                                                            : 'Activate'
-                                                    }}
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    class="rounded-md border border-red-200 px-3 py-2 text-xs font-bold text-red-600 transition hover:bg-red-50"
-                                                    @click="
-                                                        deleteLaboratory(
-                                                            laboratory,
-                                                        )
-                                                    "
-                                                >
-                                                    Delete
-                                                </button>
-                                            </div>
+                                            <RowSettingsMenu
+                                                :actions="
+                                                    laboratoryActions(
+                                                        laboratory,
+                                                    )
+                                                "
+                                                :record-label="laboratory.name"
+                                                @select="
+                                                    selectLaboratoryAction(
+                                                        $event,
+                                                        laboratory,
+                                                    )
+                                                "
+                                            />
                                         </td>
                                     </tr>
                                     <tr v-if="laboratories.length === 0">
@@ -631,7 +677,11 @@ const changePanelPin = async (device) => {
                         @submit.prevent="saveLaboratory"
                     >
                         <h3 class="text-sm font-black text-slate-900">
-                            {{ editingLabId ? 'Edit Laboratory' : 'Add Laboratory' }}
+                            {{
+                                editingLabId
+                                    ? 'Edit Laboratory'
+                                    : 'Add Laboratory'
+                            }}
                         </h3>
                         <label class="mt-4 block">
                             <span
@@ -753,44 +803,98 @@ const changePanelPin = async (device) => {
                         {{ editingDeviceId ? 'Edit Device' : 'Add Device' }}
                     </h3>
                     <p class="text-sm text-slate-500">
-                        Assign one managed device to each laboratory. Its PIN is used when opening that laboratory's attendance panel.
+                        Assign one managed device to each laboratory. Its PIN is
+                        used when opening that laboratory's attendance panel.
                     </p>
                 </div>
-                <form class="grid gap-4 md:grid-cols-2 xl:grid-cols-5" @submit.prevent="saveDevice">
+                <form
+                    class="grid gap-4 md:grid-cols-2 xl:grid-cols-5"
+                    @submit.prevent="saveDevice"
+                >
                     <label class="block">
-                        <span class="text-xs font-bold uppercase text-slate-500">Laboratory</span>
-                        <select v-model="deviceForm.laboratory_id" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+                        <span class="text-xs font-bold text-slate-500 uppercase"
+                            >Laboratory</span
+                        >
+                        <select
+                            v-model="deviceForm.laboratory_id"
+                            required
+                            class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                        >
                             <option value="">Select laboratory</option>
-                            <option v-for="laboratory in laboratories" :key="laboratory.laboratory_id" :value="String(laboratory.laboratory_id)">
+                            <option
+                                v-for="laboratory in laboratories"
+                                :key="laboratory.laboratory_id"
+                                :value="String(laboratory.laboratory_id)"
+                            >
                                 {{ laboratory.name }}
                             </option>
                         </select>
                     </label>
                     <label class="block">
-                        <span class="text-xs font-bold uppercase text-slate-500">Device label</span>
-                        <input v-model="deviceForm.label" required placeholder="LAB-1 Panel" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+                        <span class="text-xs font-bold text-slate-500 uppercase"
+                            >Device label</span
+                        >
+                        <input
+                            v-model="deviceForm.label"
+                            required
+                            placeholder="LAB-1 Panel"
+                            class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                        />
                     </label>
                     <label class="block">
-                        <span class="text-xs font-bold uppercase text-slate-500">Description</span>
-                        <input v-model="deviceForm.description" placeholder="Front desk terminal" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+                        <span class="text-xs font-bold text-slate-500 uppercase"
+                            >Description</span
+                        >
+                        <input
+                            v-model="deviceForm.description"
+                            placeholder="Front desk terminal"
+                            class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                        />
                     </label>
                     <label v-if="!editingDeviceId" class="block">
-                        <span class="text-xs font-bold uppercase text-slate-500">Initial PIN</span>
-                        <input v-model="deviceForm.pin" type="password" required minlength="4" placeholder="At least 4 characters" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+                        <span class="text-xs font-bold text-slate-500 uppercase"
+                            >Initial PIN</span
+                        >
+                        <input
+                            v-model="deviceForm.pin"
+                            type="password"
+                            required
+                            minlength="4"
+                            placeholder="At least 4 characters"
+                            class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                        />
                     </label>
-                    <label class="flex items-center gap-2 self-end rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold">
+                    <label
+                        class="flex items-center gap-2 self-end rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold"
+                    >
                         <input v-model="deviceForm.is_active" type="checkbox" />
                         Device enabled
                     </label>
-                    <div class="flex items-end gap-2 md:col-span-2 xl:col-span-5">
-                        <button type="submit" :disabled="deviceForm.processing" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-60">
-                            {{ editingDeviceId ? 'Update device' : 'Add device' }}
+                    <div
+                        class="flex items-end gap-2 md:col-span-2 xl:col-span-5"
+                    >
+                        <button
+                            type="submit"
+                            :disabled="deviceForm.processing"
+                            class="rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
+                        >
+                            {{
+                                editingDeviceId ? 'Update device' : 'Add device'
+                            }}
                         </button>
-                        <button v-if="editingDeviceId" type="button" class="rounded-md border border-slate-300 px-4 py-2 text-sm font-bold" @click="resetDeviceForm">
+                        <button
+                            v-if="editingDeviceId"
+                            type="button"
+                            class="rounded-md border border-slate-300 px-4 py-2 text-sm font-bold"
+                            @click="resetDeviceForm"
+                        >
                             Cancel
                         </button>
                     </div>
-                    <p v-if="Object.keys(deviceForm.errors).length" class="text-sm text-red-600 md:col-span-2 xl:col-span-5">
+                    <p
+                        v-if="Object.keys(deviceForm.errors).length"
+                        class="text-sm text-red-600 md:col-span-2 xl:col-span-5"
+                    >
                         {{ Object.values(deviceForm.errors)[0] }}
                     </p>
                 </form>
@@ -839,9 +943,12 @@ const changePanelPin = async (device) => {
                 class="rounded-md border border-amber-200 bg-amber-50 p-5 shadow-sm"
             >
                 <div class="mb-3">
-                    <h3 class="font-bold text-amber-900">Unassigned-panel fallback</h3>
+                    <h3 class="font-bold text-amber-900">
+                        Unassigned-panel fallback
+                    </h3>
                     <p class="text-sm text-amber-800">
-                        Used only when a laboratory has no managed device. Normally, change PINs from the device table below.
+                        Used only when a laboratory has no managed device.
+                        Normally, change PINs from the device table below.
                     </p>
                 </div>
                 <form
@@ -939,44 +1046,13 @@ const changePanelPin = async (device) => {
                                     {{ device.updated_at || 'Never' }}
                                 </td>
                                 <td class="px-4 py-3 text-right">
-                                    <div class="flex justify-end gap-2">
-                                        <button
-                                            type="button"
-                                            class="rounded-md border border-blue-200 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-50"
-                                            @click="editDevice(device)"
-                                        >
-                                            Edit
-                                        </button>
-                                        <button
-                                            type="button"
-                                            class="rounded-md border border-slate-300 px-3 py-2 text-xs font-bold"
-                                            @click="toggleDevice(device)"
-                                        >
-                                            {{ device.is_enabled ? 'Disable' : 'Enable' }}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            class="rounded-md border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50"
-                                            @click="changePanelPin(device)"
-                                        >
-                                            Change PIN
-                                        </button>
-                                        <button
-                                            type="button"
-                                            class="rounded-md border border-red-200 px-3 py-2 text-xs font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
-                                            :disabled="!device.can_force_logout"
-                                            @click="forceLogout(device)"
-                                        >
-                                            Log out panel
-                                        </button>
-                                        <button
-                                            type="button"
-                                            class="rounded-md border border-red-200 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50"
-                                            @click="deleteDevice(device)"
-                                        >
-                                            Delete
-                                        </button>
-                                    </div>
+                                    <RowSettingsMenu
+                                        :actions="deviceActions(device)"
+                                        :record-label="device.device_label"
+                                        @select="
+                                            selectDeviceAction($event, device)
+                                        "
+                                    />
                                 </td>
                             </tr>
                             <tr v-if="devices.length === 0">

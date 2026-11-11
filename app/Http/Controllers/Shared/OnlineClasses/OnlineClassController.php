@@ -28,6 +28,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 // Used by roles: Admin and Instructor for class management; Student and Parent for viewing and joining.
@@ -83,9 +84,8 @@ class OnlineClassController
     // @useIn store: routes/web.php:280 (online-classes.store)
     public function store(Request $request)
     {
-        $schedule = $this->authorizedSchedule($request, (int) $request->input('schedule_id'));
-
         $validated = $this->validatedClassData($request);
+        $schedule = $this->authorizedSchedule($request, (int) $validated['schedule_id']);
         $faceWarning = $this->faceRequirementWarning($validated);
         $validated = $this->normalizeFaceRequirement($validated);
         unset($validated['schedule_id'], $validated['attachments']);
@@ -112,9 +112,8 @@ class OnlineClassController
     {
         $this->authorizeManage($request, $onlineClass);
         $previous = $onlineClass->toArray();
-        $schedule = $this->authorizedSchedule($request, (int) $request->input('schedule_id'));
-
         $validated = $this->validatedClassData($request);
+        $schedule = $this->authorizedSchedule($request, (int) $validated['schedule_id']);
         $faceWarning = $this->faceRequirementWarning($validated);
         $validated = $this->normalizeFaceRequirement($validated);
         unset($validated['schedule_id'], $validated['attachments']);
@@ -403,10 +402,15 @@ class OnlineClassController
         if ($role === 'instructor') {
             abort_unless((int) $schedule->instructor_id === (int) $this->instructorId($request->user()->user_id), 403);
         }
-        abort_if(! $schedule->instructor_id, 422, 'Assign an instructor to the schedule before creating or updating an online class.');
-        abort_if($schedule->subjectOffering?->subject?->trashed(), 422, 'Archived subjects cannot be used for new online classes.');
-
-        abort_if($schedule->academicYear && ! $schedule->academicYear->isWritable(), 422, 'Online classes cannot be created for a closed or archived academic year.');
+        if (! $schedule->instructor_id) {
+            throw ValidationException::withMessages(['schedule_id' => 'Assign an instructor to the schedule before creating or updating an online class.']);
+        }
+        if ($schedule->subjectOffering?->subject?->trashed()) {
+            throw ValidationException::withMessages(['schedule_id' => 'Archived subjects cannot be used for new online classes.']);
+        }
+        if ($schedule->academicYear && ! $schedule->academicYear->isWritable()) {
+            throw ValidationException::withMessages(['schedule_id' => 'Online classes cannot be created for a closed or archived academic year.']);
+        }
 
         return $schedule;
     }
@@ -416,7 +420,9 @@ class OnlineClassController
     private function authorizeManage(Request $request, OnlineClass $onlineClass): void
     {
         $onlineClass->loadMissing('academicYear');
-        abort_if($onlineClass->academicYear && ! $onlineClass->academicYear->isWritable(), 422, 'Online classes in a closed or archived academic year are read-only.');
+        if ($onlineClass->academicYear && ! $onlineClass->academicYear->isWritable()) {
+            throw ValidationException::withMessages(['online_class' => 'Online classes in a closed or archived academic year are read-only.']);
+        }
         $role = strtolower(trim((string) $request->user()?->role));
         if ($role === 'admin') {
             return;

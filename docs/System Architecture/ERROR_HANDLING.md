@@ -13,6 +13,8 @@ This guide describes the current Laravel 12 web application. Requests use the `w
 
 For example, [first-login password setup](../../app/Http/Controllers/Shared/Auth/FirstLoginPassword/FirstLoginPasswordController.php) rejects reuse of the temporary password with `ValidationException::withMessages()`. A plain `abort(422)` for an Inertia form produced a generic error overlay instead of a field message. The [Subject Offering instructor assignment](../../app/Http/Controllers/Admin/Subjects/SubjectController.php) has a bounded `try/catch`: it reports unexpected failures, rolls back the transactional write, and returns an offering form error.
 
+Online Classes validates schedule input before resolving the schedule. An unassigned Instructor, archived subject, or read-only academic year is returned as a validation error; a read-only class also reports an actionable error for update, cancel, and delete. These checks continue to reject the operation.
+
 ## Where unexpected errors go
 
 The exception configuration in [bootstrap/app.php](../../bootstrap/app.php) adds the route name, HTTP method, and actor ID to Laravel exception reports. Laravel handles uncaught exceptions and chooses the response for the request. The logging destination comes from [config/logging.php](../../config/logging.php) and the environment's `LOG_CHANNEL` and `LOG_LEVEL` settings. In production, keep `APP_DEBUG=false`; see the [installation guide](../System%20Installation/README.md) for the server logging configuration.

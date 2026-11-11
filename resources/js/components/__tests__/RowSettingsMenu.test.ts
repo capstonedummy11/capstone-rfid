@@ -130,3 +130,27 @@ it('opens labeled actions, selects one, and closes with Escape', async () => {
 
     wrapper.unmount();
 });
+
+it('does not select a disabled action', async () => {
+    const wrapper = mount(RowSettingsMenu, {
+        attachTo: document.body,
+        props: {
+            recordLabel: 'Protected user',
+            actions: [
+                {
+                    id: 'delete',
+                    label: 'Delete user',
+                    icon: Trash2,
+                    disabled: true,
+                },
+            ],
+        },
+    });
+    await wrapper.get('button[aria-haspopup="menu"]').trigger('click');
+    const button =
+        document.querySelector<HTMLButtonElement>('[role="menuitem"]');
+    expect(button?.disabled).toBe(true);
+    button?.click();
+    expect(wrapper.emitted('select')).toBeUndefined();
+    wrapper.unmount();
+});

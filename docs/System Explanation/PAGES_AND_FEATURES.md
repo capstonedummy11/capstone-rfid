@@ -2,7 +2,7 @@
 
 This is the non-technical page catalog for the current application. Each row answers the same seven questions: purpose, access, displayed information, actions, result, automatic behavior, and conditions/restrictions. Routes are shown so operators and testers can identify the exact screen. A page marked **unwired** exists as a source file but has no current route and is not part of normal operation.
 
-Management pages use in-application warning, error, and confirmation modals instead of browser-native dialogs. Delete confirmations default keyboard focus to Cancel so destructive actions require a deliberate confirmation.
+Management pages use in-application warning, error, and confirmation modals instead of browser-native dialogs. Online Classes, Laboratories & Devices, User Management, closed Academic Years, and eligible Attendance review rows group three or more actions in the Settings menu. Rows with fewer actions keep their direct controls. Online Classes displays validation and business-rule errors rather than a generic error overlay for invalid schedules or read-only years. Delete confirmations default keyboard focus to Cancel so destructive actions require a deliberate confirmation.
 
 Settings switches keep their visually hidden checkbox inputs positioned inside their visible controls to avoid an extra outer scrollbar and focus-induced scrolling. Navigation to pages such as Settings and Students resets the content scroll position; browser back/forward navigation can restore it through Inertia's scroll-region handling. Long content and the sidebar remain scrollable when needed.
 
