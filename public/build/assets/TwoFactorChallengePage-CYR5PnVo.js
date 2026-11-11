@@ -1,0 +1,1 @@
+import{z as t,a as o,f as a,o as s}from"./app-aq9JqtDI.js";const c={},l={class:"mx-auto w-full max-w-md p-6"};function n(r,e){return s(),o("section",l,[...e[0]||(e[0]=[a("h1",{class:"text-xl font-semibold text-slate-900"}," Two-Factor Challenge ",-1)])])}const m=t(c,[["render",n]]);export{m as default};
